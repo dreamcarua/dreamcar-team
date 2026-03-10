@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar â ÐÑÐ³Ð°Ð½ÑÐ·Ð°ÑÑÐ¹Ð½Ð° ÑÑÑÑÐºÑÑÑÐ°</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Arial', sans-serif;
+    background: #0f0f1a;
+    color: #fff;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+
+  /* ââ Header ââ */
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #cc0000;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header p {
+    color: #999;
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  /* ââ Legend ââ */
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #ccc;
+  }
+  .legend-dot {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .dot-ok    { background: #1a7a4a; }
+  .dot-warn  { background: #b37a00; }
+  .dot-gap   { background: #8b1a1a; }
+  .dot-review { background: #5a3a80; }
+
+  /* ââ Tree layout ââ */
+  .tree {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Level wrapper */
+  .level {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Connector lines */
+  .connector-down {
+    width: 2px;
+    height: 32px;
+    background: #333;
+    margin: 0 auto;
+  }
+  .connector-row {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0;
+    width: 100%;
+    position: relative;
+  }
+
+  /* ââ Cards ââ */
+  .card {
+    border-radius: 10px;
+    padding: 16px 18px;
+    min-width: 190px;
+    max-width: 220px;
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    transition: transform 0.15s;
+  }
+  .card:hover { transform: translateY(-2px); }
+
+  /* Status colours */
+  .card-ok      { background: #0f2e1e; border-color: #1a7a4a; }
+  .card-warn    { background: #2a1f00; border-color: #cc8800; }
+  .card-gap     { background: #2a0a0a; border-color: #cc0000; border-style: dashed; }
+  .card-review  { background: #1a1030; border-color: #7a50cc; }
+  .card-founder { background: #1a0000; border-color: #cc0000; }
+
+  .card-status {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .status-ok     { background: #1a7a4a; color: #7fffc4; }
+  .status-warn   { background: #664400; color: #ffcc66; }
+  .status-gap    { background: #660000; color: #ff9999; }
+  .status-review { background: #3a1a7a; color: #cc99ff; }
+  .status-founder { background: #660000; color: #ff6666; }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .card-subtitle {
+    font-size: 10px;
+    color: #aaa;
+    font-style: italic;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  .card-person {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin-bottom: 6px;
+    display: inline-block;
+  }
+  .person-ok     { background: #0a3d20; color: #4ade80; }
+  .person-warn   { background: #3d2900; color: #fbbf24; }
+  .person-gap    { background: #3d0a0a; color: #f87171; border: 1px dashed #cc0000; }
+  .person-review { background: #200a4a; color: #c084fc; }
+
+  .card-functions {
+    margin-top: 8px;
+    list-style: none;
+  }
+  .card-functions li {
+    font-size: 10px;
+    color: #999;
+    padding: 1px 0;
+    padding-left: 10px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .card-functions li::before {
+    content: 'â¸';
+    position: absolute;
+    left: 0;
+    color: #555;
+    font-size: 8px;
+    top: 3px;
+  }
+
+  .card-note {
+    margin-top: 8px;
+    font-size: 10px;
+    color: #888;
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    padding: 5px 8px;
+    line-height: 1.4;
+    border-left: 2px solid #444;
+  }
+
+  /* ââ Founders row ââ */
+  .founders-row {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+  .card-founder .card-title { font-size: 15px; color: #ff6666; }
+
+  /* ââ H-connector between levels ââ */
+  .h-line-wrap {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    height: 40px;
+    position: relative;
+    margin: 0 auto;
+  }
+  .h-line-wrap svg {
+    width: 100%;
+    height: 40px;
+    overflow: visible;
+  }
+
+  /* ââ Functions grid ââ */
+  .functions-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+
+  /* ââ Gap summary ââ */
+  .gap-summary {
+    margin-top: 48px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .gap-summary h2 {
+    text-align: center;
+    font-size: 16px;
+    color: #cc0000;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+  }
+  .gap-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .gap-table th {
+    background: #1a0000;
+    color: #ff9999;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid #330000;
+  }
+  .gap-table td {
+    padding: 10px 14px;
+    font-size: 12px;
+    border-bottom: 1px solid #1e1e2e;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .gap-table tr:nth-child(odd) td { background: #13131f; }
+  .gap-table tr:nth-child(even) td { background: #0f0f1a; }
+  .priority-high   { color: #f87171; font-weight: 700; }
+  .priority-medium { color: #fbbf24; font-weight: 700; }
+  .priority-low    { color: #6ee7b7; font-weight: 700; }
+
+  /* ââ Next steps ââ */
+  .next-steps {
+    margin-top: 32px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    background: #0a1a2a;
+    border: 1px solid #1a3a5a;
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+  .next-steps h3 {
+    color: #60a5fa;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+  }
+  .next-steps ol {
+    padding-left: 20px;
+  }
+  .next-steps li {
+    color: #ccc;
+    font-size: 12px;
+    padding: 4px 0;
+    line-height: 1.6;
+  }
+  .next-steps li strong { color: #fff; }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #333, transparent);
+    margin: 40px 0;
+  }
+
+  @media (max-width: 700px) {
+    .functions-grid { flex-direction: column; align-items: center; }
+    .card { max-width: 340px; min-width: 280px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>DreamCar.ua â ÐÑÐ³Ð°Ð½ÑÐ·Ð°ÑÑÐ¹Ð½Ð° ÑÑÑÑÐºÑÑÑÐ°</h1>
+  <p>ÐÐ´ÐµÐ°Ð»ÑÐ½Ð° Ð¼Ð¾Ð´ÐµÐ»Ñ Ð·Ð° ÑÑÐ½ÐºÑÑÑÐ¼Ð¸ â Ð¿Ð¾ÑÐ¾ÑÐ½Ð¸Ð¹ ÑÑÐ°Ð½ â Ð³ÐµÐ¿Ð¸</p>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-ok"></div> ÐÐ°Ð¿Ð¾Ð²Ð½ÐµÐ½Ð¾, Ð¿ÑÐ°ÑÑÑ</div>
+  <div class="legend-item"><div class="legend-dot dot-warn"></div> Ð, Ð°Ð»Ðµ Ñ Ð¿ÑÐ¾Ð±Ð»ÐµÐ¼Ð¸</div>
+  <div class="legend-item"><div class="legend-dot dot-gap"></div> ÐÐ°ÐºÐ°Ð½ÑÐ½Ð¾ â Ð¿Ð¾ÑÑÑÐ±ÐµÐ½ Ð½Ð°Ð¹Ð¼</div>
+  <div class="legend-item"><div class="legend-dot dot-review"></div> ÐÐ¾ÑÑÐµÐ±ÑÑ Ð¿ÐµÑÐµÐ³Ð»ÑÐ´Ñ</div>
+</div>
+
+<!-- Level 1: Founders -->
+<div class="tree">
+  <div class="founders-row">
+
+    <div class="card card-founder" style="min-width:220px; max-width:260px;">
+      <div class="card-status status-founder">ÐÐ°ÑÐ½Ð¾Ð²Ð½Ð¸Ðº</div>
+      <div class="card-title">CEO / Ð¡ÑÑÐ°ÑÐµÐ³ÑÑ</div>
+      <div class="card-subtitle">ÐÐ¾Ð»Ð¾Ð²Ð½Ðµ â Ð²Ð¸Ð²ÐµÑÑÐ¸ ÑÐµÐ±Ðµ Ð· Ð¾Ð¿ÐµÑÐ°ÑÑÐ¹ÐºÐ¸</div>
+      <span class="card-person person-ok">ÐÐ°Ð´Ð¸Ð¼</span>
+      <ul class="card-functions">
+        <li>Ð¡ÑÑÐ°ÑÐµÐ³ÑÑ Ñ Ð¿ÑÑÐ¾ÑÐ¸ÑÐµÑÐ¸</li>
+        <li>ÐÐ»ÑÑÐ¾Ð²Ñ Ð¿Ð°ÑÑÐ½ÐµÑÑÑÐ²Ð°</li>
+        <li>Ð¤ÑÐ½Ð°Ð½ÑÐ¸ ÑÐ° ÑÑÐ¸Ð´Ð¸ÐºÐ°</li>
+        <li>IT-Ð°ÑÑÑÑÐµÐºÑÑÑÐ°</li>
+        <li>Ð¤ÑÐ½Ð°Ð»ÑÐ½Ñ ÑÑÑÐµÐ½Ð½Ñ</li>
+      </ul>
+      <div class="card-note">â ï¸ ÐÐ°ÑÐ°Ð· Ð²Ð¸ÐºÐ¾Ð½ÑÑ +4 Ð´Ð¾Ð´Ð°ÑÐºÐ¾Ð²Ñ ÑÑÐ½ÐºÑÑÑ ÑÐºÑ Ð¼Ð°ÑÑÑ Ð´ÐµÐ»ÐµÐ³ÑÐ²Ð°ÑÐ¸ÑÑ</div>
+    </div>
+
+    <div class="card card-founder" style="min-width:220px; max-width:260px;">
+      <div class="card-status status-founder">ÐÐ°ÑÐ½Ð¾Ð²Ð½Ð¸Ðº</div>
+      <div class="card-title">COO / ÐÐ¿ÐµÑÐ°ÑÑÑ</div>
+      <div class="card-subtitle">ÐÑÐ¾Ð´ÑÐºÑ, Ð°Ð²ÑÐ¾, Ð¿ÐµÑÐµÐ´Ð°ÑÐ° Ð¿ÑÐ¸Ð·ÑÐ²</div>
+      <span class="card-person person-warn">ÐÑÑÐµÐ¼</span>
+      <ul class="card-functions">
+        <li>ÐÑÐ¿ÑÐ²Ð»Ñ Ð°Ð²ÑÐ¾ ÑÐ° Ð¿ÑÐ¸Ð·ÑÐ²</li>
+        <li>ÐÑÐ³Ð°Ð½ÑÐ·Ð°ÑÑÑ Ð¿ÐµÑÐµÐ´Ð°ÑÑ</li>
+        <li>ÐÑÐ´ÐµÐ¾-Ð¿ÑÐ¾Ð´Ð°ÐºÑÐ½</li>
+        <li>ÐÐ¾ÐºÑÐ¼ÐµÐ½ÑÐ¸ Ñ Ð·Ð²ÑÑÐ½ÑÑÑÑ</li>
+      </ul>
+      <div class="card-note">â ï¸ ÐÐ¾ÑÑÑÐ±Ð½Ð° Ð¿ÑÐ´ÑÑÐ¸Ð¼ÐºÐ° Ð² Ð¿Ð»Ð°Ð½ÑÐ²Ð°Ð½Ð½Ñ ÐºÐ¾Ð½ÑÐµÐ½ÑÑ ÑÐ° Ð·Ð²ÑÑÐ½Ð¾ÑÑÑ</div>
+    </div>
+
+  </div>
+
+  <div class="connector-down"></div>
+
+  <!-- Level 2: Functions -->
+  <div class="functions-grid">
+
+    <!-- 1. Marketing Manager â GAP -->
+    <div class="card card-gap">
+      <div class="card-status status-gap">ð´ ÐÑÐ¸ÑÐ¸ÑÐ½Ð¸Ð¹ Ð³ÐµÐ¿</div>
+      <div class="card-title">Marketing Manager</div>
+      <div class="card-subtitle">Ð¡ÐµÑÑÐµ Ð¾Ð¿ÐµÑÐ°ÑÑÐ¹Ð½Ð¾Ð³Ð¾ Ð¼Ð°ÑÐºÐµÑÐ¸Ð½Ð³Ñ</div>
+      <span class="card-person person-gap">ÐÐÐÐÐÐ¢ÐÐ</span>
+      <ul class="card-functions">
+        <li>ÐÐ¾Ð½ÑÐµÐ½Ñ-ÑÑÑÐ°ÑÐµÐ³ÑÑ Ñ Ð¿Ð»Ð°Ð½</li>
+        <li>Ð¡ÑÐµÐ½Ð°ÑÑÑ Reels Ð´Ð»Ñ ÐÑÑÐµÐ¼Ð°</li>
+        <li>ÐÐ»Ð°Ð½ÑÐ²Ð°Ð½Ð½Ñ ÑÐ° ÐºÐµÐºÑÑÐ¸ Ð°ÐºÑÑÐ¹</li>
+        <li>ÐÐ¾Ð¾ÑÐ´Ð¸Ð½Ð°ÑÑÑ ÐÑÑÐ¸ (ÑÐµÑÐµÐ½ÑÐ½)</li>
+        <li>ÐÑÐ¸ÑÐ¸ Ð´Ð»Ñ ÑÐµÐºÐ»Ð°Ð¼Ð½Ð¸Ñ ÐºÐ°Ð¼Ð¿Ð°Ð½ÑÐ¹</li>
+        <li>ÐÐ²ÑÑ Ð¿Ð¾ ÐºÐ¾Ð¶Ð½Ð¾Ð¼Ñ Ð¿ÑÐ¾ÐµÐºÑÑ</li>
+      </ul>
+      <div class="card-note">ÐÐ°ÑÐ°Ð·: ÐÐ°Ð´Ð¸Ð¼ Ð²Ð¸ÐºÐ¾Ð½ÑÑ ~40% ÑÐ²Ð¾Ð³Ð¾ ÑÐ°ÑÑ</div>
+    </div>
+
+    <!-- 2. Content Production -->
+    <div class="card card-warn">
+      <div class="card-status status-warn">ð¡ Ð, Ð¿Ð¾ÑÑÐµÐ±ÑÑ Ð¿ÑÐ´ÑÑÐ¸Ð¼ÐºÐ¸</div>
+      <div class="card-title">ÐÐ¾Ð½ÑÐµÐ½Ñ-Ð¿ÑÐ¾Ð´Ð°ÐºÑÐ½</div>
+      <div class="card-subtitle">ÐÐ¹Ð¾Ð¼ÐºÐ°, Ð¼Ð¾Ð½ÑÐ°Ð¶, Ð¿ÑÐ±Ð»ÑÐºÐ°ÑÑÑ</div>
+      <span class="card-person person-warn">ÐÑÑÐµÐ¼</span>
+      <ul class="card-functions">
+        <li>ÐÑÐ´ÐµÐ¾ / Reels / Stories</li>
+        <li>Ð¤Ð¾ÑÐ¾ Ð°Ð²ÑÐ¾ ÑÐ° Ð¿ÑÐ¸Ð·ÑÐ²</li>
+        <li>ÐÐµÐ´ÐµÐ½Ð½Ñ Ð¿ÑÑÐ¼Ð¸Ñ ÐµÑÑÑÑÐ²</li>
+        <li>ÐÑÐ±Ð»ÑÐºÐ°ÑÑÑ Ñ ÑÐ¾ÑÐ¼ÐµÑÐµÐ¶Ð°Ñ</li>
+      </ul>
+      <div class="card-note">ÐÐ¾ÑÑÑÐ±Ð½Ñ: ÑÑÐµÐ½Ð°ÑÑÑ Ð²ÑÐ´ MM, Ð¼Ð¾Ð¶Ð»Ð¸Ð²Ð¾ Ð°ÑÐ¸ÑÑÐµÐ½Ñ Ð¼Ð¾Ð½ÑÐ°Ð¶Ñ</div>
+    </div>
+
+    <!-- 3. Performance Ads -->
+    <div class="card card-warn">
+      <div class="card-status status-warn">ð¡ Ð§Ð°ÑÑÐºÐ¾Ð²Ð¾ Ð·Ð°Ð¿Ð¾Ð²Ð½ÐµÐ½Ð¾</div>
+      <div class="card-title">Performance Ads</div>
+      <div class="card-subtitle">ÐÐ»Ð°ÑÐ½Ð° ÑÐµÐºÐ»Ð°Ð¼Ð° â Meta, TikTok</div>
+      <span class="card-person person-ok" style="margin-right:6px;">ÐÐ°Ð´Ð¸Ð¼</span>
+      <span class="card-person person-review">ÐÐ¾Ð²Ð°?</span>
+      <ul class="card-functions">
+        <li>Meta Ads (FB + IG)</li>
+        <li>TikTok Ads</li>
+        <li>ÐÐ¿ÑÐ¸Ð¼ÑÐ·Ð°ÑÑÑ, A/B ÑÐµÑÑÐ¸</li>
+        <li>ÐÐ²ÑÑÐ½ÑÑÑÑ Ð¿Ð¾ ÑÐµÐºÐ»Ð°Ð¼Ñ</li>
+      </ul>
+      <div class="card-note">ÐÐ±Ð¾ÑÐ¾Ñ â Ð¿ÑÐ´ Ð¿Ð¸ÑÐ°Ð½Ð½ÑÐ¼ (Ð²ÑÐ´Ð¼Ð¾Ð²Ð¸ÑÐ¸ÑÑ?). ÐÐ¾Ð²Ð° â TikTok Ð±ÐµÐ· ÑÑÑÐºÐ¾Ñ Ð·Ð°Ð´Ð°ÑÑ</div>
+    </div>
+
+    <!-- 4. Retention & CRM -->
+    <div class="card card-ok">
+      <div class="card-status status-ok">ð¢ ÐÐ°Ð¿Ð¾Ð²Ð½ÐµÐ½Ð¾</div>
+      <div class="card-title">Ð ÐµÑÐµÐ½ÑÐ½ ÑÐ° CRM</div>
+      <div class="card-subtitle">Email, Telegram, Viber, SMS</div>
+      <span class="card-person person-ok">ÐÑÑÐ°</span>
+      <ul class="card-functions">
+        <li>Email-ÑÐ¾Ð·ÑÐ¸Ð»ÐºÐ¸</li>
+        <li>Telegram ÑÐ°ÑÐ±Ð¾Ñ</li>
+        <li>Viber / SMS</li>
+        <li>ÐÐ°Ð·Ð° ÑÑÐ°ÑÐ½Ð¸ÐºÑÐ² (CRM)</li>
+      </ul>
+      <div class="card-note">â ÐÑÐ°ÑÑÑ. Ð¬Ð¾ÑÑÐµÐ±ÑÑ ÑÑÑÐºÐ¾Ð³Ð¾ ÐºÐ°Ð»ÐµÐ½Ð´Ð°ÑÑ Ð²ÑÐ´ MM</div>
+    </div>
+
+    <!-- 5. Tech & Dev -->
+    <div class="card card-ok">
+      <div class="card-status status-ok">ð¢ ÐÐ°Ð¿Ð¾Ð²Ð½ÐµÐ½Ð¾</div>
+      <div class="card-title">Ð¢ÐµÑÐ½Ð¾Ð»Ð¾Ð³ÑÑ</div>
+      <div class="card-subtitle">Ð¡Ð°Ð¹Ñ, API, Ð°Ð½Ð°Ð»ÑÑÐ¸ÐºÐ°</div>
+      <span class="card-person person-ok">ÐÐ»ÐµÐºÑÐ°Ð½Ð´Ñ</span>
+      <ul class="card-functions">
+        <li>Ð Ð¾Ð·ÑÐ¾Ð±ÐºÐ° ÑÐ°Ð¹ÑÑ</li>
+        <li>API ÑÐ° ÑÐ½ÑÐµÐ³ÑÐ°ÑÑÑ</li>
+        <li>Ð¡Ð¸ÑÑÐµÐ¼Ð° Ð²Ð¸Ð´Ð°ÑÑ Ð½Ð¾Ð¼ÐµÑÐºÑÐ²</li>
+        <li>Ð¡ÑÐ°ÑÐ¸ÑÑÐ¸ÐºÐ° ÑÐ° Ð´Ð°ÑÐ±Ð¾ÑÐ´Ð¸</li>
+      </ul>
+      <div class="card-note">â ÐÐ°Ð´Ð°ÑÑ Ð²ÑÐ´ ÐÐ°Ð´Ð¸Ð¼Ð° Ð²Ð¸ÐºÐ¾Ð½ÑÑ. ÐÐ¾ÑÑÑÐ±ÐµÐ½ Ð´Ð°ÑÐ±Ð¾ÑÐ´ Ð°Ð²ÑÐ¾Ð·Ð²ÑÑ</div>
+    </div>
+
+    <!-- 6. Finance & Legal -->
+    <div class="card card-warn">
+      <div class="card-status status-warn">ð¡ Ð¢Ð¸Ð¼ÑÐ°ÑÐ¾Ð²Ð¾ OK</div>
+      <div class="card-title">Ð¤ÑÐ½Ð°Ð½ÑÐ¸ ÑÐ° ÑÑÐ¸Ð´Ð¸ÐºÐ°</div>
+      <div class="card-subtitle">ÐÐ±Ð»ÑÐº, Ð·Ð²ÑÑÐ¸, Ð¾ÑÐ¾ÑÐ¼Ð»ÐµÐ½Ð½Ñ</div>
+      <span class="card-person person-warn">ÐÐ°Ð´Ð¸Ð¼</span>
+      <ul class="card-functions">
+        <li>Ð¤ÑÐ½Ð°Ð½ÑÐ¾Ð²Ð° Ð·Ð²ÑÑÐ½ÑÑÑÑ</li>
+        <li>Ð®ÑÐ¸Ð´Ð¸ÑÐ½Ðµ Ð¾ÑÐ¾ÑÐ¼Ð»ÐµÐ½Ð½Ñ Ð°Ð²ÑÐ¾</li>
+        <li>ÐÐ¾Ð³Ð¾Ð²Ð¾ÑÐ¸ Ð· Ð¿ÐµÑÐµÐ¼Ð¾Ð¶ÑÑÐ¼Ð¸</li>
+        <li>ÐÐ¾Ð´Ð°ÑÐºÐ¸, Ð¤ÐÐ</li>
+      </ul>
+      <div class="card-note">ÐÑÐ¸ Ð¼Ð°ÑÑÑÐ°Ð±Ñ 2+ Ð¿ÑÐ¾ÐµÐºÑÐ¸/Ð¼ÑÑ â Ð¿Ð¾ÑÑÑÐ±ÐµÐ½ Ð±ÑÑÐ³Ð°Ð»ÑÐµÑ/ÑÑÐ¸ÑÑ</div>
+    </div>
+
+    <!-- 7. Growth (optional) -->
+    <div class="card card-review">
+      <div class="card-status status-review">ð£ ÐÐ¾ÑÑÐµÐ±ÑÑ Ð²Ð¸Ð·Ð½Ð°ÑÐµÐ½Ð½Ñ</div>
+      <div class="card-title">Growth / ÐÐ¾Ð²Ñ ÐºÐ°Ð½Ð°Ð»Ð¸</div>
+      <div class="card-subtitle">TikTok, Ð±Ð»Ð¾Ð³ÐµÑÐ¸, Ð¿Ð°ÑÑÐ½ÐµÑÑÑÐ²Ð°</div>
+      <span class="card-person person-review">ÐÐ¾Ð²Ð°</span>
+      <ul class="card-functions">
+        <li>TikTok Ð¾ÑÐ³Ð°Ð½ÑÐºÐ° ÑÐ° ÑÐµÐºÐ»Ð°Ð¼Ð°</li>
+        <li>ÐÐ¾ÑÑÐº ÑÐ° ÑÐ¾Ð±Ð¾ÑÐ° Ð· Ð±Ð»Ð¾Ð³ÐµÑÐ°Ð¼Ð¸</li>
+        <li>ÐÐ¾Ð²Ñ ÐºÐ°Ð½Ð°Ð»Ð¸ Ð·Ð°Ð»ÑÑÐµÐ½Ð½Ñ</li>
+        <li>ÐÐ°ÑÑÐ½ÐµÑÑÑÐºÑ Ð¿ÑÐ¾ÐµÐºÑÐ¸</li>
+      </ul>
+      <div class="card-note">ÐÐ¾ÑÑÑÐ±Ð½Ðµ: ÑÑÑÐºÐµ Ð¢Ð + KPI + Ð¿ÑÐ¾Ð±Ð½Ð¸Ð¹ ÑÐ¿ÑÐ¸Ð½Ñ 1 Ð¿ÑÐ¾ÐµÐºÑ</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Divider -->
+<div class="divider"></div>
+
+<!-- Gap summary table -->
+<div class="gap-summary">
+  <h2>ÐÐ½Ð°Ð»ÑÐ· Ð³ÐµÐ¿ÑÐ² â Ð¿ÑÑÐ¾ÑÐ¸ÑÐµÑ Ð½Ð°Ð¹Ð¼Ñ</h2>
+  <table class="gap-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Ð¤ÑÐ½ÐºÑÑÑ / Ð Ð¾Ð»Õ</th>
+        <th>ÐÐ¾ÑÐ¾ÑÐ½Ð¸Ð¹ ÑÑÐ°Ð½</th>
+        <th>ÐÐ¿Ð»Ð¸Ð² Ð½Ð° Ð±ÑÐ·Ð½ÐµÑ</th>
+        <th>ÐÑÑÐ¾ÑÐ¸ÑÐµÑ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><strong>Marketing Manager</strong></td>
+        <td>ÐÐ¸ÐºÐ¾Ð½ÑÑ ÐÐ°Ð´Ð¸Ð¼ (~40% ÑÐ°ÑÑ). ÐÐµÐ¼Ð°Ñ ÑÐ¸ÑÑÐµÐ¼Ð¸, Ð²ÑÐµ ÑÐ¸ÑÑÐ°ÑÐ¸Ð²Ð½Ð¿</td>
+        <td>ÐÐ°Ð´Ð¸Ð¼ Ð½Ðµ Ð¼Ð¾Ð¶Ðµ Ð¼Ð°ÑÑÑÐ°Ð±ÑÐ²Ð°ÑÐ¸. ÐÐ¾Ð½ÑÐµÐ½Ñ Ð±ÐµÐ· Ð¿Ð»Ð°Ð½Ñ = Ð½Ð¸Ð¶ÑÑ Ð¿ÑÐ¾Ð´Ð°Ð¶Ñ</td>
+        <td class="priority-high">ð´ ÐÐÐ Ð¨ÐÐ Ð½Ð°Ð¹Ð¼</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Ads Manager (Meta)</strong></td>
+        <td>ÐÐ°Ð´Ð¸Ð¼ Ð¾ÑÐ½Ð¾Ð²Ð½Ð¸Ð¹, ÐÐ±Ð¾ÑÐ¾Ñ â Ð½ÐµÐµÑÐµÐºÑÐ¸Ð²Ð½Ð¸Ð¹ Ð¿ÑÐ´ÑÑÐ´Ð½Ð¸Ðº</td>
+        <td>ÐÐµÐ· ÑÐ¿ÐµÑÑÐ°Ð»ÑÐ·Ð¾Ð²Ð°Ð½Ð¾Ð³Ð¾ ÑÐ°ÑÑÐ²ÑÑ Ð³ÑÐ¾ÑÑ Ð½Ð° ÑÐµÐºÐ»Ð°Ð¼Ñ Ð²Ð¸ÑÑÐ°ÑÐ°ÑÑÑÑÑ Ð½ÐµÐµÑÐµÐºÑÐ¸Ð²Ð½Ð¾</td>
+        <td class="priority-medium">ð¡ ÐÑÑÐ³Ð¸Ð¹ ÐºÑÐ¾Ðº</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Ð Ð¾Ð»Ñ ÐÐ¾Ð²Ð¸</strong></td>
+        <td>ÐÑÑÐ³, Ð·Ð°ÑÑÐºÐ°Ð²Ð»ÐµÐ½Ð¸Ð¹, Ð°Ð»Ðµ Ð±ÐµÐ· ÑÑÑÐºÐ¾Ñ Ð·Ð°Ð´Ð°ÑÑ Ñ KPI</td>
+        <td>TikTok â Ð²ÐµÐ»Ð¸ÐºÐ¸Ð¹ ÐºÐ°Ð½Ð°Ð», Ð°Ð»Ðµ Ð±ÐµÐ· Ð²ÑÐ´Ð¿Ð¾Ð²ÑÐ´Ð°Ð»ÑÐ½Ð¾Ñ Ð»ÑÐ´Ð¸Ð½Ð¸ = Ð½ÑÐ»Ñ ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÑ</td>
+        <td class="priority-medium">ð¡ ÐÐ¸Ð·Ð½Ð°ÑÐ¸ÑÐ¸ Ð°Ð±Ð¾ Ð²Ð¸Ð²ÐµÑÑÐ¸</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>ÐÐ²ÑÑÐ½ÑÑÑÑ ÐÑÑÐµÐ¼Ð°</strong></td>
+        <td>ÐÐµÐ¼Ð° Ð¸, Ð¿ÑÐ¾ÑÐµÑ Ð½Ðµ Ð¾Ð¿Ð¸ÑÐ°Ð½Ð¸Ñ, Ð·Ð°ÑÑÐ¸Ð¼ÐºÐ¸</td>
+        <td>ÐÐµÐ¼Ð° ÐºÐ¾Ð½ÑÐµÐ½ÑÑ Ð¿ÑÑÐ»Ñ Ð¿ÑÐ¾ÐµÐºÑÑ = Ð²ÑÑÐ°ÑÐ° Ð²ÑÑÑÑÐ½Ð¾Ð³Ð¾ Ð¿Ð¾ÑÐµÐ½ÑÑÐ°Ð»Ñ</td>
+        <td class="priority-medium">ð¡ ÐÐ¸ÑÑÑÑÑ ÑÐµÐ³Ð»Ð°Ð¼ÐµÐ½ÑÐ¾Ð¼</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>ÐÑÑÐ³Ð°Ð»ÑÐµÑ / ÑÑÐ¸ÑÑ</strong></td>
+        <td>ÐÐ°Ð´Ð¸Ð¼ ÑÐ¾Ð±Ð¸ÑÑ ÑÐ°Ð¼</td>
+        <td>Ð Ð¸Ð·Ð¸Ðº Ð¿Ð¾Ð¼Ð¸Ð»Ð¾Ðº Ð¿ÑÐ¸ Ð¼Ð°ÑÑÑÐ°Ð±ÑÐ²Ð°Ð½Ð½Ñ. ÐÐ°ÑÐ°Ð· Ð½ÐµÐºÑÐ¸ÑÐ¸ÑÐ½Ð¾</td>
+        <td class="priority-low">ð¢ ÐÐ° Ð¼Ð°Ð¹Ð±ÑÑÐ½Ñ</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Next steps -->
+<div class="next-steps">
+  <h3>â¶ ÐÐ°ÑÑÑÐ¿Ð½Ñ ÐºÑÐ¾ÐºÐ¸</h3>
+  <ol>
+    <li><strong>Ð¡ÐºÐ»Ð°ÑÑÐ¸ Ð¿ÑÐ¾ÑÑÐ»Ñ ÑÐ¾Ð»Ñ Marketing Manager</strong> â ÑÑÐ½ÐºÑÑÑ, Ð·Ð¾Ð½Ñ Ð²ÑÐ´Ð¿Ð¾Ð²ÑÐ´Ð°Ð»ÑÐ½Ð¾ÑÑÑ, KPI, Ð²Ð¸Ð¼Ð¾Ð³Ð¸ Ð´Ð¾ ÐºÐ°Ð½Ð´Ð¸Ð´Ð°ÑÐ°</li>
+    <li><strong>ÐÐ¸ÑÑÑÐ¸ÑÐ¸ Ð¿Ð¸ÑÐ°Ð½Ð½Ñ ÐÐ¾Ð²Ð¸</strong> â Ð´Ð°ÑÐ¸ ÐºÐ¾Ð½ÐºÑÐµÑÐ½Ñ Ð·Ð°Ð´Ð°ÑÑ Ð½Ð° Ð½Ð°ÑÑÑÐ¿Ð½Ð¸Ð¹ Ð¿ÑÐ¾ÐµÐºÑ (#17) Ð· Ð²Ð¸Ð¼ÑÑÑÐ²Ð°Ð½Ð¸Ð¼ ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÐ¾Ð¼</li>
+    <li><strong>ÐÐ°ÐºÑÐ¸ÑÐ¸ Ð¿Ð¸ÑÐ°Ð½Ð½Ñ ÐÐ±Ð¾ÑÐ¾Ñ</strong> â Ð¿ÑÐ¾Ð°Ð½Ð°Ð»ÑÐ·ÑÐ²Ð°ÑÐ¸ CPL Ð·Ð° 3 Ð¾ÑÑÐ°Ð½Ð½Ñ Ð¿ÑÐ¾ÐµÐºÑÐ¸ ÑÐ° Ð¿ÑÐ¸Ð¹Ð½ÑÑÐ¸ ÑÑÑÐµÐ½Ð½Ñ</li>
+    <li><strong>ÐÐ¸Ð·Ð½Ð°ÑÐ¸ÑÐ¸ ÐºÐ°Ð½Ð°Ð»Ð¸ Ð¿Ð¾ÑÑÐºÑ</strong> Marketing Manager â Djinni, LinkedIn, ÑÐµÑÐµÑÐµÐ½Ñ Ð²ÑÐ´ Ð·Ð½Ð°Ð¹Ð¾Ð¼Ð¸Ñ, Ukrainian marketers ÑÐ¿ÑÐ»ÑÐ½Ð¾ÑÐ¸</li>
+  </ol>
+</div>
+
+<div style="text-align:center; margin-top:40px; color:#444; font-size:11px;">
+  DreamCar.ua â ÐÑÐ³Ð°Ð½ÑÐ·Ð°ÑÑÐ¹Ð½Ð° ÑÑÑÑÐºÑÑÑÐ° v1.0 â ÐÐµÑÐµÐ·ÐµÐ½Ñ 2026 â ÐÐ¾Ð½ÑÑÐ´ÐµÐ½ÑÑÐ¹Ð½Ð¾
+</div>
+
+</body>
+</html>
