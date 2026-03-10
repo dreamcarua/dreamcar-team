@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar — Організаційна структура</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Arial', sans-serif;
+    background: #0f0f1a;
+    color: #fff;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #cc0000;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header p {
+    color: #999;
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #ccc;
+  }
+  .legend-dot {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .dot-ok    { background: #1a7a4a; }
+  .dot-warn  { background: #b37a00; }
+  .dot-gap   { background: #8b1a1a; }
+  .dot-review { background: #5a3a80; }
+
+  /* ── Tree layout ── */
+  .tree {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Level wrapper */
+  .level {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Connector lines */
+  .connector-down {
+    width: 2px;
+    height: 32px;
+    background: #333;
+    margin: 0 auto;
+  }
+  .connector-row {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0;
+    width: 100%;
+    position: relative;
+  }
+
+  /* ── Cards ── */
+  .card {
+    border-radius: 10px;
+    padding: 16px 18px;
+    min-width: 190px;
+    max-width: 220px;
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    transition: transform 0.15s;
+  }
+  .card:hover { transform: translateY(-2px); }
+
+  /* Status colours */
+  .card-ok      { background: #0f2e1e; border-color: #1a7a4a; }
+  .card-warn    { background: #2a1f00; border-color: #cc8800; }
+  .card-gap     { background: #2a0a0a; border-color: #cc0000; border-style: dashed; }
+  .card-review  { background: #1a1030; border-color: #7a50cc; }
+  .card-founder { background: #1a0000; border-color: #cc0000; }
+
+  .card-status {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .status-ok     { background: #1a7a4a; color: #7fffc4; }
+  .status-warn   { background: #664400; color: #ffcc66; }
+  .status-gap    { background: #660000; color: #ff9999; }
+  .status-review { background: #3a1a7a; color: #cc99ff; }
+  .status-founder { background: #660000; color: #ff6666; }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .card-subtitle {
+    font-size: 10px;
+    color: #aaa;
+    font-style: italic;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  .card-person {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin-bottom: 6px;
+    display: inline-block;
+  }
+  .person-ok     { background: #0a3d20; color: #4ade80; }
+  .person-warn   { background: #3d2900; color: #fbbf24; }
+  .person-gap    { background: #3d0a0a; color: #f87171; border: 1px dashed #cc0000; }
+  .person-review { background: #200a4a; color: #c084fc; }
+
+  .card-functions {
+    margin-top: 8px;
+    list-style: none;
+  }
+  .card-functions li {
+    font-size: 10px;
+    color: #999;
+    padding: 1px 0;
+    padding-left: 10px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .card-functions li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: #555;
+    font-size: 8px;
+    top: 3px;
+  }
+
+  .card-note {
+    margin-top: 8px;
+    font-size: 10px;
+    color: #888;
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    padding: 5px 8px;
+    line-height: 1.4;
+    border-left: 2px solid #444;
+  }
+
+  /* ── Founders row ── */
+  .founders-row {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+  .card-founder .card-title { font-size: 15px; color: #ff6666; }
+
+  /* ── H-connector between levels ── */
+  .h-line-wrap {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    height: 40px;
+    position: relative;
+    margin: 0 auto;
+  }
+  .h-line-wrap svg {
+    width: 100%;
+    height: 40px;
+    overflow: visible;
+  }
+
+  /* ── Functions grid ── */
+  .functions-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+
+  /* ── Gap summary ── */
+  .gap-summary {
+    margin-top: 48px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .gap-summary h2 {
+    text-align: center;
+    font-size: 16px;
+    color: #cc0000;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+  }
+  .gap-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .gap-table th {
+    background: #1a0000;
+    color: #ff9999;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid #330000;
+  }
+  .gap-table td {
+    padding: 10px 14px;
+    font-size: 12px;
+    border-bottom: 1px solid #1e1e2e;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .gap-table tr:nth-child(odd) td { background: #13131f; }
+  .gap-table tr:nth-child(even) td { background: #0f0f1a; }
+  .priority-high   { color: #f87171; font-weight: 700; }
+  .priority-medium { color: #fbbf24; font-weight: 700; }
+  .priority-low    { color: #6ee7b7; font-weight: 700; }
+
+  /* ── Next steps ── */
+  .next-steps {
+    margin-top: 32px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    background: #0a1a2a;
+    border: 1px solid #1a3a5a;
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+  .next-steps h3 {
+    color: #60a5fa;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+  }
+  .next-steps ol {
+    padding-left: 20px;
+  }
+  .next-steps li {
+    color: #ccc;
+    font-size: 12px;
+    padding: 4px 0;
+    line-height: 1.6;
+  }
+  .next-steps li strong { color: #fff; }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #333, transparent);
+    margin: 40px 0;
+  }
+
+  @media (max-width: 700px) {
+    .functions-grid { flex-direction: column; align-items: center; }
+    .card { max-width: 340px; min-width: 280px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>DreamCar.ua — Організаційна структура</h1>
+  <p>Ідеальна модель за функціями → поточний стан → гепи</p>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-ok"></div> Заповнено, працює</div>
+  <div class="legend-item"><div class="legend-dot dot-warn"></div> Є, але є проблеми</div>
+  <div class="legend-item"><div class="legend-dot dot-gap"></div> Вакантно — потрібен найм</div>
+  <div class="legend-item"><div class="legend-dot dot-review"></div> Потребує перегляду</div>
+</div>
+
+<!-- Level 1: Founders -->
+<div class="tree">
+  <div class="founders-row">
+
+    <div class="card card-founder" style="min-width:220px; max-width:260px;">
+      <div class="card-status status-founder">Засновник</div>
+      <div class="card-title">CEO / Стратегія</div>
+      <div class="card-subtitle">Головне — вивести себе з операційки</div>
+      <span class="card-person person-ok">Вадим</span>
+      <ul class="card-functions">
+        <li>Стратегія і пріоритети</li>
+        <li>Ключові партнерства</li>
+        <li>Фінанси та юридика</li>
+        <li>IT-архітектура</li>
+        <li>Фінальні рішення</li>
+      </ul>
+      <div class="card-note">⚠️ Зараз виконує +4 додаткові функції які мають делегуватись</div>
+    </div>
+
+    <div class="card card-founder" style="min-width:220px; max-width:260px;">
+      <div class="card-status status-founder">Засновник</div>
+      <div class="card-title">COO / Операції</div>
+      <div class="card-subtitle">Продукт, авто, передача призів</div>
+      <span class="card-person person-warn">Артем</span>
+      <ul class="card-functions">
+        <li>Купівля авто та призів</li>
+        <li>Організація передачі</li>
+        <li>Відео-продакшн</li>
+        <li>Документи і звітність</li>
+      </ul>
+      <div class="card-note">⚠️ Потрібна підтримка в плануванні контенту та звітності</div>
+    </div>
+
+  </div>
+
+  <div class="connector-down"></div>
+
+  <!-- Level 2: Functions -->
+  <div class="functions-grid">
+
+    <!-- 1. Marketing Manager — GAP -->
+    <div class="card card-gap">
+      <div class="card-status status-gap">🔴 Критичний геп</div>
+      <div class="card-title">Marketing Manager</div>
+      <div class="card-subtitle">Серце операційного маркетингу</div>
+      <span class="card-person person-gap">ВАКАНТНО</span>
+      <ul class="card-functions">
+        <li>Контент-стратегія і план</li>
+        <li>Сценарії Reels для Артема</li>
+        <li>Планування та тексти акцій</li>
+        <li>Координація Віри (ретеншн)</li>
+        <li>Брифи для рекламних кампаній</li>
+        <li>Звіт по кожному проекту</li>
+      </ul>
+      <div class="card-note">Зараз: Вадим виконує ~40% свого часу</div>
+    </div>
+
+    <!-- 2. Content Production -->
+    <div class="card card-warn">
+      <div class="card-status status-warn">🟡 Є, потребує підтримки</div>
+      <div class="card-title">Контент-продакшн</div>
+      <div class="card-subtitle">Зйомка, монтаж, публікація</div>
+      <span class="card-person person-warn">Артем</span>
+      <ul class="card-functions">
+        <li>Відео / Reels / Stories</li>
+        <li>Фото авто та призів</li>
+        <li>Ведення прямих ефірів</li>
+        <li>Публікація у соцмережах</li>
+      </ul>
+      <div class="card-note">Потрібні: сценарії від MM, можливо асистент монтажу</div>
+    </div>
+
+    <!-- 3. Performance Ads -->
+    <div class="card card-warn">
+      <div class="card-status status-warn">🟡 Частково заповнено</div>
+      <div class="card-title">Performance Ads</div>
+      <div class="card-subtitle">Платна реклама — Meta, TikTok</div>
+      <span class="card-person person-ok" style="margin-right:6px;">Вадим</span>
+      <span class="card-person person-review">Вова?</span>
+      <ul class="card-functions">
+        <li>Meta Ads (FB + IG)</li>
+        <li>TikTok Ads</li>
+        <li>Оптимізація, A/B тести</li>
+        <li>Звітність по рекламі</li>
+      </ul>
+      <div class="card-note">Оборот — під питанням (відмовитись?). Вова — TikTok без чіткої задачі</div>
+    </div>
+
+    <!-- 4. Retention & CRM -->
+    <div class="card card-ok">
+      <div class="card-status status-ok">🟢 Заповнено</div>
+      <div class="card-title">Ретеншн та CRM</div>
+      <div class="card-subtitle">Email, Telegram, Viber, SMS</div>
+      <span class="card-person person-ok">Віра</span>
+      <ul class="card-functions">
+        <li>Email-розсилки</li>
+        <li>Telegram чатбот</li>
+        <li>Viber / SMS</li>
+        <li>База учасників (CRM)</li>
+      </ul>
+      <div class="card-note">✅ Працює. Потребує чіткого календаря від MM</div>
+    </div>
+
+    <!-- 5. Tech & Dev -->
+    <div class="card card-ok">
+      <div class="card-status status-ok">🟢 Заповнено</div>
+      <div class="card-title">Технології</div>
+      <div class="card-subtitle">Сайт, API, аналітика</div>
+      <span class="card-person person-ok">Олександр</span>
+      <ul class="card-functions">
+        <li>Розробка сайту</li>
+        <li>API та інтеграції</li>
+        <li>Система видачі номерків</li>
+        <li>Статистика та дашборди</li>
+      </ul>
+      <div class="card-note">✅ Задачі від Вадима виконує. Потрібен дашборд автозвіт</div>
+    </div>
+
+    <!-- 6. Finance & Legal -->
+    <div class="card card-warn">
+      <div class="card-status status-warn">🟡 Тимчасово OK</div>
+      <div class="card-title">Фінанси та юридика</div>
+      <div class="card-subtitle">Облік, звіти, оформлення</div>
+      <span class="card-person person-warn">Вадим</span>
+      <ul class="card-functions">
+        <li>Фінансова звітність</li>
+        <li>Юридичне оформлення авто</li>
+        <li>Договори з переможцями</li>
+        <li>Податки, ФОП</li>
+      </ul>
+      <div class="card-note">При масштабі 2+ проекти/міс — потрібен бухгалтер/юрист</div>
+    </div>
+
+    <!-- 7. Growth (optional) -->
+    <div class="card card-review">
+      <div class="card-status status-review">🟣 Потребує визначення</div>
+      <div class="card-title">Growth / Нові канали</div>
+      <div class="card-subtitle">TikTok, блогери, партнерства</div>
+      <span class="card-person person-review">Вова</span>
+      <ul class="card-functions">
+        <li>TikTok органіка та реклама</li>
+        <li>Пошук та робота з блогерами</li>
+        <li>Нові канали залучення</li>
+        <li>Партнерські проекти</li>
+      </ul>
+      <div class="card-note">Потрібне: чітке ТЗ + KPI + пробний спринт 1 проект</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Divider -->
+<div class="divider"></div>
+
+<!-- Gap summary table -->
+<div class="gap-summary">
+  <h2>Аналіз гепів — пріоритет найму</h2>
+  <table class="gap-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Функція / Роль</th>
+        <th>Поточний стан</th>
+        <th>Вплив на бізнес</th>
+        <th>Пріоритет</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><strong>Marketing Manager</strong></td>
+        <td>Виконує Вадим (~40% часу). Немає системи, все ситуативно</td>
+        <td>Вадим не може масштабувати. Контент без плану = нижчі продажі</td>
+        <td class="priority-high">🔴 ПЕРШИЙ найм</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Ads Manager (Meta)</strong></td>
+        <td>Вадим основний, Оборот — неефективний підрядник</td>
+        <td>Без спеціалізованого фахівця гроші на рекламу витрачаються неефективно</td>
+        <td class="priority-medium">🟡 Другий крок</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Роль Вови</strong></td>
+        <td>Друг, зацікавлений, але без чіткої задачі і KPI</td>
+        <td>TikTok — великий канал, але без відповідальної людини = нуль результату</td>
+        <td class="priority-medium">🟡 Визначити або вивести</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>Звітність Артема</strong></td>
+        <td>Немає шаблонів, процес не описаний, затримки</td>
+        <td>Нема контенту після проекту = втрата вірусного потенціалу</td>
+        <td class="priority-medium">🟡 Вирішується регламентом</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>Бухгалтер / юрист</strong></td>
+        <td>Вадим робить сам</td>
+        <td>Ризик помилок при масштабуванні. Зараз некритично</td>
+        <td class="priority-low">🟢 На майбутнє</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Next steps -->
+<div class="next-steps">
+  <h3>⟶ Наступні кроки</h3>
+  <ol>
+    <li><strong>Скласти профіль ролі Marketing Manager</strong> — функції, зону відповідальності, KPI, вимоги до кандидата</li>
+    <li><strong>Вирішити питання Вови</strong> — дати конкретну задачу на наступний проект (#17) з вимірюваним результатом</li>
+    <li><strong>Закрити питання Оборот</strong> — проаналізувати CPL за 3 останні проекти та прийняти рішення</li>
+    <li><strong>Визначити канали пошуку</strong> Marketing Manager — Djinni, LinkedIn, референс від знайомих, Ukrainian marketers спільноти</li>
+  </ol>
+</div>
+
+<div style="text-align:center; margin-top:40px; color:#444; font-size:11px;">
+  DreamCar.ua — Організаційна структура v1.0 — Березень 2026 — Конфіденційно
+</div>
+
+</body>
+</html>
