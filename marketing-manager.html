@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar â ÐÑÐ¾ÑÑÐ»Ñ ÑÐ¾Ð»Ñ: Marketing Manager</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Arial', sans-serif;
+    background: #0f0f1a;
+    color: #e8e8f0;
+    padding: 36px 28px;
+    max-width: 960px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Header */
+  .header {
+    border-left: 4px solid #cc0000;
+    padding-left: 20px;
+    margin-bottom: 40px;
+  }
+  .header .tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #cc0000;
+    margin-bottom: 8px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .header p { color: #888; font-size: 13px; }
+
+  /* Section headers */
+  h2 {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #cc0000;
+    margin: 36px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2a0a0a;
+  }
+  h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ddd;
+    margin: 18px 0 8px;
+  }
+
+  /* Summary boxes row */
+  .summary-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .summary-box {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 14px 18px;
+    flex: 1;
+    min-width: 160px;
+  }
+  .summary-box .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #666;
+    margin-bottom: 5px;
+  }
+  .summary-box .value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .summary-box .sub {
+    font-size: 11px;
+    color: #888;
+    margin-top: 3px;
+  }
+
+  /* Main content blocks */
+  .block {
+    background: #13131f;
+    border: 1px solid #1e1e33;
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  .block-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .block-icon {
+    width: 24px; height: 24px;
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  /* Two columns */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  /* Lists */
+  ul.clean {
+    list-style: none;
+    padding: 0;
+  }
+  ul.clean li {
+    padding: 5px 0 5px 18px;
+    position: relative;
+    font-size: 12.5px;
+    color: #ccc;
+    border-bottom: 1px solid #1e1e33;
+  }
+  ul.clean li:last-child { border-bottom: none; }
+  ul.clean li::before {
+    content: 'â¸';
+    position: absolute;
+    left: 0;
+    color: #cc0000;
+    font-size: 9px;
+    top: 8px;
+  }
+  ul.clean li strong { color: #fff; }
+  ul.clean li .note {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  /* Skills grid */
+  .skills-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .skill-tag {
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-block;
+  }
+  .skill-must  { background: #1a0a0a; border: 1px solid #cc0000; color: #ff9999; }
+  .skill-nice  { background: #0a1a0a; border: 1px solid #1a7a4a; color: #6ee7b7; }
+  .skill-soft  { background: #0a0a2a; border: 1px solid #2a4acc; color: #93c5fd; }
+
+  /* KPI table */
+  .kpi-table { width: 100%; border-collapse: collapse; }
+  .kpi-table th {
+    background: #1a0a0a;
+    color: #ff9999;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 9px 12px;
+    text-align: left;
+  }
+  .kpi-table td {
+    padding: 9px 12px;
+    font-size: 12px;
+    border-bottom: 1px solid #1e1e2e;
+    color: #ccc;
+    vertical-align: top;
+  }
+  .kpi-table tr:nth-child(odd) td { background: #0f0f1a; }
+  .kpi-table tr:nth-child(even) td { background: #13131f; }
+  .kpi-table .metric { color: #fff; font-weight: 600; }
+  .kpi-table .target { color: #6ee7b7; font-weight: 700; }
+
+  /* Salary range */
+  .salary-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .salary-box {
+    flex: 1;
+    min-width: 130px;
+    border-radius: 8px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .salary-mid {
+    background: #0a1a0a;
+    border: 2px solid #1a7a4a;
+  }
+  .salary-other {
+    background: #111122;
+    border: 1px solid #2a2a4a;
+  }
+  .salary-box .level {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin-bottom: 6px;
+  }
+  .salary-box .amount {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .salary-box .desc {
+    font-size: 10px;
+    color: #777;
+    margin-top: 4px;
+  }
+  .salary-mid .amount { color: #4ade80; }
+
+  /* Channels */
+  .channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .channel-card {
+    background: #111122;
+    border: 1px solid #1e1e44;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .channel-card .ch-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .channel-card .ch-detail {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.5;
+  }
+  .ch-priority-1 { border-color: #cc0000; }
+  .ch-priority-2 { border-color: #cc8800; }
+  .ch-priority-3 { border-color: #2a4acc; }
+
+  /* Flags */
+  .flags-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .flag-block { border-radius: 8px; padding: 14px 16px; }
+  .flag-green { background: #0a1a0a; border: 1px solid #1a7a4a; }
+  .flag-red   { background: #1a0a0a; border: 1px solid #660000; }
+  .flag-block h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .flag-green h4 { color: #4ade80; }
+  .flag-red   h4 { color: #f87171; }
+  .flag-block li {
+    font-size: 12px;
+    color: #ccc;
+    padding: 3px 0;
+    padding-left: 16px;
+    position: relative;
+  }
+  .flag-block li::before {
+    position: absolute; left: 0; top: 4px; font-size: 10px;
+  }
+  .flag-green li::before { content: 'â'; color: #4ade80; }
+  .flag-red   li::before { content: 'â'; color: #f87171; }
+
+  /* Vacancy draft */
+  .vacancy {
+    background: #0a0a18;
+    border: 1px dashed #3a3a6a;
+    border-radius: 10px;
+    padding: 24px 26px;
+    margin-top: 8px;
+  }
+  .vacancy-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #666;
+    margin-bottom: 16px;
+  }
+  .vacancy p, .vacancy li {
+    font-size: 13px;
+    color: #bbb;
+    line-height: 1.7;
+    margin-bottom: 6px;
+  }
+  .vacancy ul { padding-left: 18px; margin: 8px 0; }
+  .vacancy strong { color: #fff; }
+  .vacancy .section-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #cc0000;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 14px 0 6px;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, #2a2a4a, transparent);
+    margin: 8px 0;
+  }
+
+  @media (max-width: 600px) {
+    .two-col, .flags-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ÐÑÐ¾ÑÑÐ»Ñ ÑÐ¾Ð»Ñ Â· ÐÐ¾Ð½ÑÑÐ´ÐµÐ½ÑÑÐ¹Ð½Ð¾</div>
+  <h1>Marketing Manager</h1>
+  <p>DreamCar.ua Â· ÐÐ»ÑÑÐ¾Ð²Ð¸Ð¹ Ð½Ð°Ð¹Ð¼ #1 Â· ÐÐµÑÐµÐ·ÐµÐ½Ñ 2026</p>
+</div>
+
+<!-- Summary row -->
+<div class="summary-row">
+  <div class="summary-box">
+    <div class="label">Ð¤Ð¾ÑÐ¼Ð°Ñ</div>
+    <div class="value">Ð ÐµÐ¼Ð¾ÑÑ</div>
+    <div class="sub">ÐÐ¾Ð²Ð½Ð° Ð°Ð±Ð¾ 0.75 Ð·Ð°Ð¹Ð½ÑÑÑÑÑÑ</div>
+  </div>
+  <div class="summary-box">
+    <div class="label">ÐÐ¾ÐºÐ°ÑÑÑ</div>
+    <div class="value">Ð£ÐºÑÐ°ÑÐ½Ð°</div>
+    <div class="sub">Ð§Ð°ÑÐ¾Ð²Ð¸Ð¹ Ð¿Ð¾ÑÑ EET/EEST</div>
+  </div>
+  <div class="summary-box">
+    <div class="label">Ð ÑÐ²ÐµÐ½Ñ</div>
+    <div class="value">Middle</div>
+    <div class="sub">1.5â3 ÑÐ¾ÐºÐ¸ Ð´Ð¾ÑÐ²ÑÐ´Ñ</div>
+  </div>
+  <div class="summary-box">
+    <div class="label">Ð¡ÑÐ°ÑÑ</div>
+    <div class="value">Ð¯ÐºÐ¾Ð¼Ð¾Ð³Ð° ÑÐºÐ¾ÑÑÑÐµ</div>
+    <div class="sub">ÐÐ´ÐµÐ°Ð»ÑÐ½Ð¾ â Ð´Ð¾ ÑÑÐ°ÑÑÑ #17</div>
+  </div>
+  <div class="summary-box">
+    <div class="label">ÐÑÐ´Ð¿Ð¾ÑÑÐ´ÐºÑÐ²Ð°Ð½Ð½Ñ</div>
+    <div class="value">CEO (ÐÐ°Ð´Ð¸Ð¼)</div>
+    <div class="sub">ÐÑÑÐ¼Ðµ</div>
+  </div>
+</div>
+
+<!-- Why this role exists -->
+<h2>Ð§Ð¾Ð¼Ñ ÑÑ ÑÐ¾Ð»Ñ ÑÑÐ½ÑÑ</h2>
+<div class="block">
+  <p style="font-size:13px; color:#ccc; line-height:1.8;">
+    ÐÐ°ÑÐ°Ð· Ð¼Ð°ÑÐºÐµÑÐ¸Ð½Ð³Ð¾Ð¼ DreamCar Ð·Ð°Ð¹Ð¼Ð°ÑÑÑÑÑ <strong>CEO Ð² ÑÐµÐ¶Ð¸Ð¼Ñ Â«Ð¼ÑÐ¶ ÑÐ½ÑÐ¸Ð¼Â»</strong> â Ð¼ÑÐ¶ IT, ÑÑÐ½Ð°Ð½ÑÐ°Ð¼Ð¸ ÑÐ° ÑÑÑÐ°ÑÐµÐ³ÑÑÑ. Ð ÐµÐ·ÑÐ»ÑÑÐ°Ñ: ÐºÐ¾Ð½ÑÐµÐ½Ñ Ð²Ð¸ÑÐ¾Ð´Ð¸ÑÑ Ð±ÐµÐ· Ð¿Ð»Ð°Ð½Ñ, Ð°ÐºÑÑÑ Ð¿ÑÐ¸Ð´ÑÐ¼ÑÑÑÑÑÑ Ð·Ð° Ð´ÐµÐ½Ñ, ÐÑÑÐµÐ¼ Ð·Ð½ÑÐ¼Ð¼Ñ Ð±ÐµÐ· ÑÑÐµÐ½Ð°ÑÑÑ, ÐÑÑÐ° ÑÐµÐºÐ°Ñ Ð±ÑÐ¸ÑÑÐ² Ð¾ÑÑÐ°Ð½Ð½ÑÐ¾Ñ Ð¼Ð¸ÑÑ.<br><br>
+    ÐÐ¾ÑÑÑÐ±Ð½Ð° Ð»ÑÐ´Ð¸Ð½Ð°, ÑÐºÐ° <strong>Ð±ÐµÑÐµ Ð¼Ð°ÑÐºÐµÑÐ¸Ð½Ð³Ð¾Ð²Ð¸Ð¹ Ð´Ð²Ð¸Ð³ÑÐ½ Ð½Ð° ÑÐµÐ±Ðµ ÑÑÐ»ÐºÐ¾Ð¼</strong> â Ð²ÑÐ´ ÐºÐ¾Ð½ÑÐµÐ½Ñ-Ð¿Ð»Ð°Ð½Ñ Ð´Ð¾ ÑÐµÐºÑÑÑ ÐºÐ¾Ð¶Ð½Ð¾Ð³Ð¾ Ð¿ÑÐ¾Ð¼Ð¾-Ð¿Ð¾ÑÑÐ° â Ñ Ð´Ð°Ñ CEO Ð¼Ð¾Ð¶Ð»Ð¸Ð²ÑÑÑÑ Ð·Ð°Ð¹Ð¼Ð°ÑÐ¸ÑÑ ÑÑÑÐ°ÑÐµÐ³ÑÑÑ ÑÐ° Ð·ÑÐ¾ÑÑÐ°Ð½Ð½ÑÐ¼.
+  </p>
+</div>
+
+<!-- Zone of responsibility -->
+<h2>ÐÐ¾Ð½Ð° Ð²ÑÐ´Ð¿Ð¾Ð²ÑÐ´Ð°Ð»ÑÐ½Ð¾ÑÑÑ</h2>
+<div class="two-col">
+  <div class="block" style="margin-bottom:0;">
+    <div class="block-title"><div class="block-icon" style="background:#1a0a0a;">ð</div>ÐÐ»Ð°Ð½ÑÐ²Ð°Ð½Ð½Ñ Ñ ÑÑÑÐ°ÑÐµÐ³ÑÑ</div>
+    <ul class="clean">
+      <li><strong>ÐÐ¾Ð½ÑÐµÐ½Ñ-Ð¿Ð»Ð°Ð½ Ð½Ð° Ð²ÐµÑÑ Ð¿ÑÐ¾ÐµÐºÑ</strong> <span class="note">Ð´Ð¾ ÑÑÐ°ÑÑÑ Ð¿ÑÐ¾ÐµÐºÑÑ, Ð² Google Sheets Ð°Ð±Ð¾ Notion</span></li>
+      <li><strong>ÐÐµÑÐ°Ð½ÑÐºÐ¸ Ð°ÐºÑÑÐ¹</strong> <span class="note">2â3 Ð°ÐºÑÑÑ Ð½Ð° Ð¿ÑÐ¾ÐµÐºÑ: ÑÐ´ÐµÑ, ÑÐµÐºÑÑ, ÑÐ¼Ð¾Ð²Ð¸, Ð´ÐµÐ´Ð»Ð°Ð¹Ð½</span></li>
+      <li><strong>Ð ÐµÑÐµÐ½ÑÐ½-ÐºÐ°Ð»ÐµÐ½Ð´Ð°Ñ Ð´Ð»Ñ ÐÑÑÐ¸</strong> <span class="note">ÑÐµÐ¼Ð¸ Ð»Ð¸ÑÑÑÐ², ÑÐ°Ð¹Ð¼Ð¸Ð½Ð³, ÑÐµÐ³Ð¼ÐµÐ½ÑÐ°ÑÑÑ</span></li>
+      <li><strong>Ð ÐµÐºÐ»Ð°Ð¼Ð½Ñ Ð±ÑÐ¸ÑÐ¸</strong> <span class="note">ÑÐ¾ Ð·Ð½ÑÐ¼Ð°ÑÐ¸, ÑÐºÐ¸Ð¹ Ð¼ÐµÑÐµÐ´Ð¶, Ð½Ð° ÑÐºÑ Ð°ÑÐ´Ð¸ÑÐ¾ÑÑÑ</span></li>
+    </ul>
+  </div>
+  <div class="block" style="margin-bottom:0;">
+    <div class="block-title"><div class="block-icon" style="background:#0a0a1a;">âï¸</div>ÐÐ¾Ð½ÑÐµÐ½Ñ Ñ ÑÐµÐºÑÑÐ¸</div>
+    <ul class="clean">
+      <li><strong>Ð¡ÑÐµÐ½Ð°ÑÑÑ Reels Ð´Ð»Ñ ÐÑÑÐµÐ¼Ð°</strong> <span class="note">3â5 ÑÑÐµÐ½Ð°ÑÑÑÐ² Ð½Ð° Ð¿ÑÐ¾ÐµÐºÑ, ÑÑÑÐºÑ Ñ Ð³Ð¾ÑÐ¾Ð²Ñ Ð´Ð¾ Ð·Ð¹Ð¾Ð¼ÐºÐ¸</span></li>
+      <li><strong>ÐÑÐ´Ð¿Ð¸ÑÐ¸ Ð´Ð¾ Ð¿Ð¾ÑÑÑÐ²</strong> <span class="note">Ð²ÑÑ Ð¿ÑÐ±Ð»ÑÐºÐ°ÑÑÑ Ð² Instagram â ÐµÐ¼Ð¾ÑÑÐ¹Ð½Ð¸Ð¹ Ukrainian tone</span></li>
+      <li><strong>Ð¢ÐµÐºÑÑÐ¸ Ð°ÐºÑÑÐ¹Ð½Ð¸Ñ Ð¿Ð¾ÑÑÑÐ²</strong> <span class="note">Ð¾ÑÑÐµÑ, ÑÐ¼Ð¾Ð²Ð¸, call-to-action</span></li>
+      <li><strong>Stories-ÑÐºÑÐ¸Ð¿ÑÐ¸</strong> <span class="note">ÑÐ¾ Ð³Ð¾Ð²Ð¾ÑÐ¸ÑÐ¸ / Ð¿Ð¾ÐºÐ°Ð·ÑÐ²Ð°ÑÐ¸ ÐºÐ¾Ð¶Ð½Ð¾Ð³Ð¾ Ð´Ð½Ñ</span></li>
+    </ul>
+  </div>
+  <div class="block" style="margin-bottom:0;">
+    <div class="block-title"><div class="block-icon" style="background:#0a1a0a;">ð</div>ÐÐ½Ð°Ð»ÑÑÐ¸ÐºÐ° Ñ Ð·Ð²ÑÑÐ½ÑÑÑÑ</div>
+    <ul class="clean">
+      <li><strong>ÐÐ½Ð°Ð»ÑÐ· ÐºÐ¾Ð¶Ð½Ð¾Ð³Ð¾ Ð¿ÑÐ¾ÐµÐºÑÑ</strong> <span class="note">Ð¾ÑÐ¾Ð¿Ð»ÐµÐ½Ð½Ñ, ER, Ð¿ÑÐ¾Ð´Ð°Ð¶Ñ Ð¿Ð¾ Ð´Ð½ÑÑ, ÑÐ¾ ÑÐ¿ÑÐ°ÑÑÐ²Ð°Ð»Ð¾</span></li>
+      <li><strong>ÐÐ¸ÑÐ½Ð¾Ð²ÐºÐ¸ Ñ ÑÐµÐºÐ¾Ð¼ÐµÐ½Ð´Ð°ÑÑÑ</strong> <span class="note">Ð´Ð»Ñ Ð½Ð°ÑÑÑÐ¿Ð½Ð¾Ð³Ð¾ Ð¿ÑÐ¾ÐµÐºÑÑ</span></li>
+      <li><strong>ÐÐ¾Ð½ÐºÑÑÐµÐ½ÑÐ½Ð¸Ð¹ Ð¼Ð¾Ð½ÑÑÐ¾ÑÐ¸Ð½Ð³</strong> <span class="note">Ð°Ð½Ð°Ð»Ð¾Ð³ÑÑÐ½Ñ ÑÐ¾Ð·ÑÐ³ÑÐ°ÑÑ, Ð½Ð¾Ð²Ñ Ð¼ÐµÑÐ°Ð½ÑÐºÐ¸ Ð½Ð° ÑÐ¸Ð½ÐºÑ</span></li>
+    </ul>
+  </div>
+  <div class="block" style="margin-bottom:0;">
+    <div class="block-title"><div class="block-icon" style="background:#1a1a0a;">ð</div>ÐÐ¾Ð¾ÑÐ´Ð¸Ð½Ð°ÑÑÑ ÐºÐ¾Ð¼Ð°Ð½Ð´Ð¸</div>
+    <ul class="clean">
+      <li><strong>ÐÑÑÐµÐ¼</strong> â ÑÑÐµÐ½Ð°ÑÑÑ ÑÐ° Ð·Ð°Ð²Ð´Ð°Ð½Ð½Ñ Ð·Ð° 3+ Ð´Ð½Ñ Ð´Ð¾ Ð·ÐµÐ¾Ð¼ÐºÐ¸</li>
+      <li><strong>ÐÑÑÐ°</strong> â Ð±ÑÐ¸ÑÐ¸ Ð½Ð° ÑÐ¾Ð·ÑÐ¸Ð»ÐºÐ¸ Ð·Ð° 3+ Ð´Ð½Ñ</li>
+      <li><strong>ÐÐ°Ð´Ð¸Ð¼</strong> â ÑÐµÐºÐ»Ð°Ð¼Ð½Ñ Ð±ÑÐ¸ÑÐ¸ Ð´Ð»Ñ Meta-ÐºÐ°Ð¼Ð¿Ð°Ð½ÑÐ¹</li>
+      <li><strong>ÐÐ»ÐµÐºÑÐ°Ð½Ð´Ñ</strong> â Ð¿Ð¾ÑÑÐ°Ð½Ð¾Ð²ÐºÐ° Ð´ÑÑÐ±Ð½Ð¸Ñ Ð·Ð°Ð´Ð°Ñ Ð¿Ð¾ ÑÐ°Ð¹ÑÑ</li>
+    </ul>
+  </div>
+</div>
+
+<!-- NOT responsibilities -->
+<div class="block" style="background:#0a0a0a; border-color:#1e1e1e; margin-top: 14px;">
+  <div class="block-title" style="color:#888;">â Ð©Ð¾ ÐÐ Ð²ÑÐ¾Ð´Ð¸ÑÑ Ñ ÑÑ ÑÐ¾Ð»Ñ</div>
+  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+    <span style="background:#1a1a1a; border:1px solid #333; color:#777; padding:4px 12px; border-radius:4px; font-size:11px;">ÐÑÐ´ÐµÐ¾Ð·Ð¹Ð¾Ð¼ÐºÐ° Ñ Ð¼Ð¾Ð½ÑÐ°Ð¶</span>
+    <span style="background:#1a1a1a; border:1px solid #333; color:#777; padding:4px 12px; border-radius:4px; font-size:11px;">ÐÐ°Ð¿ÑÑÐº ÑÐµÐºÐ»Ð°Ð¼Ð¸ Ð² Meta (Ð¿Ð¾ÐºÐ¸)</span>
+    <span style="background:#1a1a1a; border:1px solid #333; color:#777; padding:4px 12px; border-radius:4px; font-size:11px;">ÐÑÐ¿ÑÐ²Ð»Ñ Ð°Ð²ÑÐ¾ ÑÐ° Ð¿ÑÐ¸Ð·ÑÐ²</span>
+    <span style="background:#1a1a1a; border:1px solid #333; color:#777; padding:4px 12px; border-radius:4px; font-size:11px;">Ð¤ÑÐ½Ð°Ð½ÑÐ¸ ÑÐ° ÑÑÐ¸Ð´Ð¸ÐºÐ°</span>
+    <span style="background:#1a1a1a; border:1px solid #333; color:#777; padding:4px 12px; border-radius:4px; font-size:11px;">Ð Ð¾Ð·ÑÐ¾Ð±ÐºÐ° ÑÐ°Ð¹ÑÑ</span>
+    <span style="background:#1a1a1a; border:1px solid #333; color:#777; padding:4px 12px; border-radius:4px; font-size:11px;">ÐÑÐ´ÑÑÐ¸Ð¼ÐºÐ° ÐºÐ»ÑÑÐ½ÑÑÐ²</span>
+  </div>
+</div>
+
+<!-- Skills -->
+<h2>ÐÐ¸Ð¼Ð¾Ð³Ð¸ Ð´Ð¾ ÐºÐ°Ð½Ð´Ð¸Ð´Ð°ÑÐ°</h2>
+<div class="block">
+  <h3 style="margin-top:0;">ÐÐ±Ð¾Ð²'ÑÐ·ÐºÐ¾Ð²Ñ Ð½Ð°Ð²Ð¸ÑÐºÐ¸ (must have)</h3>
+  <div class="skills-grid" style="margin-bottom:16px;">
+    <span class="skill-tag skill-must">SMM Instagram (Reels, Stories, Ð¿Ð¾ÑÑÐ¸)</span>
+    <span class="skill-tag skill-must">ÐÐ¾Ð¿ÑÑÐ°Ð¹ÑÐ¸Ð½Ð³ ÑÐºÑÐ°ÑÐ½ÑÑÐºÐ¾Ñ â ÐµÐ¼Ð¾ÑÑÐ¹Ð½Ð¸Ð¹ ÑÑÐ¸Ð»Ñ</span>
+    <span class="skill-tag skill-must">ÐÐ¾Ð½ÑÐµÐ½Ñ-Ð¿Ð»Ð°Ð½ÑÐ²Ð°Ð½Ð½Ñ (Ð¼ÑÐ½ÑÐ¼ÑÐ¼ Ð´ÐµÐ½Ð½Ð¸Ð¹ Ð³Ð¾ÑÐ¸Ð·Ð¾Ð½Ñ)</span>
+    <span class="skill-tag skill-must">ÐÐ°Ð¿Ð¸ÑÐ°Ð½Ð½Ñ ÑÑÐµÐ½Ð°ÑÑÑÐ² Ð´Ð»Ñ Ð²ÑÐ´ÐµÐ¾</span>
+    <span class="skill-tag skill-must">Ð Ð¾Ð·ÑÐ¼ÑÐ½Ð½Ñ FOMO Ñ Ð¿ÑÐ¾Ð¼Ð¾-Ð¼ÐµÑÐ°Ð½ÑÐº</span>
+    <span class="skill-tag skill-must">ÐÐ½Ð°Ð»ÑÑÐ¸ÐºÐ° Instagram Insights / Meta</span>
+    <span class="skill-tag skill-must">Ð Ð¾Ð±Ð¾ÑÐ° Ð· Notion / Trello Ð°Ð±Ð¾ Ð°Ð½Ð°Ð»Ð¾Ð³Ð¸</span>
+    <span class="skill-tag skill-must">Ð¡Ð°Ð¼Ð¾Ð¾ÑÐ³Ð°Ð½ÑÐ·Ð°ÑÑÑ Ð±ÐµÐ· Ð¼ÑÐºÑÐ¾Ð¼ÐµÐ½ÐµÐ´Ð¶Ð¼ÐµÐ½ÑÑ</span>
+  </div>
+  <div class="divider"></div>
+  <h3>ÐÑÐ´Ðµ Ð¿ÐµÑÐµÐ²Ð°Ð³Ð¾Ñ (nice to have)</h3>
+  <div class="skills-grid" style="margin-bottom:16px;">
+    <span class="skill-tag skill-nice">ÐÐ¾ÑÐ²ÑÐ´ Ð· ecommerce Ð°Ð±Ð¾ FMCG Ð±ÑÐµÐ½Ð´Ð°Ð¼Ð¸</span>
+    <span class="skill-tag skill-nice">ÐÐ°Ð·Ð¾Ð²Ð¸Ð¹ Canva / Figma (Ð±Ð°Ð½ÐµÑÐ¸)</span>
+    <span class="skill-tag skill-nice">ÐÐ¾ÑÐ²ÑÐ´ Ð· email-Ð¼Ð°ÑÐºÐµÑÐ¸Ð½Ð³Ð¾Ð¼</span>
+    <span class="skill-tag skill-nice">TikTok ÐºÐ¾Ð½ÑÐµÐ½Ñ-ÑÑÑÐ°ÑÐµÐ³ÑÑ</span>
+    <span class="skill-tag skill-nice">ÐÐ¾ÑÐ²ÑÐ´ Ñ ÑÐ¾Ð·ÑÐ³ÑÐ°ÑÐ°Ñ / Ð³ÑÐ²ÐµÐ²ÐµÑÑ</span>
+  </div>
+  <div class="divider"></div>
+  <h3>ÐÑÐ¾Ð±Ð¸ÑÑÑ ÑÐºÐ¾ÑÑÑ</h3>
+  <div class="skills-grid">
+    <span class="skill-tag skill-soft">ÐÑÐ´ÑÑÐ²Ð°Ñ Ð°ÑÐ´Ð¸ÑÐ¾ÑÑÑ (ÐµÐ¼Ð¿Ð°ÑÑÑ Ð² ÑÐµÐºÑÑÑ)</span>
+    <span class="skill-tag skill-soft">ÐÐ¸ÐºÐ¾Ð½ÑÑ Ð±ÐµÐ· Ð½Ð°Ð³Ð°Ð´ÑÐ²Ð°Ð½Ñ</span>
+    <span class="skill-tag skill-soft">ÐÑÐ±Ð¸ÑÑ Ð°Ð²ÑÐ¾Ð¼Ð¾Ð±ÑÐ»Ñ Ð°Ð±Ð¾ Ð¼Ð¾Ð¶Ðµ ÑÐ¸ÑÐ¾ Ð¿ÑÐ¾ Ð½Ð¸Ñ Ð¿Ð¸ÑÐ°ÑÐ¸</span>
+    <span class="skill-tag skill-soft">Ð¢ÑÐ¸Ð¼Ð°Ñ Ð´ÐµÐ´Ð»Ð°Ð¹Ð½Ð¸ ÑÐº Ð¿ÑÐ°Ð²Ð¸Ð»Ð¾, Ð° Ð½Ðµ Ð²Ð¸Ð½ÑÑÐ¾Ðº</span>
+    <span class="skill-tag skill-soft">ÐÐ¾Ð¶Ðµ Ð¿ÑÐ°ÑÑÐ²Ð°ÑÐ¸ Ñ Ð²Ð²ÐµÑÐµÑÑ (ÐµÑÑÑÐ¸, Ð°ÐºÑÑÑ)</span>
+    <span class="skill-tag skill-soft">ÐÐ¾ÑÐ¾Ð²Ð¸Ð¹ Ð´Ð¾ Ð½ÐµÑÑÐ°Ð½Ð´Ð°ÑÑÐ½Ð¸Ñ Ð·Ð°Ð´Ð°Ñ</span>
+  </div>
+</div>
+
+<!-- Red/Green flags -->
+<h2>ÐÐµÐ»ÐµÐ½Ñ ÑÐ° ÑÐµÑÐ²Ð¾Ð½Ñ Ð¿ÑÐ°Ð¿Ð¾ÑÑÑ</h2>
+<div class="flags-row">
+  <div class="flag-block flag-green">
+    <h4>â ÐÐµÐ»ÐµÐ½Ñ Ð¿ÑÐ°Ð¿Ð¾ÑÑÑ</h4>
+    <ul>
+      <li>ÐÐ¾ÑÑÑÐ¾Ð»ÑÐ¾ Ð· Ð¶Ð¸Ð²Ð¸Ð¼Ð¸ Ukrainian Instagram-Ð°ÐºÐ°ÑÐ½ÑÐ°Ð¼Ð¸</li>
+      <li>ÐÐ¾ÐºÐ°Ð·ÑÑ ER, Ð¾ÑÐ¾Ð¿Ð»ÐµÐ½Ð½Ñ, Ð½Ðµ Ð»Ð¸ÑÐµ "ÐºÑÐ°ÑÐ¸Ð²Ð¾"</li>
+      <li>Ð¡Ð°Ð¼(Ð°) ÐºÐ°Ð¶Ðµ "Ð¾ÑÑ ÑÐ¾ Ñ Ð± Ð·Ð¼ÑÐ½Ð¸Ð²(Ð»Ð°) Ñ Ð²Ð°ÑÐ¾Ð¼Ñ ÐºÐ¾Ð½ÑÐµÐ½ÑÑ"</li>
+      <li>Ð Ð½Ð°Ð¿Ð¸ÑÐ°Ð½Ñ ÑÑÐµÐ½Ð°ÑÑÑ Ð°Ð±Ð¾ Ð¿ÑÐ´Ð¿Ð¸ÑÐ¸ Ð² Ð¿Ð¾ÑÑÑÐ¾Ð»ÑÐ¾</li>
+      <li>ÐÐ½Ð°Ñ ÑÑÐ¾ ÑÐ°ÐºÑ DreamCar ÑÐµ Ð´Ð¾ ÑÐ¿ÑÐ²Ð±ÐµÑÑÐ´Ð¸</li>
+      <li>ÐÐ°Ð¿Ð¸ÑÑÑ Ð¿ÑÐ¾ Ð°ÑÐ´Ð¸ÑÐ¾ÑÑÑ Ñ ÑÑÐ»Ñ, Ð° Ð½Ðµ Ð¾Ð´ÑÐ°Ð·Ñ Ð¿ÑÐ¾ ÐÐ</li>
+    </ul>
+  </div>
+  <div class="flag-block flag-red">
+    <h4>ð© Ð§ÐµÑÐ²Ð¾Ð½Ñ Ð¿ÑÐ°Ð¿Ð¾ÑÑÑ</h4>
+    <ul>
+      <li>Ð¢ÑÐ»ÑÐºÐ¸ Ð°Ð³ÐµÐ½ÑÑÑÐºÐ¸Ð¹ Ð´Ð¾ÑÐ²ÑÐ´ (ÑÐ¾ÑÐ¼Ð°Ð»ÑÐ½Ð¸Ð¹, Ð½Ðµ Ð²Ð¸Ð¸Ð²Ð°ÑÑÑÑÑ)</li>
+      <li>ÐÐ¾ÑÑÑÐ¾Ð»ÑÐ¾ "ÐºÑÐ°ÑÐ¸Ð²Ð¾ Ð°Ð»Ðµ Ð¼ÐµÑÑÐ²Ð¾" â 30 Ð»Ð°Ð¹ÐºÑÐ² Ð½Ð° Ð¿Ð¾ÑÑ</li>
+      <li>ÐÐµ ÑÐ¾Ð·ÑÐ¼ÑÑ Ð¼ÐµÑÐ°Ð½ÑÐºÐ¸ Ð²Ð¸Ð³ÑÐ°ÑÑÐ² / FOMO / ÑÑÐ³ÐµÐ½ÑÐ½Ð¾ÑÑÑ</li>
+      <li>ÐÐµ Ð¼Ð¾Ð¶Ðµ Ð¿Ð¸ÑÐ°ÑÐ¸ ÐµÐ¼Ð¾ÑÑÐ¹Ð½Ð¾ â ÑÑÐ»ÑÐºÐ¸ "Ð¾ÑÑÑÑÐ¹Ð½Ð¸Ð¹ ÑÑÐ¸Ð»Ñ"</li>
+      <li>ÐÐ¾Ð²Ð¾ÑÐ¸ÑÑ "Ñ Ð½Ðµ Ð´Ð¸Ð·Ð°Ð¹Ð½ÐµÑ" Ð½Ð° Ð¿Ð¸ÑÐ°Ð½Ð½Ñ Ð¿ÑÐ¾ Canva-Ð±Ð°Ð½ÐµÑ</li>
+      <li>ÐÐµ Ð³Ð¾ÑÐ¾Ð²Ð¸Ð¹ Ð´Ð¾ Ð³Ð½ÑÑÐºÐ¾Ð³Ð¾ Ð³ÑÐ°ÑÑÐºÑ Ð² Ð´Ð½Ñ ÑÑÐ½Ð°Ð»ÑÐ²</li>
+    </ul>
+  </div>
+</div>
+
+<!-- KPIs -->
+<h2>KPI ÑÐ° Ð¼ÐµÑÑÐ¸ÐºÐ¸ ÑÑÐ¿ÑÑÑ</h2>
+<div class="block" style="padding:0; overflow:hidden;">
+  <table class="kpi-table">
+    <thead>
+      <tr>
+        <th>ÐÐµÑÑÐ¸ÐºÐ°</th>
+        <th>Ð¯Ðº Ð²Ð¸Ð¼ÑÑÑÑÑÑÑÑ</th>
+        <th>Ð¦ÑÐ»Ñ (1-Ð¹ Ð¼ÑÑÑÑÑ)</th>
+        <th>Ð¦ÑÐ»Ñ (3-Ð¹ Ð¼ÑÑÑÑÑ)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric">ÐÐ¾Ð½ÑÐµÐ½Ñ-Ð¿Ð»Ð°Ð½ Ð³Ð¾ÑÐ¾Ð²Ð¸Ð¹ Ð´Ð¾ ÑÑÐ°ÑÑÑ</td>
+        <td>Ð Ð² Notion/Sheets Ð·Ð° 3 Ð´Ð½Ñ Ð´Ð¾ ÑÑÐ°ÑÑÑ</td>
+        <td class="target">100%</td>
+        <td class="target">100%</td>
+      </tr>
+      <tr>
+        <td class="metric">ÐÑÐ±Ð»ÑÐºÐ°ÑÑÑ Ð·Ð° Ð¿Ð»Ð°Ð½Ð¾Ð¼</td>
+        <td>% Ð¿Ð¾ÑÑÑÐ² Ð²Ð¸Ð¹ÑÐ»Ð¸ Ñ Ð·Ð°Ð¿Ð»Ð°Ð½Ð¾Ð²Ð°Ð½Ð¸Ð¹ Ð´ÐµÐ½Ñ</td>
+        <td class="target">&gt;85%</td>
+        <td class="target">&gt;95%</td>
+      </tr>
+      <tr>
+        <td class="metric">Ð¡ÑÐµÐ½Ð°ÑÑÑ Reels Ð²ÑÐ°ÑÐ½Ð¾</td>
+        <td>ÐÐ°Ð´Ð°Ð½Ñ ÐÑÑÐµÐ¼Ñ Ð·Ð° 3+ Ð´Ð½Ñ Ð´Ð¾ Ð·Ð¸Ð¾Ð¼ÐºÐ¸</td>
+        <td class="target">3/Ð¿ÑÐ¾ÐµÐºÑ</td>
+        <td class="target">5/Ð¿ÑÐ¾ÐµÐºÑ</td>
+      </tr>
+      <tr>
+        <td class="metric">ÐÑÐ¸ÑÐ¸ Ð´Ð»Ñ ÐÑÑÐ¸</td>
+        <td>ÐÐµÑÐµÐ´Ð°Ð½Ñ Ð·Ð° 3+ Ð´Ð½Ñ Ð´Ð¾ ÑÐ¾Ð·ÑÐ¸Ð»ÐºÐ¸</td>
+        <td class="target">100%</td>
+        <td class="target">100%</td>
+      </tr>
+      <tr>
+        <td class="metric">Engagement Rate (Reels)</td>
+        <td>Instagram Insights</td>
+        <td class="target">ÐÐµ Ð³ÑÑÑÐµ -10% vs ÑÐµÑÐµÐ´Ð½Ñ</td>
+        <td class="target">+15% vs ÑÑÐ°ÑÑÐ¾Ð²Ð¸Ð¹ ÑÑÐ²ÐµÐ½Ñ</td>
+      </tr>
+      <tr>
+        <td class="metric">ÐÐ²ÑÑ Ð¿Ð¾ Ð¿ÑÐ¾ÐµÐºÑÑ</td>
+        <td>ÐÐ¾ÑÐ¾Ð²Ð¸Ð¹ ÑÐµÑÐµÐ· 3 Ð´Ð½Ñ Ð¿ÑÑÐ»Ñ Ð¿ÐµÑÐµÐ´Ð°ÑÑ Ð¿ÑÐ¸Ð·Ñ</td>
+        <td class="target">â Ð</td>
+        <td class="target">â ÐÐ°Ð²Ð¶Ð´Ð¸</td>
+      </tr>
+      <tr>
+        <td class="metric">Ð§Ð°Ñ CEO Ð½Ð° Ð¼Ð°ÑÐºÐµÑÐ¸Ð½Ð³</td>
+        <td>Ð¡Ð°Ð¼Ð¾Ð¾ÑÑÐ½ÐºÐ° ÐÐ°Ð´Ð¸Ð¼Ð° (Ð³Ð¾Ð´/ÑÐ¸Ð¶)</td>
+        <td class="target">â50% vs ÑÑÐ°ÑÑÐ¾Ð²Ð¸</td>
+        <td class="target">Ð¢ÑÐ»ÑÐºÐ¸ ÑÑÑÐ°ÑÐµÐ³ÑÑÐ½Ñ ÑÑÑÐµÐ½Ð½Ñ</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Salary -->
+<h2>ÐÐ¸Ð»ÐºÐ° Ð¾Ð¿Ð»Ð°ÑÐ¸ (ÑÐ¸Ð½Ð¾Ðº Ð£ÐºÑÐ°ÑÐ½Ð°, ÑÐµÐ¼Ð¾ÑÑ)</h2>
+<div class="salary-row">
+  <div class="salary-box salary-other">
+    <div class="level">Junior</div>
+    <div class="amount">$350â550</div>
+    <div class="desc">ÐÐ¾ 1.5 ÑÐ¾ÐºÑÐ² Ð´Ð¾ÑÐ²ÑÐ´Ñ<br>ÐÐ¾ÑÑÑÐ±Ð½Ð¾ Ð±ÑÐ»ÑÑÐµ Ð¼ÐµÐ½ÑÐ¾ÑÐ¸Ð½Ð³Ñ</div>
+  </div>
+  <div class="salary-box salary-mid">
+    <div class="level">â Ð¦ÑÐ»ÑÐ¾Ð²Ð¸Ð¹ ÑÑÐ²ÐµÐ½Ñ</div>
+    <div class="amount">$600â900</div>
+    <div class="desc">1.5â3 ÑÐ¾ÐºÐ¸, Ñ Ð¿Ð¾ÑÑÑÐ¾Ð»ÑÐ¾<br>Ð¡Ð°Ð¼Ð¾ÑÑÑÐ¹Ð½Ð¸Ð¹, Ð¼ÑÐ½ÑÐ¼ÑÐ¼ ÐºÐ¾Ð½ÑÑÐ¾Ð»Ñ</div>
+  </div>
+  <div class="salary-box salary-other">
+    <div class="level">Senior</div>
+    <div class="amount">$1000â1400</div>
+    <div class="desc">3+ ÑÐ¾ÐºÐ¸, Ð·Ð°ÐºÑÐ¸Ð²Ð°Ñ +SMM/Ads<br>ÐÐ¸Ð¿ÑÐ°Ð²Ð´Ð°Ð½Ð¾ Ð¿ÑÐ¸ 2+ Ð¿ÑÐ¾ÐµÐºÑÐ¸/Ð¼ÑÑ</div>
+  </div>
+</div>
+<p style="font-size:11px; color:#666; margin-top:10px; padding-left:4px;">
+  * Ð ÐµÐºÐ¾Ð¼ÐµÐ½Ð´Ð¾Ð²Ð°Ð½Ð¸Ð¹ ÑÑÐ°ÑÑ: ÐºÐ¾Ð½ÑÑÐ°ÐºÑ Ð½Ð° 1 Ð¿ÑÐ¾ÐµÐºÑ (trial) â Ð¿Ð¾Ð²Ð½Ð¸Ð¹ Ð½Ð°Ð¹Ð¼. ÐÐ¾Ð¶Ð»Ð¸Ð²Ð¸Ð¹ Ð±Ð¾Ð½ÑÑ Ð´Ð¾ ÐÐ Ð¿ÑÐ¸ Ð´Ð¾ÑÑÐ³Ð½ÐµÐ½Ð½Ñ KPI Ð¿ÑÐ¾Ð´Ð°Ð¶ÑÐ².
+</p>
+
+<!-- Where to find -->
+<h2>ÐÐµ ÑÑÐºÐ°ÑÐ¸</h2>
+<div class="channel-grid">
+  <div class="channel-card ch-priority-1">
+    <div class="ch-name">ð´ Djinni.co</div>
+    <div class="ch-detail">ÐÐ¾Ð»Ð¾Ð²Ð½Ð° Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ð° Ð´Ð»Ñ Ukrainian digital-ÑÐ¿ÐµÑÑÐ°Ð»ÑÑÑÑÐ². Ð¢ÐµÐ³: Marketing, SMM, Content. ÐÑÐ¶Ðµ Ð°ÐºÑÐ¸Ð²Ð½Ð° Ð±Ð°Ð·Ð°</div>
+  </div>
+  <div class="channel-card ch-priority-1">
+    <div class="ch-name">ð´ Telegram-ÐºÐ°Ð½Ð°Ð»Ð¸</div>
+    <div class="ch-detail">@uamarketers_jobs Â· @smm_jobs_ua Â· @digital_ukraine_jobs<br>ÐÐ¾ÑÑ Ð· Ð²Ð°ÐºÐ°Ð½ÑÑÑÑ Ð¿ÑÑÐ¼Ð¾ Ð² ÐºÐ°Ð½Ð°Ð»</div>
+  </div>
+  <div class="channel-card ch-priority-1">
+    <div class="ch-name">ð´ Ð ÐµÑÐµÑÐµÐ½Ñ</div>
+    <div class="ch-detail">ÐÐ¾Ð¿ÑÐ¾ÑÐ¸ÑÐ¸ ÐºÐ¾Ð¼Ð°Ð½Ð´Ñ Ñ Ð¼ÐµÑÐµÐ¶Ñ â ÑÐºÑÑÑ ÐºÐ°Ð½Ð´Ð¸Ð´Ð°ÑÐ¸ Ð¿Ð¾ Ð·Ð½Ð°Ð¹Ð¾Ð¼ÑÑÐ²Ñ Ð·Ð°Ð²Ð¶Ð´Ð¸ ÐºÑÐ°ÑÑ Ð·Ð° ÑÐ¾Ð»Ð¾Ð´Ð½Ð¸Ð¹ Ð¿Ð¾ÑÑÐº</div>
+  </div>
+  <div class="channel-card ch-priority-2">
+    <div class="ch-name">ð¡ LinkedIn</div>
+    <div class="ch-detail">SMM Manager / Content Manager / Marketing Manager Â· ÑÑÐ»ÑÑÑ: Ukraine, Remote. ÐÐµÐ½ÑÐ° Ð°ÐºÑÐ¸Ð²Ð½ÑÑÑÑ Ð½ÑÐ¶ Djinni</div>
+  </div>
+  <div class="channel-card ch-priority-2">
+    <div class="ch-name">ð¡ Facebook Ð³ÑÑÐ¿Ð¸</div>
+    <div class="ch-detail">"ÐÐ°ÑÐºÐµÑÐ¾Ð»Ð¾Ð³Ð¸ Ð£ÐºÑÐ°ÑÐ½Ð¸" Â· "Digital Marketing UA" Â· "SMM Ð¡Ð¿ÑÐ»ÑÐ½Ð¾ÑÐ° UA" â Ð¾Ð¿ÑÐ±Ð»ÑÐºÑÐ²Ð°ÑÐ¸ Ð²Ð°ÐºÐ°Ð½ÑÑÑ</div>
+  </div>
+  <div class="channel-card ch-priority-3">
+    <div class="ch-name">ðµ Instagram Ð¿Ð¾ÑÑÐº</div>
+    <div class="ch-detail">ÐÐ½Ð°Ð¹ÑÐ¸ ÑÐºÑÐ°ÑÐ½ÑÑÐºÑ Ð°ÐºÐºÐ°ÑÐ½ÑÐ¸ Ð·Ñ ÑÑÐ¾Ð¶Ð¾Ñ ÑÐ¾Ð½Ð°Ð»ÑÐ½ÑÑÑÑ (Ð°Ð²ÑÐ¾, lifestyle, FOMO-Ð¼ÐµÑÐ°Ð½ÑÐºÐ¸) â Ð½Ð°Ð¿Ð¸ÑÐ°ÑÐ¸ SMM-Ð½Ð¸ÐºÑ Ð½Ð°Ð¿ÑÑÐ¼Ñ</div>
+  </div>
+</div>
+
+<!-- Vacancy text -->
+<h2>Ð§Ð¾ÑÐ½Ð¾Ð²Ð¸Ðº Ð²Ð°ÐºÐ°Ð½ÑÑÑ (Ð³Ð¾ÑÐ¾Ð²Ð¸Ð¹ Ð´Ð¾ Ð¿ÑÐ±Ð»ÑÐºÐ°ÑÑÑ)</h2>
+<div class="vacancy">
+  <div class="vacancy-label">ð Ð¢ÐµÐºÑÑ Ð´Ð»Ñ Djinni / Telegram / Facebook</div>
+
+  <p><strong>Marketing Manager / SMM (ÑÐµÐ¼Ð¾ÑÑ, Ð¿Ð¾Ð²Ð½Ð° Ð°Ð±Ð¾ 0.75 Ð·Ð°Ð¹Ð½ÑÑÑÑÑÑ)</strong></p>
+  <p>Ð¨ÑÐºÐ°ÑÐ¼Ð¾ Marketing Manager Ð² <strong>DreamCar.ua</strong> â Ð½Ð°Ð¹Ð±ÑÐ»ÑÑÐ¸Ð¹ Ð² Ð£ÐºÑÐ°ÑÐ½Ñ ÑÐµÑÐ²ÑÑ ÑÐ¾Ð·ÑÐ³ÑÐ°ÑÑÐ² Ð°Ð²ÑÐ¾Ð¼Ð¾Ð±ÑÐ»ÑÐ² Ð¼ÑÑÑ. Ð 2019 ÑÐ¾ÐºÑ Ð¼Ð¸ ÑÐ¾Ð·ÑÐ³ÑÐ°Ð»Ð¸ 16 Ð°Ð²ÑÐ¾Ð¼Ð¾Ð±ÑÐ»ÑÐ² (BMW X5, Porsche Cayenne, Mercedes, Audi S8...) ÑÐµÑÐµÐ´ 30 000+ ÑÑÐ°ÑÐ½Ð¸ÐºÑÐ². 356K Ð¿ÑÐ´Ð¿Ð¸ÑÐ½Ð¸ÐºÑÐ² Ð² Instagram.</p>
+
+  <div class="section-name">Ð©Ð¾ ÑÐ¸ Ð±ÑÐ´ÐµÑ ÑÐ¾Ð±Ð¸ÑÐ¸</div>
+  <ul>
+    <li>ÐÑÐ´ÑÑÑ Ñ Ð²ÐµÐ´ÐµÑ ÐºÐ¾Ð½ÑÐµÐ½Ñ-Ð¿Ð»Ð°Ð½ Ð´Ð»Ñ ÐºÐ¾Ð¶Ð½Ð¾Ð³Ð¾ Ð¿ÑÐ¾ÐµÐºÑÑ (1â2 ÑÐ°Ð·Ð¸ Ð½Ð° Ð¼ÑÑÑÑÑ)</li>
+    <li>ÐÐ¸ÑÐµÑ ÑÑÐµÐ½Ð°ÑÑÑ Reels Ñ Ð¿ÑÐ´Ð¿Ð¸ÑÐ¸ Ð´Ð¾ Ð²ÑÑÑ Ð¿Ð¾ÑÑÑÐ² â ÑÐºÑÐ°ÑÐ½ÑÑÐºÐ¾Ñ, Ð¶Ð¸Ð²Ð¾ Ñ Ð· ÑÐ°ÑÐ°ÐºÑÐµÑÐ¾Ð¼</li>
+    <li>ÐÑÐ¸Ð´ÑÐ¼ÑÑÑ Ñ Ð¾Ð¿Ð¸ÑÑÑÑ Ð¼ÐµÑÐ°Ð½ÑÐºÐ¸ Ð°ÐºÑÑÐ¹ (Ð¿ÑÐ¾Ð¼Ð¾ÐºÐ¾Ð´Ð¸, flash-sales, Ð±Ð¾Ð½ÑÑÐ¸)</li>
+    <li>ÐÐ¾Ð¾ÑÐ´Ð¸Ð½ÑÑÑ ÐºÐ¾Ð¼Ð°Ð½Ð´Ñ: ÐºÐ¾Ð½ÑÐµÐ½Ñ-Ð¿ÑÐ¾Ð´Ð°ÐºÑÐ½, ÑÐµÑÐµÐ½ÑÐ½-ÑÐ¾Ð·ÑÐ¸Ð»ÐºÐ¸, ÑÐµÐºÐ»Ð°Ð¼Ð½Ñ Ð±ÑÐ¸ÑÐ¸</li>
+    <li>ÐÐ½Ð°Ð»ÑÐ·ÑÑÑ ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÐ¸ ÐºÐ¾Ð¶Ð½Ð¾Ð³Ð¾ Ð¿ÑÐ¾ÐµÐºÑÑ Ñ Ð¿ÑÐ¾Ð¿Ð¾Ð½ÑÑÑ Ð¿Ð¾ÐºÑÐ°ÑÐµÐ½Ð½Ñ</li>
+  </ul>
+
+  <div class="section-name">Ð©Ð¾ Ð¼Ð¸ Ð¾ÑÑÐºÑÑÐ¼Ð¾</div>
+  <ul>
+    <li>1.5â3 ÑÐ¾ÐºÐ¸ Ð´Ð¾ÑÐ²ÑÐ´Ñ Ð² SMM / ÐºÐ¾Ð½ÑÐµÐ½Ñ-Ð¼Ð°ÑÐºÐµÑÐ¸Ð½Ð³Ñ</li>
+    <li>ÐÐ¾ÑÑÑÐ¾Ð»ÑÐ¾ Ð· Ukrainian Instagram-Ð°ÐºÐ°ÑÐ½ÑÐ°Ð¼Ð¸ â Ð¿Ð¾ÐºÐ°Ð¶Ð¸ ÑÐµÐ°Ð»ÑÐ½Ñ ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÐ¸</li>
+    <li>ÐÐ¼ÑÑÑ Ð¿Ð¸ÑÐ°ÑÐ¸ ÐµÐ¼Ð¾ÑÑÐ¹Ð½Ð¾ Ñ Ð¿ÐµÑÐµÐºÐ¾Ð½Ð»Ð¸Ð²Ð¾ ÑÐºÑÐ°ÑÐ½ÑÑÐºÐ¾Ñ</li>
+    <li>Ð¡Ð°Ð¼Ð¾ÑÑÑÐ¹Ð½Ð¸Ð¹ à ÑÑÐ°Ð²Ð¸Ñ Ð·Ð°Ð´Ð°ÑÑ ÑÐ¾Ð±Ñ ÑÐ°Ð¼ Ñ Ð²Ð¸ÐºÐ¾Ð½ÑÑÑ Ð±ÐµÐ· Ð½Ð°Ð³Ð°Ð´ÑÐ²Ð°Ð½Ñ</li>
+    <li>ÐÑÐ±Ð¸Ñ Ð°Ð±Ð¾ ÑÐ¾Ð·ÑÐ¼ÑÑÑ Ð°Ð²ÑÐ¾Ð¼Ð¾Ð±ÑÐ»ÑÐ½Ñ ÑÐµÐ¼Ð°ÑÐ¸ÐºÑ (Ð±ÑÐ´Ðµ Ð¿ÐµÑÐµÐ²Ð°Ð³Ð¾)</li>
+  </ul>
+
+  <div class="section-name">Ð©Ð¾ Ð¼Ð¸ Ð¿ÑÐ¾Ð¿Ð¾Ð½ÑÑÐ¼Ð¾</div>
+  <ul>
+    <li>$600â900/Ð¼ÑÑ Ð·Ð°Ð»ÐµÐ¶Ð½Ð¾Ð²ÑÐ´Ð²ÑÐµÐ½Ð½ÑÐ ÐºÐ¾ÑÑÑ Ð½Ð° ÑÐ¸ Ð¿Ð¾ÑÐ¸ Ð¿ÐµÑÐµÐ²Ð¸ÐºÐ¾Ð½Ð°Ð½Ð½Ñ KPI</li>
+    <li>ÐÐ¾Ð²Ð½Ð¸Ð¹ ÑÐµÐ¼Ð¾ÑÑ, Ð³Ð½ÑÑÐºÐ¸Ð¹ Ð³ÑÐ°ÑÑÐº (Ð°Ð»Ðµ Ñ ÑÑÐ½Ð°Ð»ÑÐ½Ñ ÐµÑÑÑÐ¸ Ð²Ð²ÐµÑÐµÑÑ)</li>
+    <li>Ð¡ÑÐ°ÑÑ: trial-Ð¿ÑÐ¾ÐµÐºÑ â Ð¿Ð¾Ð²Ð½Ð° ÑÐ¿ÑÐ²Ð¿ÑÐ°ÑÑ</li>
+    <li>ÐÑÐ¾Ð´ÑÐºÑ Ð· ÑÐµÐ°Ð»ÑÐ½Ð¸Ð¼Ð¸ ÐµÐ¼Ð¾ÑÑÑÐ¼Ð¸: ÑÐ¸ Ð±Ð°ÑÐ¸Ñ ÑÐº Ð»ÑÐ´Ð¸ Ð¾ÑÑÐ¸Ð¼ÑÑÑÑ Ð°Ð²ÑÐ¾ Ð¼ÑÑÑ Ð·Ð°Ð²Ð´ÑÐºÐ¸ ÑÐ²Ð¾ÑÐ¼Ñ ÐºÐ¾Ð½ÑÐµÐ½ÑÑ</li>
+  </ul>
+
+  <div class="section-name">Ð¯Ðº Ð²ÑÐ´Ð³ÑÐºÐ½ÑÑÐ¸ÑÑ</div>
+  <p>ÐÐ°Ð¿Ð¸ÑÐ¸ Ð² Ð¾ÑÐ¾Ð±Ð¸ÑÑÑ: <strong>[ÐºÐ¾Ð½ÑÐ°ÐºÑ]</strong> â Ð¿ÑÐ¸ÐºÑÑÐ¿Ð¸ Ð¿Ð¾ÑÑÑÐ¾Ð»ÑÐ¾ Ñ 2â3 ÑÐµÑÐµÐ½Ð½Ñ Ð¿ÑÐ¾ ÑÐµÐ±Ðµ. ÐÐ°Ð¹Ð²Ñ ÑÑÐ¿ÑÐ¾Ð²ÑÐ´Ð½Ñ Ð»Ð¸ÑÑÐ¸ Ð½Ðµ Ð¿Ð¾ÑÑÑÐ±Ð½Ñ.</p>
+</div>
+
+<div style="text-align:center; margin-top:40px; color:#333; font-size:11px;">
+  DreamCar.ua â ÐÑÐ¾ÑÑÐ»Ñ ÑÐ¾Ð»Ñ Marketing Manager v1.0 â ÐÐµÑÐµÐ·ÐµÐ½Ñ 2026 â ÐÐ¾Ð½ÑÑÐ´ÐµÐ½ÑÑÐ¹Ð½Ð¾
+</div>
+
+</body>
+</html>
