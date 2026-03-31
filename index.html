@@ -2,27 +2,69 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DreamCar — Внутрішні матеріали</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #0f0f1a; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-  .wrap { text-align: center; padding: 40px; }
-  h1 { color: #cc0000; font-size: 28px; margin-bottom: 8px; }
-  p { color: #888; margin-bottom: 40px; font-size: 13px; }
-  .links { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-  a { display: block; background: #1a1a2e; border: 1px solid #cc0000; border-radius: 10px; padding: 24px 32px; color: #fff; text-decoration: none; min-width: 220px; transition: background 0.2s; }
-  a:hover { background: #2a0a0a; }
-  a .title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-  a .desc { font-size: 11px; color: #888; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif; background: #0f0f1a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 40px 24px;
+  }
+  .wrap { text-align: center; max-width: 720px; width: 100%; }
+  h1 { color: #cc0000; font-size: 30px; font-weight: 700; letter-spacing: 2px; margin-bottom: 6px; }
+  .sub { color: #555; font-size: 12px; margin-bottom: 48px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card {
+    display: flex; flex-direction: column; align-items: flex-start;
+    background: #13131f; border-radius: 12px; padding: 22px 22px 20px;
+    color: #fff; text-decoration: none;
+    transition: transform 0.15s, border-color 0.15s;
+    border: 1px solid #1e1e2e;
+  }
+  .card:hover { transform: translateY(-3px); }
+  .card-icon { font-size: 28px; margin-bottom: 12px; }
+  .card-title { font-size: 13px; font-weight: 700; margin-bottom: 5px; line-height: 1.3; text-align: left; }
+  .card-desc  { font-size: 11px; color: #666; line-height: 1.6; text-align: left; }
+
+  .card-org   { border-color: #330000; }
+  .card-org:hover { border-color: #cc0000; }
+  .card-org .card-title { color: #ff9999; }
+
+  .card-check { border-color: #332200; }
+  .card-check:hover { border-color: #cc8800; }
+  .card-check .card-title { color: #fbbf24; }
+
+  .card-onb   { border-color: #0a1a2e; }
+  .card-onb:hover { border-color: #2255bb; }
+  .card-onb .card-title { color: #7ab0ff; }
+
+  @media (max-width: 600px) {
+    .cards { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>DreamCar.ua</h1>
-  <p>Внутрішні матеріали команди · Квітень 2026</p>
-  <div class="links">
-    <a href="orgchart.html">
-      <div class="title">🏗️ Організаційна структура</div>
-      <div class="desc">Засновники · COO · Команда виконання</div>
+  <p class="sub">Внутрішні матеріали команди · Квітень 2026 · Конфіденційно</p>
+
+  <div class="cards">
+    <a href="orgchart.html" class="card card-org">
+      <div class="card-icon">🏗️</div>
+      <div class="card-title">Організаційна структура</div>
+      <div class="card-desc">Засновники · COO · Команда · Розподіл повноважень</div>
+    </a>
+    <a href="checklist.html" class="card card-check">
+      <div class="card-icon">📋</div>
+      <div class="card-title">Поточні питання</div>
+      <div class="card-desc">Відкриті задачі і питання команди · Інтерактивний чекліст</div>
+    </a>
+    <a href="onboarding.html" class="card card-onb">
+      <div class="card-icon">🚀</div>
+      <div class="card-title">Онбординг Даніла</div>
+      <div class="card-desc">Про проект · Команда · Перші кроки · Інструменти</div>
     </a>
   </div>
 </div>
