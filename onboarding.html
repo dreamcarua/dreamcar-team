@@ -8,174 +8,223 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: #0f0f1a; color: #fff; min-height: 100vh; }
 
-  /* NAV */
   .sidenav {
-    position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
+    position: fixed; top: 0; left: 0; width: 224px; height: 100vh;
     background: #0a0a14; border-right: 1px solid #1a1a2e;
     padding: 24px 0; overflow-y: auto; z-index: 50;
   }
-  .sidenav-logo { padding: 0 20px 20px; border-bottom: 1px solid #1a1a2e; margin-bottom: 16px; }
+  .sidenav-logo { padding: 0 18px 18px; border-bottom: 1px solid #1a1a2e; margin-bottom: 14px; }
   .sidenav-logo .logo-text { font-size: 14px; font-weight: 700; color: #cc0000; letter-spacing: 1px; }
   .sidenav-logo .logo-sub  { font-size: 10px; color: #555; margin-top: 2px; }
-  .nav-section { padding: 6px 20px 4px; font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 8px; }
+  .nav-section { padding: 6px 18px 3px; font-size: 9px; color: #3a3a5a; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 8px; }
   .nav-link {
-    display: block; padding: 8px 20px; font-size: 12px; color: #777;
+    display: block; padding: 7px 18px; font-size: 11.5px; color: #777;
     text-decoration: none; transition: all 0.15s; cursor: pointer;
     border-left: 2px solid transparent;
   }
   .nav-link:hover { color: #ccc; background: rgba(255,255,255,0.03); }
-  .nav-link.active { color: #fff; border-left-color: #cc0000; background: rgba(204,0,0,0.06); }
+  .nav-link.active { color: #fff; border-left-color: #cc0000; background: rgba(204,0,0,0.07); }
 
-  .main { margin-left: 220px; padding: 40px 48px; max-width: 960px; }
+  .main { margin-left: 224px; padding: 36px 48px 60px; max-width: 980px; }
 
-  /* SECTIONS */
   .section { display: none; }
   .section.active { display: block; }
 
-  /* WELCOME */
+  /* ---- WELCOME ---- */
   .welcome-hero {
-    background: linear-gradient(135deg, #1a0000 0%, #0a0f1f 60%, #0a1a0a 100%);
-    border: 1px solid #2a1a0a; border-radius: 14px; padding: 40px 44px; margin-bottom: 32px;
+    background: linear-gradient(135deg, #1a0000 0%, #0d0d1f 55%, #0a1a0a 100%);
+    border: 1px solid #2a1a0a; border-radius: 14px; padding: 36px 44px; margin-bottom: 28px;
   }
-  .welcome-hero h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .welcome-hero h1 { font-size: 26px; font-weight: 700; margin-bottom: 10px; }
   .welcome-hero h1 span { color: #cc0000; }
-  .welcome-hero p { font-size: 14px; color: #aaa; line-height: 1.8; max-width: 580px; }
+  .welcome-hero p { font-size: 13px; color: #aaa; line-height: 1.9; max-width: 600px; }
 
-  .welcome-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 32px; }
-  .stat-card { background: #13131f; border: 1px solid #1e1e2e; border-radius: 10px; padding: 18px 20px; text-align: center; }
-  .stat-card .num { font-size: 26px; font-weight: 700; color: #cc0000; }
-  .stat-card .label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+  .welcome-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat-card { background: #13131f; border: 1px solid #1e1e2e; border-radius: 10px; padding: 16px 18px; text-align: center; }
+  .stat-card .num { font-size: 24px; font-weight: 700; color: #cc0000; }
+  .stat-card .label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.7px; margin-top: 4px; line-height: 1.4; }
 
-  /* PROGRESS CHECKLIST */
-  .progress-bar-wrap { background: #1a1a2e; border-radius: 4px; height: 6px; margin: 16px 0 6px; overflow: hidden; }
-  .progress-bar { height: 100%; background: linear-gradient(to right, #cc0000, #ff6666); border-radius: 4px; transition: width 0.4s ease; }
-  .progress-label { font-size: 11px; color: #666; text-align: right; }
-
-  .step-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-  .step-item {
-    display: flex; align-items: flex-start; gap: 14px;
-    background: #13131f; border: 1px solid #1e1e2e;
-    border-radius: 10px; padding: 14px 16px; transition: all 0.15s;
+  /* ---- 14-DAY PLAN ---- */
+  .day-block { margin-bottom: 6px; }
+  .day-header {
+    display: flex; align-items: center; gap: 12px;
+    background: #13131f; border-radius: 10px 10px 0 0; padding: 13px 18px;
+    border: 1px solid #1e1e2e; border-bottom: none; cursor: pointer;
+    transition: background 0.15s; user-select: none;
   }
-  .step-item:hover { border-color: #2a2a4a; }
-  .step-item.done { opacity: 0.6; }
+  .day-header:hover { background: #181828; }
+  .day-header.collapsed { border-radius: 10px; border-bottom: 1px solid #1e1e2e; }
+  .day-badge {
+    font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 5px;
+    text-transform: uppercase; letter-spacing: 0.8px; flex-shrink: 0; white-space: nowrap;
+  }
+  .day-d1   { background: #2a0000; color: #ff6666; border: 1px solid #550000; }
+  .day-d2   { background: #2a1000; color: #ffaa55; border: 1px solid #552200; }
+  .day-d34  { background: #2a2000; color: #fbbf24; border: 1px solid #554000; }
+  .day-d57  { background: #102a10; color: #4ade80; border: 1px solid #205520; }
+  .day-d814 { background: #0a1a30; color: #60a5fa; border: 1px solid #1a3a60; }
+
+  .day-title { font-size: 13px; font-weight: 700; color: #fff; }
+  .day-meta  { font-size: 11px; color: #555; margin-left: auto; }
+  .day-chevron { font-size: 11px; color: #444; transition: transform 0.2s; }
+  .day-header:not(.collapsed) .day-chevron { transform: rotate(90deg); }
+
+  .day-body {
+    background: #0f0f1a; border: 1px solid #1e1e2e; border-top: none;
+    border-radius: 0 0 10px 10px; padding: 0 0 4px;
+  }
+  .day-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 12px 18px; border-bottom: 1px solid #16162a;
+    transition: background 0.1s;
+  }
+  .day-step:last-child { border-bottom: none; }
+  .day-step:hover { background: rgba(255,255,255,0.02); }
+  .day-step.done { opacity: 0.55; }
+
   .step-check {
-    width: 22px; height: 22px; border-radius: 50%; border: 2px solid #2a2a4a;
+    width: 20px; height: 20px; border-radius: 50%; border: 2px solid #252535;
     flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    margin-top: 1px; transition: all 0.15s;
+    margin-top: 2px; transition: all 0.15s;
   }
   .step-check:hover { border-color: #4ade80; }
-  .step-item.done .step-check { background: #1a7a4a; border-color: #1a7a4a; }
+  .day-step.done .step-check { background: #1a6a3a; border-color: #1a7a4a; }
   .step-check svg { display: none; }
-  .step-item.done .step-check svg { display: block; }
-  .step-body { flex: 1; }
-  .step-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 3px; }
-  .step-item.done .step-title { text-decoration: line-through; color: #555; }
-  .step-desc { font-size: 11px; color: #777; line-height: 1.6; }
-  .step-tag {
-    display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px;
-    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 6px;
-  }
-  .tag-week1  { background: #1a0000; color: #ff6666; border: 1px solid #440000; }
-  .tag-week2  { background: #1a1a00; color: #fbbf24; border: 1px solid #443300; }
-  .tag-month1 { background: #0a1a2a; color: #60a5fa; border: 1px solid #1a3a5a; }
+  .day-step.done .step-check svg { display: block; }
 
-  /* SECTION TITLES */
-  .section-title {
-    font-size: 18px; font-weight: 700; color: #cc0000; text-transform: uppercase;
-    letter-spacing: 2px; margin-bottom: 6px;
+  .step-content { flex: 1; }
+  .step-title { font-size: 12.5px; font-weight: 700; color: #fff; margin-bottom: 3px; line-height: 1.4; }
+  .day-step.done .step-title { text-decoration: line-through; color: #555; }
+  .step-detail { font-size: 11px; color: #777; line-height: 1.65; }
+  .step-detail strong { color: #aaa; }
+  .step-result {
+    margin-top: 6px; font-size: 10.5px; color: #60a5fa;
+    background: rgba(30,60,120,0.15); border-left: 2px solid #1a3a7a;
+    padding: 4px 8px; border-radius: 0 4px 4px 0; line-height: 1.5;
   }
-  .section-subtitle { font-size: 12px; color: #666; margin-bottom: 28px; }
+  .step-result::before { content: '→ '; font-weight: 700; }
 
-  /* BUSINESS MODEL */
-  .biz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* ---- PROBATION ---- */
+  .prob-grid { display: flex; flex-direction: column; gap: 12px; }
+  .prob-card {
+    background: #13131f; border-radius: 10px; padding: 20px 22px;
+    border-left: 3px solid #cc0000;
+  }
+  .prob-card.initiative { border-left-color: #fbbf24; }
+  .prob-card.process    { border-left-color: #7ab0ff; }
+  .prob-card.speed      { border-left-color: #4ade80; }
+  .prob-card.comm       { border-left-color: #c084fc; }
+
+  .prob-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+  .prob-num {
+    width: 28px; height: 28px; border-radius: 50%; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .prob-card          .prob-num { background: #2a0000; color: #ff6666; }
+  .prob-card.initiative .prob-num { background: #2a1f00; color: #fbbf24; }
+  .prob-card.process    .prob-num { background: #0a1a2e; color: #7ab0ff; }
+  .prob-card.speed      .prob-num { background: #0a2a12; color: #4ade80; }
+  .prob-card.comm       .prob-num { background: #1a0a2a; color: #c084fc; }
+
+  .prob-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+  .prob-deadline { font-size: 10px; color: #888; }
+  .prob-desc { font-size: 12px; color: #bbb; line-height: 1.7; margin-bottom: 10px; }
+  .prob-criteria { list-style: none; }
+  .prob-criteria li {
+    font-size: 11px; color: #888; padding: 3px 0 3px 16px;
+    position: relative; border-bottom: 1px solid #1a1a2e; line-height: 1.5;
+  }
+  .prob-criteria li:last-child { border-bottom: none; }
+  .prob-criteria li::before { content: '◆'; position: absolute; left: 0; font-size: 7px; top: 5px; color: #444; }
+  .prob-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 6px; color: #555; }
+
+  /* ---- SHARED COMPONENTS ---- */
+  .section-title { font-size: 18px; font-weight: 700; color: #cc0000; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+  .section-subtitle { font-size: 12px; color: #555; margin-bottom: 24px; }
+
+  .info-box { border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 12px; line-height: 1.75; }
+  .info-blue  { background: #0a1a2a; border: 1px solid #1a3a5a; color: #cce; }
+  .info-red   { background: #1a0000; border: 1px solid #330000; color: #fcc; }
+  .info-green { background: #0a2a1a; border: 1px solid #1a5a30; color: #cfc; }
+  .info-warn  { background: #1a1500; border: 1px solid #4a3800; color: #ffd; }
+  .info-box strong { color: #fff; }
+
+  .progress-bar-wrap { background: #1a1a2e; border-radius: 4px; height: 5px; margin-bottom: 5px; overflow: hidden; }
+  .progress-bar { height: 100%; background: linear-gradient(to right, #cc0000, #ff6666); border-radius: 4px; transition: width 0.4s; }
+  .progress-label { font-size: 11px; color: #555; margin-bottom: 18px; }
+
+  /* ---- BUSINESS MODEL ---- */
+  .biz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
   .biz-card { background: #13131f; border: 1px solid #1e1e2e; border-radius: 10px; padding: 18px 20px; }
-  .biz-card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 10px; }
-  .biz-card p, .biz-card li { font-size: 12px; color: #ccc; line-height: 1.7; }
-  .biz-card ul { list-style: none; padding-left: 0; }
+  .biz-card.hl { background: #1a0000; border-color: #330000; }
+  .biz-card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 10px; }
+  .biz-card.hl h3 { color: #ff9999; }
+  .biz-card p, .biz-card li { font-size: 12px; color: #ccc; line-height: 1.75; }
+  .biz-card ul { list-style: none; }
   .biz-card li { padding-left: 14px; position: relative; }
   .biz-card li::before { content: '▸'; position: absolute; left: 0; color: #cc0000; font-size: 9px; top: 3px; }
-  .biz-highlight { border-left: 3px solid #cc0000; background: #1a0000; }
-  .biz-highlight h3 { color: #ff9999; }
 
-  /* PROJECT CYCLE */
-  .cycle-steps { display: flex; flex-direction: column; gap: 0; }
-  .cycle-step {
-    display: flex; gap: 0; position: relative;
-  }
+  /* ---- CYCLE ---- */
+  .cycle-step { display: flex; gap: 0; }
   .cycle-num-col { width: 48px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
-  .cycle-num { width: 32px; height: 32px; border-radius: 50%; background: #1a0000; border: 2px solid #cc0000; color: #ff9999; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .cycle-line { width: 2px; flex: 1; background: #1a1a2e; min-height: 20px; }
+  .cycle-num { width: 32px; height: 32px; border-radius: 50%; background: #1a0000; border: 2px solid #cc0000; color: #ff9999; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .cycle-line { width: 2px; flex: 1; background: #1a1a2e; min-height: 16px; }
   .cycle-step:last-child .cycle-line { display: none; }
-  .cycle-content { padding: 2px 0 24px 14px; flex: 1; }
-  .cycle-content h3 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-  .cycle-content p { font-size: 11px; color: #888; line-height: 1.6; }
-  .cycle-content .cycle-days { font-size: 10px; color: #cc0000; font-weight: 700; background: #1a0000; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 5px; }
-  .cycle-content .cycle-owner { font-size: 10px; color: #7ab0ff; margin-left: 6px; }
+  .cycle-content { padding: 2px 0 22px 14px; flex: 1; }
+  .cycle-content h3 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .cycle-days { font-size: 10px; color: #cc0000; font-weight: 700; background: #1a0000; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 5px; }
+  .cycle-owner { font-size: 10px; color: #7ab0ff; margin-left: 6px; }
+  .cycle-content p { font-size: 11px; color: #888; line-height: 1.65; }
 
-  /* TEAM */
+  /* ---- TEAM ---- */
   .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
   .team-card { border-radius: 10px; padding: 20px 22px; }
-  .team-card.founder  { background: #1a0000; border: 1px solid #cc0000; }
-  .team-card.founder2 { background: #1a0800; border: 1px solid #993300; }
-  .team-card.exec     { background: #13131f; border: 1px solid #2a2a4a; }
+  .team-card.f1   { background: #1a0000; border: 1px solid #cc0000; }
+  .team-card.f2   { background: #1a0800; border: 1px solid #993300; }
+  .team-card.exec { background: #13131f; border: 1px solid #2a2a4a; }
   .team-card .t-role { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .team-card.founder  .t-role { color: #ff9999; }
-  .team-card.founder2 .t-role { color: #ffaa66; }
-  .team-card.exec     .t-role { color: #7ab0ff; }
-  .team-card .t-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .f1   .t-role { color: #ff9999; } .f2   .t-role { color: #ffaa66; } .exec .t-role { color: #7ab0ff; }
+  .team-card .t-name { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
   .team-card ul { list-style: none; }
   .team-card li { font-size: 11px; color: #aaa; padding: 2px 0 2px 12px; position: relative; line-height: 1.5; }
   .team-card li::before { content: '▸'; position: absolute; left: 0; font-size: 8px; top: 3px; }
-  .team-card.founder  li::before { color: #cc0000; }
-  .team-card.founder2 li::before { color: #993300; }
-  .team-card.exec     li::before { color: #4a4a8a; }
-  .team-card .t-contact { margin-top: 10px; font-size: 10px; color: #555; }
-  .t-style { margin-top: 8px; padding: 6px 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; }
-  .founder  .t-style { background: rgba(204,0,0,0.08); color: #ff9999; }
-  .founder2 .t-style { background: rgba(153,51,0,0.08); color: #ffaa66; }
-  .exec     .t-style { background: rgba(42,42,74,0.5); color: #7ab0ff; }
+  .f1   li::before { color: #cc0000; } .f2   li::before { color: #993300; } .exec li::before { color: #4a4a8a; }
+  .t-style { margin-top: 10px; padding: 6px 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; }
+  .f1   .t-style { background: rgba(204,0,0,0.08); color: #ff9999; }
+  .f2   .t-style { background: rgba(153,51,0,0.08); color: #ffaa66; }
+  .exec .t-style { background: rgba(42,42,74,0.4); color: #7ab0ff; }
 
-  /* RULES */
-  .rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* ---- AUTHORITY TABLE ---- */
+  .esc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .esc-table th { background: #1a0000; color: #ff9999; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 12px; text-align: left; border-bottom: 1px solid #330000; }
+  .esc-table td { padding: 9px 12px; border-bottom: 1px solid #1a1a2e; color: #ccc; vertical-align: top; line-height: 1.5; }
+  .esc-table tr:nth-child(odd) td  { background: #13131f; }
+  .esc-table tr:nth-child(even) td { background: #0f0f1a; }
+  .esc-self { color: #4ade80; font-weight: 700; }
+  .esc-up   { color: #fbbf24; font-weight: 700; }
+
+  /* ---- RULES ---- */
+  .rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
   .rule-block { background: #13131f; border-radius: 10px; padding: 20px 22px; }
   .rule-block.do   { border: 1px solid #1a7a4a; }
   .rule-block.dont { border: 1px solid #7a1a1a; }
   .rule-block h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 700; }
-  .rule-block.do   h3 { color: #4ade80; }
-  .rule-block.dont h3 { color: #ff6666; }
+  .rule-block.do   h3 { color: #4ade80; } .rule-block.dont h3 { color: #ff6666; }
   .rule-block ul { list-style: none; }
   .rule-block li { font-size: 12px; color: #ccc; padding: 5px 0 5px 18px; position: relative; border-bottom: 1px solid #1a1a2e; line-height: 1.5; }
   .rule-block li:last-child { border-bottom: none; }
   .rule-block.do   li::before { content: '✓'; position: absolute; left: 0; color: #4ade80; font-weight: 700; }
   .rule-block.dont li::before { content: '✗'; position: absolute; left: 0; color: #ff6666; font-weight: 700; }
 
-  /* ESCALATION */
-  .esc-table { width: 100%; border-collapse: collapse; }
-  .esc-table th { background: #1a0000; color: #ff9999; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 14px; text-align: left; border-bottom: 1px solid #330000; }
-  .esc-table td { padding: 10px 14px; font-size: 12px; border-bottom: 1px solid #1e1e2e; line-height: 1.5; color: #ccc; vertical-align: top; }
-  .esc-table tr:nth-child(odd) td  { background: #13131f; }
-  .esc-table tr:nth-child(even) td { background: #0f0f1a; }
-  .esc-self { color: #4ade80; font-weight: 700; }
-  .esc-up   { color: #fbbf24; font-weight: 700; }
-
-  /* TOOLS */
+  /* ---- TOOLS ---- */
   .tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
   .tool-card { background: #13131f; border: 1px solid #1e1e2e; border-radius: 10px; padding: 16px 18px; }
-  .tool-card .tool-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-  .tool-card .tool-role { font-size: 11px; color: #888; margin-bottom: 8px; line-height: 1.5; }
-  .tool-card .tool-access { font-size: 10px; }
-  .access-yes { color: #4ade80; }
-  .access-req { color: #fbbf24; }
+  .tool-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .tool-role { font-size: 11px; color: #888; margin-bottom: 8px; line-height: 1.5; }
+  .tool-access { font-size: 10px; }
+  .access-yes { color: #4ade80; } .access-req { color: #fbbf24; }
 
-  /* INFO BOX */
-  .info-box { border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; font-size: 12px; line-height: 1.7; }
-  .info-blue  { background: #0a1a2a; border: 1px solid #1a3a5a; color: #cce; }
-  .info-red   { background: #1a0000; border: 1px solid #330000; color: #fcc; }
-  .info-green { background: #0a2a1a; border: 1px solid #1a5a30; color: #cfc; }
-  .info-box strong { color: #fff; }
-
-  .divider { height: 1px; background: linear-gradient(to right, transparent, #1e1e2e, transparent); margin: 32px 0; }
+  .divider { height: 1px; background: linear-gradient(to right, transparent, #1e1e2e, transparent); margin: 28px 0; }
 
   @media (max-width: 900px) {
     .sidenav { display: none; }
@@ -187,38 +236,38 @@
 </head>
 <body>
 
-<!-- SIDE NAV -->
 <nav class="sidenav">
   <div class="sidenav-logo">
     <div class="logo-text">DreamCar.ua</div>
     <div class="logo-sub">Онбординг · Даніл · COO</div>
   </div>
   <div class="nav-section">Старт</div>
-  <div class="nav-link active" onclick="showSection('welcome', this)">🏠 Вітаємо</div>
-  <div class="nav-link" onclick="showSection('steps', this)">✅ Перші кроки</div>
+  <div class="nav-link active" onclick="showSection('welcome',this)">🏠 Вітаємо</div>
+  <div class="nav-link"        onclick="showSection('plan',   this)">📅 14-денний план</div>
+  <div class="nav-link"        onclick="showSection('probation', this)">🎯 Випробувальні задачі</div>
   <div class="nav-section">Проект</div>
-  <div class="nav-link" onclick="showSection('about', this)">💡 Про DreamCar</div>
-  <div class="nav-link" onclick="showSection('cycle', this)">🔄 Цикл проекту</div>
+  <div class="nav-link"        onclick="showSection('about',  this)">💡 Про DreamCar</div>
+  <div class="nav-link"        onclick="showSection('cycle',  this)">🔄 Цикл проекту</div>
   <div class="nav-section">Команда</div>
-  <div class="nav-link" onclick="showSection('team', this)">👥 Команда</div>
-  <div class="nav-link" onclick="showSection('authority', this)">⚖️ Повноваження</div>
-  <div class="nav-section">Робочий процес</div>
-  <div class="nav-link" onclick="showSection('rules', this)">📐 Правила роботи</div>
-  <div class="nav-link" onclick="showSection('tools', this)">🛠 Інструменти</div>
+  <div class="nav-link"        onclick="showSection('team',      this)">👥 Команда</div>
+  <div class="nav-link"        onclick="showSection('authority', this)">⚖️ Повноваження</div>
+  <div class="nav-section">Робота</div>
+  <div class="nav-link"        onclick="showSection('rules', this)">📐 Правила і стиль</div>
+  <div class="nav-link"        onclick="showSection('tools', this)">🛠 Інструменти</div>
   <div class="nav-section">Навігація</div>
   <a class="nav-link" href="orgchart.html">← Орг-структура</a>
   <a class="nav-link" href="checklist.html">📋 Поточні питання</a>
 </nav>
 
-<!-- MAIN CONTENT -->
 <div class="main">
 
-  <!-- WELCOME -->
+  <!-- =================== WELCOME =================== -->
   <div class="section active" id="s-welcome">
     <div class="welcome-hero">
       <h1>Привіт, <span>Даніл</span> 👋</h1>
-      <p>Ти приєднуєшся до <strong>DreamCar</strong> — одного з найнестандартніших проектів в Україні. Тут люди отримують доступ до ШІ-сервісів, а серед учасників розігруються справжні автомобілі мрії.</p>
-      <p style="margin-top: 12px;">Ця сторінка — твій путівник. Тут є все: про бізнес, команду, як ми працюємо і що від тебе очікується. Не поспішай — читай уважно.</p>
+      <p><strong>DreamCar</strong> — це ШІ-сервіс, серед учасників якого розігруються реальні автомобілі. Діє з 2019 року, 16 авто вручено, база ~35 тисяч учасників. Виручка $30 тис/місяць при високій маржинальності.</p>
+      <p style="margin-top:10px;">Ти — перший COO у цій команді. До тебе операційку тримали засновники. Твоя задача — звільнити їх від рутини і вибудувати процеси, які дозволять запускати проект кожного місяця стабільно.</p>
+      <p style="margin-top:10px; color: #ff9999; font-weight:700;">⚡ Випробувальний термін — 14 днів. Старт — проект #17.</p>
     </div>
 
     <div class="welcome-stats">
@@ -232,185 +281,278 @@
       </div>
       <div class="stat-card">
         <div class="num">$30K</div>
-        <div class="label">Виручки на місяць</div>
+        <div class="label">Виручка / місяць</div>
       </div>
       <div class="stat-card">
         <div class="num">#17</div>
-        <div class="label">Твій перший проект</div>
+        <div class="label">Твій перший запуск</div>
       </div>
     </div>
 
-    <div class="info-box info-blue">
-      <strong>Твоя роль:</strong> Операційний директор (COO) — ти з'єднуєш стратегічне бачення засновників з виконанням команди. Ти отримуєш вектор зверху і забезпечуєш, щоб кожен знав що робити, коли і як.
+    <div class="info-box info-red">
+      <strong>Що від тебе очікують в перші 14 днів:</strong> не просто ознайомитись — а показати, що ти здатен сам знаходити проблеми, ставити питання, пропонувати рішення і виконувати без нагадувань. Ми дивимось на ініціативу, якість мислення і самостійність — не тільки на виконання.
     </div>
 
-    <div class="info-box info-green">
-      <strong>Проект #17 — твій перший запуск.</strong> Саме на ньому ти будеш будувати перші процеси, тестувати підходи, отримувати зворотній зв'язок. Стартуй з розуміння — потім буде операційний план.
-    </div>
-  </div>
-
-  <!-- FIRST STEPS -->
-  <div class="section" id="s-steps">
-    <div class="section-title">✅ Перші кроки</div>
-    <div class="section-subtitle">Відмічай по мірі виконання — прогрес зберігається</div>
-
-    <div class="progress-bar-wrap"><div class="progress-bar" id="steps-progress" style="width:0%"></div></div>
-    <div class="progress-label" id="steps-label">0 з 12 виконано</div>
-
-    <div style="margin-top: 20px;">
-      <div style="font-size: 12px; color: #888; margin-bottom: 10px; display: flex; gap: 12px;">
-        <span class="step-tag tag-week1">Тиждень 1</span>
-        <span class="step-tag tag-week2">Тиждень 2</span>
-        <span class="step-tag tag-month1">Місяць 1</span>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <div onclick="showSection('plan', document.querySelector('[onclick*=plan]'))" style="flex:1; min-width:200px; background:#13131f; border:1px solid #1e1e2e; border-radius:10px; padding:16px 18px; cursor:pointer; transition:border-color 0.15s;" onmouseover="this.style.borderColor='#cc0000'" onmouseout="this.style.borderColor='#1e1e2e'">
+        <div style="font-size:20px; margin-bottom:8px;">📅</div>
+        <div style="font-size:13px; font-weight:700; color:#ff9999; margin-bottom:4px;">14-денний план</div>
+        <div style="font-size:11px; color:#666;">День за днем: що робити і навіщо</div>
       </div>
-
-      <div class="step-list" id="step-list">
-        <!-- rendered by JS -->
+      <div onclick="showSection('probation', document.querySelector('[onclick*=probation]'))" style="flex:1; min-width:200px; background:#13131f; border:1px solid #1e1e2e; border-radius:10px; padding:16px 18px; cursor:pointer; transition:border-color 0.15s;" onmouseover="this.style.borderColor='#fbbf24'" onmouseout="this.style.borderColor='#1e1e2e'">
+        <div style="font-size:20px; margin-bottom:8px;">🎯</div>
+        <div style="font-size:13px; font-weight:700; color:#fbbf24; margin-bottom:4px;">Випробувальні задачі</div>
+        <div style="font-size:11px; color:#666;">5 конкретних завдань — покажи себе</div>
       </div>
     </div>
   </div>
 
-  <!-- ABOUT DREAMCAR -->
+  <!-- =================== 14-DAY PLAN =================== -->
+  <div class="section" id="s-plan">
+    <div class="section-title">📅 14-денний план</div>
+    <div class="section-subtitle">Відмічай по мірі виконання — прогрес зберігається автоматично</div>
+
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label">0 з 20 виконано</div>
+
+    <div id="plan-container"><!-- rendered by JS --></div>
+  </div>
+
+  <!-- =================== PROBATION =================== -->
+  <div class="section" id="s-probation">
+    <div class="section-title">🎯 Випробувальні задачі</div>
+    <div class="section-subtitle">5 конкретних завдань, за якими оцінюємо твою роботу протягом 14 днів</div>
+
+    <div class="info-box info-warn">
+      <strong>Як це працює:</strong> Кожне завдання — самостійне. Ресурси шукаєш сам. Питання — формулюєш пакетом. Результат — у конкретному форматі (документ, таблиця, повідомлення). Ми оцінюємо <strong>якість мислення, ініціативу і самостійність</strong> — не тільки факт виконання.
+    </div>
+
+    <div class="prob-grid">
+
+      <div class="prob-card">
+        <div class="prob-header">
+          <div class="prob-num">1</div>
+          <div>
+            <div class="prob-title">Аналіз попередніх проектів</div>
+            <div class="prob-deadline">⏱ Дедлайн: День 3 · Самостійно, без підказок</div>
+          </div>
+        </div>
+        <div class="prob-desc">
+          Отримай від Вадима матеріали по проектах #14, #15, #16. Самостійно проаналізуй і підготуй структурований звіт: що спрацювало, що ні, де були зриви дедлайнів, які канали давали найкращий результат, де втрачали гроші або час.
+        </div>
+        <div class="prob-label">Що оцінюємо</div>
+        <ul class="prob-criteria">
+          <li>Чи ставив розумні питання при отриманні матеріалів — чи просто взяв що дали</li>
+          <li>Якість структури звіту: чи є висновки, а не просто пересказ</li>
+          <li>Чи побачив те, що не лежало на поверхні</li>
+          <li>Чи вкладається в дедлайн без нагадувань</li>
+        </ul>
+      </div>
+
+      <div class="prob-card initiative">
+        <div class="prob-header">
+          <div class="prob-num">2</div>
+          <div>
+            <div class="prob-title">Знайди 3 проблеми — запропонуй рішення</div>
+            <div class="prob-deadline">⏱ Дедлайн: День 5 · Власна ініціатива</div>
+          </div>
+        </div>
+        <div class="prob-desc">
+          Після вивчення матеріалів і команди — самостійно сформулюй 3 конкретні проблеми в операційці DreamCar, які ти бачиш. По кожній: чому це проблема, яка її ціна (в часі або грошах), яке рішення ти пропонуєш і що потрібно для його реалізації.
+        </div>
+        <div class="prob-label">Що оцінюємо</div>
+        <ul class="prob-criteria">
+          <li>Чи бачить проблеми, яких не називали — чи лише повторює те, що вже сказано</li>
+          <li>Чи рішення конкретні і реалістичні, чи загальні фрази</li>
+          <li>Чи є розуміння пріоритетності — що важливіше і чому</li>
+          <li>Чи взяв ініціативу сам, без нагадувань</li>
+        </ul>
+      </div>
+
+      <div class="prob-card process">
+        <div class="prob-header">
+          <div class="prob-num">3</div>
+          <div>
+            <div class="prob-title">Перший SOP: регламент пост-проектного звіту</div>
+            <div class="prob-deadline">⏱ Дедлайн: День 7 · Без шаблону</div>
+          </div>
+        </div>
+        <div class="prob-desc">
+          Напиши з нуля регламент пост-проектного звіту для Артема. Без готового шаблону — тільки на основі того, що дізнався про проект і команду. Документ повинен бути готовий до реального використання: що включає звіт, у якому форматі, до якого дедлайну після фіналу і що відбувається якщо звіт не здано вчасно.
+        </div>
+        <div class="prob-label">Що оцінюємо</div>
+        <ul class="prob-criteria">
+          <li>Якість структури і читабельність документу</li>
+          <li>Чи враховує специфіку роботи Артема як засновника, а не підлеглого</li>
+          <li>Чи є конкретні терміни і відповідальність, а не розмиті "якнайшвидше"</li>
+          <li>Чи готовий документ до використання — без доопрацювань</li>
+        </ul>
+      </div>
+
+      <div class="prob-card speed">
+        <div class="prob-header">
+          <div class="prob-num">4</div>
+          <div>
+            <div class="prob-title">Операційний план проекту #17</div>
+            <div class="prob-deadline">⏱ Дедлайн: День 8 · Перший повний план</div>
+          </div>
+        </div>
+        <div class="prob-desc">
+          Склади повний операційний план проекту #17: таймлайн по етапах, дедлайни для кожного члена команди (Вова, Віра, Олександр, Артем), контрольні точки і критерії готовності до старту. Погодь з Вадимом — і прийди на зустріч із готовим документом, не з питаннями.
+        </div>
+        <div class="prob-label">Що оцінюємо</div>
+        <ul class="prob-criteria">
+          <li>Чи охоплено всі ролі і всі етапи — нічого не пропущено</li>
+          <li>Чи є реалістичні буфери часу, а не ідеальний сценарій</li>
+          <li>Чи бачить залежності між задачами (хто на кого чекає)</li>
+          <li>Чи готовий відстоювати своє рішення або аргументовано змінити його</li>
+        </ul>
+      </div>
+
+      <div class="prob-card comm">
+        <div class="prob-header">
+          <div class="prob-num">5</div>
+          <div>
+            <div class="prob-title">Тижневий звіт: перший формат</div>
+            <div class="prob-deadline">⏱ Дедлайн: День 7 і День 14 · Без нагадувань</div>
+          </div>
+        </div>
+        <div class="prob-desc">
+          Самостійно — без шаблону і без нагадувань — надіш тижневий звіт Вадиму наприкінці першого і другого тижня. Формат придумай сам: він має включати що зроблено, що в процесі, блокери, питання і твої спостереження. Ключова умова: ти надсилаєш перший, без очікування запиту.
+        </div>
+        <div class="prob-label">Що оцінюємо</div>
+        <ul class="prob-criteria">
+          <li>Чи надіслано без нагадувань — це перевірка ініціативи</li>
+          <li>Якість формату: структурованість, конкретність, відсутність "води"</li>
+          <li>Чи є власні спостереження і пропозиції — а не тільки статус</li>
+          <li>Чи зберігається форматування між двома звітами (консистентність)</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="info-box info-blue" style="margin-top: 20px;">
+      <strong>Загальний критерій успіху:</strong> До кінця 14 дня Вадим і Артем повинні відчути, що <strong>операційне навантаження зменшилось</strong>, а не збільшилось. Якщо кожен крок потребує нагадування або підказки — це сигнал. Якщо ти приходиш із рішеннями — це успіх.
+    </div>
+  </div>
+
+  <!-- =================== ABOUT =================== -->
   <div class="section" id="s-about">
     <div class="section-title">💡 Про DreamCar</div>
     <div class="section-subtitle">Бізнес-модель, аудиторія, унікальність проекту</div>
 
-    <div class="biz-grid" style="margin-bottom: 20px;">
-      <div class="biz-card biz-highlight">
+    <div class="biz-grid">
+      <div class="biz-card hl">
         <h3>Бізнес-модель</h3>
-        <p>Учасники купують токени для доступу до ШІ-сервісу (генерація зображень, текстів тощо). Серед власників токенів проводиться розіграш автомобіля мрії.</p>
-        <p style="margin-top: 8px;">Токени — це не просто білети, це повноцінний продукт із реальною цінністю.</p>
-      </div>
-      <div class="biz-card">
-        <h3>Чому це працює</h3>
-        <ul>
-          <li>Учасник отримує реальний ШІ-інструмент — і шанс виграти авто</li>
-          <li>Немає порогу входу: токени доступні від малої суми</li>
-          <li>База вже 30-40 тис. учасників — лояльна аудиторія</li>
-          <li>Висока маржинальність при правильному масштабуванні</li>
-        </ul>
+        <p>Учасники купують токени для доступу до ШІ-сервісу (генерація зображень, текстів тощо). Серед власників токенів відбувається розіграш автомобіля. Токени — повноцінний продукт із реальною цінністю, не просто участь.</p>
+        <p style="margin-top:8px;">Унікальність: учасник отримує корисний ШІ-інструмент і одночасно шанс виграти авто мрії.</p>
       </div>
       <div class="biz-card">
         <h3>Аудиторія</h3>
         <ul>
           <li>Переважно чоловіки 25-45 років</li>
-          <li>Захоплюються автомобілями та технологіями</li>
-          <li>Активні у Telegram та Instagram</li>
+          <li>Цікавляться автомобілями і технологіями</li>
+          <li>Активні в Telegram та Instagram</li>
           <li>Цінують прозорість і чесність організаторів</li>
-          <li>Повертаються в наступні проекти (повторні покупки)</li>
+          <li>Повертаються в наступні проекти</li>
+          <li>База ~35 тис учасників — лояльна, тепла</li>
         </ul>
       </div>
       <div class="biz-card">
         <h3>Поточний стан</h3>
         <ul>
           <li>Виручка ~$30 тис/місяць, висока маржа</li>
-          <li>Цикл запуску — раз на місяць (ціль)</li>
-          <li>16 автомобілів вручено переможцям з 2019</li>
-          <li>Виходимо на стабільність: щомісячні запуски</li>
-          <li>Наступний крок — міжнародна експансія</li>
+          <li>Ціль: щомісячні запуски стабільно</li>
+          <li>16 автомобілів вручено переможцям</li>
+          <li>Сайти: dreamcar.ua / ai.dreamcar.ua</li>
+          <li>Наступний горизонт — міжнародна експансія</li>
+        </ul>
+      </div>
+      <div class="biz-card">
+        <h3>Чому найняли COO</h3>
+        <ul>
+          <li>Засновники тонуть в операційці — немає часу на стратегію</li>
+          <li>Процеси не формалізовані — все тримається на людях</li>
+          <li>Команда є, але без чіткої координації</li>
+          <li>Запуски непередбачувані — немає стабільного ритму</li>
+          <li>Ціль: COO вибудовує систему, звільняє засновників</li>
         </ul>
       </div>
     </div>
 
     <div class="info-box info-red">
-      <strong>Важливо про комунікацію:</strong> У зовнішніх матеріалах не використовуємо слова "лотерея", "квиток", "розіграш" у традиційному сенсі — це питання юридичного позиціонування. Уточни у Вадима актуальні формулювання перед першою комунікацією.
+      <strong>Про комунікацію:</strong> У зовнішніх матеріалах уникаємо слів "лотерея", "квиток" у традиційному сенсі. Уточни актуальні формулювання у Вадима перед першим виходом назовні.
     </div>
   </div>
 
-  <!-- PROJECT CYCLE -->
+  <!-- =================== CYCLE =================== -->
   <div class="section" id="s-cycle">
     <div class="section-title">🔄 Цикл проекту</div>
-    <div class="section-subtitle">Як виглядає стандартний запуск від ідеї до фіналу</div>
+    <div class="section-subtitle">Один проект = один автомобіль. Стандартний цикл: 3-5 тижнів</div>
 
-    <div class="info-box info-blue" style="margin-bottom: 28px;">
-      Один проект = один автомобіль. Стандартний цикл: від старту продажів до вручення — 3-5 тижнів. Твоя задача — щоб кожен учасник команди знав свій таймлайн і дедлайни.
+    <div class="info-box info-blue" style="margin-bottom:24px;">
+      Твоя задача в циклі — щоб кожен учасник команди знав своє завдання, дедлайн і формат результату. Не контролювати кожен крок, а забезпечити що нічого не "провалюється між стільців".
     </div>
 
-    <div class="cycle-steps">
-
+    <div style="display:flex;flex-direction:column;gap:0;">
       <div class="cycle-step">
-        <div class="cycle-num-col">
-          <div class="cycle-num">1</div>
-          <div class="cycle-line"></div>
-        </div>
+        <div class="cycle-num-col"><div class="cycle-num">1</div><div class="cycle-line"></div></div>
         <div class="cycle-content">
           <div class="cycle-days">Тиждень -2 до старту <span class="cycle-owner">Даніл + засновники</span></div>
-          <h3>Планування і вибір авто</h3>
-          <p>Вадим і Артем обирають автомобіль. Даніл складає загальний таймлайн проекту, погоджує з засновниками. Формується бриф для кожного учасника команди.</p>
+          <h3>Планування: авто, бюджет, таймлайн</h3>
+          <p>Вадим і Артем обирають автомобіль. Даніл складає таймлайн і погоджує з засновниками. Далі — брифи для кожного члена команди з дедлайнами і форматом результату.</p>
         </div>
       </div>
-
       <div class="cycle-step">
-        <div class="cycle-num-col">
-          <div class="cycle-num">2</div>
-          <div class="cycle-line"></div>
-        </div>
+        <div class="cycle-num-col"><div class="cycle-num">2</div><div class="cycle-line"></div></div>
         <div class="cycle-content">
           <div class="cycle-days">Тиждень -1 до старту <span class="cycle-owner">Даніл → Команда</span></div>
           <h3>Підготовка матеріалів</h3>
-          <p>Артем готує контент (відео авто, анонси). Вова налаштовує Telegram-канал і TikTok Ads. Віра готує email-серію і CRM-кампанії. Олександр налаштовує технічну частину.</p>
+          <p>Артем — відео авто, анонси. Вова — Telegram-підготовка, TikTok Ads налаштовані. Віра — email-серія і CRM готові. Олександр — технічна частина сайту, токени, аналітика.</p>
         </div>
       </div>
-
       <div class="cycle-step">
-        <div class="cycle-num-col">
-          <div class="cycle-num">3</div>
-          <div class="cycle-line"></div>
-        </div>
+        <div class="cycle-num-col"><div class="cycle-num">3</div><div class="cycle-line"></div></div>
         <div class="cycle-content">
-          <div class="cycle-days">День 1 — Старт продажів <span class="cycle-owner">Вся команда</span></div>
-          <h3>Запуск</h3>
-          <p>Одночасно: email-розсилка (Віра), Telegram-анонс (Вова), запуск TikTok Ads (Вова), публікація Reels/Stories (Артем), відкриття продажів токенів (Олександр).</p>
+          <div class="cycle-days">День 1 — Старт <span class="cycle-owner">Всі одночасно</span></div>
+          <h3>Одночасний запуск усіх каналів</h3>
+          <p>Email (Віра) + Telegram-анонс (Вова) + TikTok Ads старт (Вова) + Reels/Stories (Артем) + відкриття продажів (Олександр). Даніл — координує і відстежує що все пройшло без збоїв.</p>
         </div>
       </div>
-
       <div class="cycle-step">
-        <div class="cycle-num-col">
-          <div class="cycle-num">4</div>
-          <div class="cycle-line"></div>
-        </div>
+        <div class="cycle-num-col"><div class="cycle-num">4</div><div class="cycle-line"></div></div>
         <div class="cycle-content">
           <div class="cycle-days">Дні 2-21 — Активна фаза <span class="cycle-owner">Даніл — координація</span></div>
-          <h3>Продажі та підтримка</h3>
-          <p>Регулярний контент від Артема. Оптимізація реклами від Вови. CRM-ретаргетинг від Віри. Щотижневий звіт від Даніла до засновників: продажі, темп, прогноз.</p>
+          <h3>Продажі, оптимізація, ретеншн</h3>
+          <p>Регулярний контент (Артем). Оптимізація TikTok Ads (Вова). CRM-ретаргетинг (Віра). Щотижневий звіт від Даніла до засновників: продажі, темп, прогноз, ризики.</p>
         </div>
       </div>
-
       <div class="cycle-step">
-        <div class="cycle-num-col">
-          <div class="cycle-num">5</div>
-          <div class="cycle-line"></div>
-        </div>
+        <div class="cycle-num-col"><div class="cycle-num">5</div><div class="cycle-line"></div></div>
         <div class="cycle-content">
           <div class="cycle-days">Фінальний тиждень <span class="cycle-owner">Артем + Даніл</span></div>
-          <h3>Фінал і вручення</h3>
-          <p>Підготовка до фіналу: Артем організовує відео передачі авто. Юридичне оформлення — Артем. Офіційна комунікація з переможцем — Артем. Зйомка і публікація фіналу.</p>
+          <h3>Фінал і вручення авто</h3>
+          <p>Артем: відео передачі, юридика оформлення авто і переможця, офіційна комунікація. Даніл: координує таймлайн фіналу, контролює щоб нічого не зависло.</p>
         </div>
       </div>
-
       <div class="cycle-step">
-        <div class="cycle-num-col">
-          <div class="cycle-num">6</div>
-          <div class="cycle-line"></div>
-        </div>
+        <div class="cycle-num-col"><div class="cycle-num">6</div><div class="cycle-line"></div></div>
         <div class="cycle-content">
           <div class="cycle-days">Після фіналу <span class="cycle-owner">Даніл → всі</span></div>
-          <h3>Пост-проектний звіт</h3>
-          <p>Даніл збирає звіти від кожного учасника. Артем подає звіт по контенту і фізичній частині (за регламентом Даніла). Аналіз: що спрацювало, що покращити. Підготовка до наступного проекту.</p>
+          <h3>Пост-проектний звіт і старт наступного</h3>
+          <p>Кожен подає звіт за своєю зоною (за регламентом Даніла). Загальний аналіз проекту від Даніла. Висновки → в базу знань. Підготовка до наступного проекту стартує одразу.</p>
         </div>
       </div>
-
     </div>
   </div>
 
-  <!-- TEAM -->
+  <!-- =================== TEAM =================== -->
   <div class="section" id="s-team">
     <div class="section-title">👥 Команда</div>
-    <div class="section-subtitle">Хто є хто — роль, фокус і стиль роботи</div>
+    <div class="section-subtitle">Хто є хто, їх фокус і як з ними краще працювати</div>
 
     <div class="team-grid">
-
-      <div class="team-card founder">
+      <div class="team-card f1">
         <div class="t-role">🔴 Засновник · CEO</div>
         <div class="t-name">Вадим</div>
         <ul>
@@ -418,13 +560,12 @@
           <li>Фінанси і бюджет проекту</li>
           <li>Договори з підрядниками і партнерами</li>
           <li>IT-архітектура і технічний напрямок</li>
-          <li>Meta Ads (тимчасово, до передачі)</li>
+          <li>Meta Ads (тимчасово)</li>
           <li>Найм і фінальні кадрові рішення</li>
         </ul>
-        <div class="t-style">Детально-орієнтований. Цінує конкретику, структуру, факти. Не любить узагальнень і "води".</div>
+        <div class="t-style">Деталь-орієнтований. Цінує конкретику і факти. Питання — пакетом. Дати у форматі ДД.ММ.РРРР.</div>
       </div>
-
-      <div class="team-card founder2">
+      <div class="team-card f2">
         <div class="t-role">🟠 Засновник · Продукт і контент</div>
         <div class="t-name">Артем</div>
         <ul>
@@ -434,21 +575,18 @@
           <li>Юридика: договори по авто, оформлення переможців</li>
           <li>Офіційна комунікація з переможцями</li>
         </ul>
-        <div class="t-style">Артем — засновник, не підлеглий. З ним координуєшся, брифи і дедлайни — після спільного погодження з Вадимом.</div>
+        <div class="t-style">Засновник, не підлеглий. Брифи і дедлайни — тільки після погодження з Вадимом. Підхід — партнерський.</div>
       </div>
-
       <div class="team-card exec">
         <div class="t-role">🟡 Telegram + TikTok Ads</div>
         <div class="t-name">Вова</div>
         <ul>
           <li>Ведення Telegram-каналу DreamCar</li>
           <li>Публікації, опитування, залученість</li>
-          <li>TikTok Ads — налаштування і оптимізація</li>
-          <li>Звіт по рекламі після кожного проекту</li>
+          <li>TikTok Ads: налаштування, оптимізація, звіти</li>
         </ul>
-        <div class="t-style">⚠️ Потребує чітких KPI і брифу. Перший бриф на проект #17 — твоя задача.</div>
+        <div class="t-style">⚠️ Потребує чітких KPI і брифу. Поки немає вимірюваних цілей — це твоя перша задача по ньому.</div>
       </div>
-
       <div class="team-card exec">
         <div class="t-role">🟢 CRM і ретеншн</div>
         <div class="t-name">Віра</div>
@@ -458,132 +596,76 @@
           <li>Viber / SMS кампанії</li>
           <li>Сегментація бази учасників</li>
         </ul>
-        <div class="t-style">✅ Працює стабільно. Потребує чіткого контент-плану і дедлайнів від тебе.</div>
+        <div class="t-style">✅ Працює стабільно. Потребує контент-плану і дедлайнів від тебе своєчасно.</div>
       </div>
-
       <div class="team-card exec">
         <div class="t-role">🟢 Технології</div>
         <div class="t-name">Олександр</div>
         <ul>
           <li>Розробка і підтримка сайту</li>
           <li>API та інтеграції</li>
-          <li>Система токенів і нумерів</li>
+          <li>Система токенів і нумерів учасників</li>
           <li>Дашборди і статистика</li>
         </ul>
-        <div class="t-style">✅ Надійний. Операційні задачі — від тебе. Технічні рішення і пріоритети — Вадим.</div>
+        <div class="t-style">✅ Надійний. Операційні задачі — від тебе. Технічні рішення і пріоритети — тільки Вадим.</div>
       </div>
-
     </div>
   </div>
 
-  <!-- AUTHORITY -->
+  <!-- =================== AUTHORITY =================== -->
   <div class="section" id="s-authority">
     <div class="section-title">⚖️ Повноваження</div>
-    <div class="section-subtitle">Що вирішуєш сам, що потребує погодження, що — тільки засновники</div>
+    <div class="section-subtitle">Що вирішуєш самостійно, що — після погодження, що — тільки засновники</div>
 
-    <div class="info-box info-green" style="margin-bottom: 20px;">
-      <strong>Принцип:</strong> Вирішуй операційне сам. Ескалюй стратегічне і фінансове. Не бійся приймати рішення — за це ти і тут.
+    <div class="info-box info-green" style="margin-bottom:18px;">
+      <strong>Принцип:</strong> Операційне — вирішуй сам. Стратегічне і фінансове — ескалюй. Не бійся приймати рішення.
     </div>
 
-    <table class="esc-table" style="margin-bottom: 28px;">
-      <thead>
-        <tr>
-          <th>Ситуація</th>
-          <th>Хто вирішує</th>
-          <th>Як</th>
-        </tr>
-      </thead>
+    <table class="esc-table">
+      <thead><tr><th>Ситуація</th><th>Хто вирішує</th><th>Як</th></tr></thead>
       <tbody>
-        <tr>
-          <td>Дедлайн зсунувся на 1-2 дні</td>
-          <td><span class="esc-self">Даніл самостійно</span></td>
-          <td>Перерозподіл задач, інформування команди</td>
-        </tr>
-        <tr>
-          <td>Учасник команди не виконує задачу</td>
-          <td><span class="esc-self">Даніл самостійно</span></td>
-          <td>З'ясувати причину, нагадати, перерозподілити</td>
-        </tr>
-        <tr>
-          <td>Потрібен додатковий контент не в плані</td>
-          <td><span class="esc-self">Даніл + Артем</span></td>
-          <td>Погодити в робочому чаті</td>
-        </tr>
-        <tr>
-          <td>Операційні витрати в межах бюджету</td>
-          <td><span class="esc-self">Даніл самостійно</span></td>
-          <td>Зафіксувати у звіті</td>
-        </tr>
-        <tr>
-          <td>Зміна пріоритетів проекту</td>
-          <td><span class="esc-up">Засновники</span></td>
-          <td>Ескалація до Вадима</td>
-        </tr>
-        <tr>
-          <td>Бюджет виходить за межі плану</td>
-          <td><span class="esc-up">Засновники</span></td>
-          <td>Ескалація до Вадима з обґрунтуванням</td>
-        </tr>
-        <tr>
-          <td>Конфлікт у команді</td>
-          <td><span class="esc-up">Засновники</span></td>
-          <td>Ескалація до Вадима</td>
-        </tr>
-        <tr>
-          <td>Вибір нового авто / призу</td>
-          <td><span class="esc-up">Артем (фінально)</span></td>
-          <td>Обговорити разом, Артем вирішує</td>
-        </tr>
-        <tr>
-          <td>Юридика і договори по авто</td>
-          <td><span class="esc-up">Артем</span></td>
-          <td>Його зона відповідальності</td>
-        </tr>
-        <tr>
-          <td>Договори з підрядниками / партнерами</td>
-          <td><span class="esc-up">Вадим</span></td>
-          <td>Ескалація до Вадима</td>
-        </tr>
-        <tr>
-          <td>IT-зміни у продукті</td>
-          <td><span class="esc-up">Вадим</span></td>
-          <td>Ескалація до Вадима, Олександр — виконавець</td>
-        </tr>
-        <tr>
-          <td>Кадрові рішення (найм/звільнення)</td>
-          <td><span class="esc-up">Засновники</span></td>
-          <td>Фінальне слово — Вадим</td>
-        </tr>
+        <tr><td>Дедлайн зсунувся на 1-2 дні</td><td><span class="esc-self">Даніл</span></td><td>Перерозподіл, інформування команди</td></tr>
+        <tr><td>Учасник не виконує задачу</td><td><span class="esc-self">Даніл</span></td><td>З'ясувати, нагадати, перерозподілити</td></tr>
+        <tr><td>Потрібен додатковий контент</td><td><span class="esc-self">Даніл + Артем</span></td><td>Погодити в робочому чаті</td></tr>
+        <tr><td>Операційні витрати в межах бюджету</td><td><span class="esc-self">Даніл</span></td><td>Зафіксувати у звіті</td></tr>
+        <tr><td>Зміна пріоритетів проекту</td><td><span class="esc-up">Засновники</span></td><td>Ескалація до Вадима</td></tr>
+        <tr><td>Бюджет виходить за межі плану</td><td><span class="esc-up">Засновники</span></td><td>Ескалація до Вадима з обґрунтуванням</td></tr>
+        <tr><td>Конфлікт у команді</td><td><span class="esc-up">Засновники</span></td><td>Ескалація до Вадима</td></tr>
+        <tr><td>Вибір нового авто / призу</td><td><span class="esc-up">Артем</span></td><td>Обговорити, Артем вирішує</td></tr>
+        <tr><td>Юридика і договори по авто</td><td><span class="esc-up">Артем</span></td><td>Його зона відповідальності</td></tr>
+        <tr><td>Договори з підрядниками</td><td><span class="esc-up">Вадим</span></td><td>Ескалація до Вадима</td></tr>
+        <tr><td>IT-зміни у продукті</td><td><span class="esc-up">Вадим</span></td><td>Ескалація, Олександр — виконавець</td></tr>
+        <tr><td>Найм і звільнення</td><td><span class="esc-up">Засновники</span></td><td>Фінальне слово — Вадим</td></tr>
       </tbody>
     </table>
   </div>
 
-  <!-- RULES -->
+  <!-- =================== RULES =================== -->
   <div class="section" id="s-rules">
-    <div class="section-title">📐 Правила роботи</div>
-    <div class="section-subtitle">Як ми комунікуємо і що важливо для ефективної роботи</div>
+    <div class="section-title">📐 Правила і стиль роботи</div>
+    <div class="section-subtitle">Як комунікувати, щоб всі розуміли і нічого не губилось</div>
 
-    <div class="rules-grid" style="margin-bottom: 24px;">
+    <div class="rules-grid">
       <div class="rule-block do">
         <h3>✅ Роби</h3>
         <ul>
-          <li>Пиши конкретно: "Задача X виконана / затримується до ДД.ММ"</li>
-          <li>Структуруй інформацію: таблиці, чеклісти, нумеровані списки</li>
-          <li>Ескалюй вчасно — краще рано попередити, ніж пізно вибачатися</li>
-          <li>Підтверджуй отримання завдань від засновників</li>
-          <li>Надавай тижневий звіт по проекту без прохання</li>
-          <li>Готуй питання пакетами — не по одному</li>
+          <li>Пиши конкретно: "Задача X — виконана / затримується до ДД.ММ"</li>
+          <li>Структуруй: таблиці, чеклісти, нумеровані списки</li>
+          <li>Ескалюй вчасно — краще рано попередити</li>
+          <li>Готуй питання пакетами, не по одному</li>
+          <li>Надавай тижневий звіт без запиту</li>
           <li>Фіксуй домовленості письмово в чаті</li>
+          <li>Підтверджуй отримання задач від засновників</li>
         </ul>
       </div>
       <div class="rule-block dont">
         <h3>✗ Не роби</h3>
         <ul>
-          <li>Не залишай питання без відповіді довше 4 годин в робочий час</li>
-          <li>Не розпочинай велику задачу без підтвердженого брифу</li>
-          <li>Не змінюй пріоритети самостійно без сигналу від засновників</li>
-          <li>Не ставь Артему задачі без попереднього погодження з Вадимом</li>
-          <li>Не роби стратегічних рішень по IT самостійно</li>
+          <li>Не залишай питання без відповіді >4 год в робочий час</li>
+          <li>Не стартуй великі задачі без підтвердженого брифу</li>
+          <li>Не змінюй пріоритети самостійно без сигналу зверху</li>
+          <li>Не став Артему задачі без погодження з Вадимом</li>
+          <li>Не роби IT-рішень без Вадима</li>
           <li>Не підписуй договори — це зона Вадима або Артема</li>
         </ul>
       </div>
@@ -591,166 +673,231 @@
 
     <div class="divider"></div>
 
-    <h3 style="font-size: 14px; color: #7ab0ff; margin-bottom: 14px;">💬 Комунікаційний стиль</h3>
     <div class="biz-grid">
       <div class="biz-card">
         <h3>Зі засновниками</h3>
         <ul>
           <li>Структуровано і по суті — без "води"</li>
-          <li>Дати завжди у форматі ДД.ММ.РРРР</li>
-          <li>Звіт: що зроблено / що в процесі / блокери</li>
+          <li>Дати: завжди ДД.ММ.РРРР</li>
+          <li>Звіт: виконано / в процесі / блокери</li>
           <li>Питання — пакетом, не по одному</li>
         </ul>
       </div>
       <div class="biz-card">
-        <h3>З командою (Вова, Віра, Олександр)</h3>
+        <h3>З командою</h3>
         <ul>
-          <li>Чіткий бриф: що / до коли / у якому форматі</li>
-          <li>Один канал для задач (Telegram / Notion — уточни)</li>
-          <li>Дедлайни без розмитих формулювань</li>
+          <li>Чіткий бриф: що, до коли, у якому форматі</li>
+          <li>Один канал для задач (уточни у Вадима)</li>
+          <li>Дедлайни — конкретні, без "якнайшвидше"</li>
           <li>Зворотній зв'язок — конструктивно і вчасно</li>
         </ul>
       </div>
     </div>
   </div>
 
-  <!-- TOOLS -->
+  <!-- =================== TOOLS =================== -->
   <div class="section" id="s-tools">
     <div class="section-title">🛠 Інструменти</div>
-    <div class="section-subtitle">Що використовує команда і до чого тобі потрібен доступ</div>
+    <div class="section-subtitle">Що використовує команда і де тобі потрібен доступ</div>
 
     <div class="tools-grid">
       <div class="tool-card">
         <div class="tool-name">SendPulse</div>
-        <div class="tool-role">Email-розсилки, Telegram-бот, Viber/SMS кампанії. Керує Віра.</div>
+        <div class="tool-role">Email, Telegram-бот, Viber/SMS. Керує Віра.</div>
         <div class="tool-access access-req">⚠️ Попроси доступ у Вадима</div>
       </div>
       <div class="tool-card">
-        <div class="tool-name">Telegram-канал DreamCar</div>
-        <div class="tool-role">Основний канал комунікації з аудиторією. Веде Вова.</div>
-        <div class="tool-access access-req">⚠️ Попроси доступ</div>
+        <div class="tool-name">Telegram-канал</div>
+        <div class="tool-role">Основний канал з аудиторією. Веде Вова.</div>
+        <div class="tool-access access-req">⚠️ Попроси адмін-доступ</div>
       </div>
       <div class="tool-card">
         <div class="tool-name">dreamcar.ua / ai.dreamcar.ua</div>
-        <div class="tool-role">Основний сайт і ШІ-платформа. Розробка і підтримка — Олександр.</div>
+        <div class="tool-role">Сайт і ШІ-платформа. Розробка — Олександр.</div>
         <div class="tool-access access-req">⚠️ Попроси доступ до адмін-панелі</div>
       </div>
       <div class="tool-card">
-        <div class="tool-name">Meta Ads / Facebook</div>
-        <div class="tool-role">Зараз веде Вадим. Потенційно буде передано підряднику — координація через тебе.</div>
+        <div class="tool-name">Meta Ads</div>
+        <div class="tool-role">Зараз веде Вадим. Після передачі — координація через тебе.</div>
         <div class="tool-access access-req">⚠️ Уточни статус у Вадима</div>
       </div>
       <div class="tool-card">
         <div class="tool-name">TikTok Ads</div>
-        <div class="tool-role">Налаштовує і веде Вова. Даніл контролює результати і бриф.</div>
+        <div class="tool-role">Налаштовує Вова. Даніл контролює результати і KPI.</div>
         <div class="tool-access access-req">⚠️ Попроси доступ до звітів</div>
       </div>
       <div class="tool-card">
-        <div class="tool-name">UTM / Аналітика</div>
-        <div class="tool-role">Дашборд продажів і трафіку. Базова аналітика по проектах.</div>
+        <div class="tool-name">Аналітика / UTM</div>
+        <div class="tool-role">Дашборд продажів і трафіку по проектах.</div>
         <div class="tool-access access-req">⚠️ Уточни у Вадима / Олександра</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">Instagram DreamCar</div>
-        <div class="tool-role">Контент публікує Артем. Реклама — Meta Ads (Вадим / підрядник).</div>
-        <div class="tool-access access-yes">✅ Переглядати можна без доступу</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">GitHub Pages (ця сторінка)</div>
-        <div class="tool-role">Внутрішні матеріали команди. Доступ у Вадима.</div>
-        <div class="tool-access access-yes">✅ Ти тут — значить маєш доступ</div>
       </div>
     </div>
 
-    <div class="info-box info-blue" style="margin-top: 24px;">
-      <strong>Перший крок по інструментах:</strong> Зроби список усіх потрібних доступів і попроси Вадима надати їх одним пакетом. Не чекай — просто запитай.
+    <div class="info-box info-blue" style="margin-top: 20px;">
+      <strong>Перший крок:</strong> Склади список усіх потрібних доступів і попроси Вадима надати їх одним пакетом. Не чекай — сам ініціюй.
     </div>
   </div>
 
 </div><!-- /main -->
 
 <script>
-const STEPS_KEY = 'dreamcar_onboarding_steps_v1';
-
+const PLAN_KEY   = 'dreamcar_plan_v2';
 const STEPS_DATA = [
-  { id: 1, tag: 'week1', title: 'Прочитати весь онбординг', desc: 'Цю сторінку від початку до кінця. Записати питання.' },
-  { id: 2, tag: 'week1', title: 'Ознайомитись з орг-структурою', desc: 'Зайти на сторінку "Організаційна структура" — зрозуміти хто є хто.' },
-  { id: 3, tag: 'week1', title: 'Зустріч з Вадимом: знайомство і контекст', desc: 'Обговорити цілі, стиль роботи, очікування. Поставити всі накопичені питання.' },
-  { id: 4, tag: 'week1', title: 'Отримати всі необхідні доступи', desc: 'SendPulse, TG-канал, сайт, аналітика, Meta Ads (чи доступ до звітів).' },
-  { id: 5, tag: 'week1', title: 'Переглянути архів попередніх проектів', desc: 'Попросити у Вадима матеріали по проектах #15-16: що спрацювало, цифри, помилки.' },
-  { id: 6, tag: 'week1', title: 'Познайомитись з кожним членом команди', desc: 'Короткий дзвінок або повідомлення: Вова, Віра, Олександр. Зрозуміти як вони звикли працювати.' },
-  { id: 7, tag: 'week2', title: 'Скласти таймлайн проекту #17', desc: 'Перший повний операційний план: етапи, дедлайни, відповідальні. Погодити з Вадимом.' },
-  { id: 8, tag: 'week2', title: 'Погодити маркетинг-план проекту #17', desc: 'Разом з Вадимом і Артемом. Закрити питання власника маркетинг-планування.' },
-  { id: 9, tag: 'week2', title: 'Написати бриф і KPI для Вови', desc: 'Telegram-канал: метрики по залученості. TikTok Ads: бюджет, CPL, план по переходах.' },
-  { id: 10, tag: 'week2', title: 'Поставити задачі Вірі, Олександру по #17', desc: 'Email-серія, CRM-сегменти, технічна готовність сайту — всі дедлайни зафіксовані письмово.' },
-  { id: 11, tag: 'month1', title: 'Провести перший тижневий звіт по проекту', desc: 'Формат: що зроблено / що в процесі / ризики / запитання до засновників.' },
-  { id: 12, tag: 'month1', title: 'Створити перший SOP: регламент пост-проектного звіту', desc: 'Шаблон для Артема: що, коли і в якому форматі він здає після фіналу проекту.' }
+  // ДЕНЬ 1
+  { id:1, day:'d1', title:'Прочитати весь онбординг від початку до кінця',
+    detail:'Всі розділи: про проект, цикл, команда, повноваження, правила. Записуй питання — вони знадобляться на завтра.',
+    result:'Список питань до Вадима — готовий до зустрічі' },
+  { id:2, day:'d1', title:'Попросити у Вадима матеріали по проектах #14–#16',
+    detail:'Звіти, цифри, комунікація, що пішло не так. Не питай по одному — одним запитом, з поясненням навіщо.',
+    result:'Матеріали отримано, починаєш аналіз' },
+  { id:3, day:'d1', title:'Скласти і надіслати список потрібних доступів',
+    detail:'SendPulse, Telegram-канал, адмін сайту, TikTok Ads звіти, UTM-аналітика. Один список — один запит.',
+    result:'Вадим підтвердив — доступи в процесі налаштування' },
+
+  // ДЕНЬ 2
+  { id:4, day:'d2', title:'Провести знайомчий дзвінок або написати кожному з команди',
+    detail:'Вова, Віра, Олександр — коротко: хто ти, твоя роль, як будете взаємодіяти. Не формально — по суті. Дізнайся як вони звикли працювати, що їм заважає зараз.',
+    result:'Враження зафіксовані: де є тертя, що можна оптимізувати' },
+  { id:5, day:'d2', title:'Перша зустріч з Вадимом: питання і контекст',
+    detail:'Прийди зі списком питань, не з порожньою головою. Обговори: цілі проекту #17, бюджет, таймлайн, твої повноваження в першому проекті, незрозумілі моменти після матеріалів.',
+    result:'Ясність по проекту #17 — ти знаєш з чого починати' },
+
+  // ДНІ 3-4
+  { id:6, day:'d34', title:'Зробити аналіз проектів #14–#16 (Випробувальна задача #1)',
+    detail:'Самостійно. На основі отриманих матеріалів: що спрацювало, що провалилось, де втрачали час, де гроші. Структурований документ з висновками — не просто пересказ.',
+    result:'Звіт готовий, надісланий Вадиму до кінця Дня 3' },
+  { id:7, day:'d34', title:'Вивчити поточний стан кожного члена команди',
+    detail:'У кого є чіткі KPI? Хто має дедлайни? Де є "сірі зони" відповідальності? Це вхідна точка для перших регламентів.',
+    result:'Карта поточного стану: хто що робить і де прогалини' },
+
+  // ДНІ 5-7
+  { id:8, day:'d57', title:'Знайти 3 операційні проблеми і запропонувати рішення (Задача #2)',
+    detail:'Власна ініціатива. Не чекай запиту. Формат: проблема — її ціна — рішення — що потрібно для реалізації. По кожній з трьох.',
+    result:'Документ надісланий Вадиму до кінця Дня 5' },
+  { id:9, day:'d57', title:'Написати перший SOP: регламент пост-проектного звіту (Задача #3)',
+    detail:'Без шаблону. Для Артема: що включає звіт, у якому форматі, коли здається після фіналу, що відбувається при затримці. Готовий до використання — не чернетка.',
+    result:'SOP погоджений з Вадимом, надісланий Артему' },
+  { id:10, day:'d57', title:'Перший тижневий звіт без нагадувань (Задача #5 — перша здача)',
+    detail:'Наприкінці тижня — самостійно, без запиту. Формат придумай сам: виконано / в процесі / блокери / спостереження / питання.',
+    result:'Звіт надісланий Вадиму наприкінці Дня 7' },
+
+  // ДНІ 8-14
+  { id:11, day:'d814', title:'Скласти операційний план проекту #17 (Задача #4)',
+    detail:'Повний таймлайн: всі етапи, дедлайни для Вови / Віри / Олександра / Артема, контрольні точки, залежності між задачами. Прийти на погодження з Вадимом з готовим документом.',
+    result:'План погоджений, всі члени команди отримали брифи' },
+  { id:12, day:'d814', title:'Написати і відправити бриф і KPI для Вови на проект #17',
+    detail:'Telegram: метрики залученості, ріст підписників, охоплення. TikTok Ads: бюджет, CPL, план по переходах, ROAS. Конкретні цифри — не "максимально можливий результат".',
+    result:'Вова підтвердив розуміння, дедлайни зафіксовані' },
+  { id:13, day:'d814', title:'Видати задачі Вірі і Олександру по проекту #17',
+    detail:'Віра: email-серія (скільки листів, коли, сегменти), CRM-кампанії (таймінг, тригери). Олександр: технічна готовність сайту, система токенів, дашборд аналітики — все з дедлайнами.',
+    result:'Всі підтвердили, задачі в роботі' },
+  { id:14, day:'d814', title:'Провести перший операційний статус з командою',
+    detail:'Короткий синк: де хто стоїть по проекту #17, чи є блокери, чи потрібна допомога. Не нарада заради наради — 20-30 хв максимум з конкретним порядком денним.',
+    result:'Протокол статусу: що вирішили, хто що робить далі' },
+  { id:15, day:'d814', title:'Другий тижневий звіт без нагадувань (Задача #5 — фінальна)',
+    detail:'Наприкінці другого тижня. Той самий формат, що і перший звіт. Консистентність — частина оцінки.',
+    result:'Звіт надісланий Вадиму наприкінці Дня 14' },
 ];
 
-let stepsState = {};
+const DAY_CONFIG = {
+  d1:   { badge:'day-d1',   label:'День 1',   title:'Занурення: зрозуміти все, зробити перші кроки', meta:'3 задачі' },
+  d2:   { badge:'day-d2',   label:'День 2',   title:'Люди: познайомитись з кожним, зустрітись з Вадимом', meta:'2 задачі' },
+  d34:  { badge:'day-d34',  label:'Дні 3-4',  title:'Аналіз: перший самостійний звіт і карта команди', meta:'2 задачі' },
+  d57:  { badge:'day-d57',  label:'Дні 5-7',  title:'Перші deliverables: ініціатива, SOP, тижневий звіт', meta:'3 задачі' },
+  d814: { badge:'day-d814', label:'Дні 8-14', title:'Виконання: операційний план, брифи, статус, другий звіт', meta:'5 задач' },
+};
 
-function loadSteps() {
-  const saved = localStorage.getItem(STEPS_KEY);
-  if (saved) {
-    stepsState = JSON.parse(saved);
+let state = {};
+
+function load() {
+  const saved = localStorage.getItem(PLAN_KEY);
+  state = saved ? JSON.parse(saved) : {};
+}
+function save() { localStorage.setItem(PLAN_KEY, JSON.stringify(state)); }
+
+function renderPlan() {
+  const container = document.getElementById('plan-container');
+  const days = ['d1','d2','d34','d57','d814'];
+  let html = '';
+  days.forEach(day => {
+    const cfg = DAY_CONFIG[day];
+    const steps = STEPS_DATA.filter(s => s.day === day);
+    const allDone = steps.every(s => state[s.id]);
+    html += `
+      <div class="day-block">
+        <div class="day-header" id="dh-${day}" onclick="toggleDay('${day}')">
+          <span class="day-badge ${cfg.badge}">${cfg.label}</span>
+          <span class="day-title">${cfg.title}</span>
+          <span class="day-meta">${cfg.meta}</span>
+          <span class="day-chevron">▶</span>
+        </div>
+        <div class="day-body" id="db-${day}" style="display:none;">
+          ${steps.map(step => `
+            <div class="day-step ${state[step.id] ? 'done' : ''}" id="ds-${step.id}">
+              <div class="step-check" onclick="toggleStep(${step.id})">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <polyline points="2,5 4.5,7.5 8.5,2.5" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="step-content">
+                <div class="step-title">${step.title}</div>
+                <div class="step-detail">${step.detail}</div>
+                <div class="step-result">${step.result}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+  // open first day by default
+  toggleDay('d1', true);
+  updateProgress();
+}
+
+function toggleDay(day, forceOpen) {
+  const hdr = document.getElementById('dh-' + day);
+  const body = document.getElementById('db-' + day);
+  if (!hdr || !body) return;
+  const isOpen = body.style.display !== 'none';
+  if (forceOpen || isOpen) {
+    body.style.display = forceOpen ? 'block' : 'none';
+    hdr.classList.toggle('collapsed', forceOpen ? false : true);
   } else {
-    STEPS_DATA.forEach(s => { stepsState[s.id] = false; });
+    body.style.display = 'block';
+    hdr.classList.remove('collapsed');
   }
 }
 
-function saveSteps() {
-  localStorage.setItem(STEPS_KEY, JSON.stringify(stepsState));
-}
-
-function tagClass(tag) {
-  return { week1: 'tag-week1', week2: 'tag-week2', month1: 'tag-month1' }[tag] || '';
-}
-function tagLabel(tag) {
-  return { week1: 'Тиждень 1', week2: 'Тиждень 2', month1: 'Місяць 1' }[tag] || '';
-}
-
-function renderSteps() {
-  const list = document.getElementById('step-list');
-  const done = Object.values(stepsState).filter(Boolean).length;
-  const total = STEPS_DATA.length;
-  const pct = Math.round(done / total * 100);
-  document.getElementById('steps-progress').style.width = pct + '%';
-  document.getElementById('steps-label').textContent = `${done} з ${total} виконано`;
-
-  list.innerHTML = STEPS_DATA.map(step => `
-    <div class="step-item ${stepsState[step.id] ? 'done' : ''}" id="step-${step.id}">
-      <div class="step-check" onclick="toggleStep(${step.id})">
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-          <polyline points="2,5.5 4.5,8 9,3" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <div class="step-body">
-        <div class="step-title">
-          <span class="step-tag ${tagClass(step.tag)}">${tagLabel(step.tag)}</span>
-          ${step.title}
-        </div>
-        <div class="step-desc">${step.desc}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
 function toggleStep(id) {
-  stepsState[id] = !stepsState[id];
-  saveSteps();
-  renderSteps();
+  state[id] = !state[id];
+  save();
+  const el = document.getElementById('ds-' + id);
+  if (el) el.classList.toggle('done', state[id]);
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = STEPS_DATA.length;
+  const done  = STEPS_DATA.filter(s => state[s.id]).length;
+  const pct   = Math.round(done / total * 100);
+  const bar   = document.getElementById('progress-bar');
+  const lbl   = document.getElementById('progress-label');
+  if (bar) bar.style.width = pct + '%';
+  if (lbl) lbl.textContent = `${done} з ${total} виконано (${pct}%)`;
 }
 
 function showSection(name, el) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
-  document.getElementById('s-' + name).classList.add('active');
+  const sec = document.getElementById('s-' + name);
+  if (sec) sec.classList.add('active');
   if (el) el.classList.add('active');
   window.scrollTo(0, 0);
 }
 
-loadSteps();
-renderSteps();
+load();
+renderPlan();
 </script>
 </body>
 </html>
