@@ -1,0 +1,40 @@
+name: Update Survey Data
+
+on:
+  schedule:
+    # 09:00 CEST (UTC+2, квітень–жовтень) = 07:00 UTC
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    # дозволяє запустити вручну з GitHub → Actions → Run workflow
+
+jobs:
+  update-survey:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # потрібно для git push
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run survey update script
+        run: python update_survey.py
+
+      - name: Commit & push if data changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dreamcar_team/survey.html
+          # commit тільки якщо є зміни
+          if git diff --staged --quiet; then
+            echo "No changes — survey data is up to date."
+          else
+            TODAY=$(date +'%d.%m.%Y')
+            git commit -m "survey: auto-update data ${TODAY}"
+            git push
+          fi

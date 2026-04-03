@@ -28,6 +28,53 @@
     padding: 0 0 60px;
   }
 
+  /* PUBLIC LINK BANNER */
+  .pub-banner {
+    background: linear-gradient(90deg, rgba(232,184,75,0.07) 0%, rgba(232,184,75,0.03) 100%);
+    border-bottom: 1px solid rgba(232,184,75,0.18);
+    padding: 10px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .pub-banner-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  .pub-banner-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+    background: rgba(232,184,75,0.1);
+    border: 1px solid rgba(232,184,75,0.25);
+    padding: 4px 14px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+    transition: background 0.15s, border-color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pub-banner-link:hover {
+    background: rgba(232,184,75,0.18);
+    border-color: rgba(232,184,75,0.5);
+  }
+  .pub-banner-copy {
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 12px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .pub-banner-copy:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
   /* NAV */
   .nav {
     background: #0d0d18;
@@ -252,6 +299,15 @@
 </style>
 </head>
 <body>
+
+<!-- PUBLIC LINK BANNER -->
+<div class="pub-banner">
+  <span class="pub-banner-label">🌐 Публічна сторінка:</span>
+  <a class="pub-banner-link" href="https://dreamcarua.github.io/dreamcar-team/survey.html" target="_blank">
+    ↗ dreamcarua.github.io/dreamcar-team/survey.html
+  </a>
+  <button class="pub-banner-copy" onclick="navigator.clipboard.writeText('https://dreamcarua.github.io/dreamcar-team/survey.html').then(()=>{this.textContent='✓ Скопійовано';setTimeout(()=>this.textContent='Копіювати',2000})">Копіювати</button>
+</div>
 
 <!-- NAV -->
 <div class="nav">
