@@ -226,6 +226,26 @@
 
   .divider { height: 1px; background: linear-gradient(to right, transparent, #1e1e2e, transparent); margin: 28px 0; }
 
+  /* ---- TASKS ---- */
+  .tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+  .task-card { background: #13131f; border: 1px solid #1e1e2e; border-radius: 10px; padding: 18px 20px; transition: border-color 0.15s; }
+  .task-card:hover { border-color: #2a2a4a; }
+  .task-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+  .task-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
+  .task-title { font-size: 13px; font-weight: 700; color: #fff; line-height: 1.3; }
+  .task-num { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  .task-desc { font-size: 11.5px; color: #999; line-height: 1.7; margin-bottom: 12px; }
+  .task-meta { display: flex; flex-direction: column; gap: 6px; }
+  .task-meta-row { display: flex; gap: 8px; align-items: flex-start; }
+  .task-meta-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #444; width: 46px; flex-shrink: 0; padding-top: 2px; }
+  .task-meta-val { font-size: 11px; color: #bbb; line-height: 1.5; }
+  .owner-pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-right: 4px; margin-bottom: 2px; font-weight: 600; }
+  .pill-red    { background: #2a0000; color: #ff9999; border: 1px solid #550000; }
+  .pill-orange { background: #2a1000; color: #ffaa55; border: 1px solid #552200; }
+  .pill-blue   { background: #0a1a30; color: #7ab0ff; border: 1px solid #1a3a60; }
+  .pill-gray   { background: #1a1a2e; color: #888; border: 1px solid #2a2a4a; }
+  .kpi-val { font-size: 10.5px; color: #60a5fa; }
+
   @media (max-width: 900px) {
     .sidenav { display: none; }
     .main { margin-left: 0; padding: 24px 20px; }
@@ -248,6 +268,7 @@
   <div class="nav-section">Проект</div>
   <div class="nav-link"        onclick="showSection('about',  this)">💡 Про DreamCar</div>
   <div class="nav-link"        onclick="showSection('cycle',  this)">🔄 Цикл проекту</div>
+  <div class="nav-link"        onclick="showSection('tasks',  this)">🔧 Ключові завдання</div>
   <div class="nav-section">Команда</div>
   <div class="nav-link"        onclick="showSection('team',      this)">👥 Команда</div>
   <div class="nav-link"        onclick="showSection('authority', this)">⚖️ Повноваження</div>
@@ -576,6 +597,240 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- =================== TASKS =================== -->
+  <div class="section" id="s-tasks">
+    <div class="section-title">🔧 Ключові завдання</div>
+    <div class="section-subtitle">9 відкритих напрямків, за якими Давід відповідає як COO</div>
+
+    <div class="info-box info-blue" style="margin-bottom:20px;">
+      <strong>Важливо:</strong> це не разові задачі, а постійні зони відповідальності. По кожній з них Давід має вибудувати процес, власників і вимірювані результати. Деякі вже є у <a href="checklist.html" style="color:#7ab0ff;">чек-листі поточних питань</a>.
+    </div>
+
+    <div class="tasks-grid">
+
+      <!-- 1 -->
+      <div class="task-card">
+        <div class="task-header">
+          <div class="task-icon">📣</div>
+          <div>
+            <div class="task-num">Завдання 01</div>
+            <div class="task-title">Контент-план і постійна присутність у каналах</div>
+          </div>
+        </div>
+        <div class="task-desc">Регулярний інформаційний шум без "втоми аудиторії": не набридати, але й не зникати. Стратегія: <strong style="color:#fff;">1:3</strong> — один продаючий пост на три інформаційно-розважальних. Потрібен довгостроковий контент-план і стабільний процес виконання по всіх каналах.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val">
+              <span class="owner-pill pill-red">Давід</span>
+              <span class="owner-pill pill-orange">Артем</span>
+              <span class="owner-pill pill-gray">Контент-менеджер</span>
+            </div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">Виконання контент-плану ≥ 90% / місяць · Охоплення аудиторії зростає циклічно</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="task-card">
+        <div class="task-header">
+          <div class="task-icon">📡</div>
+          <div>
+            <div class="task-num">Завдання 02</div>
+            <div class="task-title">Нові канали залучення та розвиток існуючих</div>
+          </div>
+        </div>
+        <div class="task-desc">Аналіз і тестування нових джерел трафіку: партнерства, колаборації, нові формати і майданчики. Масштабування каналів, що вже показують результат. Підрядники під нові канали — окрема підзадача.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val"><span class="owner-pill pill-red">Давід</span></div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">≥ 1 новий канал протестований за проект · CAC (вартість нового учасника) знижується</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="task-card" style="border-color:#330000;">
+        <div class="task-header">
+          <div class="task-icon">🚗</div>
+          <div>
+            <div class="task-num">Завдання 03</div>
+            <div class="task-title">Підготовка наступного проєкту</div>
+          </div>
+        </div>
+        <div class="task-desc">Паралельно з поточним запуском — готувати наступний: автомобіль, механіка, тарифи, контент, лендінг. Ціль — <strong style="color:#ff9999;">лендінг наступного проекту готовий до фіналу поточного</strong>. Вибір авто і призу — Артем.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val">
+              <span class="owner-pill pill-red">Давід</span>
+              <span class="owner-pill pill-orange">Артем</span>
+            </div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">Лендінг #18 готовий до 19.04.2026 · Zero-gap між проектами</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="task-card">
+        <div class="task-header">
+          <div class="task-icon">🎁</div>
+          <div>
+            <div class="task-num">Завдання 04</div>
+            <div class="task-title">Маркетингові акції</div>
+          </div>
+        </div>
+        <div class="task-desc">Систематична розробка акцій для стимулювання продажів: бонуси при покупці, флеш-акції, кросел, знижки на пакети. Формат, частота і умови мають плануватись заздалегідь — не імпровізуватись у день проведення.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val"><span class="owner-pill pill-red">Давід</span></div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">≥ 2 акції на проект · Акції заплановані заздалегідь і зафіксовані у контент-плані</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="task-card" style="border-color:#1a3a00;">
+        <div class="task-header">
+          <div class="task-icon">💳</div>
+          <div>
+            <div class="task-num">Завдання 05</div>
+            <div class="task-title">Платіжна інфраструктура</div>
+          </div>
+        </div>
+        <div class="task-desc">Поточна проблема: мало еквайрингів — ризик зупинки продажів у пікові дні через ліміти або блокування. Завдання: підключити мінімум 1-2, оптимально 3-4 провайдери для розподілу навантаження. Договори — через Вадима.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val">
+              <span class="owner-pill pill-red">Давід</span>
+              <span class="owner-pill pill-red" style="opacity:0.7;">Вадим</span>
+            </div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">Активних еквайрингів: 3-4 · Частка одного провайдера ≤ 40% обігу</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="task-card">
+        <div class="task-header">
+          <div class="task-icon">🌐</div>
+          <div>
+            <div class="task-num">Завдання 06</div>
+            <div class="task-title">Сайт: конверсія і нові фічі</div>
+          </div>
+        </div>
+        <div class="task-desc">Постійна робота над покращенням UI/UX, тестування гіпотез, нові функції для збільшення конверсії, середнього чека і загального обсягу продажів. Технічна реалізація — Олександр і команда, постановка задач — Давід.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val">
+              <span class="owner-pill pill-red">Давід</span>
+              <span class="owner-pill pill-blue">Олександр</span>
+            </div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">Конверсія лендінгу зростає · Середній чек відстежується щопроектно</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="task-card">
+        <div class="task-header">
+          <div class="task-icon">🤖</div>
+          <div>
+            <div class="task-num">Завдання 07</div>
+            <div class="task-title">AI-сервіс і кураторство розробників</div>
+          </div>
+        </div>
+        <div class="task-desc">Управління розвитком AI-платформи: постановка задач програмістам, контроль виконання, пріоритизація беклогу. Давід — власник продукту з боку бізнесу. Технічна команда — виконавці.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val">
+              <span class="owner-pill pill-red">Давід</span>
+              <span class="owner-pill pill-blue">Олександр і команда</span>
+            </div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">Беклог актуальний · Нові фічі виходять кожен проект · Спринти не зриваються</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="task-card">
+        <div class="task-header">
+          <div class="task-icon">🤝</div>
+          <div>
+            <div class="task-num">Завдання 08</div>
+            <div class="task-title">Підрядники: поточні і нові</div>
+          </div>
+        </div>
+        <div class="task-desc">Підтримка стосунків з існуючими підрядниками, пошук нових — особливо під нові канали трафіку та контентні напрямки. Кожен підрядник має мати чіткий бриф, KPI і регулярний звіт. Договори укладає Вадим.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val">
+              <span class="owner-pill pill-red">Давід</span>
+              <span class="owner-pill pill-red" style="opacity:0.7;">Вадим</span>
+            </div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">Кожен підрядник має актуальний бриф і KPI · Ні одного "висячого" підрядника без завдань</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9 -->
+      <div class="task-card" style="border-color:#1a3a30;">
+        <div class="task-header">
+          <div class="task-icon">👤</div>
+          <div>
+            <div class="task-num">Завдання 09</div>
+            <div class="task-title">Команда: найм і розвиток</div>
+          </div>
+        </div>
+        <div class="task-desc">Пріоритет найближчого часу — <strong style="color:#4ade80;">найм контент-менеджера</strong>. Давід ініціює процес і веде відбір, фінальне рішення — Вадим. Надалі: формування повноцінної команди відповідно до зростання проекту і виходу засновників з операційки.</div>
+        <div class="task-meta">
+          <div class="task-meta-row">
+            <div class="task-meta-label">Власник</div>
+            <div class="task-meta-val">
+              <span class="owner-pill pill-red">Давід</span>
+              <span class="owner-pill pill-red" style="opacity:0.7;">Вадим</span>
+            </div>
+          </div>
+          <div class="task-meta-row">
+            <div class="task-meta-label">KPI</div>
+            <div class="task-meta-val kpi-val">Контент-менеджер виходить до кінця випробувального терміну · Кандидати — мінімум 3 на вибір</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tasks-grid -->
   </div>
 
   <!-- =================== TEAM =================== -->
