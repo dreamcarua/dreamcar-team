@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar — NDA · Угода про нерозголошення</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* =================== SCREEN UI =================== */
+body {
+  font-family: Arial, sans-serif;
+  background: #0f0f1a;
+  color: #fff;
+  min-height: 100vh;
+}
+
+.page-header {
+  background: #0a0a14;
+  border-bottom: 1px solid #1a1a2e;
+  padding: 18px 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.logo-text { font-size: 15px; font-weight: 700; color: #cc0000; letter-spacing: 1px; }
+.logo-sub  { font-size: 11px; color: #444; margin-top: 2px; }
+.back-link {
+  margin-left: auto;
+  font-size: 11px;
+  color: #555;
+  text-decoration: none;
+  border: 1px solid #222;
+  padding: 6px 14px;
+  border-radius: 6px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.back-link:hover { color: #ccc; border-color: #444; }
+
+.main-wrap { max-width: 920px; margin: 0 auto; padding: 36px 24px 60px; }
+
+.intro-box {
+  background: #1a0000;
+  border: 1px solid #330000;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+}
+.intro-box h2 { font-size: 15px; color: #ff9999; margin-bottom: 6px; }
+.intro-box p  { font-size: 12px; color: #aaa; line-height: 1.75; }
+
+.form-card {
+  background: #13131f;
+  border: 1px solid #1e1e2e;
+  border-radius: 12px;
+  padding: 28px 32px;
+  margin-bottom: 28px;
+}
+.form-card h3 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 20px; letter-spacing: 0.5px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.form-grid.two  { grid-template-columns: 1fr 1fr; }
+.form-grid.full { grid-template-columns: 1fr; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label {
+  font-size: 10px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.form-group input, .form-group select {
+  background: #0a0a14;
+  border: 1px solid #2a2a4a;
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.form-group input::placeholder { color: #333; }
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: #cc0000;
+}
+.form-group input.filled { border-color: #2a4a2a; }
+
+.action-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+.btn-print {
+  background: #cc0000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: Arial, sans-serif;
+}
+.btn-print:hover { background: #ee1111; }
+.btn-print:disabled { background: #333; color: #666; cursor: not-allowed; }
+.print-hint { font-size: 11px; color: #555; }
+
+.progress-bar-wrap { background: #1a1a2e; border-radius: 4px; height: 4px; margin-bottom: 6px; overflow: hidden; }
+.progress-bar { height: 100%; background: linear-gradient(to right, #cc0000, #ff6666); border-radius: 4px; transition: width 0.3s; }
+.progress-label { font-size: 10px; color: #555; margin-bottom: 20px; }
+
+/* Preview section header */
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.preview-header h3 { font-size: 13px; color: #fff; font-weight: 700; }
+.preview-badge {
+  font-size: 9px;
+  background: #1a2a00;
+  color: #6edd8a;
+  border: 1px solid #2a5a10;
+  padding: 3px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* =================== NDA DOCUMENT =================== */
+.nda-wrap {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+.nda-doc {
+  font-family: Arial, sans-serif;
+  font-size: 11.5pt;
+  color: #111;
+  line-height: 1.65;
+  padding: 40px 48px 50px 68px; /* match docx margins */
+  max-width: 100%;
+}
+
+.nda-title {
+  text-align: center;
+  font-size: 14pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.nda-subtitle {
+  text-align: center;
+  font-size: 11pt;
+  color: #555;
+  margin-bottom: 18px;
+}
+.nda-dateline {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11pt;
+  margin-bottom: 20px;
+  color: #111;
+}
+.nda-p {
+  text-align: justify;
+  margin-bottom: 10px;
+  font-size: 11.5pt;
+  line-height: 1.65;
+}
+.nda-h1 {
+  font-size: 12pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 24px 0 8px;
+  letter-spacing: 0.3px;
+}
+.nda-clause {
+  text-align: justify;
+  margin-bottom: 8px;
+  font-size: 11.5pt;
+  line-height: 1.65;
+}
+.nda-bullet {
+  text-align: justify;
+  margin-bottom: 6px;
+  font-size: 11.5pt;
+  line-height: 1.65;
+  padding-left: 28px;
+  text-indent: -14px;
+}
+.nda-bullet::before { content: '— '; }
+
+.nda-field {
+  background: #fff8e1;
+  border-bottom: 1.5px solid #cc8800;
+  padding: 0 3px;
+  min-width: 60px;
+  display: inline-block;
+  color: #333;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s;
+}
+.nda-field.filled {
+  background: transparent;
+  border-bottom-color: #333;
+  color: #111;
+  font-weight: 700;
+}
+.nda-field.empty {
+  color: #cc8800;
+  background: #fff8e1;
+}
+
+/* Signature block */
+.nda-sig-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 32px;
+  font-size: 10.5pt;
+}
+.nda-sig-table td {
+  width: 33.3%;
+  vertical-align: top;
+  padding: 4px 8px 4px 0;
+  line-height: 1.6;
+}
+.nda-sig-head { font-weight: 700; font-size: 11pt; border-bottom: none; }
+.nda-sig-line {
+  border-top: 1px solid #333;
+  margin-top: 32px;
+  padding-top: 4px;
+  font-size: 10pt;
+  color: #444;
+}
+
+/* =================== PRINT STYLES =================== */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .nda-wrap { box-shadow: none; border-radius: 0; }
+  .nda-doc {
+    padding: 0;
+    font-size: 11pt;
+  }
+  .nda-field {
+    background: transparent !important;
+    border-bottom-color: #333 !important;
+    color: #111 !important;
+    font-weight: 700 !important;
+  }
+  @page {
+    size: A4;
+    margin: 20mm 15mm 20mm 25mm;
+  }
+}
+
+@media (max-width: 700px) {
+  .form-grid, .form-grid.two { grid-template-columns: 1fr; }
+  .nda-doc { padding: 24px 20px; }
+  .page-header { padding: 14px 16px; }
+  .main-wrap { padding: 20px 12px 40px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<div class="page-header no-print">
+  <div>
+    <div class="logo-text">DreamCar.ua</div>
+    <div class="logo-sub">Угода про нерозголошення · NDA</div>
+  </div>
+  <a href="index.html" class="back-link">← Головна</a>
+</div>
+
+<div class="main-wrap">
+
+  <!-- ============ INTRO ============ -->
+  <div class="intro-box no-print">
+    <h2>Давід, заповни свої дані нижче</h2>
+    <p>Після заповнення усіх полів документ оновиться автоматично. Перевір дані, натисни <strong style="color:#fff;">«Зберегти PDF»</strong> і роздрукуй або надішли підписаний примірник Вадиму. Документ діє у двох оригінальних примірниках — один тобі, один Вадиму.</p>
+  </div>
+
+  <!-- ============ FORM ============ -->
+  <div class="form-card no-print">
+    <h3>📝 Твої персональні дані</h3>
+
+    <div class="progress-bar-wrap"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
+    <div class="progress-label" id="prog-label">0 з 7 полів заповнено</div>
+
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="form-group">
+        <label>Прізвище</label>
+        <input type="text" id="f-last" placeholder="Іванов" oninput="updateField('last', this.value); trackProgress()">
+      </div>
+      <div class="form-group">
+        <label>Ім'я</label>
+        <input type="text" id="f-first" placeholder="Іван" oninput="updateField('first', this.value); trackProgress()">
+      </div>
+      <div class="form-group">
+        <label>По батькові</label>
+        <input type="text" id="f-mid" placeholder="Іванович" oninput="updateField('mid', this.value); trackProgress()">
+      </div>
+    </div>
+
+    <div class="form-grid two" style="margin-bottom:14px;">
+      <div class="form-group">
+        <label>Паспорт серія</label>
+        <input type="text" id="f-pass-ser" placeholder="АА" maxlength="4" oninput="updateField('pass-ser', this.value.toUpperCase()); this.value=this.value.toUpperCase(); trackProgress()">
+      </div>
+      <div class="form-group">
+        <label>Паспорт номер</label>
+        <input type="text" id="f-pass-num" placeholder="123456" maxlength="9" oninput="updateField('pass-num', this.value); trackProgress()">
+      </div>
+    </div>
+
+    <div class="form-grid full" style="margin-bottom:14px;">
+      <div class="form-group">
+        <label>Паспорт виданий (ким і коли)</label>
+        <input type="text" id="f-pass-by" placeholder="Шевченківським РВ ГУ МВС у м. Києві 15.03.2015" oninput="updateField('pass-by', this.value); trackProgress()">
+      </div>
+    </div>
+
+    <div class="form-grid two">
+      <div class="form-group">
+        <label>Ідентифікаційний номер (ІПН)</label>
+        <input type="text" id="f-ipn" placeholder="1234567890" maxlength="10" oninput="updateField('ipn', this.value); trackProgress()">
+      </div>
+      <div class="form-group">
+        <label>Дата підписання</label>
+        <input type="date" id="f-date" value="2026-04-03" oninput="updateField('sign-date', formatDate(this.value)); trackProgress()">
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ACTION ROW ============ -->
+  <div class="action-row no-print">
+    <button class="btn-print" id="btn-print" onclick="window.print()">
+      🖨 Зберегти PDF / Роздрукувати
+    </button>
+    <span class="print-hint">У діалозі друку обери «Зберегти як PDF» або підключений принтер</span>
+  </div>
+
+  <!-- ============ NDA PREVIEW ============ -->
+  <div class="preview-header no-print">
+    <h3>Попередній перегляд документа</h3>
+    <span class="preview-badge" id="status-badge">Заповни поля вище</span>
+  </div>
+
+  <div class="nda-wrap">
+  <div class="nda-doc" id="nda-doc">
+
+    <div class="nda-title">УГОДА ПРО НЕРОЗГОЛОШЕННЯ КОНФІДЕНЦІЙНОЇ ІНФОРМАЦІЇ</div>
+    <div class="nda-subtitle">(NDA)</div>
+
+    <div class="nda-dateline">
+      <span>м. Дніпро</span>
+      <span><span id="d-sign-date" class="nda-field empty">03.04.2026</span></span>
+    </div>
+
+    <div class="nda-p">
+      <strong>Товариство з обмеженою відповідальністю «ПЛЕТФОКС»</strong>, ЄДРПОУ 44236899, місцезнаходження: 49000, Україна, м. Дніпро, вул. Гоголя, 15, в особі директора <strong>Селезня Михайла Романовича</strong>, що діє на підставі Статуту (далі — <strong>«ТОВ»</strong>),
+    </div>
+    <div class="nda-p">
+      та громадянин України <strong>Гришин Вадим Валерійович</strong>, паспорт № 005652359, правовласник торговельної марки <strong>«DreamCar»</strong> (далі — <strong>«Правовласник»</strong>),
+    </div>
+    <div class="nda-p">
+      (ТОВ та Правовласник разом іменуються — <strong>«Сторона, що розкриває»</strong>, або <strong>«Розкривач»</strong>),
+    </div>
+    <div class="nda-p">
+      та громадянин України <span id="d-last" class="nda-field empty">_____</span>&nbsp;<span id="d-first" class="nda-field empty">_____</span>&nbsp;<span id="d-mid" class="nda-field empty">_____</span>, паспорт серія <span id="d-pass-ser" class="nda-field empty">___</span>&nbsp;№&nbsp;<span id="d-pass-num" class="nda-field empty">________</span>, виданий <span id="d-pass-by" class="nda-field empty">________________________</span>, ідентифікаційний номер <span id="d-ipn" class="nda-field empty">__________</span>, що залучається як <strong>Операційний директор (COO)</strong> (далі — <strong>«Отримувач»</strong>),
+    </div>
+    <div class="nda-p">
+      (усі разом — <strong>«Сторони»</strong>), уклали цю Угоду про нерозголошення конфіденційної інформації (далі — <strong>«Угода»</strong>) про наступне:
+    </div>
+
+    <!-- 1 -->
+    <div class="nda-h1">1. Терміни та визначення</div>
+    <div class="nda-clause"><strong>1.1.</strong> <strong>«Конфіденційна інформація»</strong> — будь-яка інформація, яка стала відома Отримувачу в процесі співпраці зі Стороною, що розкриває, незалежно від форми надання (усна, письмова, електронна), що стосується діяльності платформи DreamCar (<em>dreamcar.ua</em>, <em>ai.dreamcar.ua</em>) та бізнесу Розкривача в цілому, включаючи, але не обмежуючись, переліком, визначеним у статті 3 цієї Угоди.</div>
+    <div class="nda-clause"><strong>1.2.</strong> <strong>«Розголошення»</strong> — будь-яка передача, публікація, демонстрація, обговорення або інше доведення Конфіденційної інформації до відома третіх осіб без попередньої письмової згоди Розкривача.</div>
+    <div class="nda-clause"><strong>1.3.</strong> <strong>«Третя особа»</strong> — будь-яка фізична або юридична особа, що не є стороною цієї Угоди.</div>
+    <div class="nda-clause"><strong>1.4.</strong> <strong>«Комерційна таємниця»</strong> — відомості, що є складовою Конфіденційної інформації та відповідають ознакам комерційної таємниці у розумінні ст. 505 Цивільного кодексу України.</div>
+
+    <!-- 2 -->
+    <div class="nda-h1">2. Предмет угоди</div>
+    <div class="nda-clause"><strong>2.1.</strong> Метою цієї Угоди є забезпечення конфіденційності інформації, яка стала або може стати відомою Отримувачу у зв'язку з виконанням функцій Операційного директора платформи DreamCar, та захист законних інтересів Сторони, що розкриває.</div>
+    <div class="nda-clause"><strong>2.2.</strong> Отримувач зобов'язується не розголошувати, не передавати та не використовувати в особистих або сторонніх інтересах Конфіденційну інформацію, отриману від Розкривача, інакше ніж у порядку, передбаченому цією Угодою.</div>
+    <div class="nda-clause"><strong>2.3.</strong> Угода поширюється на всю Конфіденційну інформацію незалежно від того, була вона позначена як «конфіденційна» чи ні, якщо з контексту чи характеру інформації розумна особа могла б зробити висновок про її конфіденційний характер.</div>
+
+    <!-- 3 -->
+    <div class="nda-h1">3. Склад конфіденційної інформації</div>
+    <div class="nda-clause"><strong>3.1.</strong> Конфіденційна інформація включає, зокрема, такі категорії:</div>
+    <div class="nda-bullet"><strong>Технологія та IT-інфраструктура:</strong> архітектура AI-сервісу, вихідний код, алгоритми обробки даних, API, бази даних, технічна документація, серверна інфраструктура, конфігурації систем платформи DreamCar;</div>
+    <div class="nda-bullet"><strong>Фінансові відомості:</strong> обсяги виручки, маржинальність, структура тарифних планів, платіжні інструменти та еквайринг-провайдери, дані транзакцій, бюджети маркетингових кампаній;</div>
+    <div class="nda-bullet"><strong>База учасників та CRM:</strong> персональні дані учасників (~35 000 осіб), контактна інформація, поведінкові дані, сегментація, статистика активності, дані розсилок та автоматизацій;</div>
+    <div class="nda-bullet"><strong>Маркетинг та контент:</strong> контент-плани, стратегії залучення аудиторії, креативні концепції, результати A/B-тестів, рекламні кабінети та метрики ефективності каналів;</div>
+    <div class="nda-bullet"><strong>Плани майбутніх проектів:</strong> запланований перелік призових автомобілів, дати та механіки майбутніх запусків, умови тарифів, які ще не оголошені публічно;</div>
+    <div class="nda-bullet"><strong>Партнери та підрядники:</strong> умови договорів з постачальниками послуг, комерційні умови партнерств, особисті дані контрагентів;</div>
+    <div class="nda-bullet"><strong>Внутрішні процеси та аналітика:</strong> операційні регламенти, SOP, дашборди, внутрішня документація, результати внутрішніх аудитів та звітів;</div>
+    <div class="nda-bullet"><strong>Персональна інформація:</strong> персональні відомості та контактні дані засновників, команди та ділових партнерів Розкривача, що стали відомі в процесі роботи.</div>
+    <div class="nda-clause"><strong>3.2.</strong> Вищезазначений перелік є невичерпним. Будь-які відомості, що мають комерційну цінність для Розкривача і не перебувають у вільному доступі, вважаються Конфіденційною інформацією в розумінні цієї Угоди.</div>
+
+    <!-- 4 -->
+    <div class="nda-h1">4. Зобов'язання Отримувача</div>
+    <div class="nda-clause"><strong>4.1.</strong> Отримувач зобов'язується:</div>
+    <div class="nda-bullet">зберігати Конфіденційну інформацію в суворій таємниці та не розголошувати її Третім особам без попередньої письмової згоди Розкривача;</div>
+    <div class="nda-bullet">використовувати Конфіденційну інформацію виключно з метою виконання своїх посадових обов'язків Операційного директора платформи DreamCar;</div>
+    <div class="nda-bullet">вживати всіх розумних заходів для запобігання несанкціонованому доступу до Конфіденційної інформації, не менших за ті, що Отримувач вживає для захисту власної конфіденційної інформації;</div>
+    <div class="nda-bullet">негайно повідомляти Розкривача про будь-яке відоме або підозрюване несанкціоноване розкриття Конфіденційної інформації;</div>
+    <div class="nda-bullet">не копіювати та не відтворювати Конфіденційну інформацію поза межами, необхідними для виконання посадових обов'язків;</div>
+    <div class="nda-bullet">не використовувати Конфіденційну інформацію для отримання особистої вигоди, конкурентних переваг або на користь Третіх осіб.</div>
+    <div class="nda-clause"><strong>4.2.</strong> Отримувач має право розкрити Конфіденційну інформацію тільки тим працівникам або підрядникам Розкривача, яким вона необхідна для виконання конкретних завдань у межах платформи DreamCar, та лише за умови, що такі особи пов'язані аналогічними зобов'язаннями щодо конфіденційності.</div>
+    <div class="nda-clause"><strong>4.3.</strong> Отримувач не має права патентувати, реєструвати або іншим чином набувати права інтелектуальної власності на Конфіденційну інформацію або будь-які її елементи.</div>
+
+    <!-- 5 -->
+    <div class="nda-h1">5. Виключення з режиму конфіденційності</div>
+    <div class="nda-clause"><strong>5.1.</strong> Зобов'язання щодо конфіденційності не поширюються на інформацію, яку Отримувач може довести документально:</div>
+    <div class="nda-bullet">яка на момент отримання вже перебувала у вільному публічному доступі або стала загальновідомою без порушення цієї Угоди;</div>
+    <div class="nda-bullet">яка вже була правомірно відома Отримувачу до укладення цієї Угоди;</div>
+    <div class="nda-bullet">яку Отримувач отримав законним шляхом від Третьої особи, що не має зобов'язань про конфіденційність щодо Розкривача;</div>
+    <div class="nda-bullet">яку Отримувач розробив самостійно, незалежно від Конфіденційної інформації, що підтверджується документально.</div>
+    <div class="nda-clause"><strong>5.2.</strong> У разі якщо Отримувач зобов'язаний розкрити Конфіденційну інформацію на вимогу суду або компетентного державного органу, він зобов'язаний: (а) негайно письмово повідомити Розкривача про таку вимогу; (б) розкрити лише ту частину інформації, розкриття якої є обов'язковим згідно з вимогою; (в) докласти максимальних зусиль для забезпечення конфіденційного режиму розкритої інформації.</div>
+
+    <!-- 6 -->
+    <div class="nda-h1">6. Заборона конкуренції та переманювання</div>
+    <div class="nda-clause"><strong>6.1.</strong> Протягом строку дії цієї Угоди та <strong>протягом 12 (дванадцяти) місяців</strong> після припинення співпраці Отримувач зобов'язується не брати участі (прямо або опосередковано — як засновник, співзасновник, учасник, консультант, найманий працівник, підрядник) у будь-яких проектах або платформах, що здійснюють діяльність, аналогічну або конкурентну діяльності платформи DreamCar, а саме: сервісах, що поєднують надання доступу до AI-інструментів з розіграшем призів серед учасників.</div>
+    <div class="nda-clause"><strong>6.2.</strong> Протягом строку дії цієї Угоди та <strong>протягом 24 (двадцяти чотирьох) місяців</strong> після її припинення Отримувач зобов'язується не запрошувати, не переманювати та не залучати (прямо або через Третіх осіб) жодного працівника, підрядника або партнера Розкривача для роботи або співпраці поза межами платформи DreamCar.</div>
+    <div class="nda-clause"><strong>6.3.</strong> Обмеження, передбачені цією статтею, є розумними та необхідними для захисту законних інтересів Розкривача з огляду на характер Конфіденційної інформації, до якої Отримувач матиме доступ.</div>
+
+    <!-- 7 -->
+    <div class="nda-h1">7. Повернення та знищення конфіденційної інформації</div>
+    <div class="nda-clause"><strong>7.1.</strong> Протягом 5 (п'яти) робочих днів після припинення співпраці або на першу вимогу Розкривача Отримувач зобов'язаний:</div>
+    <div class="nda-bullet">повернути Розкривачу всі матеріальні носії, що містять Конфіденційну інформацію;</div>
+    <div class="nda-bullet">знищити або видалити всі копії Конфіденційної інформації зі своїх пристроїв, хмарних сховищ та інших носіїв;</div>
+    <div class="nda-bullet">надати Розкривачу письмове підтвердження виконання зазначених дій протягом 2 (двох) робочих днів.</div>
+    <div class="nda-clause"><strong>7.2.</strong> Обов'язок зі знищення Конфіденційної інформації не поширюється на її копії, зберігання яких є обов'язковим згідно з вимогами чинного законодавства України. Такі копії залишаються під режимом конфіденційності відповідно до цієї Угоди.</div>
+
+    <!-- 8 -->
+    <div class="nda-h1">8. Відповідальність та санкції</div>
+    <div class="nda-clause"><strong>8.1.</strong> У разі порушення Отримувачем будь-якого зобов'язання, передбаченого цією Угодою, він зобов'язаний сплатити Розкривачу штраф у розмірі <strong>500 000 (п'ятсот тисяч) гривень</strong> за кожен окремий випадок порушення, незалежно від настання реальних збитків.</div>
+    <div class="nda-clause"><strong>8.2.</strong> Сплата штрафу не звільняє Отримувача від обов'язку відшкодувати Розкривачу всі документально підтверджені збитки, що перевищують суму штрафу, включаючи упущену вигоду.</div>
+    <div class="nda-clause"><strong>8.3.</strong> Сторони визнають, що порушення цієї Угоди може завдати Розкривачу шкоду, яку неможливо компенсувати виключно грошима. Тому Розкривач має право вимагати судової заборони або інших засобів захисту в судовому порядку, не обмежуючись грошовою компенсацією.</div>
+    <div class="nda-clause"><strong>8.4.</strong> Розкривач не несе відповідальності перед Отримувачем за точність, повноту або придатність Конфіденційної інформації для певних цілей, якщо інше не передбачено окремими договорами.</div>
+
+    <!-- 9 -->
+    <div class="nda-h1">9. Строк дії та припинення</div>
+    <div class="nda-clause"><strong>9.1.</strong> Ця Угода набирає чинності з дати підписання всіма Сторонами та діє протягом <strong>3 (трьох) років</strong>.</div>
+    <div class="nda-clause"><strong>9.2.</strong> Зобов'язання щодо конфіденційності, передбачені статтями 4 та 5, залишаються чинними <strong>безстроково щодо персональних даних учасників платформи (бази даних)</strong> навіть після закінчення строку дії Угоди або її розірвання.</div>
+    <div class="nda-clause"><strong>9.3.</strong> Угода може бути достроково розірвана за взаємною письмовою згодою Сторін. Розірвання Угоди не звільняє Отримувача від відповідальності за порушення, вчинені до дати розірвання.</div>
+    <div class="nda-clause"><strong>9.4.</strong> Розкривач має право достроково розірвати Угоду в односторонньому порядку у разі суттєвого порушення Отримувачем її умов, з письмовим повідомленням за 3 (три) робочі дні.</div>
+
+    <!-- 10 -->
+    <div class="nda-h1">10. Порядок вирішення спорів</div>
+    <div class="nda-clause"><strong>10.1.</strong> Усі спори та розбіжності, що виникають у зв'язку з виконанням цієї Угоди, вирішуються Сторонами шляхом переговорів. Строк для врегулювання спору в досудовому порядку — 15 (п'ятнадцять) календарних днів з дати отримання письмової претензії.</div>
+    <div class="nda-clause"><strong>10.2.</strong> У разі недосягнення згоди спір передається на розгляд до суду за місцезнаходженням ТОВ «ПЛЕТФОКС», відповідно до чинного законодавства України.</div>
+    <div class="nda-clause"><strong>10.3.</strong> Ця Угода регулюється та тлумачиться відповідно до законодавства України. Зокрема, у частині захисту комерційної таємниці застосовуються положення ст. 505–508 Цивільного кодексу України та Господарського кодексу України.</div>
+
+    <!-- 11 -->
+    <div class="nda-h1">11. Загальні положення</div>
+    <div class="nda-clause"><strong>11.1.</strong> Ця Угода є повним та остаточним виразом домовленості Сторін щодо її предмета та замінює всі попередні домовленості, переговори та угоди з цього питання.</div>
+    <div class="nda-clause"><strong>11.2.</strong> Будь-які зміни та доповнення до цієї Угоди є дійсними лише за умови їх оформлення в письмовій формі та підписання всіма Сторонами.</div>
+    <div class="nda-clause"><strong>11.3.</strong> Якщо будь-яке положення цієї Угоди визнане судом недійсним або таким, що не може бути виконане, решта положень залишаються чинними. Сторони зобов'язуються замінити недійсне положення дійсним, що найближче відповідає меті первісного положення.</div>
+    <div class="nda-clause"><strong>11.4.</strong> Угода укладена у 3 (трьох) оригінальних примірниках — по одному для кожної Сторони. Усі примірники мають однакову юридичну силу.</div>
+    <div class="nda-clause"><strong>11.5.</strong> Підписавши цю Угоду, Отримувач підтверджує, що ознайомлений із її змістом, розуміє покладені на нього зобов'язання та повністю з ними погоджується.</div>
+
+    <!-- ПІДПИСИ -->
+    <div class="nda-h1">Реквізити та підписи Сторін</div>
+    <table class="nda-sig-table">
+      <tr>
+        <td class="nda-sig-head">СТОРОНА 1</td>
+        <td class="nda-sig-head">СТОРОНА 2</td>
+        <td class="nda-sig-head">СТОРОНА 3</td>
+      </tr>
+      <tr>
+        <td class="nda-sig-head">ТОВ «ПЛЕТФОКС»</td>
+        <td class="nda-sig-head">ПРАВОВЛАСНИК ТМ DreamCar</td>
+        <td class="nda-sig-head">ОТРИМУВАЧ</td>
+      </tr>
+      <tr>
+        <td>ЄДРПОУ 44236899<br>49000, м. Дніпро,<br>вул. Гоголя, 15<br>Директор: Селезень М.Р.</td>
+        <td>Гришин Вадим Валерійович<br>Паспорт № 005652359</td>
+        <td>
+          <span id="d-sig-last" class="nda-field empty">_____</span>&nbsp;<span id="d-sig-first" class="nda-field empty">_____</span>&nbsp;<span id="d-sig-mid" class="nda-field empty">_____</span><br>
+          Паспорт серія&nbsp;<span id="d-sig-pser" class="nda-field empty">___</span>&nbsp;№&nbsp;<span id="d-sig-pnum" class="nda-field empty">_______</span><br>
+          Виданий: <span id="d-sig-pby" class="nda-field empty">_________________</span><br>
+          ІПН: <span id="d-sig-ipn" class="nda-field empty">__________</span>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="nda-sig-line">підпис&nbsp;/&nbsp;Селезень М.Р.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;МП</div></td>
+        <td><div class="nda-sig-line">підпис&nbsp;/&nbsp;Гришин В.В.</div></td>
+        <td><div class="nda-sig-line">підпис&nbsp;/&nbsp;<span id="d-sig-name" class="nda-field empty">__________</span></div></td>
+      </tr>
+      <tr>
+        <td style="font-size:10pt; color:#555; padding-top:6px;">Дата: <span id="d-sig-date1" class="nda-field empty">03.04.2026</span></td>
+        <td style="font-size:10pt; color:#555; padding-top:6px;">Дата: <span id="d-sig-date2" class="nda-field empty">03.04.2026</span></td>
+        <td style="font-size:10pt; color:#555; padding-top:6px;">Дата: <span id="d-sig-date3" class="nda-field empty">03.04.2026</span></td>
+      </tr>
+    </table>
+
+  </div><!-- /nda-doc -->
+  </div><!-- /nda-wrap -->
+
+</div><!-- /main-wrap -->
+
+<script>
+const fields = {
+  last:      { ids: ['d-last','d-sig-last'],  default: '_____' },
+  first:     { ids: ['d-first','d-sig-first'], default: '_____' },
+  mid:       { ids: ['d-mid','d-sig-mid'],    default: '_____' },
+  'pass-ser':{ ids: ['d-pass-ser','d-sig-pser'], default: '___' },
+  'pass-num':{ ids: ['d-pass-num','d-sig-pnum'], default: '________' },
+  'pass-by': { ids: ['d-pass-by','d-sig-pby'],  default: '________________________' },
+  ipn:       { ids: ['d-ipn','d-sig-ipn'],    default: '__________' },
+  'sign-date': { ids: ['d-sign-date','d-sig-date1','d-sig-date2','d-sig-date3'], default: '03.04.2026' },
+};
+
+function updateField(key, value) {
+  const cfg = fields[key];
+  if (!cfg) return;
+  const filled = value && value.trim() !== '';
+  cfg.ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = filled ? value.trim() : cfg.default;
+    el.classList.toggle('filled', filled);
+    el.classList.toggle('empty', !filled);
+  });
+  // update combined name in sig block
+  if (key === 'last' || key === 'first' || key === 'mid') {
+    updateSigName();
+  }
+}
+
+function updateSigName() {
+  const last  = document.getElementById('f-last')?.value.trim() || '';
+  const first = document.getElementById('f-first')?.value.trim() || '';
+  const mid   = document.getElementById('f-mid')?.value.trim() || '';
+  const el = document.getElementById('d-sig-name');
+  if (!el) return;
+  const name = [last, first.charAt(0) ? first.charAt(0) + '.' : '', mid.charAt(0) ? mid.charAt(0) + '.' : ''].filter(Boolean).join(' ');
+  if (name.replace(/\./g,'').trim()) {
+    el.textContent = name;
+    el.classList.add('filled'); el.classList.remove('empty');
+  } else {
+    el.textContent = '__________';
+    el.classList.remove('filled'); el.classList.add('empty');
+  }
+}
+
+function formatDate(val) {
+  if (!val) return '';
+  const [y, m, d] = val.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function trackProgress() {
+  const fieldIds = ['f-last','f-first','f-mid','f-pass-ser','f-pass-num','f-pass-by','f-ipn'];
+  const filled = fieldIds.filter(id => {
+    const el = document.getElementById(id);
+    return el && el.value.trim() !== '';
+  }).length;
+  const total = fieldIds.length;
+  const pct = Math.round(filled / total * 100);
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `${filled} з ${total} полів заповнено`;
+
+  const badge = document.getElementById('status-badge');
+  const btn = document.getElementById('btn-print');
+  if (filled === total) {
+    badge.textContent = '✓ Готово до збереження';
+    badge.style.background = '#0a2a10';
+    badge.style.color = '#4ade80';
+    badge.style.borderColor = '#1a5a20';
+    btn.disabled = false;
+  } else if (filled > 0) {
+    badge.textContent = `Заповнено ${filled} з ${total}`;
+    badge.style.background = '#1a1500';
+    badge.style.color = '#fbbf24';
+    badge.style.borderColor = '#4a3800';
+    btn.disabled = false;
+  } else {
+    badge.textContent = 'Заповни поля вище';
+    badge.style.background = '';
+    badge.style.color = '';
+    badge.style.borderColor = '';
+    btn.disabled = true;
+  }
+}
+
+// Init date field
+document.addEventListener('DOMContentLoaded', () => {
+  const dateInput = document.getElementById('f-date');
+  if (dateInput) {
+    updateField('sign-date', formatDate(dateInput.value));
+  }
+  document.getElementById('btn-print').disabled = true;
+});
+</script>
+</body>
+</html>
