@@ -148,11 +148,14 @@ def parse_csv(csv_text: str) -> dict | None:
     city_counter: Counter = Counter()
     for v in city_raw:
         vl = v.lower()
-        if any(w in vl for w in ["мільйон", "велик", "kyiv", "київ", "харків", "одес", "дніпр", "million"]):
+        if any(w in vl for w in ["мільйон", "kyiv", "київ", "харків", "одес", "дніпр", "million"]):
             city_counter["Місто-мільйонник"] += 1
-        elif any(w in vl for w in ["за кордон", "abroad", "польщ", "poland", "europe"]):
+        elif any(w in vl for w in ["за кордон", "abroad", "польщ", "poland", "europe", "закордон"]):
             city_counter["За кордоном"] += 1
+        elif any(w in vl for w in ["невелик", "мале", "маленьк", "small", "town", "селищ", "село"]):
+            city_counter["Невелике місто"] += 1
         elif v:
+            # будь-яке інше місто без ключових слів -> невелике (fallback)
             city_counter["Невелике місто"] += 1
 
     # ── participation: якщо city_counter порожній — fallback ──────────────
