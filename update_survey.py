@@ -119,13 +119,14 @@ def parse_csv(csv_text: str) -> dict | None:
     gender_raw = values("gender")
     gender_counter: Counter = Counter()
     for v in gender_raw:
-        vl = v.lower()
-        if any(w in vl for w in ["чолові", "man", "male", "м"]):
+        vl = v.lower().strip()
+        if any(w in vl for w in ["чолові", "man", "male"]) or vl == "м":
             gender_counter["Чоловіки"] += 1
-        elif any(w in vl for w in ["жін", "woman", "female", "ж"]):
+        elif any(w in vl for w in ["жін", "woman", "female"]) or vl == "ж":
             gender_counter["Жінки"] += 1
         else:
-            gender_counter[v] += 1
+            # "other", "Other", "небінарна", "prefer not to say" etc → "Інше"
+            gender_counter["Інше"] += 1
 
     # ── вік: нормалізуємо ────────────────────────────────────────────────────
     age_raw = values("age")
