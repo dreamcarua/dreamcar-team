@@ -241,6 +241,7 @@
   .hbar-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
   .hbar-label { font-size: 14px; color: var(--text); }
   .hbar-val { font-size: 14px; font-weight: 700; color: var(--accent); }
+  .hbar-abs { font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 5px; }
   .hbar-track {
     height: 8px;
     background: rgba(255,255,255,0.06);
@@ -710,10 +711,12 @@ const BAR_COLORS  = ['#e8b84b', '#4a90d9', '#34d399', '#9b6fd9', '#22d3ee', '#f4
 function renderHbars(id, items) {
   const el = document.getElementById(id);
   if (!el) return;
+  const total = SURVEY_DATA.meta.totalResponses;
   el.innerHTML = items.map(([label, val], i) => {
     const cls = i === 0 ? '' : COLORS_CSS[i % COLORS_CSS.length];
+    const n = Math.round(val / 100 * total);
     return `<div class="hbar-item">
-      <div class="hbar-header"><span class="hbar-label">${label}</span><span class="hbar-val">${val}%</span></div>
+      <div class="hbar-header"><span class="hbar-label">${label}</span><span class="hbar-val">${val}%<span class="hbar-abs">(${n} осіб)</span></span></div>
       <div class="hbar-track"><div class="hbar-fill ${cls}" style="width:${val}%"></div></div>
     </div>`;
   }).join('');
@@ -764,16 +767,24 @@ const defaultOpts = {
       borderWidth: 1,
       titleColor: '#e8b84b',
       bodyColor: '#c0c0d0',
-      callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` }
+      callbacks: {
+        label: ctx => {
+          const pct = typeof ctx.parsed === 'object' ? ctx.parsed.y : ctx.parsed;
+          const n = Math.round(pct / 100 * SURVEY_DATA.meta.totalResponses);
+          return ` ${ctx.label}: ${pct}% · ${n} осіб`;
+        }
+      }
     }
   }
 };
 
 function doughnut(id, d) {
+  const total = SURVEY_DATA.meta.totalResponses;
+  const labelsWithCount = d.labels.map((l, i) => `${l} — ${d.data[i]}% (${Math.round(d.data[i]/100*total)} ос.)`);
   new Chart(document.getElementById(id), {
     type: 'doughnut',
     data: {
-      labels: d.labels,
+      labels: labelsWithCount,
       datasets: [{ data: d.data, backgroundColor: PIE_COLORS.slice(0, d.data.length), borderColor: '#111118', borderWidth: 3, hoverOffset: 6 }]
     },
     options: { ...defaultOpts, cutout: '65%' }
@@ -781,10 +792,12 @@ function doughnut(id, d) {
 }
 
 function barChart(id, d, opts = {}) {
+  const total = SURVEY_DATA.meta.totalResponses;
+  const labelsWithCount = d.labels.map((l, i) => [l, `${Math.round(d.data[i]/100*total)} ос.`]);
   new Chart(document.getElementById(id), {
     type: 'bar',
     data: {
-      labels: d.labels,
+      labels: labelsWithCount,
       datasets: [{ data: d.data, backgroundColor: BAR_COLORS.slice(0, d.data.length), borderRadius: 8, borderSkipped: false }]
     },
     options: {
@@ -799,14 +812,19 @@ function barChart(id, d, opts = {}) {
 }
 
 // Стать — special colors
-new Chart(document.getElementById('genderChart'), {
-  type: 'doughnut',
-  data: {
-    labels: SURVEY_DATA.gender.labels,
-    datasets: [{ data: SURVEY_DATA.gender.data, backgroundColor: ['#4a90d9', '#d96fa3', '#9b6fd9'], borderColor: '#111118', borderWidth: 3, hoverOffset: 6 }]
-  },
-  options: { ...defaultOpts, cutout: '65%' }
-});
+{
+  const total = SURVEY_DATA.meta.totalResponses;
+  const gd = SURVEY_DATA.gender;
+  const gLabels = gd.labels.map((l, i) => `${l} — ${gd.data[i]}% (${Math.round(gd.data[i]/100*total)} ос.)`);
+  new Chart(document.getElementById('genderChart'), {
+    type: 'doughnut',
+    data: {
+      labels: gLabels,
+      datasets: [{ data: gd.data, backgroundColor: ['#4a90d9', '#d96fa3', '#9b6fd9'], borderColor: '#111118', borderWidth: 3, hoverOffset: 6 }]
+    },
+    options: { ...defaultOpts, cutout: '65%' }
+  });
+}
 
 doughnut('ageChart',       SURVEY_DATA.age);
 doughnut('cityChart',      SURVEY_DATA.city);
@@ -814,21 +832,26 @@ doughnut('tripChart',      SURVEY_DATA.firstTrip);
 doughnut('passengerChart', SURVEY_DATA.passenger);
 
 // Колір авто — special colors
-new Chart(document.getElementById('colorChart'), {
-  type: 'bar',
-  data: {
-    labels: SURVEY_DATA.carColor.labels,
-    datasets: [{ data: SURVEY_DATA.carColor.data, backgroundColor: ['#333355', '#e0e0e0', '#e8b84b'], borderRadius: 10, borderSkipped: false }]
-  },
-  options: {
-    ...defaultOpts,
-    plugins: { ...defaultOpts.plugins, legend: { display: false } },
-    scales: {
-      x: { ticks: { color: '#8888aa', font: { size: 13 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-      y: { ticks: { color: '#8888aa', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.04)' }, max: 65 }
+{
+  const total = SURVEY_DATA.meta.totalResponses;
+  const cd = SURVEY_DATA.carColor;
+  const colorLabels = cd.labels.map((l, i) => [l, `${Math.round(cd.data[i]/100*total)} ос.`]);
+  new Chart(document.getElementById('colorChart'), {
+    type: 'bar',
+    data: {
+      labels: colorLabels,
+      datasets: [{ data: cd.data, backgroundColor: ['#333355', '#e0e0e0', '#e8b84b'], borderRadius: 10, borderSkipped: false }]
+    },
+    options: {
+      ...defaultOpts,
+      plugins: { ...defaultOpts.plugins, legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8888aa', font: { size: 13 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#8888aa', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.04)' }, max: 65 }
+      }
     }
-  }
-});
+  });
+}
 
 barChart('reasonChart', SURVEY_DATA.carReason, { max: 45 });
 barChart('amountChart', SURVEY_DATA.amount,    { max: 55 });
