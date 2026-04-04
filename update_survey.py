@@ -116,16 +116,17 @@ def parse_csv(csv_text: str) -> dict | None:
         return Counter(values(key))
 
     # ── гендер: нормалізуємо відповіді ──────────────────────────────────────
+    # ВАЖЛИВО: "female" містить "male" як підрядок — спочатку перевіряємо female!
     gender_raw = values("gender")
     gender_counter: Counter = Counter()
     for v in gender_raw:
         vl = v.lower().strip()
-        if any(w in vl for w in ["чолові", "man", "male"]) or vl == "м":
-            gender_counter["Чоловіки"] += 1
-        elif any(w in vl for w in ["жін", "woman", "female"]) or vl == "ж":
+        if any(w in vl for w in ["жін", "woman", "female"]) or vl == "ж":
             gender_counter["Жінки"] += 1
+        elif any(w in vl for w in ["чолові", "man"]) or vl in ("м", "male"):
+            gender_counter["Чоловіки"] += 1
         else:
-            # "other", "Other", "небінарна", "prefer not to say" etc → "Інше"
+            # "other", "небінарна", "prefer not to say" etc → "Інше"
             gender_counter["Інше"] += 1
 
     # ── вік: нормалізуємо ────────────────────────────────────────────────────
