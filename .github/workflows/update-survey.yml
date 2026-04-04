@@ -38,5 +38,6 @@ jobs:
           else
             TODAY=$(date +'%d.%m.%Y')
             git commit -m "survey: auto-update data ${TODAY}"
+            git pull --rebase origin main
             git push origin main
           fi
