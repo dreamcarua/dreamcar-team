@@ -32,6 +32,9 @@ HTML_PATH = os.path.join(_SCRIPT_DIR, "survey.html")
 MARKER_BEGIN = "// ==SURVEY_DATA_BEGIN=="
 MARKER_END   = "// ==SURVEY_DATA_END=="
 
+HISTORY_BEGIN = "// ==SURVEY_HISTORY_BEGIN=="
+HISTORY_END   = "// ==SURVEY_HISTORY_END=="
+
 # ─── словник для розпізнавання колонок за ключовими словами ─────────────────
 COLUMN_KEYS = {
     "gender":       ["стать", "gender"],
@@ -449,24 +452,99 @@ def parse_csv(csv_text: str) -> dict | None:
 
     return data
 
+# ─── зчитати існуючий SURVEY_HISTORY з HTML ──────────────────────────────────
+def read_history(content: str) -> list:
+    import re
+    h_start = content.find(HISTORY_BEGIN)
+    h_end   = content.find(HISTORY_END)
+    if h_start == -1 or h_end == -1:
+        return []
+    block = content[h_start + len(HISTORY_BEGIN):h_end]
+    # витягуємо JSON-масив між [ і ]
+    match = re.search(r'\[.*\]', block, re.DOTALL)
+    if not match:
+        return []
+    try:
+        return json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return []
+
+# ─── додати snapshot до SURVEY_HISTORY ───────────────────────────────────────
+def append_snapshot(history: list, data: dict) -> list:
+    today = data["meta"]["lastUpdated"]  # DD.MM.YYYY
+    # не дублюємо запис за той самий день
+    if history and history[-1]["date"] == today:
+        history[-1] = _make_snapshot(today, data)
+        print(f"  ↺ Snapshot за {today} оновлено (існував)")
+    else:
+        history.append(_make_snapshot(today, data))
+        print(f"  + Новий snapshot за {today}")
+    # зберігаємо не більше 60 записів (~2 місяці щодня)
+    return history[-60:]
+
+def _make_snapshot(date: str, data: dict) -> dict:
+    g = data.get("gender", {})
+    male_pct = g["data"][0] if g.get("labels") and g["labels"][0] == "Чоловіки" else 0
+    age = data.get("age", {})
+    age_main = age["data"][0] if age.get("data") else 0
+    reason = data.get("carReason", {})
+    safety = reason["data"][0] if reason.get("data") else 0
+    color = data.get("carColor", {})
+    dark = color["data"][0] if color.get("data") else 0
+    dc = data.get("dcMeaning", [])
+    chance = dc[0][1] if dc else 0
+    amount = data.get("amount", {})
+    mid = amount["data"][1] if amount.get("data") and len(amount["data"]) > 1 else 0
+    return {
+        "date":      date,
+        "n":         data["meta"]["totalResponses"],
+        "male":      round(male_pct, 1),
+        "age_main":  round(age_main, 1),
+        "loyal":     round(data["meta"]["loyalPct"], 1),
+        "regular":   round(data["meta"]["regularPlayersPct"], 1),
+        "has_car":   round(data["meta"]["haveCarPct"], 1),
+        "safety":    round(safety, 1),
+        "dark":      round(dark, 1),
+        "chance":    round(chance, 1),
+        "mid_price": round(mid, 1),
+    }
+
 # ─── оновити HTML ─────────────────────────────────────────────────────────────
 def update_html(data: dict) -> None:
     with open(HTML_PATH, "r", encoding="utf-8") as f:
         content = f.read()
 
+    # ── оновити SURVEY_DATA ──
     start_idx = content.find(MARKER_BEGIN)
     end_idx   = content.find(MARKER_END)
     if start_idx == -1 or end_idx == -1:
-        raise RuntimeError(f"Маркери не знайдено в {HTML_PATH}! Перевірте файл.")
+        raise RuntimeError(f"Маркери SURVEY_DATA не знайдено в {HTML_PATH}!")
 
-    # формуємо новий блок
     json_str  = json.dumps(data, ensure_ascii=False, indent=2)
     new_block = f"{MARKER_BEGIN}\nconst SURVEY_DATA = {json_str};\n{MARKER_END}"
+    content = content[:start_idx] + new_block + content[end_idx + len(MARKER_END):]
 
-    new_content = content[:start_idx] + new_block + content[end_idx + len(MARKER_END):]
+    # ── оновити SURVEY_HISTORY (якщо маркери є) ──
+    h_start = content.find(HISTORY_BEGIN)
+    h_end   = content.find(HISTORY_END)
+    if h_start != -1 and h_end != -1:
+        # читаємо існуючу історію (з ВЖЕ оновленого content)
+        with open(HTML_PATH, "r", encoding="utf-8") as f:
+            original = f.read()
+        history = read_history(original)
+        history = append_snapshot(history, data)
+        history_json = json.dumps(history, ensure_ascii=False, indent=2)
+        new_history = f"{HISTORY_BEGIN}\nconst SURVEY_HISTORY = {history_json};\n{HISTORY_END}"
+        # замінюємо в щойно оновленому content
+        h_start2 = content.find(HISTORY_BEGIN)
+        h_end2   = content.find(HISTORY_END)
+        content = content[:h_start2] + new_history + content[h_end2 + len(HISTORY_END):]
+        print(f"  ✓ SURVEY_HISTORY оновлено ({len(history)} записів)")
+    else:
+        print(f"  ⚠ Маркери SURVEY_HISTORY не знайдено — history не оновлюється")
 
     with open(HTML_PATH, "w", encoding="utf-8") as f:
-        f.write(new_content)
+        f.write(content)
 
     print(f"✓ {HTML_PATH} оновлено ({data['meta']['totalResponses']} відповідей, {data['meta']['lastUpdated']})")
 
