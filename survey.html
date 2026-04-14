@@ -287,6 +287,90 @@
   .quote-strip p { font-size: 20px; font-weight: 300; font-style: italic; color: var(--text); line-height: 1.6; }
   .quote-strip p strong { color: var(--accent); font-style: normal; font-weight: 700; }
 
+  /* TREND SECTION */
+  .pulse-bar {
+    background: linear-gradient(90deg, rgba(232,184,75,0.07), rgba(74,144,217,0.06));
+    border: 1px solid rgba(232,184,75,0.2);
+    border-radius: 16px;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .pulse-stat { display: flex; flex-direction: column; gap: 2px; }
+  .pulse-stat-num { font-size: 26px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .pulse-stat-label { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+  .pulse-divider { width: 1px; height: 40px; background: var(--border); }
+  .pulse-movers { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; }
+  .mover-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px; color: var(--text);
+  }
+  .mover-chip .arrow { font-size: 14px; font-weight: 700; }
+  .mover-chip .arrow.up   { color: #34d399; }
+  .mover-chip .arrow.down { color: #f87171; }
+  .mover-chip .arrow.neu  { color: var(--muted); }
+  .mover-label { color: var(--muted); }
+  .mover-delta { font-weight: 700; }
+  .mover-delta.pos { color: #34d399; }
+  .mover-delta.neg { color: #f87171; }
+  .mover-delta.neu { color: var(--muted); }
+
+  .spark-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .spark-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 18px 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .spark-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), transparent);
+  }
+  .spark-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .spark-label { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.3; }
+  .spark-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 10px; white-space: nowrap;
+  }
+  .spark-badge.pos { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+  .spark-badge.neg { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+  .spark-badge.neu { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+  .spark-badge.anom { background: rgba(232,184,75,0.15); color: var(--accent); border: 1px solid rgba(232,184,75,0.3); }
+  .spark-val { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1; margin-bottom: 8px; }
+  .spark-chart { height: 52px; position: relative; }
+
+  .anomaly-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .anomaly-card {
+    background: rgba(232,184,75,0.05);
+    border: 1px solid rgba(232,184,75,0.22);
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .anomaly-icon { font-size: 22px; flex-shrink: 0; }
+  .anomaly-title { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 3px; }
+  .anomaly-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+  .no-data-note {
+    text-align: center; padding: 32px; color: var(--muted); font-size: 14px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  }
+  .no-data-note span { color: var(--accent); }
+
   /* FOOTER */
   .footer {
     text-align: center;
@@ -344,6 +428,23 @@
 </div>
 
 <div class="container">
+
+  <!-- SECTION 0: ДИНАМІКА -->
+  <div class="section-title" style="margin-top:0">Динаміка та тренди</div>
+  <div id="pulseBar"></div>
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-title">Зростання відповідей</div>
+      <div class="chart-wrap"><canvas id="growthChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Найбільші зміни за весь час</div>
+      <div id="topMovers" style="margin-top:4px"></div>
+    </div>
+  </div>
+  <div class="section-title">Спарклайни ключових метрик</div>
+  <div class="spark-grid" id="sparkGrid"></div>
+  <div id="anomalySection"></div>
 
   <!-- SECTION 1: ДЕМОГРАФІЯ -->
   <div class="section-title">Демографія</div>
@@ -441,6 +542,10 @@
 </div>
 
 <script>
+// ==SURVEY_HISTORY_BEGIN==
+const SURVEY_HISTORY = [];
+// ==SURVEY_HISTORY_END==
+
 // ==SURVEY_DATA_BEGIN==
 const SURVEY_DATA = {
   "meta": {
@@ -754,6 +859,246 @@ renderHbars('hbar-gadget',        SURVEY_DATA.gadget);
 
 // ── insights ─────────────────────────────────────────────────────────────────
 renderInsights(SURVEY_DATA.insights);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TREND ENGINE
+// ══════════════════════════════════════════════════════════════════════════════
+(function() {
+  const H = SURVEY_HISTORY;
+  if (!H || H.length < 2) {
+    document.getElementById('pulseBar').innerHTML =
+      '<div class="no-data-note">Збираємо дані — тренди з\'являться після кількох оновлень 📊</div>';
+    return;
+  }
+
+  const METRICS = [
+    { key:'male',      label:'Чоловіки',          unit:'%', note:'частка чоловіків' },
+    { key:'age_main',  label:'Вік 25–34',          unit:'%', note:'домінуючий сегмент' },
+    { key:'loyal',     label:'Лояльна аудиторія',  unit:'%', note:'стежать давно' },
+    { key:'regular',   label:'Регулярні гравці',   unit:'%', note:'участь в минулих запусках' },
+    { key:'has_car',   label:'Вже мають авто',     unit:'%', note:'хочуть апгрейд' },
+    { key:'safety',    label:'Безпека як критерій',unit:'%', note:'пріоритет №1 при виборі авто' },
+    { key:'dark',      label:'Темний колір',        unit:'%', note:'улюблений колір авто' },
+    { key:'chance',    label:'DreamCar = шанс',    unit:'%', note:'сприймають як реальний шанс' },
+    { key:'mid_price', label:'Середня ціна входу', unit:'%', note:'комфортна сума' },
+  ];
+
+  // ── утиліти дат ────────────────────────────────────────────────────────────
+  function parseDate(s) {
+    const [d,m,y] = s.split('.');
+    return new Date(+y, +m-1, +d);
+  }
+  function daysAgo(refDate, n) {
+    return new Date(refDate.getTime() - n * 86400000);
+  }
+  // знайти найближчий snapshot не пізніше target
+  function closestBefore(target) {
+    let best = null;
+    for (const s of H) {
+      const d = parseDate(s.date);
+      if (d <= target) best = s;
+    }
+    return best;
+  }
+
+  const cur  = H[H.length - 1];
+  const curD = parseDate(cur.date);
+  const prev7  = closestBefore(daysAgo(curD, 7))  || H[Math.max(0, H.length-2)];
+  const prev30 = closestBefore(daysAgo(curD, 30)) || H[0];
+  const oldest = H[0];
+
+  // ── статистика (mean / stdev) ──────────────────────────────────────────────
+  function mean(key)  { return H.reduce((a,s)=>a+s[key],0)/H.length; }
+  function stdev(key) {
+    const m = mean(key);
+    return Math.sqrt(H.reduce((a,s)=>a+(s[key]-m)**2,0)/H.length);
+  }
+
+  // ── зміна метрики відносно базового знімку ────────────────────────────────
+  function delta(key, base) {
+    if (!base) return null;
+    return +(cur[key] - base[key]).toFixed(2);
+  }
+
+  // ── форматування ──────────────────────────────────────────────────────────
+  function fmtDelta(d) {
+    if (d === null) return { txt:'—', cls:'neu' };
+    const abs = Math.abs(d).toFixed(1);
+    if (Math.abs(d) < 0.15) return { txt:'≈0', cls:'neu' };
+    return d > 0
+      ? { txt: '+' + abs + '%', cls:'pos', arrow:'↑' }
+      : { txt: '−' + abs + '%', cls:'neg', arrow:'↓' };
+  }
+
+  // ── 1. PULSE BAR ──────────────────────────────────────────────────────────
+  const newResp = cur.n - prev7.n;
+  const allMovers = METRICS.map(m => ({
+    ...m, d7: delta(m.key, prev7), dall: delta(m.key, oldest)
+  })).filter(m => m.dall !== null)
+    .sort((a,b) => Math.abs(b.dall) - Math.abs(a.dall))
+    .slice(0, 4);
+
+  const moverChips = allMovers.map(m => {
+    const f = fmtDelta(m.dall);
+    return `<span class="mover-chip">
+      <span class="arrow ${f.cls}">${f.arrow||'→'}</span>
+      <span class="mover-label">${m.label}</span>
+      <span class="mover-delta ${f.cls}">${f.txt}</span>
+    </span>`;
+  }).join('');
+
+  document.getElementById('pulseBar').innerHTML = `
+    <div class="pulse-bar">
+      <div class="pulse-stat">
+        <div class="pulse-stat-num">+${newResp}</div>
+        <div class="pulse-stat-label">відповідей за тиждень</div>
+      </div>
+      <div class="pulse-divider"></div>
+      <div class="pulse-stat">
+        <div class="pulse-stat-num">${H.length}</div>
+        <div class="pulse-stat-label">знімків в історії</div>
+      </div>
+      <div class="pulse-divider"></div>
+      <div class="pulse-stat" style="flex:1">
+        <div class="pulse-stat-label" style="margin-bottom:6px">Найбільші зміни з ${oldest.date}:</div>
+        <div class="pulse-movers">${moverChips}</div>
+      </div>
+    </div>`;
+
+  // ── 2. GROWTH CHART ───────────────────────────────────────────────────────
+  new Chart(document.getElementById('growthChart'), {
+    type: 'line',
+    data: {
+      labels: H.map(s => s.date.slice(0,5)),
+      datasets: [{
+        data: H.map(s => s.n),
+        borderColor: '#e8b84b',
+        backgroundColor: 'rgba(232,184,75,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: '#e8b84b',
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      ...defaultOpts,
+      plugins: { ...defaultOpts.plugins, legend: { display: false } },
+      scales: {
+        x: { ticks: { color:'#8888aa', font:{size:10} }, grid:{color:'rgba(255,255,255,0.04)'} },
+        y: { ticks: { color:'#8888aa' }, grid:{color:'rgba(255,255,255,0.04)'}, beginAtZero:false }
+      }
+    }
+  });
+
+  // ── 3. TOP MOVERS (vs last 7 days) ────────────────────────────────────────
+  const movers7 = METRICS.map(m => ({ ...m, d: delta(m.key, prev7) }))
+    .filter(m => m.d !== null)
+    .sort((a,b) => Math.abs(b.d) - Math.abs(a.d));
+
+  const topMoversEl = document.getElementById('topMovers');
+  if (movers7.every(m => Math.abs(m.d) < 0.15)) {
+    topMoversEl.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:20px 0">Стабільно — за тиждень суттєвих змін немає ✅</p>';
+  } else {
+    topMoversEl.innerHTML = `<div class="hbar-list">` +
+      movers7.slice(0, 6).map(m => {
+        const f = fmtDelta(m.d);
+        const pct30 = fmtDelta(delta(m.key, prev30));
+        const bar = Math.min(Math.abs(m.d) * 8, 100);
+        const colorCls = f.cls === 'pos' ? 'green' : f.cls === 'neg' ? 'pink' : '';
+        return `<div class="hbar-item">
+          <div class="hbar-header">
+            <span class="hbar-label">${m.label}</span>
+            <span class="hbar-val" style="display:flex;gap:8px;align-items:center">
+              <span class="spark-badge ${f.cls}">${f.arrow||''}${f.txt} тиждень</span>
+              <span class="spark-badge neu">${pct30.arrow||''}${pct30.txt} місяць</span>
+            </span>
+          </div>
+          <div class="hbar-track"><div class="hbar-fill ${colorCls}" style="width:${bar}%;opacity:0.6"></div></div>
+        </div>`;
+      }).join('') + `</div>`;
+  }
+
+  // ── 4. SPARKLINES ─────────────────────────────────────────────────────────
+  const sparkGrid = document.getElementById('sparkGrid');
+  METRICS.forEach((m, idx) => {
+    const vals = H.map(s => s[m.key]);
+    const d7f  = fmtDelta(delta(m.key, prev7));
+    const std  = stdev(m.key);
+    const mn   = mean(m.key);
+    const isAnom = std > 0.05 && Math.abs(cur[m.key] - mn) > 1.5 * std;
+    const badgeCls = isAnom ? 'anom' : d7f.cls;
+    const badgeTxt = isAnom ? '⚡ нетипово' : (d7f.arrow||'') + d7f.txt;
+
+    const div = document.createElement('div');
+    div.className = 'spark-card';
+    div.innerHTML = `
+      <div class="spark-header">
+        <div class="spark-label">${m.label}</div>
+        <span class="spark-badge ${badgeCls}">${badgeTxt}</span>
+      </div>
+      <div class="spark-val">${cur[m.key]}%</div>
+      <div class="spark-chart"><canvas id="spark${idx}"></canvas></div>`;
+    sparkGrid.appendChild(div);
+
+    const gradColor = isAnom ? '#e8b84b' : '#4a90d9';
+    new Chart(document.getElementById('spark' + idx), {
+      type: 'line',
+      data: {
+        labels: H.map(s => s.date.slice(0,5)),
+        datasets: [{
+          data: vals,
+          borderColor: gradColor,
+          backgroundColor: gradColor + '18',
+          borderWidth: 1.8,
+          pointRadius: vals.map((_,i) => i === vals.length-1 ? 4 : 0),
+          pointBackgroundColor: gradColor,
+          fill: true, tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{display:false}, tooltip:{
+          backgroundColor:'#1a1a2e', borderColor:'#2a2a3a', borderWidth:1,
+          titleColor:'#e8b84b', bodyColor:'#c0c0d0',
+          callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.y}%` }
+        }},
+        scales: {
+          x: { display:false },
+          y: { display:false, beginAtZero:false }
+        }
+      }
+    });
+  });
+
+  // ── 5. АНОМАЛІЇ ───────────────────────────────────────────────────────────
+  const anomalies = METRICS.filter(m => {
+    const std = stdev(m.key);
+    const mn  = mean(m.key);
+    return std > 0.05 && Math.abs(cur[m.key] - mn) > 1.5 * std;
+  }).map(m => {
+    const std = stdev(m.key);
+    const mn  = mean(m.key);
+    const dir = cur[m.key] > mn ? 'вище' : 'нижче';
+    const diff = Math.abs(cur[m.key] - mn).toFixed(1);
+    return { label: m.label, note: m.note, dir, diff, sigma: (Math.abs(cur[m.key]-mn)/std).toFixed(1) };
+  });
+
+  const anomSec = document.getElementById('anomalySection');
+  if (anomalies.length > 0) {
+    anomSec.innerHTML = `
+      <div class="section-title">⚡ Нетипові метрики</div>
+      <div class="anomaly-grid">` +
+      anomalies.map(a => `
+        <div class="anomaly-card">
+          <div class="anomaly-icon">⚡</div>
+          <div>
+            <div class="anomaly-title">${a.label}</div>
+            <div class="anomaly-desc">${a.note} — ${a.dir} середнього на <strong>${a.diff}%</strong> (${a.sigma}σ). Варто перевірити причину.</div>
+          </div>
+        </div>`).join('') + `</div>`;
+  }
+})();
 
 // ── Chart.js defaults ────────────────────────────────────────────────────────
 const defaultOpts = {
