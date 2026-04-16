@@ -887,6 +887,31 @@ renderHbars('hbar-gadget',        SURVEY_DATA.gadget);
 // ── insights ─────────────────────────────────────────────────────────────────
 renderInsights(SURVEY_DATA.insights);
 
+// ── Chart.js defaults ────────────────────────────────────────────────────────
+const defaultOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      labels: { color: '#c0c0d0', font: { size: 12 }, padding: 12, boxWidth: 12, boxHeight: 12 }
+    },
+    tooltip: {
+      backgroundColor: '#1a1a2e',
+      borderColor: '#2a2a3a',
+      borderWidth: 1,
+      titleColor: '#e8b84b',
+      bodyColor: '#c0c0d0',
+      callbacks: {
+        label: ctx => {
+          const pct = typeof ctx.parsed === 'object' ? ctx.parsed.y : ctx.parsed;
+          const n = Math.round(pct / 100 * SURVEY_DATA.meta.totalResponses);
+          return ` ${ctx.label}: ${pct}% · ${n} осіб`;
+        }
+      }
+    }
+  }
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // TREND ENGINE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1126,31 +1151,6 @@ renderInsights(SURVEY_DATA.insights);
         </div>`).join('') + `</div>`;
   }
 })();
-
-// ── Chart.js defaults ────────────────────────────────────────────────────────
-const defaultOpts = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      labels: { color: '#c0c0d0', font: { size: 12 }, padding: 12, boxWidth: 12, boxHeight: 12 }
-    },
-    tooltip: {
-      backgroundColor: '#1a1a2e',
-      borderColor: '#2a2a3a',
-      borderWidth: 1,
-      titleColor: '#e8b84b',
-      bodyColor: '#c0c0d0',
-      callbacks: {
-        label: ctx => {
-          const pct = typeof ctx.parsed === 'object' ? ctx.parsed.y : ctx.parsed;
-          const n = Math.round(pct / 100 * SURVEY_DATA.meta.totalResponses);
-          return ` ${ctx.label}: ${pct}% · ${n} осіб`;
-        }
-      }
-    }
-  }
-};
 
 function doughnut(id, d) {
   const total = SURVEY_DATA.meta.totalResponses;
