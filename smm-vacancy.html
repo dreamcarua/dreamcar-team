@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DreamCar шукає SMM Manager · Вакансія</title>
-<meta name="description" content="Dream Car шукає SMM Manager(-ку) у команду. Авто + AI + драйв. Надсилай резюме.">
+<meta name="description" content="Dream Car шукає SMM Manager(-ку) у команду. 17 авто мрії, 100 000+ учасників, 10 років драйву. Надсилай резюме.">
 <meta property="og:title" content="DreamCar шукає SMM Manager">
-<meta property="og:description" content="Авто + AI + драйв. Приєднуйся до команди, яка розіграла 16+ авто мрії.">
+<meta property="og:description" content="17 вручених авто мрії. 100 000+ учасників. 10 років драйву. Приєднуйся до команди.">
 <meta property="og:type" content="website">
 <style>
   :root {
@@ -49,8 +49,37 @@
       linear-gradient(180deg, #0A0A0A 0%, #050505 100%);
   }
 
+  /* YouTube background video */
+  .hero-video {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero-video iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 177.78vh; /* 16:9 */
+    height: 100vh;
+    min-width: 100vw;
+    min-height: 56.25vw;
+    transform: translate(-50%, -50%);
+    border: 0;
+  }
+  .hero-video-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+      radial-gradient(ellipse 80% 70% at 15% 40%, rgba(232,0,29,0.2), transparent 60%),
+      linear-gradient(180deg, rgba(5,5,5,0.55) 0%, rgba(5,5,5,0.78) 55%, rgba(5,5,5,0.92) 100%);
+    pointer-events: none;
+  }
+
   /* Animated particle field */
-  .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
   .particle {
     position: absolute;
     width: 2px; height: 2px;
@@ -77,6 +106,7 @@
     background-size: 240px 100%, 180px 100%;
     animation: speed 12s linear infinite;
     pointer-events: none;
+    z-index: 2;
   }
   @keyframes speed {
     from { background-position: 0 0, 0 0; }
@@ -94,9 +124,10 @@
     mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent);
     -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent);
     pointer-events: none;
+    z-index: 2;
   }
 
-  /* Car silhouette (pure CSS) */
+  /* Car silhouette (pure CSS) — shown on mobile when video is hidden */
   .car-silhouette {
     position: absolute;
     bottom: 0;
@@ -104,13 +135,14 @@
     width: 70%;
     max-width: 900px;
     height: 48%;
-    opacity: 0.18;
+    opacity: 0;
     pointer-events: none;
     z-index: 1;
   }
+  .hero.no-video .car-silhouette { opacity: 0.18; }
   .car-silhouette svg { width: 100%; height: 100%; }
 
-  .hero-inner { position: relative; z-index: 3; width: 100%; }
+  .hero-inner { position: relative; z-index: 4; width: 100%; }
   .hero-tag {
     display: inline-flex;
     align-items: center;
@@ -211,7 +243,7 @@
     letter-spacing: 3px;
     color: var(--grey-2);
     text-transform: uppercase;
-    z-index: 3;
+    z-index: 4;
     animation: bob 2s ease-in-out infinite;
   }
   @keyframes bob {
@@ -658,7 +690,18 @@
 <body>
 
 <!-- =================== HERO =================== -->
-<section class="hero">
+<section class="hero" id="hero">
+  <!-- Background YouTube video (autoplay muted loop) -->
+  <div class="hero-video" id="hero-video">
+    <iframe
+      src="https://www.youtube.com/embed/5BF907xLwy0?autoplay=1&mute=1&loop=1&playlist=5BF907xLwy0&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0"
+      title="DreamCar"
+      frameborder="0"
+      allow="autoplay; encrypted-media; picture-in-picture"
+      allowfullscreen></iframe>
+  </div>
+  <div class="hero-video-overlay"></div>
+
   <div class="particles" id="particles"></div>
 
   <div class="car-silhouette">
@@ -692,9 +735,9 @@
       у команду <span class="accent">Dream&nbsp;Car</span>
     </h1>
     <p class="hero-sub">
-      10 років драйву, 16 розіграних авто мрії, 30 000+ учасників.
-      Тепер ми <strong>вбудовуємо AI у саму механіку проєкту</strong> — і шукаємо людину,
-      яка візьме наші соцмережі на себе. Повністю. Без нагадувань.
+      ~10 років драйву, <strong>17 вручених авто мрії</strong>, понад <strong>100 000 учасників</strong>.
+      Ми даруємо людям емоцію володіння автомобілем, про який вони мріють. І зараз шукаємо
+      людину, яка візьме наші соцмережі на себе. Повністю. Без нагадувань.
     </p>
     <div class="hero-cta-row">
       <a href="#apply" class="btn btn-primary">
@@ -712,26 +755,26 @@
 <section class="block" id="about">
   <div class="container">
     <div class="section-label">Про нас</div>
-    <h2 class="section-title reveal">Ми будуємо проєкт, якого <span class="accent">не було</span> в Україні</h2>
+    <h2 class="section-title reveal">Ми даруємо людям <span class="accent">авто мрії</span> — і робимо це 10 років</h2>
 
     <div class="about-grid">
       <div class="about-card reveal">
         <div class="about-icon">🏎️</div>
-        <span class="big-num">~10</span>
-        <h3>років на ринку</h3>
-        <p>16 реально розіграних авто мрії: BMW X5, Porsche Cayenne, Mercedes, Audi S8 та інші. 356K підписників в Instagram, база 30–40 тис. учасників, десятки кейсів і реальних історій.</p>
+        <span class="big-num">17</span>
+        <h3>вручених авто мрії</h3>
+        <p>BMW X5, Porsche Cayenne, Mercedes, Audi S8, Range Rover та інші. Реальні люди, реальні ключі, реальна емоція у кадрі. Кожні 1–2 місяці — нова історія, новий власник, нове авто.</p>
       </div>
       <div class="about-card reveal">
-        <div class="about-icon">🤖</div>
-        <span class="big-num">AI</span>
-        <h3>проєкт для автолюбителів</h3>
-        <p>Ми не просто «розіграші». Будуємо AI-платформу, де учасники отримують реальну користь від штучного інтелекту — разом з емоцією мрії про своє авто.</p>
+        <div class="about-icon">💫</div>
+        <span class="big-num">100K+</span>
+        <h3>учасників за 10 років</h3>
+        <p>Сотні тисяч людей долучились до проєкту з 2019 року. 356K підписників в Instagram, активна спільнота, десятки реальних кейсів і відео-історій отримання ключів від авто мрії.</p>
       </div>
       <div class="about-card reveal">
         <div class="about-icon">🚀</div>
         <span class="big-num">2026</span>
-        <h3>точка входу — зараз</h3>
-        <p>Паралельно з новим запуском AI-сервісу масштабуємо все: контент, канали, механіки. Момент коли в команду приходить людина, яка робить з цього системний двигун.</p>
+        <h3>новий етап</h3>
+        <p>Масштабуємо контент, канали та механіки. Паралельно запускаємо <strong>AI-сервіс</strong> — додатковий прошарок цінності поверх основного концепту. Моменти, коли в команду приходить людина, яка робить з усього цього системний двигун.</p>
       </div>
     </div>
   </div>
@@ -838,8 +881,8 @@
     <div class="offer-grid">
       <div class="offer-card offer-1 reveal">
         <span class="offer-emoji">🔥</span>
-        <h4>Проєкт на стику авто + AI</h4>
-        <p>Кожен день — нові виклики. Ти будуєш те, чого не було: з’єднуєш емоцію мрії та реальну цінність AI. Не «черговий проєкт у CV», а кейс, який хочеться показувати.</p>
+        <h4>Проєкт з реальною емоцією</h4>
+        <p>Кожні 1–2 місяці ти бачиш момент, коли людина отримує ключі від BMW, Porsche чи Mercedes — авто, про яке мріяла. Твій контент — частина цієї історії. Це не «черговий проєкт у CV», це кейс, який хочеться показувати.</p>
       </div>
       <div class="offer-card offer-2 reveal">
         <span class="offer-emoji">🤝</span>
@@ -910,7 +953,7 @@
 <footer>
   <div class="container">
     <div class="foot-logo">DREAMCAR.UA</div>
-    <p>© 2019—2026 · Проєкт реальних авто мрії + AI · <a href="https://dreamcar.ua" target="_blank" rel="noopener">dreamcar.ua</a></p>
+    <p>© 2019—2026 · Проєкт реальних авто мрії · <a href="https://dreamcar.ua" target="_blank" rel="noopener">dreamcar.ua</a></p>
   </div>
 </footer>
 
@@ -924,6 +967,18 @@
   //   4. Знайти поле "chat":{"id":-1001234567890,...} — це і є CHAT_ID
   const TG_BOT_TOKEN = '8461032235:AAE70f7xmBIrGW7-dC5GfcYvQjjRYUk6IEg';
   const TG_CHAT_ID   = '-5205303628';
+
+  // ========= HERO VIDEO FALLBACK =========
+  // На мобільних YouTube autoplay у iframe часто блокується; показуємо CSS-силует.
+  (function initHeroFallback() {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+    if (isMobile) {
+      const hero = document.getElementById('hero');
+      const video = document.getElementById('hero-video');
+      if (hero) hero.classList.add('no-video');
+      if (video) video.style.display = 'none';
+    }
+  })();
 
   // ========= PARTICLES =========
   (function initParticles() {
