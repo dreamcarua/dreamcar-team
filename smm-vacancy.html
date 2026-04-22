@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar шукає SMM Manager · Вакансія</title>
+<meta name="description" content="Dream Car шукає SMM Manager(-ку) у команду. Авто + AI + драйв. Надсилай резюме.">
+<meta property="og:title" content="DreamCar шукає SMM Manager">
+<meta property="og:description" content="Авто + AI + драйв. Приєднуйся до команди, яка розіграла 16+ авто мрії.">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --bg-2: #111114;
+    --bg-3: #1a1a1f;
+    --red: #E8001D;
+    --red-soft: #ff334c;
+    --red-dark: #8c0012;
+    --gold: #f7c948;
+    --white: #ffffff;
+    --grey: #9a9aa3;
+    --grey-2: #5a5a66;
+    --border: #222228;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  .container { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* ==================== HERO ==================== */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    padding: 110px 0 90px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 25%, rgba(232,0,29,0.15), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 85% 75%, rgba(232,0,29,0.08), transparent 60%),
+      linear-gradient(180deg, #0A0A0A 0%, #050505 100%);
+  }
+
+  /* Animated particle field */
+  .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .particle {
+    position: absolute;
+    width: 2px; height: 2px;
+    background: var(--white);
+    border-radius: 50%;
+    opacity: 0.25;
+    animation: drift linear infinite;
+  }
+  .particle.lg { width: 3px; height: 3px; opacity: 0.4; }
+  .particle.red { background: var(--red); box-shadow: 0 0 8px rgba(232,0,29,0.6); }
+  @keyframes drift {
+    from { transform: translateY(100vh) translateX(0); }
+    to   { transform: translateY(-10vh) translateX(40px); }
+  }
+
+  /* Speed lines overlay */
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, transparent 0%, transparent 48%, rgba(232,0,29,0.06) 50%, transparent 52%, transparent 100%),
+      linear-gradient(90deg, transparent 0%, transparent 73%, rgba(255,255,255,0.03) 75%, transparent 77%, transparent 100%);
+    background-size: 240px 100%, 180px 100%;
+    animation: speed 12s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes speed {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 240px 0, -180px 0; }
+  }
+
+  /* Grid overlay */
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px) 0 0 / 100% 80px,
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px) 0 0 / 80px 100%;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent);
+    pointer-events: none;
+  }
+
+  /* Car silhouette (pure CSS) */
+  .car-silhouette {
+    position: absolute;
+    bottom: 0;
+    right: -5%;
+    width: 70%;
+    max-width: 900px;
+    height: 48%;
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .car-silhouette svg { width: 100%; height: 100%; }
+
+  .hero-inner { position: relative; z-index: 3; width: 100%; }
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    border: 1px solid rgba(232,0,29,0.4);
+    border-radius: 100px;
+    background: rgba(232,0,29,0.06);
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--red-soft);
+    font-weight: 600;
+    margin-bottom: 28px;
+  }
+  .hero-tag .dot {
+    width: 6px; height: 6px; background: var(--red); border-radius: 50%;
+    animation: pulse 1.8s ease-in-out infinite;
+    box-shadow: 0 0 0 0 rgba(232,0,29,0.6);
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,0,29,0.6); }
+    50%      { box-shadow: 0 0 0 8px rgba(232,0,29,0); }
+  }
+
+  .hero h1 {
+    font-size: clamp(42px, 8vw, 96px);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  .hero h1 .accent {
+    background: linear-gradient(135deg, var(--red) 0%, var(--red-soft) 50%, var(--gold) 120%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+  }
+  .hero h1 .outlined {
+    -webkit-text-stroke: 2px var(--white);
+    color: transparent;
+  }
+
+  .hero-sub {
+    font-size: clamp(16px, 1.6vw, 20px);
+    color: var(--grey);
+    max-width: 640px;
+    margin-bottom: 44px;
+    line-height: 1.55;
+  }
+  .hero-sub strong { color: var(--white); font-weight: 600; }
+
+  .hero-cta-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 32px;
+    border-radius: 100px;
+    font-weight: 700;
+    font-size: 15px;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--red) 0%, var(--red-soft) 100%);
+    color: var(--white);
+    box-shadow: 0 10px 40px -10px rgba(232,0,29,0.6);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 48px -10px rgba(232,0,29,0.8);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--white);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .btn-ghost:hover { border-color: var(--white); background: rgba(255,255,255,0.04); }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--grey-2);
+    text-transform: uppercase;
+    z-index: 3;
+    animation: bob 2s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
+    50%      { transform: translateX(-50%) translateY(-6px); opacity: 1; }
+  }
+
+  /* ==================== SECTIONS ==================== */
+  section.block { padding: 110px 0; position: relative; }
+  section.block.alt { background: linear-gradient(180deg, #0A0A0A 0%, #0d0d10 100%); }
+
+  .section-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 18px;
+    padding-left: 16px;
+    position: relative;
+  }
+  .section-label::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    width: 8px; height: 2px;
+    background: var(--red);
+    transform: translateY(-50%);
+  }
+  .section-title {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 56px;
+    max-width: 760px;
+    text-transform: uppercase;
+  }
+  .section-title .accent { color: var(--red); }
+
+  /* ==================== ПРО НАС ==================== */
+  .about-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .about-card {
+    padding: 36px 30px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: border-color 0.25s, transform 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .about-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--red), transparent);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .about-card:hover {
+    border-color: rgba(232,0,29,0.5);
+    transform: translateY(-4px);
+  }
+  .about-card:hover::before { opacity: 1; }
+  .about-icon {
+    font-size: 38px;
+    margin-bottom: 22px;
+    display: inline-block;
+  }
+  .about-card h3 {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: var(--white);
+  }
+  .about-card p {
+    font-size: 14px;
+    color: var(--grey);
+    line-height: 1.7;
+  }
+  .about-card .big-num {
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--red), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  /* ==================== КОГО ШУКАЄМО ==================== */
+  .skills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .skill-card {
+    padding: 26px 24px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .skill-card:hover { border-color: rgba(232,0,29,0.5); background: #141418; }
+  .skill-icon {
+    width: 46px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(232,0,29,0.15), rgba(232,0,29,0.05));
+    border: 1px solid rgba(232,0,29,0.3);
+    border-radius: 12px;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .skill-card h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--white);
+  }
+  .skill-card p {
+    font-size: 13px;
+    color: var(--grey);
+    line-height: 1.5;
+  }
+
+  /* ==================== ЩО РОБИТИ (таймлайн) ==================== */
+  .timeline { position: relative; padding-left: 0; }
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 32px;
+    padding: 28px 0;
+    position: relative;
+    align-items: flex-start;
+  }
+  .timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 39px; top: 60px; bottom: -8px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--red) 0%, transparent 100%);
+    opacity: 0.4;
+  }
+  .timeline-num {
+    width: 80px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(232,0,29,0.12), rgba(232,0,29,0.04));
+    border: 1px solid rgba(232,0,29,0.4);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+  .timeline-content h4 {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    color: var(--white);
+  }
+  .timeline-content p {
+    font-size: 15px;
+    color: var(--grey);
+    line-height: 1.7;
+  }
+
+  /* ==================== ВІД НАС ==================== */
+  .offer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .offer-card {
+    padding: 38px 28px;
+    border-radius: 20px;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s;
+  }
+  .offer-card:hover { transform: translateY(-4px); }
+  .offer-1 {
+    background: linear-gradient(145deg, #1a0a0e 0%, #0f0609 100%);
+    border: 1px solid rgba(232,0,29,0.4);
+  }
+  .offer-2 {
+    background: linear-gradient(145deg, #0d1117 0%, #07090c 100%);
+    border: 1px solid rgba(100,120,160,0.3);
+  }
+  .offer-3 {
+    background: linear-gradient(145deg, #1a1407 0%, #0f0a03 100%);
+    border: 1px solid rgba(247,201,72,0.35);
+  }
+  .offer-emoji {
+    font-size: 40px;
+    margin-bottom: 22px;
+    display: block;
+  }
+  .offer-card h4 {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: var(--white);
+  }
+  .offer-card p {
+    font-size: 14px;
+    color: var(--grey);
+    line-height: 1.6;
+  }
+
+  /* ==================== CTA ФОРМА ==================== */
+  .cta-wrap {
+    padding: 120px 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(232,0,29,0.18), transparent 70%),
+      #050505;
+    position: relative;
+  }
+  .form-box {
+    max-width: 580px;
+    margin: 0 auto;
+    background: linear-gradient(180deg, #121216 0%, #0c0c10 100%);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 48px 44px;
+    position: relative;
+  }
+  .form-box::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--red), transparent);
+  }
+
+  .cta-title {
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 900;
+    line-height: 1.05;
+    text-align: center;
+    margin-bottom: 14px;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+  .cta-sub {
+    text-align: center;
+    color: var(--grey);
+    margin-bottom: 36px;
+    font-size: 15px;
+  }
+
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--grey);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .form-group input[type="text"],
+  .form-group input[type="email"] {
+    width: 100%;
+    padding: 14px 16px;
+    background: #0a0a0d;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--white);
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--red);
+    background: #0d0d11;
+  }
+  .form-group input::placeholder { color: var(--grey-2); }
+
+  /* File upload custom */
+  .file-drop {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .file-drop:hover, .file-drop.dragover {
+    border-color: var(--red);
+    background: rgba(232,0,29,0.04);
+  }
+  .file-drop input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .file-drop .file-icon { font-size: 26px; margin-bottom: 8px; }
+  .file-drop .file-text { font-size: 14px; color: var(--grey); }
+  .file-drop .file-text strong { color: var(--white); }
+  .file-drop .file-hint { font-size: 11px; color: var(--grey-2); margin-top: 4px; }
+  .file-drop.has-file { border-style: solid; border-color: var(--red-soft); background: rgba(232,0,29,0.05); }
+  .file-drop.has-file .file-icon { color: var(--red-soft); }
+
+  .submit-row {
+    margin-top: 28px;
+  }
+  .submit-row .btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 16px;
+    padding: 18px 24px;
+  }
+  .submit-row .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .form-legal {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--grey-2);
+    line-height: 1.5;
+  }
+
+  /* Success state */
+  .form-success {
+    display: none;
+    text-align: center;
+    padding: 20px 0;
+  }
+  .form-success.shown { display: block; animation: successIn 0.5s ease; }
+  @keyframes successIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .success-icon {
+    width: 72px; height: 72px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #059669);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    box-shadow: 0 10px 30px -8px rgba(16,185,129,0.5);
+  }
+  .success-title {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    color: var(--white);
+  }
+  .success-text {
+    color: var(--grey);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .form-error {
+    display: none;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(232,0,29,0.08);
+    border: 1px solid rgba(232,0,29,0.3);
+    border-radius: 10px;
+    color: #ffb4be;
+    font-size: 13px;
+    text-align: center;
+  }
+  .form-error.shown { display: block; }
+
+  /* Loader spinner */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: var(--white);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ==================== FOOTER ==================== */
+  footer {
+    padding: 40px 0;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    background: #050505;
+  }
+  footer .foot-logo {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--red), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 8px;
+    display: inline-block;
+  }
+  footer p { font-size: 12px; color: var(--grey-2); }
+  footer a { color: var(--grey); text-decoration: none; }
+  footer a:hover { color: var(--red-soft); }
+
+  /* ==================== MOBILE ==================== */
+  @media (max-width: 900px) {
+    .about-grid { grid-template-columns: 1fr; }
+    .offer-grid { grid-template-columns: 1fr; }
+    .timeline-item { grid-template-columns: 60px 1fr; gap: 18px; }
+    .timeline-item:not(:last-child)::after { left: 29px; }
+    .timeline-num { width: 60px; height: 60px; font-size: 22px; }
+    section.block { padding: 72px 0; }
+    .hero { padding: 90px 0 70px; min-height: 92vh; }
+    .car-silhouette { width: 110%; opacity: 0.1; right: -20%; }
+    .form-box { padding: 32px 24px; }
+  }
+  @media (max-width: 600px) {
+    .container { padding: 0 20px; }
+    .hero-cta-row { flex-direction: column; align-items: stretch; }
+    .hero-cta-row .btn { justify-content: center; }
+  }
+
+  /* Reveal on scroll */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- =================== HERO =================== -->
+<section class="hero">
+  <div class="particles" id="particles"></div>
+
+  <div class="car-silhouette">
+    <svg viewBox="0 0 900 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50 230 L120 180 L210 130 Q300 95 400 92 L540 92 Q600 95 640 125 L760 170 L830 195 L870 210 L870 250 L50 250 Z"
+            fill="url(#carGrad)" stroke="url(#carStroke)" stroke-width="1.5"/>
+      <circle cx="230" cy="250" r="42" fill="#050505" stroke="url(#carStroke)" stroke-width="2"/>
+      <circle cx="230" cy="250" r="22" fill="#1a1a1f"/>
+      <circle cx="680" cy="250" r="42" fill="#050505" stroke="url(#carStroke)" stroke-width="2"/>
+      <circle cx="680" cy="250" r="22" fill="#1a1a1f"/>
+      <path d="M280 130 L340 95 L480 95 L500 130 Z" fill="rgba(255,255,255,0.1)"/>
+      <path d="M510 130 L530 95 L570 95 L610 130 Z" fill="rgba(255,255,255,0.1)"/>
+      <defs>
+        <linearGradient id="carGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2a2a32"/>
+          <stop offset="1" stop-color="#0a0a0a"/>
+        </linearGradient>
+        <linearGradient id="carStroke" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#E8001D" stop-opacity="0.8"/>
+          <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.4"/>
+          <stop offset="1" stop-color="#E8001D" stop-opacity="0.4"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="container hero-inner">
+    <div class="hero-tag"><span class="dot"></span>DreamCar · Вакансія · Ремоут</div>
+    <h1>
+      <span class="outlined">SMM Manager</span><br>
+      у команду <span class="accent">Dream&nbsp;Car</span>
+    </h1>
+    <p class="hero-sub">
+      10 років драйву, 16 розіграних авто мрії, 30 000+ учасників.
+      Тепер ми <strong>вбудовуємо AI у саму механіку проєкту</strong> — і шукаємо людину,
+      яка візьме наші соцмережі на себе. Повністю. Без нагадувань.
+    </p>
+    <div class="hero-cta-row">
+      <a href="#apply" class="btn btn-primary">
+        Надіслати резюме
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="#about" class="btn btn-ghost">Що за проєкт</a>
+    </div>
+  </div>
+
+  <div class="scroll-hint">скрол ↓</div>
+</section>
+
+<!-- =================== ПРО НАС =================== -->
+<section class="block" id="about">
+  <div class="container">
+    <div class="section-label">Про нас</div>
+    <h2 class="section-title reveal">Ми будуємо проєкт, якого <span class="accent">не було</span> в Україні</h2>
+
+    <div class="about-grid">
+      <div class="about-card reveal">
+        <div class="about-icon">🏎️</div>
+        <span class="big-num">~10</span>
+        <h3>років на ринку</h3>
+        <p>16 реально розіграних авто мрії: BMW X5, Porsche Cayenne, Mercedes, Audi S8 та інші. 356K підписників в Instagram, база 30–40 тис. учасників, десятки кейсів і реальних історій.</p>
+      </div>
+      <div class="about-card reveal">
+        <div class="about-icon">🤖</div>
+        <span class="big-num">AI</span>
+        <h3>проєкт для автолюбителів</h3>
+        <p>Ми не просто «розіграші». Будуємо AI-платформу, де учасники отримують реальну користь від штучного інтелекту — разом з емоцією мрії про своє авто.</p>
+      </div>
+      <div class="about-card reveal">
+        <div class="about-icon">🚀</div>
+        <span class="big-num">2026</span>
+        <h3>точка входу — зараз</h3>
+        <p>Паралельно з новим запуском AI-сервісу масштабуємо все: контент, канали, механіки. Момент коли в команду приходить людина, яка робить з цього системний двигун.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== КОГО ШУКАЄМО =================== -->
+<section class="block alt">
+  <div class="container">
+    <div class="section-label">Кого шукаємо</div>
+    <h2 class="section-title reveal">Не «посадовця». Людину, яка <span class="accent">горить</span>.</h2>
+
+    <div class="skills-grid">
+      <div class="skill-card reveal">
+        <div class="skill-icon">📱</div>
+        <div>
+          <h4>SMM-досвід</h4>
+          <p>1.5+ роки в реальних українських акаунтах. Авто, lifestyle чи FMCG — плюс.</p>
+        </div>
+      </div>
+      <div class="skill-card reveal">
+        <div class="skill-icon">✨</div>
+        <div>
+          <h4>AI-інструменти + Canva</h4>
+          <p>ChatGPT, Midjourney, Sora, Canva у щоденній роботі. Не боїшся експериментувати.</p>
+        </div>
+      </div>
+      <div class="skill-card reveal">
+        <div class="skill-icon">✍️</div>
+        <div>
+          <h4>Копірайтинг + монтаж</h4>
+          <p>Пишеш живою українською. Вмієш зробити простий монтаж Reels/TikTok самостійно.</p>
+        </div>
+      </div>
+      <div class="skill-card reveal">
+        <div class="skill-icon">🌐</div>
+        <div>
+          <h4>Instagram / TikTok / YouTube / Telegram / Threads</h4>
+          <p>Розумієш специфіку кожного майданчика. Не вантажиш однакові пости всюди.</p>
+        </div>
+      </div>
+      <div class="skill-card reveal">
+        <div class="skill-icon">🔥</div>
+        <div>
+          <h4>Автономність та ініціатива</h4>
+          <p>Сам ставиш собі задачі. Приносиш ідеї. Не чекаєш, поки тебе «скерують».</p>
+        </div>
+      </div>
+      <div class="skill-card reveal">
+        <div class="skill-icon">🏁</div>
+        <div>
+          <h4>Драйв до теми авто</h4>
+          <p>Тобі дійсно цікаві машини — або ти вмієш щиро про них писати. Читач відчуває різницю.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== ЩО РОБИТИ =================== -->
+<section class="block">
+  <div class="container">
+    <div class="section-label">Що робити</div>
+    <h2 class="section-title reveal">Чотири <span class="accent">зони</span> твоєї відповідальності</h2>
+
+    <div class="timeline">
+      <div class="timeline-item reveal">
+        <div class="timeline-num">01</div>
+        <div class="timeline-content">
+          <h4>Стратегія просування</h4>
+          <p>Піднімаєш соцмережі Dream Car з «ведемо як можемо» на «системний двигун запусків». Визначаєш цілі, аудиторії, tone of voice для кожного майданчика. Рахуєш, де ми зараз і куди йдемо.</p>
+        </div>
+      </div>
+      <div class="timeline-item reveal">
+        <div class="timeline-num">02</div>
+        <div class="timeline-content">
+          <h4>Контент-план по всіх майданчиках</h4>
+          <p>Instagram, TikTok, YouTube, Telegram, Threads. План на місяць вперед — з рубриками, темами, відповідальними. Пости, Reels, Stories, live-ефіри. Не «родинна стрічка», а редполітика.</p>
+        </div>
+      </div>
+      <div class="timeline-item reveal">
+        <div class="timeline-num">03</div>
+        <div class="timeline-content">
+          <h4>Створення вірального контенту</h4>
+          <p>Пишеш сценарії, монтуєш короткі відео, готуєш підписи, будуєш tone. Експериментуєш з AI-генерацією. Вимірюєш ER, охоплення, збереження. Що спрацювало — масштабуєш.</p>
+        </div>
+      </div>
+      <div class="timeline-item reveal">
+        <div class="timeline-num">04</div>
+        <div class="timeline-content">
+          <h4>Комунікація з аудиторією</h4>
+          <p>Директ, коментарі, Telegram-чат. 30 000+ людей — це не «база», це спільнота. Відповідаєш швидко, тримаєш тон, переводиш інтерес у дію.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== ВІД НАС =================== -->
+<section class="block alt">
+  <div class="container">
+    <div class="section-label">Від нас</div>
+    <h2 class="section-title reveal">Що ти <span class="accent">отримуєш</span></h2>
+
+    <div class="offer-grid">
+      <div class="offer-card offer-1 reveal">
+        <span class="offer-emoji">🔥</span>
+        <h4>Проєкт на стику авто + AI</h4>
+        <p>Кожен день — нові виклики. Ти будуєш те, чого не було: з’єднуєш емоцію мрії та реальну цінність AI. Не «черговий проєкт у CV», а кейс, який хочеться показувати.</p>
+      </div>
+      <div class="offer-card offer-2 reveal">
+        <span class="offer-emoji">🤝</span>
+        <h4>Команда, де чують ідеї</h4>
+        <p>Плоска структура. Засновники у роботі щодня. Приніс ідею — завтра обговорюємо, післязавтра вже тестуємо. Без 5 раундів погоджень «з юристом».</p>
+      </div>
+      <div class="offer-card offer-3 reveal">
+        <span class="offer-emoji">💰</span>
+        <h4>Гідна оплата за результат</h4>
+        <p>Фіксована ставка ринкового рівня + бонуси за ключові KPI. Ремоут, гнучкий графік. Випробувальний період — 1 місяць, далі — повна співпраця.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== CTA FORM =================== -->
+<section class="cta-wrap" id="apply">
+  <div class="container">
+    <div class="form-box">
+      <div id="form-ui">
+        <h2 class="cta-title">Готовий(а) в команду?</h2>
+        <p class="cta-sub">Залиш свої контакти і прикріпи резюме — подивимось і зв’яжемось.</p>
+
+        <form id="apply-form" onsubmit="return false;">
+          <div class="form-group">
+            <label for="name">Ім'я *</label>
+            <input type="text" id="name" name="name" placeholder="Олександра" required maxlength="80">
+          </div>
+          <div class="form-group">
+            <label for="contact">Telegram або телефон</label>
+            <input type="text" id="contact" name="contact" placeholder="@username або +380..." maxlength="80">
+          </div>
+          <div class="form-group">
+            <label>Резюме (PDF, DOC, DOCX — до 5MB) *</label>
+            <div class="file-drop" id="file-drop">
+              <input type="file" id="cv" name="cv" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+              <div class="file-icon">📄</div>
+              <div class="file-text"><strong>Обери файл</strong> або перетягни сюди</div>
+              <div class="file-hint">PDF / DOC / DOCX · до 5 MB</div>
+            </div>
+          </div>
+
+          <div class="submit-row">
+            <button type="button" id="submit-btn" class="btn btn-primary">
+              Надіслати резюме
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+
+          <div id="form-error" class="form-error"></div>
+
+          <p class="form-legal">
+            Натискаючи «Надіслати», ти погоджуєшся що ми зв’яжемось з тобою щодо цієї вакансії. Дані не передаємо третім сторонам.
+          </p>
+        </form>
+      </div>
+
+      <div id="form-success" class="form-success">
+        <div class="success-icon">✓</div>
+        <div class="success-title">Дякуємо!</div>
+        <p class="success-text">Ми розглянемо твоє резюме<br>та звʼяжемось з тобою найближчим часом.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== FOOTER =================== -->
+<footer>
+  <div class="container">
+    <div class="foot-logo">DREAMCAR.UA</div>
+    <p>© 2019—2026 · Проєкт реальних авто мрії + AI · <a href="https://dreamcar.ua" target="_blank" rel="noopener">dreamcar.ua</a></p>
+  </div>
+</footer>
+
+<script>
+  // ========= CONFIG (Telegram Bot) =========
+  // Bot: @dreamcar_hr_bot (або інший — підставлений токен)
+  // Щоб заповнити CHAT_ID:
+  //   1. Додати бота як адміна у групу https://t.me/+9sLbeV5SEmU3NDVi
+  //   2. Написати у цій групі будь-яке повідомлення (напр. /start)
+  //   3. Відкрити у браузері: https://api.telegram.org/bot<TOKEN>/getUpdates
+  //   4. Знайти поле "chat":{"id":-1001234567890,...} — це і є CHAT_ID
+  const TG_BOT_TOKEN = '8461032235:AAE70f7xmBIrGW7-dC5GfcYvQjjRYUk6IEg';
+  const TG_CHAT_ID   = '-5205303628';
+
+  // ========= PARTICLES =========
+  (function initParticles() {
+    const container = document.getElementById('particles');
+    const N = 28;
+    for (let i = 0; i < N; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle' + (Math.random() > 0.7 ? ' lg' : '') + (Math.random() > 0.85 ? ' red' : '');
+      const dur = 14 + Math.random() * 22;
+      const delay = -Math.random() * dur;
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.animationDuration = dur + 's';
+      p.style.animationDelay = delay + 's';
+      container.appendChild(p);
+    }
+  })();
+
+  // ========= SCROLL REVEAL =========
+  (function initReveal() {
+    const els = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    els.forEach(el => io.observe(el));
+  })();
+
+  // ========= FILE DROP =========
+  (function initFileDrop() {
+    const drop = document.getElementById('file-drop');
+    const input = document.getElementById('cv');
+    const iconEl = drop.querySelector('.file-icon');
+    const textEl = drop.querySelector('.file-text');
+    const hintEl = drop.querySelector('.file-hint');
+
+    function setFile(file) {
+      if (!file) return;
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      drop.classList.add('has-file');
+      iconEl.textContent = '✓';
+      textEl.innerHTML = '<strong>' + file.name + '</strong>';
+      hintEl.textContent = sizeMB + ' MB · натисни щоб змінити';
+    }
+
+    input.addEventListener('change', e => setFile(e.target.files[0]));
+
+    ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => {
+      e.preventDefault(); drop.classList.add('dragover');
+    }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
+      e.preventDefault(); drop.classList.remove('dragover');
+    }));
+    drop.addEventListener('drop', e => {
+      const f = e.dataTransfer.files[0];
+      if (f) {
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        input.files = dt.files;
+        setFile(f);
+      }
+    });
+  })();
+
+  // ========= FORM SUBMIT =========
+  (function initForm() {
+    const btn = document.getElementById('submit-btn');
+    const form = document.getElementById('apply-form');
+    const errBox = document.getElementById('form-error');
+    const ui = document.getElementById('form-ui');
+    const success = document.getElementById('form-success');
+
+    function showError(msg) {
+      errBox.textContent = msg;
+      errBox.classList.add('shown');
+    }
+    function clearError() {
+      errBox.classList.remove('shown');
+      errBox.textContent = '';
+    }
+
+    btn.addEventListener('click', async () => {
+      clearError();
+
+      const name = document.getElementById('name').value.trim();
+      const contact = document.getElementById('contact').value.trim();
+      const cvInput = document.getElementById('cv');
+      const cv = cvInput.files[0];
+
+      if (!name) { showError('Введи ім’я'); return; }
+      if (!cv)   { showError('Прикріпи резюме'); return; }
+      if (cv.size > 5 * 1024 * 1024) { showError('Файл > 5 MB, стисни або надішли інший'); return; }
+
+      // Build caption
+      const ua = (navigator.userAgent || '').split(')')[0] + ')';
+      const now = new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' });
+      const caption =
+        '🔥 <b>Нова заявка на SMM Manager</b>\n\n' +
+        '👤 <b>Ім’я:</b> ' + escapeHtml(name) + '\n' +
+        '📱 <b>Контакт:</b> ' + (contact ? escapeHtml(contact) : '<i>не вказано</i>') + '\n' +
+        '📅 <b>Дата:</b> ' + now + ' (Kyiv)\n' +
+        '🌐 <b>Джерело:</b> smm-vacancy.html';
+
+      const fd = new FormData();
+      fd.append('chat_id', TG_CHAT_ID);
+      fd.append('document', cv);
+      fd.append('caption', caption);
+      fd.append('parse_mode', 'HTML');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Надсилаємо…';
+
+      try {
+        const res = await fetch('https://api.telegram.org/bot' + TG_BOT_TOKEN + '/sendDocument', {
+          method: 'POST',
+          body: fd
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.description || 'Telegram error');
+
+        ui.style.display = 'none';
+        success.classList.add('shown');
+        // scroll to make success visible on small screens
+        success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        console.error(err);
+        showError('Не вдалось надіслати: ' + (err.message || 'мережа') + '. Напиши на vg@dreamcar.ua');
+        btn.disabled = false;
+        btn.innerHTML = 'Надіслати резюме <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+    });
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+  })();
+</script>
+
+</body>
+</html>
