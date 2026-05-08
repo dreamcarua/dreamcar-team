@@ -20,33 +20,31 @@
     display: flex; flex-direction: column; align-items: flex-start;
     background: #13131f; border-radius: 12px; padding: 22px 22px 20px;
     color: #fff; text-decoration: none;
-    transition: transform 0.15s, border-color 0.15s;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
     border: 1px solid #1e1e2e;
+    position: relative;
   }
   .card:hover { transform: translateY(-3px); }
   .card-icon { font-size: 28px; margin-bottom: 12px; }
   .card-title { font-size: 13px; font-weight: 700; margin-bottom: 5px; line-height: 1.3; text-align: left; }
   .card-desc  { font-size: 11px; color: #666; line-height: 1.6; text-align: left; }
+  .card .ext  { position: absolute; top: 10px; right: 12px; font-size: 10px; color: #444; letter-spacing: 0.5px; }
 
   .card-org   { border-color: #330000; }
   .card-org:hover { border-color: #cc0000; }
   .card-org .card-title { color: #ff9999; }
 
-  .card-check { border-color: #332200; }
-  .card-check:hover { border-color: #cc8800; }
-  .card-check .card-title { color: #fbbf24; }
-
   .card-onb   { border-color: #0a1a2e; }
   .card-onb:hover { border-color: #2255bb; }
   .card-onb .card-title { color: #7ab0ff; }
 
-  .card-survey { border-color: #1a2a1a; }
-  .card-survey:hover { border-color: #22aa44; }
-  .card-survey .card-title { color: #6edd8a; }
+  .card-bible { border-color: #1a2a2e; }
+  .card-bible:hover { border-color: #2eb8c4; }
+  .card-bible .card-title { color: #6ee7f0; }
 
-  .card-nda { border-color: #1a1a00; }
-  .card-nda:hover { border-color: #aaaa00; }
-  .card-nda .card-title { color: #ffd700; }
+  .card-plan { border-color: #261a33; }
+  .card-plan:hover { border-color: #a256dd; }
+  .card-plan .card-title { color: #c89af0; }
 
   .card-smm { border-color: #2a0000; }
   .card-smm:hover { border-color: #E8001D; box-shadow: 0 6px 24px -8px rgba(232,0,29,0.4); }
@@ -60,7 +58,7 @@
 <body>
 <div class="wrap">
   <h1>DreamCar.ua</h1>
-  <p class="sub">Внутрішні матеріали команди · Квітень 2026 · Конфіденційно</p>
+  <p class="sub">Внутрішні матеріали команди · Травень 2026 · Конфіденційно</p>
 
   <div class="cards">
     <a href="orgchart.html" class="card card-org">
@@ -68,25 +66,22 @@
       <div class="card-title">Організаційна структура</div>
       <div class="card-desc">Засновники · COO · Команда · Розподіл повноважень</div>
     </a>
-    <a href="checklist.html" class="card card-check">
-      <div class="card-icon">📋</div>
-      <div class="card-title">Поточні питання</div>
-      <div class="card-desc">Відкриті задачі і питання команди · Інтерактивний чекліст</div>
-    </a>
     <a href="onboarding.html" class="card card-onb">
       <div class="card-icon">🚀</div>
       <div class="card-title">Онбординг Давіда</div>
       <div class="card-desc">Про проект · Команда · Перші кроки · Інструменти</div>
     </a>
-    <a href="survey.html" class="card card-survey">
-      <div class="card-icon">📊</div>
-      <div class="card-title">Аудиторія 2026</div>
-      <div class="card-desc">Опитування 999 учасників · Демографія · Мотивація · Інсайти</div>
+    <a href="https://brand.dreamcar.ua/index.html" target="_blank" rel="noopener" class="card card-bible">
+      <span class="ext">↗</span>
+      <div class="card-icon">📖</div>
+      <div class="card-title">Біблія DreamCar</div>
+      <div class="card-desc">Бренд · Цінності · Tone of Voice · Візуальні стандарти</div>
     </a>
-    <a href="nda.html" class="card card-nda">
-      <div class="card-icon">🔐</div>
-      <div class="card-title">NDA · Угода про конфіденційність</div>
-      <div class="card-desc">Заповни свої дані і збережи підписаний PDF</div>
+    <a href="https://dreamcarua.github.io/dreamcar-planning/" target="_blank" rel="noopener" class="card card-plan">
+      <span class="ext">↗</span>
+      <div class="card-icon">🗓️</div>
+      <div class="card-title">Планування DreamCar</div>
+      <div class="card-desc">Графік запусків · Цикли проєктів · Дедлайни</div>
     </a>
     <a href="smm-vacancy.html" class="card card-smm">
       <div class="card-icon">🔥</div>
