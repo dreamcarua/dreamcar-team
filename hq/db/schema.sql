@@ -1,7 +1,7 @@
 -- =====================================================================
 -- DreamCar HQ — Стіл SMM (Пілот)
 -- Postgres-схема для Supabase
--- v1.2 — травень 2026
+-- v1.3 — травень 2026
 --
 -- Виконання: Supabase Dashboard → SQL Editor → New Query → Run
 -- Або:       supabase db push (якщо використовуєш CLI)
@@ -70,6 +70,9 @@ create index if not exists idx_vacations_range on user_vacations(from_date, to_d
 
 -- ---------------------------------------------------------------------
 -- desks (на пілоті — один SMM)
+-- ВАЖЛИВО: id жорстко зафіксований щоб seed.sql і фронтенд могли
+-- покладатися на цей UUID. Не змінюй без оновлення seed.sql і
+-- константи DESK_SMM_ID у app коді.
 -- ---------------------------------------------------------------------
 create table if not exists desks (
     id          uuid primary key default uuid_generate_v4(),
@@ -78,7 +81,9 @@ create table if not exists desks (
     color       text,
     created_at  timestamptz not null default now()
 );
-insert into desks (slug, name, color) values ('smm', 'Стіл SMM', '#cc0000') on conflict (slug) do nothing;
+insert into desks (id, slug, name, color)
+values ('11111111-1111-1111-1111-111111111111', 'smm', 'Стіл SMM', '#cc0000')
+on conflict (slug) do nothing;
 
 -- ---------------------------------------------------------------------
 -- desk_members
