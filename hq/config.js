@@ -10,14 +10,12 @@
 //   1. https://supabase.com → твій проєкт → Settings → API
 //   2. Project URL: https://xxxxx.supabase.co
 //   3. anon public key (JWT що починається з "eyJh...")
-//
-// Поки порожньо — застосунок працює в demo-режимі через localStorage.
 // =====================================================================
 
 window.HQ_CONFIG = {
   // ---- Supabase ----
-  SUPABASE_URL:      '',  // ← https://xxxxx.supabase.co
-  SUPABASE_ANON_KEY: '',  // ← eyJh...
+  SUPABASE_URL:      'https://wotghlaehnvxyeacznvv.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A',
 
   // ---- Telegram Login (опційно) ----
   // Bot username у вигляді "dreamcar_hr_bot" (без @)
