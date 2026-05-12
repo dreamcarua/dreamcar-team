@@ -51,6 +51,23 @@
   .card-smm:hover { border-color: #E8001D; box-shadow: 0 6px 24px -8px rgba(232,0,29,0.4); }
   .card-smm .card-title { color: #ff6577; }
 
+  .card-hq { border-color: #0a2a14; }
+  .card-hq:hover { border-color: #4ade80; box-shadow: 0 6px 24px -8px rgba(74,222,128,0.35); }
+  .card-hq .card-title { color: #6ee7b7; }
+  .card-hq .badge-pilot {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    background: rgba(74,222,128,0.15);
+    border: 1px solid rgba(74,222,128,0.4);
+    border-radius: 3px;
+    color: #4ade80;
+    font-size: 9px;
+    letter-spacing: 1px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+
   @media (max-width: 600px) {
     .cards { grid-template-columns: 1fr; }
   }
@@ -88,6 +105,11 @@
       <div class="card-icon">🔥</div>
       <div class="card-title">Вакансія SMM Manager</div>
       <div class="card-desc">Публічний лендинг · Форма відгуку → Telegram</div>
+    </a>
+    <a href="hq-smm.html" class="card card-hq">
+      <div class="card-icon">🧩</div>
+      <div class="card-title">HQ · Стіл SMM <span class="badge-pilot">ПІЛОТ</span></div>
+      <div class="card-desc">ТЗ v1.1 · Календар · Погодження · Креативи · Спринти · Метрики</div>
     </a>
   </div>
 </div>
