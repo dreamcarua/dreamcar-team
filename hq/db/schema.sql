@@ -1,15 +1,18 @@
 -- =====================================================================
 -- DreamCar HQ — Стіл SMM (Пілот)
 -- Postgres-схема для Supabase
--- v1.1 — травень 2026
+-- v1.2 — травень 2026
 --
 -- Виконання: Supabase Dashboard → SQL Editor → New Query → Run
 -- Або:       supabase db push (якщо використовуєш CLI)
 --
 -- Порядок:
+--   0. reset.sql                     — (опційно) повне видалення схеми
 --   1. schema.sql  (цей файл)        — таблиці, типи, тригери
 --   2. rls.sql                       — Row-Level Security політики
 --   3. seed.sql                      — демо-дані
+--
+-- Цей файл idempotent: можна виконувати повторно без помилок.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -20,21 +23,21 @@ create extension if not exists "pgcrypto";
 create extension if not exists "pg_trgm";        -- для повнотекстового пошуку
 
 -- ---------------------------------------------------------------------
--- Enum types
+-- Enum types (idempotent через DO блоки)
 -- ---------------------------------------------------------------------
-create type user_role        as enum ('ceo', 'coo', 'lead', 'member', 'designer');
-create type publication_status as enum ('draft', 'in_work', 'review', 'approved', 'published', 'rework');
-create type content_type     as enum ('post', 'reels', 'stories', 'carousel', 'longread');
-create type platform         as enum ('ig', 'tg', 'tt', 'th', 'yt', 'fb');
-create type creative_type    as enum ('photo', 'video', 'doc', 'audio');
-create type approver_policy  as enum ('all', 'any');
-create type responsibility   as enum ('scriptwriter', 'videographer', 'editor', 'publisher', 'generic');
+do $$ begin create type user_role          as enum ('ceo', 'coo', 'lead', 'member', 'designer');                          exception when duplicate_object then null; end $$;
+do $$ begin create type publication_status as enum ('draft', 'in_work', 'review', 'approved', 'published', 'rework');     exception when duplicate_object then null; end $$;
+do $$ begin create type content_type       as enum ('post', 'reels', 'stories', 'carousel', 'longread');                  exception when duplicate_object then null; end $$;
+do $$ begin create type platform           as enum ('ig', 'tg', 'tt', 'th', 'yt', 'fb');                                  exception when duplicate_object then null; end $$;
+do $$ begin create type creative_type      as enum ('photo', 'video', 'doc', 'audio');                                    exception when duplicate_object then null; end $$;
+do $$ begin create type approver_policy    as enum ('all', 'any');                                                        exception when duplicate_object then null; end $$;
+do $$ begin create type responsibility     as enum ('scriptwriter', 'videographer', 'editor', 'publisher', 'generic');    exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------
 -- users
 -- Інтегровано з Supabase Auth (auth.users) — id = auth.uid()
 -- ---------------------------------------------------------------------
-create table users (
+create table if not exists users (
     id          uuid primary key default uuid_generate_v4(),
     auth_id     uuid unique references auth.users(id) on delete cascade,
     email       text unique not null,
@@ -47,12 +50,12 @@ create table users (
     created_at  timestamptz not null default now(),
     updated_at  timestamptz not null default now()
 );
-create index idx_users_role on users(role);
+create index if not exists idx_users_role on users(role);
 
 -- ---------------------------------------------------------------------
 -- user_vacations (v1.1 — auto-delegation при відпустці)
 -- ---------------------------------------------------------------------
-create table user_vacations (
+create table if not exists user_vacations (
     id          uuid primary key default uuid_generate_v4(),
     user_id     uuid not null references users(id) on delete cascade,
     from_date   date not null,
@@ -62,25 +65,25 @@ create table user_vacations (
     created_at  timestamptz not null default now(),
     check (to_date >= from_date)
 );
-create index idx_vacations_user on user_vacations(user_id);
-create index idx_vacations_range on user_vacations(from_date, to_date);
+create index if not exists idx_vacations_user on user_vacations(user_id);
+create index if not exists idx_vacations_range on user_vacations(from_date, to_date);
 
 -- ---------------------------------------------------------------------
 -- desks (на пілоті — один SMM)
 -- ---------------------------------------------------------------------
-create table desks (
+create table if not exists desks (
     id          uuid primary key default uuid_generate_v4(),
     slug        text unique not null,
     name        text not null,
     color       text,
     created_at  timestamptz not null default now()
 );
-insert into desks (slug, name, color) values ('smm', 'Стіл SMM', '#cc0000') on conflict do nothing;
+insert into desks (slug, name, color) values ('smm', 'Стіл SMM', '#cc0000') on conflict (slug) do nothing;
 
 -- ---------------------------------------------------------------------
--- desk_members (зв'язок користувачів зі столами + роль усередині стола)
+-- desk_members
 -- ---------------------------------------------------------------------
-create table desk_members (
+create table if not exists desk_members (
     desk_id     uuid not null references desks(id) on delete cascade,
     user_id     uuid not null references users(id) on delete cascade,
     desk_role   user_role not null,
@@ -91,7 +94,7 @@ create table desk_members (
 -- ---------------------------------------------------------------------
 -- rubrics
 -- ---------------------------------------------------------------------
-create table rubrics (
+create table if not exists rubrics (
     id          uuid primary key default uuid_generate_v4(),
     desk_id     uuid not null references desks(id) on delete cascade,
     slug        text not null,
@@ -103,9 +106,9 @@ create table rubrics (
 );
 
 -- ---------------------------------------------------------------------
--- launches (запуски — спрощені проєкти)
+-- launches
 -- ---------------------------------------------------------------------
-create table launches (
+create table if not exists launches (
     id          uuid primary key default uuid_generate_v4(),
     desk_id     uuid not null references desks(id) on delete cascade,
     name        text not null,
@@ -115,38 +118,39 @@ create table launches (
     is_active   boolean not null default true,
     created_at  timestamptz not null default now()
 );
-create index idx_launches_active on launches(is_active);
+create index if not exists idx_launches_active on launches(is_active);
 
 -- ---------------------------------------------------------------------
--- creatives (метадані медіафайлів; самі файли — в Google Drive)
+-- creatives
 -- ---------------------------------------------------------------------
-create table creatives (
+create table if not exists creatives (
     id              uuid primary key default uuid_generate_v4(),
     desk_id         uuid not null references desks(id) on delete cascade,
     name            text not null,
     type            creative_type not null,
-    drive_file_id   text,                                    -- Google Drive ID
+    drive_file_id   text,
     size_bytes      bigint,
-    duration_sec    int,                                     -- для відео/аудіо
+    duration_sec    int,
     width_px        int,
     height_px       int,
-    thumbnail_url   text,                                    -- кеш-превью в Supabase Storage
+    thumbnail_url   text,
     tags            text[] not null default array[]::text[],
     rubric_id       uuid references rubrics(id) on delete set null,
     uploaded_by     uuid not null references users(id),
     uploaded_at     timestamptz not null default now(),
-    archived_at     timestamptz,                             -- soft delete (30 днів)
+    archived_at     timestamptz,
     deleted_at      timestamptz
 );
-create index idx_creatives_desk on creatives(desk_id);
-create index idx_creatives_type on creatives(type);
-create index idx_creatives_tags on creatives using gin (tags);
-create index idx_creatives_archived on creatives(archived_at) where archived_at is not null;
+create index if not exists idx_creatives_desk on creatives(desk_id);
+create index if not exists idx_creatives_type on creatives(type);
+create index if not exists idx_creatives_tags on creatives using gin (tags);
+create index if not exists idx_creatives_archived on creatives(archived_at) where archived_at is not null;
 
 -- ---------------------------------------------------------------------
 -- publications
+-- search_tsv — звичайна колонка, заповнюється тригером (див. нижче)
 -- ---------------------------------------------------------------------
-create table publications (
+create table if not exists publications (
     id              uuid primary key default uuid_generate_v4(),
     desk_id         uuid not null references desks(id) on delete cascade,
     title           text not null,
@@ -164,57 +168,72 @@ create table publications (
     created_by      uuid not null references users(id),
     created_at      timestamptz not null default now(),
     updated_at      timestamptz not null default now(),
-    -- v1.1: full-text search support
-    search_tsv      tsvector generated always as (
-                      setweight(to_tsvector('simple', coalesce(title,'')), 'A') ||
-                      setweight(to_tsvector('simple', coalesce(text_body,'')), 'B') ||
-                      setweight(to_tsvector('simple', coalesce(array_to_string(hashtags, ' '),'')), 'C')
-                    ) stored
+    search_tsv      tsvector
 );
-create index idx_pubs_desk on publications(desk_id);
-create index idx_pubs_status on publications(status);
-create index idx_pubs_publish_at on publications(publish_at);
-create index idx_pubs_launch on publications(launch_id);
-create index idx_pubs_search on publications using gin (search_tsv);
+create index if not exists idx_pubs_desk on publications(desk_id);
+create index if not exists idx_pubs_status on publications(status);
+create index if not exists idx_pubs_publish_at on publications(publish_at);
+create index if not exists idx_pubs_launch on publications(launch_id);
+create index if not exists idx_pubs_search on publications using gin (search_tsv);
 
 -- ---------------------------------------------------------------------
--- publication_platforms (M:N — публікація на яких майданчиках)
+-- Full-text search trigger
+-- Population через тригер замість generated column,
+-- бо text→regconfig cast не immutable і не пропускається у generated.
+-- Усередині plpgsql ці обмеження не діють.
 -- ---------------------------------------------------------------------
-create table publication_platforms (
+create or replace function publications_tsv_update() returns trigger as $$
+begin
+    new.search_tsv :=
+        setweight(to_tsvector('simple'::regconfig, coalesce(new.title,'')), 'A') ||
+        setweight(to_tsvector('simple'::regconfig, coalesce(new.text_body,'')), 'B') ||
+        setweight(to_tsvector('simple'::regconfig, coalesce(array_to_string(new.hashtags, ' '),'')), 'C');
+    return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_publications_tsv on publications;
+create trigger trg_publications_tsv before insert or update on publications
+    for each row execute function publications_tsv_update();
+
+-- ---------------------------------------------------------------------
+-- publication_platforms
+-- ---------------------------------------------------------------------
+create table if not exists publication_platforms (
     publication_id  uuid not null references publications(id) on delete cascade,
     platform        platform not null,
     primary key (publication_id, platform)
 );
-create index idx_pub_platforms_platform on publication_platforms(platform);
+create index if not exists idx_pub_platforms_platform on publication_platforms(platform);
 
 -- ---------------------------------------------------------------------
 -- publication_responsibles
 -- ---------------------------------------------------------------------
-create table publication_responsibles (
+create table if not exists publication_responsibles (
     publication_id  uuid not null references publications(id) on delete cascade,
     user_id         uuid not null references users(id) on delete cascade,
     role            responsibility not null default 'generic',
     primary key (publication_id, user_id, role)
 );
-create index idx_pub_resp_user on publication_responsibles(user_id);
+create index if not exists idx_pub_resp_user on publication_responsibles(user_id);
 
 -- ---------------------------------------------------------------------
 -- publication_approvers
 -- ---------------------------------------------------------------------
-create table publication_approvers (
+create table if not exists publication_approvers (
     publication_id  uuid not null references publications(id) on delete cascade,
     user_id         uuid not null references users(id) on delete cascade,
-    is_approved     boolean,                                 -- null = ще не прийняв рішення
+    is_approved     boolean,
     decided_at      timestamptz,
     comment         text,
     primary key (publication_id, user_id)
 );
-create index idx_pub_approvers_user on publication_approvers(user_id);
+create index if not exists idx_pub_approvers_user on publication_approvers(user_id);
 
 -- ---------------------------------------------------------------------
--- creative_publications (M:N — креативи в публікаціях)
+-- creative_publications
 -- ---------------------------------------------------------------------
-create table creative_publications (
+create table if not exists creative_publications (
     publication_id  uuid not null references publications(id) on delete cascade,
     creative_id     uuid not null references creatives(id) on delete cascade,
     sort_order      int not null default 0,
@@ -224,50 +243,49 @@ create table creative_publications (
 -- ---------------------------------------------------------------------
 -- publication_history (повний audit-log)
 -- ---------------------------------------------------------------------
-create table publication_history (
+create table if not exists publication_history (
     id              uuid primary key default uuid_generate_v4(),
     publication_id  uuid not null references publications(id) on delete cascade,
     actor_id        uuid not null references users(id),
-    action          text not null,                           -- create|edit|status|approve|reject|move|publish|delete
-    detail          text,                                    -- довільний коментар
-    diff            jsonb,                                   -- опційно: що саме змінилось
+    action          text not null,
+    detail          text,
+    diff            jsonb,
     at              timestamptz not null default now()
 );
-create index idx_history_pub on publication_history(publication_id);
-create index idx_history_at on publication_history(at);
+create index if not exists idx_history_pub on publication_history(publication_id);
+create index if not exists idx_history_at on publication_history(at);
 
 -- ---------------------------------------------------------------------
 -- comments
 -- ---------------------------------------------------------------------
-create table comments (
+create table if not exists comments (
     id              uuid primary key default uuid_generate_v4(),
     publication_id  uuid not null references publications(id) on delete cascade,
     author_id       uuid not null references users(id),
     body            text not null,
-    mentions        uuid[] not null default array[]::uuid[],  -- @згадки → user_ids
+    mentions        uuid[] not null default array[]::uuid[],
     created_at      timestamptz not null default now(),
     edited_at       timestamptz,
     deleted_at      timestamptz
 );
-create index idx_comments_pub on comments(publication_id);
+create index if not exists idx_comments_pub on comments(publication_id);
 
 -- ---------------------------------------------------------------------
 -- publication_drafts (v1.1 — auto-save)
 -- ---------------------------------------------------------------------
-create table publication_drafts (
+create table if not exists publication_drafts (
     id              uuid primary key default uuid_generate_v4(),
     publication_id  uuid not null references publications(id) on delete cascade,
     author_id       uuid not null references users(id),
-    snapshot        jsonb not null,                          -- повний стан полів на момент збереження
+    snapshot        jsonb not null,
     saved_at        timestamptz not null default now()
 );
-create index idx_drafts_pub on publication_drafts(publication_id, saved_at desc);
--- Цикл очистки: тримати останні 20 чернеток на публікацію (cron task)
+create index if not exists idx_drafts_pub on publication_drafts(publication_id, saved_at desc);
 
 -- ---------------------------------------------------------------------
--- editing_sessions (v1.1 — soft-lock одночасного редагування)
+-- editing_sessions (v1.1 — soft-lock)
 -- ---------------------------------------------------------------------
-create table editing_sessions (
+create table if not exists editing_sessions (
     publication_id  uuid not null references publications(id) on delete cascade,
     user_id         uuid not null references users(id) on delete cascade,
     started_at      timestamptz not null default now(),
@@ -275,19 +293,16 @@ create table editing_sessions (
     expires_at      timestamptz not null default (now() + interval '2 minutes'),
     primary key (publication_id, user_id)
 );
-create index idx_editing_expires on editing_sessions(expires_at);
--- Логіка: при відкритті картки клієнт пише сесію. Кожні 30s — оновлює last_ping/expires_at.
--- Запит активних редакторів: where expires_at > now().
--- Cron щохвилини: delete from editing_sessions where expires_at < now();
+create index if not exists idx_editing_expires on editing_sessions(expires_at);
 
 -- ---------------------------------------------------------------------
--- notifications (трігер для UI + Telegram + Email)
+-- notifications
 -- ---------------------------------------------------------------------
-create table notifications (
+create table if not exists notifications (
     id              uuid primary key default uuid_generate_v4(),
     recipient_id    uuid not null references users(id) on delete cascade,
     publication_id  uuid references publications(id) on delete cascade,
-    trigger_type    text not null,                           -- assigned|mentioned|missed|review_24h|...
+    trigger_type    text not null,
     title           text not null,
     body            text,
     sent_inapp      boolean not null default false,
@@ -296,13 +311,13 @@ create table notifications (
     read_at         timestamptz,
     created_at      timestamptz not null default now()
 );
-create index idx_notif_recipient_unread on notifications(recipient_id, read_at);
-create index idx_notif_publication on notifications(publication_id);
+create index if not exists idx_notif_recipient_unread on notifications(recipient_id, read_at);
+create index if not exists idx_notif_publication on notifications(publication_id);
 
 -- ---------------------------------------------------------------------
 -- notification_preferences
 -- ---------------------------------------------------------------------
-create table notification_preferences (
+create table if not exists notification_preferences (
     user_id         uuid not null references users(id) on delete cascade,
     trigger_type    text not null,
     via_inapp       boolean not null default true,
@@ -314,12 +329,12 @@ create table notification_preferences (
 -- ---------------------------------------------------------------------
 -- access_requests
 -- ---------------------------------------------------------------------
-create table access_requests (
+create table if not exists access_requests (
     id              uuid primary key default uuid_generate_v4(),
     user_id         uuid not null references users(id) on delete cascade,
     desk_id         uuid references desks(id) on delete cascade,
     note            text,
-    status          text not null default 'pending',         -- pending|granted|declined
+    status          text not null default 'pending',
     created_at      timestamptz not null default now()
 );
 
@@ -333,11 +348,14 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists users_updated_at on users;
 create trigger users_updated_at        before update on users        for each row execute function set_updated_at();
+
+drop trigger if exists publications_updated_at on publications;
 create trigger publications_updated_at before update on publications for each row execute function set_updated_at();
 
 -- ---------------------------------------------------------------------
--- Helper: чи поточний користувач має одну з ролей
+-- Helper functions
 -- ---------------------------------------------------------------------
 create or replace function current_user_has_role(roles user_role[]) returns boolean as $$
     select exists (
@@ -348,15 +366,12 @@ create or replace function current_user_has_role(roles user_role[]) returns bool
     );
 $$ language sql security definer stable;
 
--- ---------------------------------------------------------------------
--- Helper: id поточного користувача
--- ---------------------------------------------------------------------
 create or replace function current_user_id() returns uuid as $$
     select id from users where auth_id = auth.uid() limit 1;
 $$ language sql security definer stable;
 
 -- ---------------------------------------------------------------------
--- View: dashboard daily digest (для крон-задачі сповіщень)
+-- View: daily digest
 -- ---------------------------------------------------------------------
 create or replace view daily_digest as
 select
