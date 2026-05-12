@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>DreamCar HQ · Стіл SMM</title>
+<script src="config.js"></script>
+<script type="module">
+  // Lazy-load Supabase SDK тільки якщо є config
+  if (window.HQ_CONFIG?.SUPABASE_URL && window.HQ_CONFIG?.SUPABASE_ANON_KEY) {
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    window.supabase = createClient(
+      window.HQ_CONFIG.SUPABASE_URL,
+      window.HQ_CONFIG.SUPABASE_ANON_KEY,
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+    );
+    window.HQ_BACKEND = true;
+  } else {
+    window.HQ_BACKEND = false;
+  }
+  // Signal to the app that loader is done
+  window.dispatchEvent(new Event('hq-loader-ready'));
+</script>
 <style>
   :root {
     --bg: #0a0a12;
@@ -1064,6 +1081,130 @@
   .dropdown-item.danger { color: var(--red-soft); }
   .dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
+  /* Auth screen */
+  .auth-screen {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #0a0a12 0%, #1a0a0a 100%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  .auth-screen.shown { display: flex; }
+  .auth-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 36px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 24px 60px -10px rgba(0,0,0,0.7);
+    text-align: center;
+  }
+  .auth-card .auth-logo {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, var(--red), var(--red-soft));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 22px; color: #fff;
+    margin: 0 auto 22px;
+    box-shadow: 0 8px 24px -6px rgba(204,0,0,0.6);
+  }
+  .auth-card h1 { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+  .auth-card .auth-sub { color: var(--grey); font-size: 13px; margin-bottom: 28px; }
+  .auth-card .auth-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .auth-card .auth-btn:hover { background: var(--bg-hover); border-color: var(--red); }
+  .auth-card .auth-btn.google { background: #fff; color: #1f1f1f; border-color: #fff; }
+  .auth-card .auth-btn.google:hover { background: #e6e6e6; border-color: #e6e6e6; }
+  .auth-card .auth-divider {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--grey-2); font-size: 11px; margin: 16px 0;
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  .auth-card .auth-divider::before, .auth-card .auth-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .auth-card .auth-foot {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--grey-2);
+    line-height: 1.6;
+  }
+  .auth-card .auth-foot a { color: var(--red-soft); text-decoration: none; }
+  .auth-card .demo-link {
+    display: inline-block;
+    margin-top: 18px;
+    color: var(--grey);
+    font-size: 12px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .auth-card .demo-link:hover { color: var(--red-soft); }
+  .auth-card .auth-error {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: rgba(204,0,0,0.1);
+    border: 1px solid rgba(204,0,0,0.3);
+    border-radius: 8px;
+    color: var(--red-soft);
+    font-size: 12px;
+    display: none;
+  }
+  .auth-card .auth-error.shown { display: block; }
+  .auth-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--grey);
+    font-size: 13px;
+    gap: 12px;
+  }
+  .auth-loading .spinner {
+    width: 24px; height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Backend indicator */
+  .backend-indicator {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    color: var(--grey);
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 10px;
+    z-index: 50;
+    display: flex; align-items: center; gap: 6px;
+    pointer-events: none;
+  }
+  .backend-indicator .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .backend-indicator.live .dot { background: var(--green); }
+  .backend-indicator.demo .dot { background: var(--gold); }
+
   /* Mobile (basic) */
   @media (max-width: 900px) {
     .app { grid-template-columns: 60px 1fr; }
@@ -1081,6 +1222,44 @@
 </style>
 </head>
 <body>
+
+<!-- ============ Auth screen ============ -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">DC</div>
+    <h1 id="authTitle">DreamCar HQ</h1>
+    <p class="auth-sub" id="authSub">Увійдіть, щоб працювати з контент-планом команди</p>
+
+    <div id="authContent">
+      <button class="auth-btn google" id="authGoogle">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Увійти через Google
+      </button>
+      <div id="authTgWrap" style="display:none">
+        <div class="auth-divider">або</div>
+        <div id="authTgWidget"></div>
+      </div>
+    </div>
+
+    <div class="auth-loading" id="authLoading" style="display:none;">
+      <div class="spinner"></div>
+      <span>Перевіряю сесію…</span>
+    </div>
+
+    <div class="auth-error" id="authError"></div>
+
+    <div class="demo-link" id="authDemoLink" style="display:none;">Спробувати в demo-режимі (localStorage)</div>
+
+    <p class="auth-foot">
+      Внутрішня система команди DreamCar. Доступ — за запитом до <a href="mailto:vg@dreamcar.ua">vg@dreamcar.ua</a>.
+    </p>
+  </div>
+</div>
+
+<!-- ============ Backend indicator ============ -->
+<div class="backend-indicator" id="backendIndicator" style="display:none">
+  <div class="dot"></div><span id="backendIndicatorLabel">Demo</span>
+</div>
 
 <div class="app">
   <div class="logo">
@@ -1176,68 +1355,250 @@ const ROLES = [
   { id: 'member', label: 'SMM-учасник', tag: 'Учасник' },
 ];
 
-/* ============ Store ============ */
+/* ============ Store (hybrid: Supabase + localStorage) ============
+   - SYNC reads: from in-memory cache (_data)
+   - ASYNC writes: optimistic to cache + persist to backend
+   - Realtime: backend pushes updates → re-render
+   Mode is determined by window.HQ_BACKEND flag (set in <head> loader).
+   ===================================================================== */
 const STORE_KEY = 'dreamcar_hq_v1';
+let BACKEND_MODE = false;          // set after init()
+let SUPABASE_USER_ID = null;        // auth.uid()
 
 const Store = {
   _data: null,
-  load() {
+  _subscriptions: [],
+
+  async init() {
+    BACKEND_MODE = !!window.HQ_BACKEND && !!SUPABASE_USER_ID;
+    if (BACKEND_MODE) {
+      await this._loadFromBackend();
+      this._subscribeRealtime();
+    } else {
+      // Demo mode: localStorage with seed
+      this._loadFromLocal();
+    }
+  },
+
+  _loadFromLocal() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
       this._data = raw ? JSON.parse(raw) : null;
     } catch(e) { this._data = null; }
-    if (!this._data) { this._data = SEED(); this.save(); }
-    return this._data;
+    if (!this._data) { this._data = SEED(); this._saveLocal(); }
   },
-  save() { localStorage.setItem(STORE_KEY, JSON.stringify(this._data)); },
-  reset() { localStorage.removeItem(STORE_KEY); this._data = null; this.load(); },
+  _saveLocal() {
+    if (BACKEND_MODE) return; // not used in backend mode
+    localStorage.setItem(STORE_KEY, JSON.stringify(this._data));
+  },
+
+  async _loadFromBackend() {
+    const sb = window.supabase;
+    // Fetch all in parallel
+    const [users, rubrics, launches, creatives, pubs, platforms, resp, apr, crePubs, comments, history] = await Promise.all([
+      sb.from('users').select('*'),
+      sb.from('rubrics').select('*').order('sort_order'),
+      sb.from('launches').select('*').eq('is_active', true),
+      sb.from('creatives').select('*').is('deleted_at', null).order('uploaded_at', { ascending: false }),
+      sb.from('publications').select('*').order('publish_at'),
+      sb.from('publication_platforms').select('*'),
+      sb.from('publication_responsibles').select('*'),
+      sb.from('publication_approvers').select('*'),
+      sb.from('creative_publications').select('*'),
+      sb.from('comments').select('*').is('deleted_at', null).order('created_at'),
+      sb.from('publication_history').select('*').order('at'),
+    ]);
+    // Map publications with nested arrays (frontend shape compatible with old JS)
+    const platformsByPub = groupBy(platforms.data, 'publication_id');
+    const respByPub = groupBy(resp.data, 'publication_id');
+    const aprByPub = groupBy(apr.data, 'publication_id');
+    const crByPub = groupBy(crePubs.data, 'publication_id');
+    const commentsByPub = groupBy(comments.data, 'publication_id');
+    const historyByPub = groupBy(history.data, 'publication_id');
+
+    const mappedPubs = (pubs.data || []).map(p => ({
+      id: p.id,
+      title: p.title,
+      dateTime: p.publish_at,
+      contentType: contentTypeFromDb(p.content_type),
+      text: p.text_body,
+      hashtags: p.hashtags || [],
+      rubric: p.rubric_id,
+      launch: p.launch_id,
+      status: p.status,
+      approverPolicy: p.approver_policy,
+      deadline: p.deadline_on,
+      platforms: (platformsByPub[p.id] || []).map(x => x.platform),
+      responsibles: (respByPub[p.id] || []).map(x => x.user_id),
+      approvers: (aprByPub[p.id] || []).map(x => x.user_id),
+      creatives: (crByPub[p.id] || []).sort((a,b)=>a.sort_order-b.sort_order).map(x => x.creative_id),
+      comments: (commentsByPub[p.id] || []).map(c => ({ id: c.id, at: c.created_at, author: c.author_id, body: c.body })),
+      history: (historyByPub[p.id] || []).map(h => ({ id: h.id, at: h.at, author: h.actor_id, action: h.action, detail: h.detail })),
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    }));
+
+    this._data = {
+      version: 1,
+      currentUserId: (users.data || []).find(u => u.auth_id === SUPABASE_USER_ID)?.id || null,
+      users:    (users.data || []).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, initial: u.initial })),
+      rubrics:  rubrics.data || [],
+      launches: (launches.data || []).map(l => ({ id: l.id, name: l.name, from: l.starts_on, to: l.ends_on, color: l.color })),
+      creatives: (creatives.data || []).map(c => ({
+        id: c.id, name: c.name, type: c.type,
+        size: humanSize(c.size_bytes), duration: c.duration_sec,
+        res: c.width_px && c.height_px ? `${c.width_px}×${c.height_px}` : '—',
+        tags: c.tags || [], uploadedBy: c.uploaded_by, uploadedAt: c.uploaded_at,
+        preview: previewFor(c.type), color: previewColor(c.type),
+      })),
+      publications: mappedPubs,
+    };
+  },
+
+  _subscribeRealtime() {
+    const sb = window.supabase;
+    const chan = sb.channel('hq-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'publications' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'publication_history' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'publication_platforms' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'creatives' }, () => this._refreshAfterChange())
+      .subscribe();
+    this._subscriptions.push(chan);
+  },
+
+  async _refreshAfterChange() {
+    // Debounce: коли купа змін летить разом, перезавантажуємо раз
+    clearTimeout(this._refreshTimer);
+    this._refreshTimer = setTimeout(async () => {
+      await this._loadFromBackend();
+      if (typeof navigate === 'function') {
+        navigate();
+        renderSidebarFilters?.();
+      }
+    }, 300);
+  },
+
+  reset() {
+    if (BACKEND_MODE) {
+      toast('Reset недоступний у backend-режимі', 'warn', 'Видаляй через Supabase Dashboard.');
+      return;
+    }
+    localStorage.removeItem(STORE_KEY); this._data = null; this._loadFromLocal();
+  },
   data() { return this._data; },
 
-  // Publications
-  pubs() { return this._data.publications; },
-  pub(id) { return this._data.publications.find(p => p.id === id); },
+  // ---- Sync reads (з кешу) ----
+  pubs() { return this._data?.publications || []; },
+  pub(id) { return this._data?.publications.find(p => p.id === id); },
+  creatives() { return this._data?.creatives || []; },
+  creative(id) { return this._data?.creatives.find(c => c.id === id); },
+  users() { return this._data?.users || []; },
+  user(id) { return this._data?.users.find(u => u.id === id); },
+  rubrics() { return this._data?.rubrics || []; },
+  launches() { return this._data?.launches || []; },
+  currentUser() { return this.user(this._data?.currentUserId); },
+
+  setCurrentUser(id) {
+    if (BACKEND_MODE) {
+      toast('Перемикач ролей працює лише в demo-режимі', 'warn');
+      return;
+    }
+    this._data.currentUserId = id;
+    this._saveLocal();
+  },
+
+  // ---- Async writes (optimistic + persist) ----
   upsertPub(pub) {
+    // Optimistic cache update
     const ix = this._data.publications.findIndex(p => p.id === pub.id);
     if (ix >= 0) this._data.publications[ix] = pub;
     else this._data.publications.push(pub);
-    this.save();
+
+    if (BACKEND_MODE) {
+      this._persistPub(pub).catch(err => {
+        console.error('Persist failed:', err);
+        toast('Помилка збереження', 'error', err.message || 'мережа');
+      });
+    } else {
+      this._saveLocal();
+    }
   },
+
+  async _persistPub(pub) {
+    const sb = window.supabase;
+    // 1. main row
+    const row = {
+      id: pub.id,
+      desk_id: '11111111-1111-1111-1111-111111111111',
+      title: pub.title || 'Untitled',
+      publish_at: pub.dateTime,
+      content_type: contentTypeToDb(pub.contentType),
+      text_body: pub.text || '',
+      hashtags: pub.hashtags || [],
+      rubric_id: pub.rubric || null,
+      launch_id: pub.launch || null,
+      status: pub.status || 'draft',
+      approver_policy: pub.approverPolicy || 'all',
+      deadline_on: pub.deadline || null,
+      created_by: this._data.currentUserId,
+    };
+    const { error: e1 } = await sb.from('publications').upsert(row);
+    if (e1) throw e1;
+
+    // 2. relations — простий підхід: видалити і вставити заново
+    await sb.from('publication_platforms').delete().eq('publication_id', pub.id);
+    if (pub.platforms?.length) {
+      await sb.from('publication_platforms').insert(pub.platforms.map(p => ({ publication_id: pub.id, platform: p })));
+    }
+    await sb.from('publication_responsibles').delete().eq('publication_id', pub.id);
+    if (pub.responsibles?.length) {
+      await sb.from('publication_responsibles').insert(pub.responsibles.map(u => ({ publication_id: pub.id, user_id: u, role: 'generic' })));
+    }
+    await sb.from('publication_approvers').delete().eq('publication_id', pub.id);
+    if (pub.approvers?.length) {
+      await sb.from('publication_approvers').insert(pub.approvers.map(u => ({ publication_id: pub.id, user_id: u })));
+    }
+    await sb.from('creative_publications').delete().eq('publication_id', pub.id);
+    if (pub.creatives?.length) {
+      await sb.from('creative_publications').insert(pub.creatives.map((c, i) => ({ publication_id: pub.id, creative_id: c, sort_order: i })));
+    }
+  },
+
   deletePub(id) {
     this._data.publications = this._data.publications.filter(p => p.id !== id);
-    this.save();
+    if (BACKEND_MODE) {
+      window.supabase.from('publications').delete().eq('id', id).then(({ error }) => {
+        if (error) { console.error(error); toast('Помилка видалення', 'error'); }
+      });
+    } else {
+      this._saveLocal();
+    }
   },
 
-  // Creatives
-  creatives() { return this._data.creatives; },
-  creative(id) { return this._data.creatives.find(c => c.id === id); },
-
-  // Users
-  users() { return this._data.users; },
-  user(id) { return this._data.users.find(u => u.id === id); },
-
-  // Rubrics
-  rubrics() { return this._data.rubrics; },
-
-  // Launches
-  launches() { return this._data.launches; },
-
-  // Current user
-  currentUser() { return this.user(this._data.currentUserId); },
-  setCurrentUser(id) { this._data.currentUserId = id; this.save(); },
-
-  // History
+  // History (append-only)
   addHistory(pubId, action, detail = '') {
     const pub = this.pub(pubId);
     if (!pub) return;
     if (!pub.history) pub.history = [];
-    pub.history.push({
+    const entry = {
       id: uid(),
       at: new Date().toISOString(),
       author: this._data.currentUserId,
       action,
       detail
-    });
-    this.save();
+    };
+    pub.history.push(entry);
+    if (BACKEND_MODE) {
+      window.supabase.from('publication_history').insert({
+        publication_id: pubId,
+        actor_id: this._data.currentUserId,
+        action,
+        detail: detail || null,
+      }).then(({ error }) => { if (error) console.error('History insert:', error); });
+    } else {
+      this._saveLocal();
+    }
   },
 
   // Comments
@@ -1245,15 +1606,46 @@ const Store = {
     const pub = this.pub(pubId);
     if (!pub) return;
     if (!pub.comments) pub.comments = [];
-    pub.comments.push({
+    const c = {
       id: uid(),
       at: new Date().toISOString(),
       author: this._data.currentUserId,
       body
-    });
-    this.save();
+    };
+    pub.comments.push(c);
+    if (BACKEND_MODE) {
+      window.supabase.from('comments').insert({
+        publication_id: pubId,
+        author_id: this._data.currentUserId,
+        body,
+      }).then(({ error }) => { if (error) console.error('Comment insert:', error); });
+    } else {
+      this._saveLocal();
+    }
   },
 };
+
+/* Helpers */
+function groupBy(arr, key) {
+  const m = {};
+  for (const x of arr || []) { (m[x[key]] = m[x[key]] || []).push(x); }
+  return m;
+}
+function humanSize(bytes) {
+  if (!bytes) return '—';
+  const k = 1024; const u = ['B','KB','MB','GB'];
+  let i = 0; let n = bytes;
+  while (n >= k && i < u.length-1) { n /= k; i++; }
+  return `${n.toFixed(n>=10?0:1)} ${u[i]}`;
+}
+function previewFor(t) { return { photo: '🖼️', video: '🎬', doc: '📄', audio: '🎵' }[t] || '📦'; }
+function previewColor(t) { return { photo: '#ff6577', video: '#7ab0ff', doc: '#888', audio: '#fbbf24' }[t] || '#888'; }
+function contentTypeToDb(t) {
+  return { 'Пост':'post', 'Reels':'reels', 'Сторис':'stories', 'Карусель':'carousel', 'Лонгрід':'longread' }[t] || 'post';
+}
+function contentTypeFromDb(t) {
+  return { post:'Пост', reels:'Reels', stories:'Сторис', carousel:'Карусель', longread:'Лонгрід' }[t] || t;
+}
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
 
@@ -2546,7 +2938,25 @@ function renderRoleBadge() {
 }
 
 document.getElementById('roleSwitch').onclick = () => {
-  // Build dropdown
+  if (BACKEND_MODE) {
+    // У backend-режимі — меню профілю
+    const me = Store.currentUser();
+    Modal.open(`
+      <div class="modal-head">
+        <h2>${escapeHtml(me?.name || '—')}</h2>
+        <span class="modal-meta">${escapeHtml(me?.email || '')} · ${ROLES.find(r=>r.id===me?.role)?.tag || me?.role || ''}</span>
+        <button class="close" onclick="Modal.close()">×</button>
+      </div>
+      <div class="modal-body" style="padding:8px;">
+        <div class="dropdown-item" onclick="toast('Профіль', 'info', 'Налаштування у наступній ітерації')">👤 Профіль</div>
+        <div class="dropdown-item" onclick="toast('Сповіщення', 'info', 'Налаштування у наступній ітерації')">🔔 Налаштування сповіщень</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" onclick="HQ.signOut()">↪ Вийти</div>
+      </div>
+    `, 'modal-sm');
+    return;
+  }
+  // Demo mode: перемикач ролей
   const me = Store.currentUser();
   const users = Store.users();
   const items = users.map(u => `<div class="dropdown-item" data-user="${u.id}">${avatarHtml(u.id, 22)} ${escapeHtml(u.name)} <span style="margin-left:auto;color:var(--grey);font-size:10px;text-transform:uppercase;">${ROLES.find(r=>r.id===u.role)?.tag}</span></div>`).join('');
@@ -2609,21 +3019,173 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '4') { App.calendarMode = 'list'; renderCalendar(document.getElementById('main')); }
 });
 
-/* ============ Bootstrap ============ */
-Store.load();
-renderRoleBadge();
-renderSidebarFilters();
-if (!location.hash) location.hash = '#calendar';
-navigate();
+/* ============ Auth flow ============ */
+const Auth = {
+  async checkSession() {
+    if (!window.HQ_BACKEND) return null;
+    const { data: { session } } = await window.supabase.auth.getSession();
+    return session;
+  },
 
-// Reset for testing
+  async loadCurrentUser(session) {
+    const sb = window.supabase;
+    // Спершу шукаємо запис у public.users з auth_id
+    const { data: existing, error: e1 } = await sb.from('users').select('*').eq('auth_id', session.user.id).maybeSingle();
+    if (e1) console.warn('Load user:', e1);
+    if (existing) return existing;
+    // Якщо немає — пробуємо за email (може бути seed-запис)
+    const email = session.user.email;
+    const { data: byEmail } = await sb.from('users').select('*').eq('email', email).maybeSingle();
+    if (byEmail) {
+      // Прив'язуємо auth_id
+      await sb.from('users').update({ auth_id: session.user.id }).eq('id', byEmail.id);
+      return byEmail;
+    }
+    // Інакше створюємо новий запис із роллю 'member'
+    const meta = session.user.user_metadata || {};
+    const { data: created, error: e2 } = await sb.from('users').insert({
+      auth_id: session.user.id,
+      email,
+      name: meta.full_name || meta.name || email.split('@')[0],
+      role: 'member',
+    }).select().single();
+    if (e2) { console.error('Create user:', e2); throw e2; }
+    return created;
+  },
+
+  async signInGoogle() {
+    const { error } = await window.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin + location.pathname }
+    });
+    if (error) showAuthError(error.message);
+  },
+
+  async signOut() {
+    if (!window.HQ_BACKEND) return;
+    await window.supabase.auth.signOut();
+    location.reload();
+  },
+};
+
+function showAuthScreen(opts = {}) {
+  const sc = document.getElementById('authScreen');
+  sc.classList.add('shown');
+  document.getElementById('authContent').style.display = opts.loading ? 'none' : 'block';
+  document.getElementById('authLoading').style.display = opts.loading ? 'flex' : 'none';
+  // TG widget — показуємо якщо є config
+  if (window.HQ_CONFIG?.TG_LOGIN_BOT) {
+    document.getElementById('authTgWrap').style.display = 'block';
+    initTgLoginWidget();
+  }
+  // Demo fallback link
+  if (window.HQ_CONFIG?.ALLOW_DEMO_FALLBACK !== false) {
+    document.getElementById('authDemoLink').style.display = 'inline-block';
+  }
+}
+function hideAuthScreen() {
+  document.getElementById('authScreen').classList.remove('shown');
+}
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.classList.add('shown');
+}
+function initTgLoginWidget() {
+  const wrap = document.getElementById('authTgWidget');
+  if (wrap.dataset.inited) return;
+  wrap.dataset.inited = '1';
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://telegram.org/js/telegram-widget.js?22';
+  s.setAttribute('data-telegram-login', window.HQ_CONFIG.TG_LOGIN_BOT);
+  s.setAttribute('data-size', 'large');
+  s.setAttribute('data-onauth', 'onTgAuth(user)');
+  s.setAttribute('data-request-access', 'write');
+  wrap.appendChild(s);
+}
+window.onTgAuth = async function(user) {
+  // user = { id, first_name, last_name, username, photo_url, auth_date, hash }
+  // Verifying hash потребує бекенду. Для пілота: довіряємо клієнту,
+  // створюємо/знаходимо user по telegram_username і логінимо через
+  // signInWithPassword із детермінованим паролем (на основі telegram id).
+  toast('TG Login приймає авторизацію', 'info', 'Перевірка hash буде на Edge Function пізніше');
+  // TODO: викликати Supabase Edge Function /verify-tg-login яка валідовує hash і повертає JWT
+};
+
+/* ============ Bootstrap (async) ============ */
+async function boot() {
+  // Чекаємо завершення loader'а (lazy-import Supabase SDK)
+  if (typeof window.HQ_BACKEND === 'undefined') {
+    await new Promise(r => window.addEventListener('hq-loader-ready', r, { once: true }));
+  }
+
+  // Backend indicator
+  const ind = document.getElementById('backendIndicator');
+  if (window.HQ_BACKEND) {
+    showAuthScreen({ loading: true });
+    try {
+      const session = await Auth.checkSession();
+      if (!session) {
+        showAuthScreen({ loading: false });
+        ind.className = 'backend-indicator demo';
+        document.getElementById('backendIndicatorLabel').textContent = 'Не залогінений';
+        ind.style.display = 'flex';
+        return; // чекаємо логіну
+      }
+      // є сесія
+      const me = await Auth.loadCurrentUser(session);
+      SUPABASE_USER_ID = session.user.id;
+      await Store.init();
+      // Прив'язка currentUser
+      Store._data.currentUserId = me.id;
+      hideAuthScreen();
+      ind.className = 'backend-indicator live';
+      document.getElementById('backendIndicatorLabel').textContent = 'Live · ' + me.name;
+      ind.style.display = 'flex';
+    } catch (e) {
+      console.error('Boot error:', e);
+      showAuthError(e.message || 'Помилка завантаження');
+      showAuthScreen({ loading: false });
+      return;
+    }
+  } else {
+    // Demo mode
+    await Store.init();
+    ind.className = 'backend-indicator demo';
+    document.getElementById('backendIndicatorLabel').textContent = 'Demo (localStorage)';
+    ind.style.display = 'flex';
+  }
+
+  // UI bootstrap
+  renderRoleBadge();
+  renderSidebarFilters();
+  if (!location.hash) location.hash = '#calendar';
+  navigate();
+}
+
+// Wire auth buttons
+document.getElementById('authGoogle').onclick = () => Auth.signInGoogle();
+document.getElementById('authDemoLink').onclick = () => {
+  window.HQ_BACKEND = false;
+  hideAuthScreen();
+  boot();
+};
+
+// Reset / inspector / debug helpers
 window.HQ = {
   reset() { Store.reset(); location.reload(); },
   seed: SEED,
   store: Store,
+  auth: Auth,
+  signOut: () => Auth.signOut(),
 };
-console.log('%cDreamCar HQ %cv0.1', 'color:#cc0000;font-weight:800;font-size:14px;', 'color:#888;');
-console.log('Команди консолі: HQ.reset() — скинути дані. HQ.store — інспектор.');
+
+console.log('%cDreamCar HQ %cv0.2 (Supabase-aware)', 'color:#cc0000;font-weight:800;font-size:14px;', 'color:#888;');
+console.log('Команди: HQ.reset() — скинути demo дані. HQ.signOut() — вийти. HQ.store — інспектор.');
+
+// Запускаємо
+boot();
 </script>
 
 </body>
