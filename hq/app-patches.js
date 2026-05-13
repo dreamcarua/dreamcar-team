@@ -1,29 +1,38 @@
 /* ============================================================
-   DreamCar HQ — Patches v2
+   DreamCar HQ — Patches v3
    Real thumbnails + team refresh + UUID fix + multi-platform previews
    + real bell counter + /settings route + UX-фіксы (sidebar filter,
-   autosave flush, filter→card guard, undo-delete).
+   autosave flush, filter→card guard, undo-delete) + per-platform schedule.
    ============================================================ */
 
 (function () {
-  // ---- Inject CSS для нових UX-станів ----
+  // ---- Inject CSS ----
   (function injectCss() {
     if (document.getElementById('hq-patches-css')) return;
     var css = document.createElement('style');
     css.id = 'hq-patches-css';
     css.textContent =
-      '/* sidebar filter-chip — яскравіший active + checkmark */' +
       '.sidebar .filter-chip { position: relative; }' +
       '.sidebar .filter-chip.on { background: var(--red-dim); color: #fff; font-weight: 600; }' +
       '.sidebar .filter-chip.on::before { content: "✓"; position: absolute; right: 24px; color: var(--red-soft); font-size: 11px; font-weight: 700; }' +
       '.sidebar .filter-chip:not(.on) { opacity: 0.85; }' +
-      '/* platform-filter — checkmark на active */' +
       '.pf-btn { position: relative; }' +
       '.pf-btn.on { box-shadow: 0 0 0 1px var(--red-soft); }' +
-      // toast з undo-кнопкою
       '.toast.undoable { display: flex; align-items: center; gap: 12px; }' +
       '.toast .undo-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; }' +
-      '.toast .undo-btn:hover { background: rgba(255,255,255,0.2); }';
+      '.toast .undo-btn:hover { background: rgba(255,255,255,0.2); }' +
+      // Per-platform schedule block
+      '.platform-schedule { margin-top: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }' +
+      '.platform-schedule .ps-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--grey); margin-bottom: 8px; font-weight: 700; }' +
+      '.platform-schedule .ps-row { display: grid; grid-template-columns: 130px 1fr auto; gap: 8px; align-items: center; padding: 4px 0; }' +
+      '.platform-schedule .ps-row + .ps-row { border-top: 1px solid var(--border); }' +
+      '.platform-schedule .ps-platform { font-size: 12px; color: #fff; font-weight: 600; }' +
+      '.platform-schedule .ps-platform.is-override { color: var(--gold); }' +
+      '.platform-schedule .ps-platform .ps-base-hint { font-size: 10px; color: var(--grey); font-weight: 400; margin-top: 2px; }' +
+      '.platform-schedule input[type="datetime-local"] { background: var(--bg-3); border: 1px solid var(--border); color: #fff; padding: 6px 8px; border-radius: 6px; font-size: 12px; font-family: inherit; width: 100%; }' +
+      '.platform-schedule .ps-reset { background: transparent; border: 1px solid var(--border); color: var(--grey); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; }' +
+      '.platform-schedule .ps-reset:hover { color: var(--red-soft); border-color: var(--red); }' +
+      '.platform-schedule .ps-empty { color: var(--grey-2); font-size: 11px; padding: 4px 0; }';
     document.head.appendChild(css);
   })();
 
@@ -46,6 +55,7 @@
     window.newPubObject = function (forDate) {
       var p = _orig.call(this, forDate);
       if (p && !isUuid(p.id)) p.id = uuidV4();
+      if (p && !p.platformSchedule) p.platformSchedule = {};
       return p;
     };
     window.newPubObject.__uuidPatched = true;
@@ -130,7 +140,7 @@
   window.mediaThumb = mediaThumb;
   window.safeUrl = safeUrl;
 
-  // ---- boardCard / renderLibGrid / openCreative — без змін ----
+  // ---- boardCard ----
   window.boardCard = function (p) {
     var cr = (p.creatives || []).map(function (id) { return Store.creative(id); }).filter(Boolean);
     var thumb = cr[0] ? mediaThumb(cr[0], { size: 'card' }) : '<span style="font-size:18px;">📝</span>';
@@ -155,6 +165,8 @@
         '<button class="btn btn-sm" data-action="open" data-id="' + p.id + '">Відкрити</button>' +
       '</div></div>';
   };
+
+  // ---- renderLibGrid ----
   window.renderLibGrid = function (type, q) {
     var cr = Store.creatives();
     if (type !== 'all') cr = cr.filter(function (c) { return c.type === type; });
@@ -173,6 +185,8 @@
     }).join('');
     document.querySelectorAll('.lib-tile').forEach(function (el) { el.onclick = function () { openCreative(el.dataset.id); }; });
   };
+
+  // ---- openCreative ----
   window.openCreative = function (id) {
     var c = Store.creative(id); if (!c) return;
     var usedIn = Store.pubs().filter(function (p) { return (p.creatives || []).indexOf(id) >= 0; });
@@ -226,10 +240,8 @@
     return { txt: txt, hashHtml: hashHtml };
   }
   function buildPlatformCard(platform, p, firstMedia, mediaBg, txt, hashHtml) {
-    var meta = PLATFORM_PREVIEW_META[platform];
-    if (!meta) return '';
+    var meta = PLATFORM_PREVIEW_META[platform]; if (!meta) return '';
     var aspectStyle = 'aspect-ratio:' + meta.aspect + ';';
-    // Per-platform schedule: коли в pub.platformSchedule є запис — показуємо його, інакше базовий p.dateTime
     var pSched = (p.platformSchedule && p.platformSchedule[platform]) || p.dateTime;
     var head = '<div class="pv-head" style="background:linear-gradient(180deg, ' + meta.accent + '20, transparent);">' +
       '<div class="pv-avatar" style="background:linear-gradient(135deg,' + meta.accent + ',' + meta.accent + 'aa);">DC</div>' +
@@ -294,112 +306,234 @@
   window.updateBellBadge = updateBellBadge;
 
   // ============================================================
+  // PER-PLATFORM SCHEDULE (#3)
+  // ============================================================
+  // Допоміжна: ISO → "YYYY-MM-DDTHH:MM" для datetime-local input
+  function isoToLocalInput(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function localInputToIso(v) {
+    if (!v) return null;
+    var d = new Date(v); if (isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }
+
+  function renderPlatformScheduleBlock(p) {
+    if (!p.platforms || !p.platforms.length) return '';
+    if (!p.platformSchedule) p.platformSchedule = {};
+    var PLATFORM_NAMES = (typeof PLATFORMS !== 'undefined' && PLATFORMS) || [];
+    var rows = p.platforms.map(function (pid) {
+      var meta = PLATFORM_NAMES.find(function (x) { return x.id === pid; }) || { id: pid, name: pid, icon: '' };
+      var override = p.platformSchedule[pid] || '';
+      var isOverride = !!override;
+      var localVal = isoToLocalInput(override || p.dateTime);
+      return '<div class="ps-row" data-platform="' + pid + '">' +
+        '<div class="ps-platform ' + (isOverride ? 'is-override' : '') + '">' +
+          (meta.icon || '') + ' ' + escapeHtml(meta.name) +
+          '<div class="ps-base-hint">' + (isOverride ? '↳ власний час' : 'базовий час') + '</div>' +
+        '</div>' +
+        '<input type="datetime-local" data-ps-input="' + pid + '" value="' + localVal + '"/>' +
+        '<button type="button" class="ps-reset" data-ps-reset="' + pid + '" ' + (isOverride ? '' : 'style="visibility:hidden;"') + '>↺ скинути</button>' +
+        '</div>';
+    }).join('');
+    return '<div class="platform-schedule" id="platformSchedule">' +
+      '<div class="ps-title">⏰ Розклад по платформах</div>' +
+      rows +
+    '</div>';
+  }
+  function attachPlatformScheduleHandlers(p) {
+    var wrap = document.getElementById('platformSchedule');
+    if (!wrap) return;
+    wrap.querySelectorAll('[data-ps-input]').forEach(function (inp) {
+      inp.onchange = function () {
+        var pid = inp.dataset.psInput;
+        var iso = localInputToIso(inp.value);
+        if (!p.platformSchedule) p.platformSchedule = {};
+        if (iso && iso !== p.dateTime) {
+          p.platformSchedule[pid] = iso;
+        } else {
+          delete p.platformSchedule[pid];
+        }
+        // Перерендерити блок щоб оновити "is-override" + reset button
+        var newHtml = renderPlatformScheduleBlock(p);
+        var holder = document.createElement('div');
+        holder.innerHTML = newHtml;
+        wrap.replaceWith(holder.firstChild);
+        attachPlatformScheduleHandlers(p);
+        if (typeof autosave === 'function') autosave(p);
+      };
+    });
+    wrap.querySelectorAll('[data-ps-reset]').forEach(function (btn) {
+      btn.onclick = function () {
+        var pid = btn.dataset.psReset;
+        if (p.platformSchedule) delete p.platformSchedule[pid];
+        var newHtml = renderPlatformScheduleBlock(p);
+        var holder = document.createElement('div');
+        holder.innerHTML = newHtml;
+        wrap.replaceWith(holder.firstChild);
+        attachPlatformScheduleHandlers(p);
+        if (typeof autosave === 'function') autosave(p);
+      };
+    });
+  }
+  function installPlatformScheduleUI(p) {
+    if (!p) return;
+    // Знаходимо chip-row #f_platforms — вставляємо блок після його батьківського .field
+    var chipRow = document.getElementById('f_platforms');
+    if (!chipRow) return;
+    var field = chipRow.closest('.field') || chipRow.parentElement;
+    if (!field) return;
+    // Видаляємо попередній (на випадок реcреш)
+    var existing = document.getElementById('platformSchedule');
+    if (existing) existing.remove();
+    field.insertAdjacentHTML('afterend', renderPlatformScheduleBlock(p));
+    attachPlatformScheduleHandlers(p);
+
+    // Хук: коли user міняє chip — переписувати блок
+    chipRow.querySelectorAll('.chip').forEach(function (c) {
+      // оригінальний onclick зберігається; додаємо додатковий handler
+      c.addEventListener('click', function () {
+        // На наступний tick (після того як addEventListener у views.js встиг переключити on/off)
+        setTimeout(function () {
+          // Перерендерити блок із актуальним p.platforms
+          var holder = document.createElement('div');
+          holder.innerHTML = renderPlatformScheduleBlock(p);
+          var cur = document.getElementById('platformSchedule');
+          if (cur) cur.replaceWith(holder.firstChild);
+          else field.insertAdjacentHTML('afterend', renderPlatformScheduleBlock(p));
+          attachPlatformScheduleHandlers(p);
+        }, 50);
+      });
+    });
+  }
+
+  // ============================================================
+  // Persist platform_schedule у Supabase
+  // ============================================================
+  function patchPersistForPlatformSchedule() {
+    if (!window.Store || typeof Store._persistPub !== 'function' || Store._persistPub.__psPatched) return;
+    var _orig = Store._persistPub.bind(Store);
+    Store._persistPub = async function (pub) {
+      // Викликаємо оригінал — він робить upsert main row + relations.
+      // Потім окремо оновлюємо platform_schedule.
+      await _orig(pub);
+      try {
+        var sb = window.supabase;
+        var sched = pub.platformSchedule && Object.keys(pub.platformSchedule).length > 0 ? pub.platformSchedule : null;
+        var { error } = await sb.from('publications').update({ platform_schedule: sched }).eq('id', pub.id);
+        if (error) console.warn('platform_schedule update:', error);
+      } catch (e) { console.warn('platform_schedule persist:', e); }
+    };
+    Store._persistPub.__psPatched = true;
+  }
+  patchPersistForPlatformSchedule();
+  setTimeout(patchPersistForPlatformSchedule, 500);
+  setTimeout(patchPersistForPlatformSchedule, 2000);
+
+  // Hydrate platformSchedule при завантаженні з бекенду
+  function patchLoadForPlatformSchedule() {
+    if (!window.Store || typeof Store._loadFromBackend !== 'function' || Store._loadFromBackend.__psPatched) return;
+    var _orig = Store._loadFromBackend.bind(Store);
+    Store._loadFromBackend = async function () {
+      await _orig();
+      try {
+        var sb = window.supabase;
+        var { data } = await sb.from('publications').select('id, platform_schedule, deleted_at');
+        var bySchedId = {};
+        (data || []).forEach(function (r) { bySchedId[r.id] = r; });
+        (Store._data.publications || []).forEach(function (p) {
+          var row = bySchedId[p.id];
+          if (!row) return;
+          p.platformSchedule = row.platform_schedule || {};
+          if (row.deleted_at) p._trashed = true;
+        });
+      } catch (e) { console.warn('platform_schedule hydrate:', e); }
+    };
+    Store._loadFromBackend.__psPatched = true;
+  }
+  patchLoadForPlatformSchedule();
+  setTimeout(patchLoadForPlatformSchedule, 500);
+  setTimeout(patchLoadForPlatformSchedule, 2000);
+
+  // ============================================================
   // FIX #5: AUTOSAVE FLUSH at Modal.close + beforeunload
   // ============================================================
   function flushAutosave() {
     try {
-      if (typeof cardAutosaveTimer !== 'undefined' && cardAutosaveTimer) {
-        clearTimeout(cardAutosaveTimer);
-        // Викликаємо handler синхронно — він уже всередині пише в Store
-        // Бо у core: setTimeout(() => { ... Store.upsertPub(p); ... }, 700)
-        // Найпростіше — викликати autosave({...}) знову з нульовою затримкою.
-        // Натомість, ми просто шукаємо last-opened pub з DOM:
-      }
-      // Витягуємо id картки з заголовка
-      var titleInp = document.getElementById('f_title');
-      if (!titleInp) return; // картка не відкрита
-      // Беремо pub з останнього `Store.pub` — на жаль unknown без id. Замість того:
-      // тригернемо autosave вручну якщо вона існує і відома _pub (через global)
-      if (window.__hqCurrentPub && typeof autosave === 'function') {
-        // прискорений flush: викликаємо без debounce
+      if (window.__hqCurrentPub) {
         var p = window.__hqCurrentPub;
         try { Store.upsertPub(p); } catch(_) {}
       }
     } catch (e) { console.warn('flushAutosave:', e); }
   }
-  // Перехоплюємо openCard щоб зберігати __hqCurrentPub
-  // (Виконається після refresh-creative-strip нижче)
-
-  // Перехоплюємо Modal.close
   if (window.Modal && typeof Modal.close === 'function' && !Modal.close.__flushPatched) {
     var _origClose = Modal.close.bind(Modal);
     Modal.close = function () { try { flushAutosave(); } catch(_){} return _origClose(); };
     Modal.close.__flushPatched = true;
   }
-  // beforeunload — flush
   window.addEventListener('beforeunload', flushAutosave);
 
   // ============================================================
   // FIX #6: filter click — guard від повторного openCard
   // ============================================================
-  // Sidebar filter-chip onclick викликає navigate() з поточним hash.
-  // Якщо хеш = #publication/xxx — то navigate знову відкриває картку.
-  // Перехоплюємо клік на filter-chip і скидаємо hash на calendar/board/library.
   document.addEventListener('click', function (e) {
     var chip = e.target && e.target.closest && e.target.closest('.sidebar .filter-chip');
     if (!chip) return;
-    // Якщо ми зараз на route 'publication' — повернути на calendar
     var hash = (location.hash || '').slice(1);
     var route = hash.split('/')[0];
     if (route === 'publication' || route === 'settings') {
-      // підмінюємо хеш без перезавантаження
       var target = (window.App && App.view) || 'calendar';
       if (target === 'publication' || target === 'settings') target = 'calendar';
-      // не викликаємо navigate тут — onclick chip сам викличе
       try { history.replaceState(null, '', '#' + target); } catch(_){ location.hash = '#' + target; }
     }
-  }, true); // capture phase, до click handler у chip
+  }, true);
 
   // ============================================================
   // FIX #7: SOFT DELETE з UNDO toast
   // ============================================================
-  // Перехоплюємо Store.deletePub: ставимо _trashed flag, через 7 сек реально видаляємо.
-  // Toast з кнопкою «Повернути» — скасовує.
   var _trashTimers = {};
   function softDelete(pubId) {
-    var p = Store.pub(pubId);
-    if (!p) return;
-    p._trashed = true;
-    p._trashedAt = Date.now();
+    var p = Store.pub(pubId); if (!p) return;
+    p._trashed = true; p._trashedAt = Date.now();
     if (typeof Store._saveLocal === 'function') Store._saveLocal();
-    // Перерендерити поточну view (щоб публікація сховалась)
+    if (window.HQ_BACKEND && window.supabase) {
+      window.supabase.from('publications').update({ deleted_at: new Date().toISOString() }).eq('id', pubId).then(function (res) {
+        if (res.error) console.warn('soft delete persist:', res.error);
+      });
+    }
     if (typeof navigate === 'function') navigate();
     if (typeof updateNavCounts === 'function') updateNavCounts();
     showUndoToast(pubId, p.title || 'Публікація');
-    // Через 7 сек — справжній delete (тільки якщо ще _trashed)
     _trashTimers[pubId] = setTimeout(function () {
       var cur = Store.pub(pubId);
       if (cur && cur._trashed) {
-        try {
-          _hardDeletePub(pubId);
-        } catch (e) { console.warn('hard delete:', e); }
+        try { _hardDeletePub(pubId); } catch (e) { console.warn('hard delete:', e); }
       }
       delete _trashTimers[pubId];
     }, 7000);
   }
   function undoDelete(pubId) {
-    var p = Store.pub(pubId);
-    if (!p) return;
-    delete p._trashed;
-    delete p._trashedAt;
+    var p = Store.pub(pubId); if (!p) return;
+    delete p._trashed; delete p._trashedAt;
     if (_trashTimers[pubId]) { clearTimeout(_trashTimers[pubId]); delete _trashTimers[pubId]; }
     if (typeof Store._saveLocal === 'function') Store._saveLocal();
+    if (window.HQ_BACKEND && window.supabase) {
+      window.supabase.from('publications').update({ deleted_at: null }).eq('id', pubId);
+    }
     if (typeof navigate === 'function') navigate();
     if (typeof updateNavCounts === 'function') updateNavCounts();
     if (typeof toast === 'function') toast('Повернено', 'success', p.title);
   }
   function _hardDeletePub(id) {
-    // Викликаємо _orig delete зі збереженим reference (нижче)
     if (typeof _origDeletePub === 'function') _origDeletePub(id);
-    else {
-      // Fallback
-      Store._data.publications = (Store._data.publications || []).filter(function (x) { return x.id !== id; });
-      if (typeof Store._saveLocal === 'function') Store._saveLocal();
-    }
+    else { Store._data.publications = (Store._data.publications || []).filter(function (x) { return x.id !== id; }); if (typeof Store._saveLocal === 'function') Store._saveLocal(); }
   }
   function showUndoToast(pubId, title) {
-    var stack = document.getElementById('toastStack');
-    if (!stack) return;
+    var stack = document.getElementById('toastStack'); if (!stack) return;
     var el = document.createElement('div');
     el.className = 'toast warn undoable';
     el.innerHTML = '<div><b>Видалено</b><div class="toast-body">' + escapeHtml(title) + '</div></div>' +
@@ -418,7 +552,6 @@
   }
   patchDelete(); setTimeout(patchDelete, 300); setTimeout(patchDelete, 1500);
 
-  // Сховати _trashed з усіх запитів pubs
   if (window.Store && typeof Store.pubs === 'function' && !Store.pubs.__trashFiltered) {
     var _origPubs = Store.pubs.bind(Store);
     Store.pubs = function () { return _origPubs().filter(function (p) { return !p._trashed; }); };
@@ -443,14 +576,14 @@
           '</div></div>' +
         '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px;">' +
           '<h3 style="font-size:14px;color:#fff;margin-bottom:8px;">✈️ Telegram — персональні сповіщення</h3>' +
-          '<p style="color:var(--grey);font-size:12px;line-height:1.6;margin-bottom:14px;">Щоб отримувати DM від HQ-бота про твої публікації — додай свій <code>tg_chat_id</code>. Як знайти: напиши боту <code>/start</code>, відкрий <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>, скопіюй число з <code>chat.id</code>.</p>' +
+          '<p style="color:var(--grey);font-size:12px;line-height:1.6;margin-bottom:14px;">Щоб отримувати DM від HQ-бота — додай свій <code>tg_chat_id</code>.</p>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<input id="set_tg_chat_id" type="text" placeholder="123456789" value="' + escapeHtml((me && (me.tg_chat_id || '')) + '') + '" style="flex:1;background:var(--bg);border:1px solid var(--border);color:#fff;padding:9px 12px;border-radius:8px;font-size:13px;font-family:monospace;"/>' +
             '<button class="btn btn-primary" id="set_tg_save">Зберегти</button></div>' +
           '<div id="set_tg_status" style="font-size:11px;color:var(--grey);margin-top:8px;"></div></div>' +
         '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:22px;">' +
           '<h3 style="font-size:14px;color:#fff;margin-bottom:8px;">🔔 Сповіщення</h3>' +
-          '<div style="font-size:12px;color:var(--grey);line-height:1.7;">Поточна логіка:<br>· Group chat — усі події.<br>· DM — приходять, якщо <code>tg_chat_id</code> заповнений вище.</div>' +
+          '<div style="font-size:12px;color:var(--grey);line-height:1.7;">Group chat — усі події. DM — якщо <code>tg_chat_id</code> заповнений вище.</div>' +
         '</div></div>';
     var saveBtn = document.getElementById('set_tg_save');
     if (saveBtn) saveBtn.onclick = saveTgChatId;
@@ -463,8 +596,7 @@
     if (v !== '' && (isNaN(num) || Math.abs(num) < 1000)) { status.textContent = '⚠ chat_id має бути числом.'; status.style.color = 'var(--red-soft)'; return; }
     if (!window.HQ_BACKEND) {
       status.textContent = 'У demo-режимі чат збережено локально.'; status.style.color = 'var(--grey)';
-      var me = Store.currentUser(); if (me) { me.tg_chat_id = num; Store._saveLocal && Store._saveLocal(); }
-      return;
+      var me = Store.currentUser(); if (me) { me.tg_chat_id = num; Store._saveLocal && Store._saveLocal(); } return;
     }
     var sb = window.supabase;
     if (!sb) { status.textContent = '⚠ Supabase клієнт недоступний.'; status.style.color = 'var(--red-soft)'; return; }
@@ -474,11 +606,9 @@
       var { error } = await sb.from('users').update({ tg_chat_id: num }).eq('id', me.id);
       if (error) throw error;
       if (me) me.tg_chat_id = num;
-      status.textContent = '✓ Збережено. Тепер бот зможе писати тобі DM.'; status.style.color = 'var(--green-soft)';
+      status.textContent = '✓ Збережено.'; status.style.color = 'var(--green-soft)';
       if (typeof toast === 'function') toast('Збережено', 'success', 'TG chat_id оновлено');
-    } catch (e) {
-      console.error(e); status.textContent = '⚠ Помилка: ' + (e.message || e); status.style.color = 'var(--red-soft)';
-    }
+    } catch (e) { console.error(e); status.textContent = '⚠ Помилка: ' + (e.message || e); status.style.color = 'var(--red-soft)'; }
   }
   window.renderSettings = renderSettings;
 
@@ -512,7 +642,7 @@
     }
   }, true);
 
-  // ---- Patch: refresh creative-strip + __hqCurrentPub для autosave flush ----
+  // ---- Refresh creative-strip + __hqCurrentPub + platformSchedule UI ----
   function refreshCreativeStrip(p) {
     var strip = document.getElementById('f_creatives'); if (!strip || !p) return;
     strip.querySelectorAll('.cs-item').forEach(function (item) {
@@ -530,7 +660,17 @@
     var p = id === 'new' ? null : Store.pub(id);
     if (p) {
       window.__hqCurrentPub = p;
-      setTimeout(function () { refreshCreativeStrip(p); }, 0);
+      if (!p.platformSchedule) p.platformSchedule = {};
+      setTimeout(function () {
+        refreshCreativeStrip(p);
+        installPlatformScheduleUI(p);
+      }, 0);
+    } else {
+      // new pub case — p === null, спробуємо взяти через global
+      setTimeout(function () {
+        var titleInp = document.getElementById('f_title');
+        if (titleInp && window.__hqCurrentPub) installPlatformScheduleUI(window.__hqCurrentPub);
+      }, 50);
     }
   };
   var _origUpload = window.uploadCreativeFile;
@@ -562,5 +702,5 @@
     };
   }
 
-  console.log('%cDreamCar HQ Patches v3 %c· thumbs+team+UUID+previews+bell+settings+undo+filter-guard active', 'color:#4ade80;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Patches v3 %c· all UX-фіксы active + per-platform schedule', 'color:#4ade80;font-weight:700;', 'color:#888;');
 })();
