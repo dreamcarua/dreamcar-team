@@ -254,4 +254,14 @@
   }, false);
 
   console.info('[HQ ctx-menu] ready');
+
+  // ============================================================
+  // LOADER CHAIN — підвантажуємо app-tg-login.js (#27)
+  // ============================================================
+  if (!document.querySelector('script[src*="app-tg-login.js"]')) {
+    var sTg = document.createElement('script');
+    sTg.src = 'app-tg-login.js?v=' + Date.now();
+    sTg.defer = true;
+    document.head.appendChild(sTg);
+  }
 })();
