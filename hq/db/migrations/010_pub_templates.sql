@@ -1,10 +1,6 @@
 -- =====================================================================
 -- Migration 010 — Publication templates (B3)
 -- =====================================================================
--- Шаблони публікацій з заданими полями (платформи, рубрика, час, ЦА,
--- відповідальні-за-замовчанням). SMM натискає «З шаблону» → 80% полів
--- заповнюються автоматично.
--- =====================================================================
 
 create table if not exists public.pub_templates (
   id          uuid primary key default gen_random_uuid(),
@@ -40,14 +36,14 @@ create policy "templates: write by lead+" on public.pub_templates
     exists(
       select 1 from public.users u
       where u.auth_id = auth.uid()
-        and u.role in ('ceo', 'coo', 'team_lead')
+        and u.role in ('ceo', 'coo', 'lead')
     )
   )
   with check (
     exists(
       select 1 from public.users u
       where u.auth_id = auth.uid()
-        and u.role in ('ceo', 'coo', 'team_lead')
+        and u.role in ('ceo', 'coo', 'lead')
     )
   );
 
@@ -133,6 +129,3 @@ insert into public.pub_templates (desk_id, name, description, icon, preset_data)
     )
   )
 on conflict do nothing;
-
--- Перевірка:
--- select id, name, icon, preset_data from public.pub_templates order by created_at;
