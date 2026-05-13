@@ -20,7 +20,7 @@
   }
   function isLead() {
     var u = getCurrentUser();
-    return u && ['ceo', 'coo', 'team_lead'].includes(u.role);
+    return u && ['ceo', 'coo', 'lead'].includes(u.role);
   }
 
   (function () {
