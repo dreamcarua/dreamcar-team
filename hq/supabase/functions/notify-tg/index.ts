@@ -1,6 +1,6 @@
 // =====================================================================
-// DreamCar HQ — Notify TG v2
-// + inline-кнопки Approve/Reject на повідомленнях review
+// DreamCar HQ — Notify TG v3
+// + inline-кнопки Approve/Reject + skip-on-tg-action
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -27,31 +27,25 @@ interface WebhookPayload {
 interface PubRow {
   id: string; title: string; status: string; publish_at: string;
   deadline_on: string | null; created_by: string | null;
+  last_action_via: string | null;
 }
 interface UserRow {
   id: string; name: string; email: string | null; role: string;
   tg_chat_id: number | string | null; tg_username: string | null;
 }
-
 interface InlineButton { text: string; callback_data: string; }
 interface ReplyMarkup { inline_keyboard: InlineButton[][]; }
 
-// ---------- TG helpers ----------
 async function tgSend(chatId: string | number, text: string, opts: { silent?: boolean; reply_markup?: ReplyMarkup } = {}) {
-  if (!TG_BOT_TOKEN) { console.warn("TG_BOT_TOKEN missing"); return; }
+  if (!TG_BOT_TOKEN) return;
   const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
   const body: Record<string, unknown> = {
     chat_id: chatId, text, parse_mode: "HTML",
-    disable_web_page_preview: true,
-    disable_notification: opts.silent ?? false,
+    disable_web_page_preview: true, disable_notification: opts.silent ?? false,
   };
   if (opts.reply_markup) body.reply_markup = opts.reply_markup;
   try {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!r.ok) console.error(`TG send fail ${r.status}: ${await r.text()}`);
   } catch (e) { console.error("TG send threw", e); }
 }
@@ -65,7 +59,6 @@ function fmtDt(iso: string): string {
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// ---------- Inline-кнопки для review ----------
 function reviewKeyboard(pubId: string): ReplyMarkup {
   return {
     inline_keyboard: [
@@ -80,7 +73,6 @@ function reviewKeyboard(pubId: string): ReplyMarkup {
   };
 }
 
-// ---------- Build notification text ----------
 function buildReviewMessage(pub: PubRow, requester: UserRow | null): string {
   const lines: string[] = [];
   lines.push(`📝 <b>На погодження</b>`);
@@ -119,7 +111,6 @@ function buildCommentMessage(pub: PubRow, comment: string, author: UserRow | nul
   ].filter(Boolean).join("\n");
 }
 
-// ---------- Webhook handlers ----------
 async function handlePubChange(supabase: ReturnType<typeof createClient>, payload: WebhookPayload) {
   const rec = payload.record as PubRow | null;
   const old = payload.old_record as PubRow | null;
@@ -127,6 +118,12 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
 
   const statusChanged = !old || old.status !== rec.status;
   if (!statusChanged) return;
+
+  // 🛡 ANTI-DUP: якщо це наслідок callback_query — кнопка вже відредагувала вихідне повідомлення
+  if ((rec.status === "approved" || rec.status === "rework") && rec.last_action_via === "tg") {
+    console.log("Skip push — last_action_via=tg");
+    return;
+  }
 
   if (rec.status === "review") {
     const { data: approvers } = await supabase
@@ -171,23 +168,16 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
 async function handleCommentInsert(supabase: ReturnType<typeof createClient>, payload: WebhookPayload) {
   const rec = payload.record as { publication_id: string; author_id: string; body: string } | null;
   if (!rec) return;
-
   const { data: pub } = await supabase
-    .from("publications")
-    .select("id, title, status, publish_at, deadline_on, created_by")
-    .eq("id", rec.publication_id)
-    .maybeSingle();
+    .from("publications").select("id, title, status, publish_at, deadline_on, created_by, last_action_via")
+    .eq("id", rec.publication_id).maybeSingle();
   if (!pub) return;
-
   const { data: author } = await supabase
     .from("users").select("*").eq("id", rec.author_id).maybeSingle();
-
   const text = buildCommentMessage(pub as PubRow, rec.body || "", author as UserRow | null);
-
   if (TG_GROUP_CHAT_ID) await tgSend(TG_GROUP_CHAT_ID, text, { silent: true });
 }
 
-// ---------- HTTP entry ----------
 function corsHeaders(origin: string | null) {
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
@@ -222,8 +212,6 @@ Deno.serve(async (req: Request) => {
       await handlePubChange(supabase, payload);
     } else if (payload.table === "comments" && payload.type === "INSERT") {
       await handleCommentInsert(supabase, payload);
-    } else {
-      console.log(`Ignoring ${payload.type} on ${payload.table}`);
     }
   } catch (e) {
     console.error("Handler threw", e);
