@@ -70,6 +70,7 @@
     'app-fts-search.js',       // G6
     'app-analytics.js',        // C2 + G7
     'app-ai-copy.js',          // A2
+    'app-templates.js',        // B3
   ];
   chain.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
