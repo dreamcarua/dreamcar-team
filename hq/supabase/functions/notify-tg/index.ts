@@ -1,6 +1,6 @@
 // =====================================================================
-// DreamCar HQ — Notify TG v3
-// + inline-кнопки Approve/Reject + skip-on-tg-action
+// DreamCar HQ — Notify TG v4
+// "Відкрити в HQ" — URL-кнопка (без callback, не флудить групу)
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -10,6 +10,8 @@ const TG_GROUP_CHAT_ID = Deno.env.get("TG_GROUP_CHAT_ID") ?? "";
 const HQ_WEBHOOK_SECRET = Deno.env.get("HQ_WEBHOOK_SECRET") ?? "";
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")     ?? Deno.env.get("HQ_DB_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
+
+const HQ_BASE_URL = "https://dreamcarua.github.io/dreamcar-team/hq/";
 
 const ALLOWED_ORIGINS = [
   "https://dreamcarua.github.io",
@@ -33,7 +35,7 @@ interface UserRow {
   id: string; name: string; email: string | null; role: string;
   tg_chat_id: number | string | null; tg_username: string | null;
 }
-interface InlineButton { text: string; callback_data: string; }
+interface InlineButton { text: string; callback_data?: string; url?: string; }
 interface ReplyMarkup { inline_keyboard: InlineButton[][]; }
 
 async function tgSend(chatId: string | number, text: string, opts: { silent?: boolean; reply_markup?: ReplyMarkup } = {}) {
@@ -67,7 +69,8 @@ function reviewKeyboard(pubId: string): ReplyMarkup {
         { text: "↩ Повернути", callback_data: `appr:${pubId}:n` },
       ],
       [
-        { text: "🔗 Відкрити в HQ", callback_data: `open:${pubId}` },
+        // URL-кнопка: клік ВІДКРИВАЄ браузер напряму, без callback'у
+        { text: "🔗 Відкрити в HQ", url: `${HQ_BASE_URL}#publication/${pubId}` },
       ],
     ],
   };
@@ -88,7 +91,7 @@ function buildApprovedMessage(pub: PubRow, approver: UserRow | null): string {
     `«${escHtml(pub.title)}»`,
     approver ? `${escHtml(approver.name)} погодив(ла)` : "",
     ``,
-    `🔗 <a href="https://dreamcarua.github.io/dreamcar-team/hq/#publication/${pub.id}">Відкрити в HQ</a>`,
+    `🔗 <a href="${HQ_BASE_URL}#publication/${pub.id}">Відкрити в HQ</a>`,
   ].filter(Boolean).join("\n");
 }
 function buildReworkMessage(pub: PubRow, approver: UserRow | null): string {
@@ -97,7 +100,7 @@ function buildReworkMessage(pub: PubRow, approver: UserRow | null): string {
     `«${escHtml(pub.title)}»`,
     approver ? `${escHtml(approver.name)} відправив(ла) на доопрацювання` : "",
     ``,
-    `🔗 <a href="https://dreamcarua.github.io/dreamcar-team/hq/#publication/${pub.id}">Відкрити в HQ · подивись коментар</a>`,
+    `🔗 <a href="${HQ_BASE_URL}#publication/${pub.id}">Відкрити в HQ · подивись коментар</a>`,
   ].filter(Boolean).join("\n");
 }
 function buildCommentMessage(pub: PubRow, comment: string, author: UserRow | null): string {
@@ -107,7 +110,7 @@ function buildCommentMessage(pub: PubRow, comment: string, author: UserRow | nul
     author ? `<i>${escHtml(author.name)}:</i>` : "",
     escHtml(truncated),
     ``,
-    `🔗 <a href="https://dreamcarua.github.io/dreamcar-team/hq/#publication/${pub.id}">Відкрити в HQ</a>`,
+    `🔗 <a href="${HQ_BASE_URL}#publication/${pub.id}">Відкрити в HQ</a>`,
   ].filter(Boolean).join("\n");
 }
 
@@ -119,7 +122,7 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
   const statusChanged = !old || old.status !== rec.status;
   if (!statusChanged) return;
 
-  // 🛡 ANTI-DUP: якщо це наслідок callback_query — кнопка вже відредагувала вихідне повідомлення
+  // 🛡 anti-dup: callback_query вже відредагував повідомлення з кнопками
   if ((rec.status === "approved" || rec.status === "rework") && rec.last_action_via === "tg") {
     console.log("Skip push — last_action_via=tg");
     return;
@@ -139,7 +142,7 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
     if (TG_GROUP_CHAT_ID) await tgSend(TG_GROUP_CHAT_ID, text, { reply_markup: kb });
 
     for (const row of approvers ?? []) {
-      // @ts-ignore — join shape
+      // @ts-ignore join shape
       const u: UserRow | undefined = row.users;
       if (u?.tg_chat_id) await tgSend(u.tg_chat_id, text, { reply_markup: kb });
     }
@@ -158,7 +161,7 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
 
     if (TG_GROUP_CHAT_ID) await tgSend(TG_GROUP_CHAT_ID, text);
     for (const row of resps ?? []) {
-      // @ts-ignore — join shape
+      // @ts-ignore join shape
       const u: UserRow | undefined = row.users;
       if (u?.tg_chat_id) await tgSend(u.tg_chat_id, text);
     }
