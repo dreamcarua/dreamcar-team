@@ -1,9 +1,9 @@
 /* ============================================================
    DreamCar HQ — Extras
    • Дублювання публікації
-   • Експорт у .ics (календар)
-   • Keyboard shortcuts help (?)
-   Завантажується через app-locks.js (loader chain).
+   • Експорт у .ics
+   • Keyboard help (?)
+   • Settings route fix (hashchange race з app-views.js)
    ============================================================ */
 
 (function () {
@@ -28,6 +28,33 @@
   })();
 
   // ============================================================
+  // FIX: settings route (high-priority hashchange listener)
+  // ============================================================
+  // app-views.js підписався на hashchange ще ДО того, як app-patches.js
+  // підмінив window.navigate. Через closure listener дзвонить стару
+  // версію без settings-маршруту. Тому додаємо ВЛАСНИЙ listener,
+  // який спрацьовує паралельно й гарантовано рендерить settings.
+  function maybeRenderSettings() {
+    var hash = (location.hash || '').slice(1);
+    var route = hash.split('/')[0];
+    if (route !== 'settings') return;
+    if (typeof window.renderSettings !== 'function') return;
+    var main = document.getElementById('main');
+    if (!main) return;
+    // Очистити active у sidebar
+    document.querySelectorAll('.sidebar a.nav-item').forEach(function (a) { a.classList.remove('active'); });
+    var settingsLink = document.querySelector('.sidebar a[data-route="settings"]');
+    if (settingsLink) settingsLink.classList.add('active');
+    var bc = document.getElementById('breadcrumb');
+    if (bc) bc.innerHTML = 'Стіл SMM · <b>Налаштування</b>';
+    window.renderSettings(main);
+  }
+  window.addEventListener('hashchange', maybeRenderSettings);
+  // Перевірити одразу при завантаженні
+  setTimeout(maybeRenderSettings, 200);
+  setTimeout(maybeRenderSettings, 1000);
+
+  // ============================================================
   // DUPLICATE PUBLICATION
   // ============================================================
   function duplicatePub(srcId) {
@@ -39,12 +66,10 @@
       (window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'p_' + Math.random().toString(36).slice(2, 10));
     clone.title = (src.title || 'Без назви') + ' (копія)';
     clone.status = 'draft';
-    // Дату публікації змістимо на +1 день
     try {
       var d = new Date(src.dateTime);
       d.setDate(d.getDate() + 1);
       clone.dateTime = d.toISOString();
-      // Дедлайн теж змістимо (якщо був авто)
       if (src.deadline && typeof deadlineFromDate === 'function') {
         clone.deadline = deadlineFromDate(clone.dateTime);
       }
@@ -63,7 +88,6 @@
     delete clone._trashedAt;
     delete clone._isNew;
 
-    // Зберігаємо й переходимо у нову картку
     var r = Store.upsertPub(clone);
     if (r && typeof r.then === 'function') {
       r.then(function () {
@@ -77,7 +101,6 @@
   }
   window.duplicatePub = duplicatePub;
 
-  // Додати кнопку «📋 Дублювати» у footer відкритої картки публікації
   function addDuplicateButton(p) {
     var foot = document.querySelector('.modal-foot');
     if (!foot || !p || !p.id) return;
@@ -92,7 +115,6 @@
     else foot.insertBefore(btn, foot.firstChild);
   }
 
-  // Хук на openCard
   function patchOpenCardForExtras() {
     if (typeof window.openCard !== 'function' || window.openCard.__extrasPatched) return;
     var _orig = window.openCard;
@@ -124,7 +146,6 @@
     lines.push('CALSCALE:GREGORIAN');
     function ics(dt) {
       var d = new Date(dt); if (isNaN(d.getTime())) return '';
-      // YYYYMMDDTHHMMSSZ
       var pad = function (n) { return String(n).padStart(2, '0'); };
       return d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) + 'T' +
         pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + '00Z';
@@ -137,7 +158,6 @@
       if (p._trashed) return;
       var start = ics(p.dateTime);
       if (!start) return;
-      // duration ~30хв
       var endDt = new Date(p.dateTime); endDt.setMinutes(endDt.getMinutes() + 30);
       var end = ics(endDt.toISOString());
       var platforms = (p.platforms || []).join(',');
@@ -196,7 +216,6 @@
   }
   window.showKbdHelp = showKbdHelp;
 
-  // Listen for ? key
   document.addEventListener('keydown', function (e) {
     if (e.target && e.target.matches && e.target.matches('input, textarea, select, [contenteditable]')) return;
     if (e.key === '?' || (e.shiftKey && e.key === '/')) {
@@ -205,5 +224,5 @@
     }
   });
 
-  console.log('%cDreamCar HQ Extras %c· duplicate + ICS + kbd-help active', 'color:#a78bfa;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Extras %c· duplicate + ICS + kbd-help + settings-route-fix active', 'color:#a78bfa;font-weight:700;', 'color:#888;');
 })();
