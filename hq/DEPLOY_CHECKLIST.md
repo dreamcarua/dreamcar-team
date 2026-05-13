@@ -1,173 +1,180 @@
-# Deploy Checklist — що треба зробити в Supabase
+# Deploy Checklist — Supabase
 
-Коротко: усі файли і код вже в репозиторії та на live сайті. Тут — що ще треба натиснути руками в Supabase Dashboard, щоб бекенд запрацював на 100%.
-
-Кожен крок — окремий чекбокс. Можна йти зверху вниз.
+Чек-лист дій у Supabase Dashboard для повноцінного запуску HQ. Йди зверху вниз — крок за кроком.
 
 ---
 
-## 1. Виконати SQL-міграції
+## 1. SQL міграції (по черзі в SQL Editor)
 
-Відкрий **Supabase Dashboard → SQL Editor → New query**. По черзі копіюй вміст файлів і тисни Run:
+- [x] `hq/db/schema.sql` — таблиці
+- [x] `hq/db/rls.sql` — Row-Level Security
+- [x] `hq/db/seed.sql` — демо-дані
+- [x] `hq/db/triggers.sql` — `handle_new_user` (critical)
+- [x] `hq/db/migrations/002_tg_notifications.sql` — `tg_chat_id`, `tg_username`
+- [x] `hq/db/migrations/003_storage_policies.sql` — Storage RLS + `platform_schedule` + `deleted_at`
+- [ ] `hq/db/migrations/004_cron_daily_digest.sql` — щоденний digest о 09:00 Kyiv
+- [ ] `hq/db/migrations/005_cleanup_cron.sql` — cleanup expired editing_sessions + старі trashed pubs
 
-- [ ] `hq/db/schema.sql` — створює таблиці
-- [ ] `hq/db/rls.sql` — Row-Level Security
-- [ ] `hq/db/seed.sql` — демо-дані (опційно; для prod пропусти)
-- [ ] `hq/db/triggers.sql` — **критично** — auto-створення public.users + backfill
-- [ ] `hq/db/migrations/002_tg_notifications.sql` — додає tg_chat_id для нотифікацій
+**Перед 004/005 переконайся, що pg_cron увімкнено:**
+Dashboard → Database → Extensions → знайди `pg_cron` → Enable.
 
-Після `triggers.sql`:
+**Перед 004 додай налаштування для cron:**
 ```sql
--- Перевірка: твій акаунт у public.users?
-select email, role, active from public.users where email = 'vg@abrisart.com';
--- Має бути: vg@abrisart.com | ceo | t
-
--- Якщо dreamcarua@gmail.com ще не логінився — він з'явиться при першому логіні автоматично з role=ceo.
+alter database postgres set app.daily_digest_url =
+  'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/daily-digest';
+alter database postgres set app.hq_cron_secret = '<значення_HQ_CRON_SECRET>';
 ```
 
 ---
 
-## 2. Створити Storage bucket «creatives»
+## 2. Storage bucket `creatives`
 
-- [ ] Supabase Dashboard → **Storage** → **New bucket**
-- [ ] Name: `creatives`
-- [ ] Public bucket: ✓ так
-- [ ] File size limit: 50 MB (можна збільшити пізніше)
-
-Без цього креативи (фото/відео) з drag-drop не завантажуватимуться.
+- [x] Dashboard → Storage → New bucket
+- [x] Name: `creatives` · Public: ✓ · File size limit: 50 MB
 
 ---
 
-## 3. Налаштувати Google OAuth Site URL
+## 3. Authentication URL Configuration
 
-- [ ] Supabase Dashboard → **Authentication → URL Configuration**
-- [ ] Site URL: `https://dreamcarua.github.io/dreamcar-team/hq/`
-- [ ] Redirect URLs (Add URL): `https://dreamcarua.github.io/**`
-
-Без цього після Google-логіну виникає редірект на `localhost:3000`.
+- [x] Dashboard → Authentication → URL Configuration
+- [x] Site URL: `https://dreamcarua.github.io/dreamcar-team/hq/`
+- [x] Redirect URLs: `https://dreamcarua.github.io/**`
 
 ---
 
-## 4. Edge Function `notify-tg` — деплой
-
-Потрібен Supabase CLI на локальному компі.
+## 4. Edge Functions deploy
 
 ```bash
-# Встановити CLI (один раз)
 npm install -g supabase
-
-# З репо
 cd dreamcar-team
-supabase login                          # → відкриє браузер для авторизації
+supabase login
 supabase link --project-ref wotghlaehnvxyeacznvv
 
-# Деплой функції
+# notify-tg (webhook — реагує на зміни статусу, нові коментарі)
 supabase functions deploy notify-tg --no-verify-jwt --project-ref wotghlaehnvxyeacznvv
+
+# daily-digest (cron — щоденне зведення)
+supabase functions deploy daily-digest --no-verify-jwt --project-ref wotghlaehnvxyeacznvv
 ```
 
 ---
 
-## 5. Secrets для Edge Function
+## 5. Secrets для Edge Functions
 
-- [ ] Dashboard → **Project Settings → Edge Functions → Manage secrets**
-- [ ] Додай:
-  - `TG_BOT_TOKEN` = `<токен бота @YourBot>` (взяти у @BotFather)
-  - `TG_GROUP_CHAT_ID` = `-5205303628` (з пам'яті — group chat команди)
-  - `HQ_WEBHOOK_SECRET` = `<згенеруй випадковий рядок>`. Наприклад: `openssl rand -hex 32` у терміналі. Збережи цей рядок — знадобиться у кроці 6.
+Dashboard → Project Settings → Edge Functions → Manage secrets:
 
-`SUPABASE_URL` та `SUPABASE_SERVICE_ROLE_KEY` встановлюються Supabase автоматично — нічого додавати не треба.
+| Secret | Значення |
+|---|---|
+| `TG_BOT_TOKEN` | токен від `@BotFather` |
+| `TG_GROUP_CHAT_ID` | `-5205303628` |
+| `HQ_WEBHOOK_SECRET` | згенерувати: `openssl rand -hex 32` |
+| `HQ_CRON_SECRET` | окремий: `openssl rand -hex 32` |
+
+`SUPABASE_URL` та `SUPABASE_SERVICE_ROLE_KEY` — Supabase встановить автоматично.
 
 ---
 
-## 6. Database Webhooks
+## 6. Database Webhooks (для notify-tg)
 
-- [ ] Dashboard → **Database → Webhooks** → **Create a new hook**
+Dashboard → Database → Webhooks → Create:
 
-**Webhook #1: publication-status-changed**
+**Webhook #1: `publication-status-changed`**
+- Table: `publications`
+- Events: ✓ INSERT, ✓ UPDATE
+- Type: Supabase Edge Functions → `notify-tg`
+- Headers: `x-hq-secret: <HQ_WEBHOOK_SECRET>`
 
-| Поле | Значення |
-|---|---|
-| Name | `publication-status-changed` |
-| Table | `publications` |
-| Events | ✓ INSERT, ✓ UPDATE |
-| Type | Supabase Edge Functions |
-| Edge Function | `notify-tg` |
-| Method | POST |
-| HTTP Headers | `x-hq-secret: <те ж значення, що в HQ_WEBHOOK_SECRET>` |
-
-**Webhook #2: comment-added**
-
-| Поле | Значення |
-|---|---|
-| Name | `comment-added` |
-| Table | `comments` |
-| Events | ✓ INSERT |
-| Type | Supabase Edge Functions |
-| Edge Function | `notify-tg` |
-| Method | POST |
-| HTTP Headers | `x-hq-secret: <те ж значення>` |
+**Webhook #2: `comment-added`**
+- Table: `comments`
+- Events: ✓ INSERT
+- Type: Supabase Edge Functions → `notify-tg`
+- Headers: `x-hq-secret: <HQ_WEBHOOK_SECRET>`
 
 ---
 
 ## 7. Smoke test
 
-1. [ ] Відкрий `https://dreamcarua.github.io/dreamcar-team/hq/`
-2. [ ] Залогінься через Google під `vg@abrisart.com`
-3. [ ] Створи нову публікацію (Cmd+N або `+ Нова публікація`)
-4. [ ] Заповни мінімум: назва, дата, майданчик, рубрика, текст
-5. [ ] Натисни «На погодження»
-6. [ ] У TG-групі команди має з'явитися:
-   ```
-   📝 На погодження
-   «...»
-   ...
-   🔗 Відкрити в HQ
-   ```
-7. [ ] Натисни «Погодити» — у групу прилетить підтвердження.
+1. Відкрий https://dreamcarua.github.io/dreamcar-team/hq/
+2. Залогінься через Google (`dreamcarua@gmail.com` — CEO)
+3. Створи нову публікацію → заповни → «На погодження»
+4. В TG-групі прилетить «📝 На погодження…»
+5. Поверни як CEO → «✓ Погодити» → прилетить «✅ Погоджено»
+6. Перевір **Налаштування** (👤 у топбарі → Профіль): можна вписати `tg_chat_id` для персональних DM
+7. Натисни `?` — оверлей гарячих клавіш
+8. Натисни `C` — створити публікацію
+9. Видали тестову → 7 сек «↶ Повернути» → відновити
 
 ---
 
-## Опційно
-
-### Прив'язка персональних TG для DM
-
-Поки немає TG Login Widget — DM прив'язуються вручну:
+## 8. Ручний тест daily-digest
 
 ```sql
-update public.users
-set tg_chat_id = <твій chat_id>
-where email = 'твій-email';
+select net.http_post(
+  url := 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/daily-digest',
+  headers := jsonb_build_object('x-hq-cron-secret', '<HQ_CRON_SECRET>'),
+  body := '{}'::jsonb
+);
 ```
 
-Як знайти свій `chat_id`: напиши боту `/start`, потім відкрий:
-`https://api.telegram.org/bot<TOKEN>/getUpdates`
-у `result[0].message.chat.id` буде твій номер.
-
-### Доступ для dreamcarua@gmail.com
-
-`triggers.sql` уже видає CEO роль автоматично коли цей email логіниться вперше. Нічого додатково не треба.
-
-Якщо акаунт уже логінився ДО того, як ти виконав `triggers.sql`, backfill-блок з кінця файлу проставить йому правильну роль.
+Має прилетіти у TG-групу повідомлення «📅 Daily digest · DD.MM.YYYY».
 
 ---
 
-## Що тоді live зараз?
+## Все що live зараз
 
-Все що нижче — **вже на проді** (`https://dreamcarua.github.io/dreamcar-team/hq/`):
+### ✅ Виконано
 
 - Календар (Місяць/Тиждень/День/Список) з drag-drop
 - Дошка погоджень
-- Бібліотека креативів з реальними thumbnails
-- Картка публікації: усі поля, workflow, auto-save, прев'ю IG/TG
-- Drag-drop креативів у картку + Supabase Storage
+- Бібліотека креативів з реальними thumbnails (фото/відео)
+- Картка публікації: всі поля, workflow, auto-save, прев'ю всіх 6 платформ
+- **Per-platform date/time** — окремий час для IG, TG, TT, YT, FB, Threads
+- Drag-drop креативів + Supabase Storage
 - Гібридний Store: Supabase + localStorage fallback
 - Realtime sync через Supabase channels
 - Google OAuth + Auth gate
 - Spinner на workflow-кнопках + lock проти подвійних натискань
-- Урядові ribbon-фільтри платформ
-- handle_new_user trigger (auto-create users + CEO для VG/dreamcarua)
+- handle_new_user trigger (auto-create users, CEO для dreamcarua)
+- Real bell counter (queue + urgent + missed)
+- **Settings page** (`#settings`) з прив'язкою `tg_chat_id`
+- **TG-нотифікації** (webhook → Edge Function → bot)
+- **Daily digest** (cron → ранкове зведення)
+- **Soft-delete з Undo** (7 сек, повне видалення через 30 днів)
+- **Soft-lock** через editing_sessions (банер «X редагує»)
+- **Дублювання публікації** (📋 у footer картки)
+- **ICS експорт** (`window.exportIcs()` у консолі)
+- **Keyboard help** (`?` — оверлей)
+- Sidebar filter: ✓ + яскравіший active
+- Filter click guard (не відкриває знову картку)
+- Autosave flush at Modal.close
 
-Що **в файлах, але ще не задеплоєно**:
+### 🟡 Опційно/майбутнє
 
-- Edge Function `notify-tg` (кроки 4–6 вище)
-- Колонки `tg_chat_id`, `tg_username` у `users` (крок 1.5 — `migrations/002_tg_notifications.sql`)
+- **TG Login Widget** — потрібен bot username + `/setdomain` у `@BotFather`
+- **Google Drive resumable upload** — для файлів > 50 MB
+- **Telegram bot inbound** — щоб автоматично прив'язувати chat_id через `/start hq_<userid>`
+
+---
+
+## Якщо щось не працює
+
+1. **Upload падає** → перевір що міграція 003 виконана; bucket Public; ти залогінений як authenticated.
+2. **TG-повідомлення не приходять** → перевір секрети, webhook headers, чи бот доданий у групу.
+3. **Daily digest мовчить** → `select * from cron.job_run_details order by start_time desc limit 5;` — глянь на errors.
+4. **Login → localhost** → перевір Site URL у Authentication → URL Configuration.
+5. **«new row violates RLS»** при upload → міграція 003 не виконана.
+
+---
+
+## Корисні консольні команди (DevTools)
+
+```js
+HQ.reset()              // скинути demo дані (тільки в demo-режимі)
+HQ.signOut()            // вийти з акаунту
+HQ.store                // інспектор store
+HQ_LOCKS.current()      // які публікації під soft-lock
+updateBellBadge()       // оновити лічильник дзвоника
+exportIcs()             // експорт календаря у .ics
+showKbdHelp()           // оверлей гарячих клавіш
+duplicatePub('<id>')    // дублювати публікацію
+```
