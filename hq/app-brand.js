@@ -17,14 +17,12 @@
 
   // ---- 1. Favicon ----
   (function () {
-    // Видаляємо існуючі
     document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(function (l) { l.remove(); });
     var link = document.createElement('link');
     link.rel = 'icon';
     link.type = 'image/x-icon';
     link.href = FAVICON_URL;
     document.head.appendChild(link);
-    // Apple touch icon — теж для PWA-like
     var apple = document.createElement('link');
     apple.rel = 'apple-touch-icon';
     apple.href = FAVICON_URL;
@@ -37,7 +35,6 @@
     var s = document.createElement('style');
     s.id = 'hq-brand-colors';
     s.textContent =
-      // DreamCar palette
       ':root {' +
         '--bg:        #0a0a0e;' +
         '--bg-2:      #141414;' +
@@ -64,7 +61,7 @@
         '--shadow:    0 12px 32px rgba(0,0,0,0.55);' +
         '--brand-grad: linear-gradient(135deg, #d80004, #ff6a1f);' +
       '}' +
-      // Тіні з brand red glow
+      // Brand buttons
       '.btn-primary {' +
         'background: var(--brand-grad);' +
         'border-color: var(--red);' +
@@ -74,13 +71,13 @@
         'background: linear-gradient(135deg, #ff1a1e, #ff7a30);' +
         'border-color: #ff1a1e;' +
       '}' +
-      // Headlines у DreamCar-стилі — uppercase, tight, expressive
+      // Headlines DreamCar-style
       '.view-header h1, .modal-head h2, .auth-card h1 {' +
         'text-transform: uppercase;' +
         'letter-spacing: -0.01em;' +
         'font-weight: 900;' +
       '}' +
-      // Логотип через img — більший і чіткіший
+      // Logo
       '.logo {' +
         'background: linear-gradient(180deg, #0d0d11 0%, #141418 100%);' +
         'padding: 0 14px;' +
@@ -95,33 +92,46 @@
         'padding: 0;' +
         'flex-shrink: 0;' +
       '}' +
-      '.logo-mark img {' +
-        'width: 100%; height: 100%; object-fit: contain; display: block;' +
-      '}' +
-      '.logo-mark .dc-fallback {' +
-        'display: none;' +
-      '}' +
+      '.logo-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }' +
+      '.logo-mark .dc-fallback { display: none; }' +
       '.logo-text { margin-left: 8px; }' +
       '.logo-text .small { color: var(--red-soft); }' +
-      // Auth screen — додаємо drama
+      // Auth screen FULL OPAQUE OVERLAY (фікс прозорості)
       '.auth-screen {' +
-        'background: radial-gradient(ellipse at top, rgba(216,0,4,0.12) 0%, #0a0a0e 60%) !important;' +
+        'background: ' +
+          'radial-gradient(ellipse at top, rgba(216,0,4,0.18) 0%, transparent 50%),' +
+          'radial-gradient(ellipse at bottom, rgba(255,106,31,0.1) 0%, transparent 50%),' +
+          '#000 !important;' +
+        'z-index: 9999 !important;' +
+      '}' +
+      '.auth-card {' +
+        'box-shadow: 0 30px 100px -20px rgba(216,0,4,0.4), 0 0 60px rgba(0,0,0,0.8) !important;' +
+        'border: 1px solid rgba(216,0,4,0.3) !important;' +
       '}' +
       '.auth-card .auth-logo {' +
         'background: var(--brand-grad) !important;' +
-        'box-shadow: 0 10px 32px -6px rgba(216,0,4,0.7) !important;' +
-        'width: 64px; height: 64px;' +
-        'overflow: hidden; padding: 0;' +
+        'box-shadow: 0 12px 40px -6px rgba(216,0,4,0.7) !important;' +
+        'width: 72px; height: 72px;' +
+        'overflow: hidden; padding: 6px;' +
+        'border-radius: 14px;' +
       '}' +
       '.auth-card .auth-logo img {' +
         'width: 100%; height: 100%; object-fit: contain;' +
       '}' +
-      // Calendar today highlight
+      '.auth-card h1 {' +
+        'background: var(--brand-grad);' +
+        '-webkit-background-clip: text;' +
+        '-webkit-text-fill-color: transparent;' +
+        'background-clip: text;' +
+        'font-size: 26px !important;' +
+        'letter-spacing: 1px;' +
+      '}' +
+      // Calendar today
       '.cal-day.today .day-num {' +
         'background: var(--brand-grad) !important;' +
         'box-shadow: 0 0 12px rgba(216,0,4,0.5);' +
       '}' +
-      // Sidebar active item
+      // Sidebar active
       '.sidebar a.nav-item.active {' +
         'background: linear-gradient(90deg, rgba(216,0,4,0.18), rgba(255,106,31,0.05)) !important;' +
         'color: #fff !important;' +
@@ -132,46 +142,41 @@
         'background: var(--red);' +
         'box-shadow: 0 0 8px var(--red);' +
       '}' +
-      // Logo subtle glow
+      // Status — review (gold red glow)
+      '.status.review { box-shadow: 0 0 12px rgba(251,191,36,0.25); }' +
+      // Logo pulse on hover
       '@keyframes hq-brand-pulse {' +
         '0%,100% { box-shadow: 0 4px 18px -4px rgba(216,0,4,0.4); }' +
         '50%     { box-shadow: 0 4px 24px -4px rgba(216,0,4,0.7); }' +
       '}' +
-      '.logo:hover .logo-mark {' +
-        'animation: hq-brand-pulse 1.5s ease-in-out infinite;' +
-      '}';
+      '.logo:hover .logo-mark { animation: hq-brand-pulse 1.5s ease-in-out infinite; }';
     document.head.appendChild(s);
   })();
 
-  // ---- 3. Replace topbar logo with real DreamCar plate ----
+  // ---- 3. Replace topbar logo ----
   function applyTopbarLogo() {
     var logoMark = document.querySelector('.logo .logo-mark');
     if (!logoMark) return;
     if (logoMark.dataset.brandApplied) return;
     logoMark.dataset.brandApplied = '1';
 
-    // Append real img
     var img = document.createElement('img');
     img.src = LOGO_PLATE_URL;
     img.alt = 'DreamCar';
     img.loading = 'eager';
     img.onerror = function () {
-      // Fallback — повертаємо текстове "DC"
       logoMark.innerHTML = '<span class="dc-fallback" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-weight:800;color:#fff;">DC</span>';
     };
-
-    // Чистимо існуючий текст "DC" і кладемо img
     logoMark.innerHTML = '';
     logoMark.appendChild(img);
 
-    // Update logo-text
     var logoText = document.querySelector('.logo .logo-text');
     if (logoText) {
       logoText.innerHTML = '<span style="font-weight:800;color:#fff;letter-spacing:0.5px;">HQ</span> <span class="small">КОМАНДНИЙ ШТАБ</span>';
     }
   }
 
-  // ---- 4. Replace auth-screen logo too ----
+  // ---- 4. Replace auth-screen logo ----
   function applyAuthLogo() {
     var authLogo = document.querySelector('.auth-card .auth-logo');
     if (!authLogo) return;
@@ -181,21 +186,20 @@
     var img = document.createElement('img');
     img.src = LOGO_PLATE_URL;
     img.alt = 'DreamCar';
-    img.onerror = function () {
-      authLogo.textContent = 'DC';
-    };
+    img.onerror = function () { authLogo.textContent = 'DC'; };
     authLogo.textContent = '';
     authLogo.appendChild(img);
+
+    // Update title H1
+    var h1 = document.getElementById('authTitle');
+    if (h1) h1.textContent = 'DREAMCAR HQ';
   }
 
   // ---- 5. Title update ----
-  if (document.title.indexOf('DreamCar') < 0) {
-    document.title = 'DreamCar HQ · Командний штаб';
-  } else {
+  if (document.title.indexOf('Командний') < 0) {
     document.title = document.title.replace('Стіл SMM', 'Командний штаб');
   }
 
-  // Run on DOM ready + retries (бо у нас рендеринг динамічний)
   function runAll() {
     applyTopbarLogo();
     applyAuthLogo();
@@ -203,7 +207,6 @@
   runAll();
   [200, 800, 1800, 3500].forEach(function (ms) { setTimeout(runAll, ms); });
 
-  // Also re-run when auth screen toggles
   var obs = new MutationObserver(runAll);
   obs.observe(document.body, { childList: true, subtree: true });
 
