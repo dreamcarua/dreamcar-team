@@ -1,6 +1,6 @@
 // =====================================================================
-// DreamCar HQ — TG Webhook v6
-// + callback_query handler для inline-кнопок (✓ Погодити / ↩ Повернути)
+// DreamCar HQ — TG Webhook v7
+// + last_action_via='tg' marker (захист від подвійного push'у)
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -38,11 +38,7 @@ async function tgSend(chatId: number | string, text: string, opts: { silent?: bo
   };
   if (opts.reply_markup) body.reply_markup = opts.reply_markup;
   try {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!r.ok) console.error("tgSend fail", r.status, await r.text());
   } catch (e) { console.error("tgSend threw", e); }
 }
@@ -56,11 +52,7 @@ async function tgEditMessage(chatId: number, messageId: number, text: string, re
   };
   if (replyMarkup) body.reply_markup = replyMarkup;
   try {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!r.ok) console.error("tgEditMessage fail", r.status, await r.text());
   } catch (e) { console.error("tgEditMessage threw", e); }
 }
@@ -116,45 +108,30 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
   const data = (cb.data || "").trim();
   const fromId = cb.from.id;
   const msg = cb.message;
-  if (!data || !msg) {
-    await tgAnswerCallback(cb.id, "Помилка: відсутні дані");
-    return;
-  }
+  if (!data || !msg) { await tgAnswerCallback(cb.id, "Помилка: відсутні дані"); return; }
 
-  // appr:<pubId>:y|n
-  // open:<pubId>
   const parts = data.split(":");
   const action = parts[0];
   const pubId = parts[1];
 
   if (action === "open") {
     await tgAnswerCallback(cb.id, "Відкриваю...");
-    await tgSend(msg.chat.id, `🔗 <a href="${HQ_URL}#publication/${escHtml(pubId)}">Відкрити «${escHtml(pubId.slice(0,8))}…» у HQ</a>`);
+    await tgSend(msg.chat.id, `🔗 <a href="${HQ_URL}#publication/${escHtml(pubId)}">Відкрити у HQ</a>`);
     return;
   }
+  if (action !== "appr" || !pubId) { await tgAnswerCallback(cb.id, "Невідома дія"); return; }
 
-  if (action !== "appr" || !pubId) {
-    await tgAnswerCallback(cb.id, "Невідома дія");
-    return;
-  }
+  const decision = parts[2];
 
-  const decision = parts[2]; // y | n
-
-  // 1. Знайти юзера що клацнув
   const { data: user, error: userErr } = await supabase
     .from("users").select("id, name, role")
     .eq("tg_chat_id", fromId).maybeSingle();
-  if (userErr) {
-    await tgAnswerCallback(cb.id, `Помилка БД: ${userErr.message}`, true);
-    return;
-  }
+  if (userErr) { await tgAnswerCallback(cb.id, `Помилка БД: ${userErr.message}`, true); return; }
   if (!user) {
-    await tgAnswerCallback(cb.id,
-      "Спочатку привʼяжи свій акаунт: напиши боту в особисті /start", true);
+    await tgAnswerCallback(cb.id, "Спочатку прив'яжи свій акаунт: напиши боту у DM /start", true);
     return;
   }
 
-  // 2. Перевірити що user — approver для цієї публікації
   const { data: appr } = await supabase
     .from("publication_approvers")
     .select("user_id").eq("publication_id", pubId).eq("user_id", user.id).maybeSingle();
@@ -163,49 +140,45 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     return;
   }
 
-  // 3. Завантажити публікацію (перевіримо що вона ще на review)
   const { data: pub } = await supabase
     .from("publications").select("id, title, status").eq("id", pubId).maybeSingle();
-  if (!pub) {
-    await tgAnswerCallback(cb.id, "Публікацію не знайдено", true);
-    return;
-  }
+  if (!pub) { await tgAnswerCallback(cb.id, "Публікацію не знайдено", true); return; }
   if (pub.status !== "review") {
     await tgAnswerCallback(cb.id, `Публікація вже у статусі: ${pub.status}`, true);
-    // Прибираємо кнопки що застаріли
     if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id, msg.text + `\n\n<i>⚠️ Статус уже змінено: ${pub.status}</i>`);
     return;
   }
 
-  // 4. Виконати дію
   const newStatus = decision === "y" ? "approved" : "rework";
+
+  // 🎯 ВАЖЛИВО: last_action_via='tg' — щоб notify-tg НЕ дублював push
   const { error: updErr } = await supabase
     .from("publications")
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .update({
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+      last_action_via: "tg",
+    })
     .eq("id", pubId);
   if (updErr) {
     await tgAnswerCallback(cb.id, `Помилка: ${updErr.message}`, true);
     return;
   }
 
-  // 5. History
   await supabase.from("publication_history").insert({
     publication_id: pubId,
     actor_id: user.id,
     action: decision === "y" ? "approve" : "reject",
-    detail: decision === "y" ? "" : "↩️ Повернуто через TG-кнопку (без коментаря)",
+    detail: decision === "y" ? "✓ через TG-кнопку" : "↩️ Повернуто через TG-кнопку (без коментаря)",
   });
 
-  // 6. Edit оригінальне повідомлення — прибираємо кнопки + додаємо хто/коли
   const decisionLabel = decision === "y" ? "✅ <b>Погоджено</b>" : "↩️ <b>Повернуто</b>";
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const ts = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const newText = (msg.text || "") +
-    `\n\n${decisionLabel} · ${escHtml(user.name || "?")} · ${ts}`;
-  await tgEditMessage(msg.chat.id, msg.message_id, newText); // без reply_markup → кнопки прибрано
+  const newText = (msg.text || "") + `\n\n${decisionLabel} · ${escHtml(user.name || "?")} · ${ts}`;
+  await tgEditMessage(msg.chat.id, msg.message_id, newText);
 
-  // 7. Toast
   await tgAnswerCallback(cb.id, decision === "y" ? "✅ Погоджено!" : "↩️ Повернуто на доопрацювання");
 }
 
@@ -329,13 +302,11 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
   try {
-    // ---- callback_query ----
     if (update.callback_query) {
       await handleCallback(supabase, update.callback_query);
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
-    // ---- message ----
     const msg = update.message;
     if (!msg || !msg.text) {
       return new Response(JSON.stringify({ ok: true, ignored: "non-text" }), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -359,7 +330,6 @@ Deno.serve(async (req: Request) => {
     else if (cmd === "/whoami") await handleWhoami(supabase, chatId, tgUser, isGroup);
     else if (cmd === "/help") await handleHelp(chatId, isGroup);
     else if (cmd && !isGroup) await tgSend(chatId, "ℹ️ Не зрозумів. Спробуй /help");
-    // інакше: тиша
 
   } catch (e) {
     console.error("handler error", e);
