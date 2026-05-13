@@ -1,39 +1,5 @@
 // =====================================================================
-// DreamCar HQ — TG Webhook (inbound bot)
-// =====================================================================
-// Приймає updates від Telegram коли юзер пише боту.
-// Обробляє команди:
-//   /start hq_<user_id>  — прив'язати chat_id до user.id у public.users
-//   /start               — підказка з посиланням на HQ
-//   /unbind              — видалити прив'язку
-//   /whoami              — показати поточну прив'язку
-//   /help                — список команд
-//
-// БЕЗПЕКА:
-// Telegram дає опційний secret_token при setWebhook — він приходить
-// у заголовку `X-Telegram-Bot-Api-Secret-Token`. Ми порівнюємо з
-// нашим TG_WEBHOOK_SECRET. Це native-механізм Telegram, без custom auth.
-//
-// Конфіг (Edge Functions → Manage secrets):
-//   TG_BOT_TOKEN       — токен бота
-//   TG_WEBHOOK_SECRET  — секрет для setWebhook (рандомний рядок)
-//   SUPABASE_URL              (auto)
-//   SUPABASE_SERVICE_ROLE_KEY (auto)
-//
-// SETUP (один раз, після deploy):
-//   curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-//     -H "Content-Type: application/json" \
-//     -d '{"url":"https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-webhook","secret_token":"<TG_WEBHOOK_SECRET>"}'
-//
-// Або через SQL Editor:
-//   select net.http_post(
-//     url := 'https://api.telegram.org/bot<TOKEN>/setWebhook',
-//     headers := jsonb_build_object('Content-Type','application/json'),
-//     body := jsonb_build_object(
-//       'url','https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-webhook',
-//       'secret_token','<TG_WEBHOOK_SECRET>'
-//     )
-//   );
+// DreamCar HQ — TG Webhook v2 (inbound bot + diagnostics)
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -61,9 +27,7 @@ async function tgSend(chatId: number | string, text: string): Promise<void> {
       body: JSON.stringify(body),
     });
     if (!r.ok) console.error("tgSend fail", r.status, await r.text());
-  } catch (e) {
-    console.error("tgSend threw", e);
-  }
+  } catch (e) { console.error("tgSend threw", e); }
 }
 
 function escHtml(s: string): string {
@@ -77,61 +41,76 @@ interface TgUpdate {
     from?: { id: number; username?: string; first_name?: string; last_name?: string; };
     text?: string;
   };
-  callback_query?: unknown;
 }
 
 async function handleStart(supabase: ReturnType<typeof createClient>, chatId: number, tgUser: { username?: string; first_name?: string; last_name?: string }, payload: string): Promise<void> {
-  // Очікуємо payload виду "hq_<uuid>"
   const m = payload.match(/^hq_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
   if (!m) {
     await tgSend(chatId,
       `👋 Привіт${tgUser.first_name ? ", " + escHtml(tgUser.first_name) : ""}!\n\n` +
-      `Це бот <b>DreamCar HQ</b>. Я надсилатиму тобі персональні нотифікації про твої публікації.\n\n` +
-      `Щоб прив'язати свій акаунт:\n` +
+      `Це бот <b>DreamCar HQ</b>.\n\n` +
+      `🆔 <b>Твій chat_id:</b> <code>${chatId}</code>\n` +
+      (tgUser.username ? `📛 <b>TG username:</b> @${escHtml(tgUser.username)}\n\n` : "\n") +
+      `Щоб привʼязати акаунт:\n` +
       `1. Відкрий HQ: <a href="${HQ_URL}">${HQ_URL}</a>\n` +
       `2. Залогінься (Google)\n` +
       `3. Перейди у <b>Налаштування → Telegram</b>\n` +
-      `4. Натисни <i>«Прив'язати через бот»</i> — буде deep-link сюди\n\n` +
-      `Команди:\n` +
-      `/whoami — глянути прив'язку\n` +
-      `/unbind — видалити прив'язку\n` +
-      `/help — довідка`
+      `4. Або встав <code>chat_id</code> вручну, або тисни «Прив'язати через бот»\n\n` +
+      `Команди: /whoami /unbind /help`
     );
     return;
   }
-  const userId = m[1];
-  // Перевіряємо, що такий user існує
+  const userId = m[1].toLowerCase();
+  console.log("handleStart: looking up userId", userId);
+
   const { data: user, error } = await supabase
     .from("users").select("id, name, email, tg_chat_id")
     .eq("id", userId).maybeSingle();
-  if (error || !user) {
-    await tgSend(chatId, "⚠️ Користувача з таким ID не знайдено. Перевір, що ти зайшов у HQ й натиснув правильне посилання.");
-    return;
-  }
-  // Якщо вже прив'язано до іншого chat_id — попередимо
-  if (user.tg_chat_id && user.tg_chat_id !== chatId) {
+
+  if (error) {
+    console.error("select user error:", error);
     await tgSend(chatId,
-      `⚠️ Цей акаунт уже прив'язаний до іншого TG-чату (${user.tg_chat_id}).\n` +
-      `Якщо хочеш перепривʼязати — спочатку у старому чаті виконай /unbind, потім натисни кнопку «Прив'язати через бот» у HQ знову.`
+      `⚠️ Помилка БД при пошуку користувача.\n\n` +
+      `<code>${escHtml(error.message || JSON.stringify(error))}</code>\n\n` +
+      `🆔 chat_id: <code>${chatId}</code>\n` +
+      `🔎 шукав id: <code>${escHtml(userId)}</code>\n\n` +
+      `Передай скрін Вадиму.`
     );
     return;
   }
-  // Записуємо
+  if (!user) {
+    await tgSend(chatId,
+      `⚠️ Користувача з ID <code>${escHtml(userId)}</code> не знайдено в БД.\n\n` +
+      `Перевір що у HQ ти залогінений як CEO і id той самий.\n\n` +
+      `🆔 Твій chat_id: <code>${chatId}</code>\n` +
+      `Можна привʼязати вручну: у Supabase SQL Editor —\n` +
+      `<code>update public.users set tg_chat_id = ${chatId} where email = 'твій-email';</code>`
+    );
+    return;
+  }
+
+  if (user.tg_chat_id && user.tg_chat_id !== chatId) {
+    await tgSend(chatId,
+      `⚠️ Цей акаунт уже привʼязаний до іншого TG-чату (chat_id: ${user.tg_chat_id}).\n\n` +
+      `Якщо хочеш перепривʼязати — спочатку у старому чаті виконай /unbind, потім спробуй знову.`
+    );
+    return;
+  }
+
   const { error: upErr } = await supabase
     .from("users").update({ tg_chat_id: chatId, tg_username: tgUser.username ?? null })
     .eq("id", userId);
   if (upErr) {
     console.error("bind fail", upErr);
-    await tgSend(chatId, "⚠️ Не вдалося прив'язати. Спробуй ще раз через 1 хв або звернись до Вадима.");
+    await tgSend(chatId, `⚠️ Не вдалось привʼязати: <code>${escHtml(upErr.message)}</code>`);
     return;
   }
+
   await tgSend(chatId,
-    `✅ <b>Прив'язано!</b>\n` +
-    `Акаунт: <b>${escHtml(user.name || user.email || userId.slice(0, 8))}</b>\n\n` +
-    `Тепер я надсилатиму тобі сповіщення про:\n` +
-    `• Публікації, що чекають твого погодження\n` +
-    `• Повернення на доопрацювання (з коментарем)\n` +
-    `• Інші події що тебе стосуються\n\n` +
+    `✅ <b>Привʼязано!</b>\n` +
+    `Акаунт: <b>${escHtml(user.name || user.email || userId.slice(0, 8))}</b>\n` +
+    `chat_id: <code>${chatId}</code>\n\n` +
+    `Тепер я надсилатиму тобі сповіщення.\n\n` +
     `🔗 <a href="${HQ_URL}">Відкрити HQ</a>`
   );
 }
@@ -144,7 +123,7 @@ async function handleUnbind(supabase: ReturnType<typeof createClient>, chatId: n
     return;
   }
   await supabase.from("users").update({ tg_chat_id: null, tg_username: null }).eq("id", user.id);
-  await tgSend(chatId, `🔌 Прив'язку видалено для <b>${escHtml(user.name || user.email || "")}</b>.\n\nЩоб прив'язати знову — у HQ Налаштування → «Прив'язати через бот».`);
+  await tgSend(chatId, `🔌 Прив'язку видалено для <b>${escHtml(user.name || user.email || "")}</b>.`);
 }
 
 async function handleWhoami(supabase: ReturnType<typeof createClient>, chatId: number, tgUser: { username?: string }): Promise<void> {
@@ -152,7 +131,7 @@ async function handleWhoami(supabase: ReturnType<typeof createClient>, chatId: n
     .from("users").select("id, name, email, role")
     .eq("tg_chat_id", chatId).maybeSingle();
   if (!user) {
-    await tgSend(chatId, `🚫 Цей чат не привʼязаний.\n\nЩоб привʼязати — зайди у HQ → Налаштування → «Прив'язати через бот».${tgUser.username ? "\n(Твій TG: @" + tgUser.username + ")" : ""}`);
+    await tgSend(chatId, `🚫 Цей чат не привʼязаний.\n\n🆔 Твій chat_id: <code>${chatId}</code>${tgUser.username ? "\n📛 @" + escHtml(tgUser.username) : ""}`);
     return;
   }
   await tgSend(chatId,
@@ -160,14 +139,14 @@ async function handleWhoami(supabase: ReturnType<typeof createClient>, chatId: n
     `Імʼя: <b>${escHtml(user.name || "—")}</b>\n` +
     `Email: ${escHtml(user.email || "—")}\n` +
     `Роль: ${escHtml(user.role || "—")}\n` +
-    `ID: <code>${escHtml(user.id || "")}</code>`
+    `chat_id: <code>${chatId}</code>\n` +
+    `user.id: <code>${escHtml(user.id || "")}</code>`
   );
 }
 
 async function handleHelp(chatId: number): Promise<void> {
   await tgSend(chatId,
     `🤖 <b>DreamCar HQ bot</b>\n\n` +
-    `Команди:\n` +
     `/start — старт + інструкція\n` +
     `/whoami — глянути привʼязку\n` +
     `/unbind — видалити привʼязку\n` +
@@ -180,12 +159,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
 
-  // Telegram-native захист: secret_token у заголовку
   if (TG_WEBHOOK_SECRET) {
     const got = req.headers.get("x-telegram-bot-api-secret-token");
-    if (got !== TG_WEBHOOK_SECRET) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+    if (got !== TG_WEBHOOK_SECRET) return new Response("Unauthorized", { status: 401 });
   }
 
   let update: TgUpdate;
@@ -198,6 +174,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+    console.error("Missing service config", { hasUrl: !!SUPABASE_URL, hasKey: !!SERVICE_ROLE_KEY });
     return new Response("Missing service config", { status: 500 });
   }
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -217,7 +194,6 @@ Deno.serve(async (req: Request) => {
     } else if (text === "/help") {
       await handleHelp(chatId);
     } else {
-      // Будь-який інший текст — м'яка підказка
       await tgSend(chatId, "ℹ️ Не зрозумів. Спробуй /help");
     }
   } catch (e) {
