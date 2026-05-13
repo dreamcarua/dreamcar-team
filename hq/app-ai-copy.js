@@ -1,10 +1,8 @@
 /* ============================================================
-   DreamCar HQ — AI Copy Assistant (A2)
+   DreamCar HQ — AI Copy Assistant (A2) — simplified
    ============================================================ */
-// Додає кнопку «✨ AI копірайт» біля textarea у картці публікації.
-// Відкриває modal з brief / tone / length, викликає Edge Function
-// ai-copy-assistant, вставляє результат у текст + автоматично
-// заповнює hashtags.
+// Спрощений варіант: бренд завжди DreamCar (інші — на майбутнє,
+// коли стіл буде у іншого проєкту). ЦА — Claude знає з brand voice.
 
 (function () {
   if (window.__hqAiCopyLoaded) return;
@@ -18,7 +16,6 @@
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  // ---- CSS ----
   (function () {
     if (document.getElementById('hq-ai-css')) return;
     var css = document.createElement('style');
@@ -28,13 +25,13 @@
       '.hq-ai-btn:hover { opacity: 0.9; }' +
       '.hq-ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }' +
       '.hq-ai-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }' +
-      '.hq-ai-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; max-width: 560px; width: 100%; box-shadow: var(--shadow); }' +
+      '.hq-ai-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; max-width: 540px; width: 100%; box-shadow: var(--shadow); }' +
       '.hq-ai-card h2 { font-size: 16px; color: #fff; margin-bottom: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; }' +
       '.hq-ai-grid { display: grid; gap: 10px; }' +
       '.hq-ai-row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr; }' +
       '.hq-ai-card label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--grey); margin-bottom: 4px; font-weight: 700; }' +
       '.hq-ai-card input, .hq-ai-card textarea, .hq-ai-card select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: #fff; padding: 8px 11px; border-radius: 6px; font-size: 12px; font-family: inherit; }' +
-      '.hq-ai-card textarea { min-height: 70px; resize: vertical; }' +
+      '.hq-ai-card textarea { min-height: 80px; resize: vertical; }' +
       '.hq-ai-card .actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }' +
       '.hq-ai-result { margin-top: 14px; padding: 12px; background: var(--bg); border-left: 3px solid #8b5cf6; border-radius: 6px; }' +
       '.hq-ai-result .body { color: #fff; font-size: 13px; line-height: 1.6; white-space: pre-wrap; max-height: 240px; overflow-y: auto; }' +
@@ -46,8 +43,6 @@
   })();
 
   function getPubFromCard() {
-    var modal = document.getElementById('modal');
-    if (!modal) return null;
     var hash = (location.hash || '').slice(1);
     var parts = hash.split('/');
     if (parts[0] === 'publication' && parts[1]) {
@@ -73,7 +68,6 @@
 
   function showModal(pub) {
     if (document.querySelector('.hq-ai-modal')) return;
-    var brand = (window.HQ_CONFIG && window.HQ_CONFIG.DEFAULT_BRAND) || 'dreamcar';
     var platforms = (pub && pub.platforms) || ['ig'];
     var firstPlatform = platforms[0] || 'ig';
 
@@ -81,22 +75,13 @@
     sc.className = 'hq-ai-modal';
     sc.innerHTML =
       '<div class="hq-ai-card">' +
-        '<h2>✨ AI копірайт <span style="font-size:11px;color:var(--grey);font-weight:400;">· Claude Sonnet</span></h2>' +
+        '<h2>✨ AI копірайт <span style="font-size:11px;color:var(--grey);font-weight:400;">· Claude Sonnet · DreamCar</span></h2>' +
         '<div class="hq-ai-grid">' +
           '<div>' +
             '<label>Brief (про що пост)</label>' +
             '<textarea id="hq_ai_brief" placeholder="напр.: новий запуск Audi Q5 — спільнота 1500 учасників, переможець завтра">' + escapeHtml(pub && pub.title ? pub.title : '') + '</textarea>' +
           '</div>' +
           '<div class="hq-ai-row">' +
-            '<div>' +
-              '<label>Бренд</label>' +
-              '<select id="hq_ai_brand">' +
-                '<option value="dreamcar"' + (brand === 'dreamcar' ? ' selected' : '') + '>DreamCar</option>' +
-                '<option value="sneco">snEco</option>' +
-                '<option value="abrisart">Abris Art</option>' +
-                '<option value="barpi">Barpi</option>' +
-              '</select>' +
-            '</div>' +
             '<div>' +
               '<label>Платформа</label>' +
               '<select id="hq_ai_platform">' +
@@ -109,16 +94,6 @@
               '</select>' +
             '</div>' +
             '<div>' +
-              '<label>Довжина</label>' +
-              '<select id="hq_ai_length">' +
-                '<option value="short">Коротко</option>' +
-                '<option value="medium" selected>Середньо</option>' +
-                '<option value="long">Довго</option>' +
-              '</select>' +
-            '</div>' +
-          '</div>' +
-          '<div class="hq-ai-row">' +
-            '<div>' +
               '<label>Тон</label>' +
               '<select id="hq_ai_tone">' +
                 '<option value="casual" selected>Невимушено</option>' +
@@ -127,9 +102,13 @@
                 '<option value="salesy">Продажно</option>' +
               '</select>' +
             '</div>' +
-            '<div style="grid-column: span 2;">' +
-              '<label>ЦА (опційно)</label>' +
-              '<input type="text" id="hq_ai_audience" placeholder="напр.: чоловіки 25-45, цікавляться авто" />' +
+            '<div>' +
+              '<label>Довжина</label>' +
+              '<select id="hq_ai_length">' +
+                '<option value="short">Коротко</option>' +
+                '<option value="medium" selected>Середньо</option>' +
+                '<option value="long">Довго</option>' +
+              '</select>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -152,11 +131,10 @@
         return;
       }
       var payload = {
-        brand: sc.querySelector('#hq_ai_brand').value,
+        brand: 'dreamcar',
         platform: sc.querySelector('#hq_ai_platform').value,
         brief: brief,
         title: pub && pub.title || '',
-        audience: sc.querySelector('#hq_ai_audience').value,
         tone: sc.querySelector('#hq_ai_tone').value,
         length: sc.querySelector('#hq_ai_length').value,
       };
@@ -230,12 +208,11 @@
     label.appendChild(btn);
   }
 
-  // Спостерігаємо за відкриттям картки
   var observer = new MutationObserver(function () {
     if (document.getElementById('f_text')) injectButton();
   });
   observer.observe(document.body, { childList: true, subtree: true });
   [400, 1500, 3500].forEach(function (ms) { setTimeout(injectButton, ms); });
 
-  console.log('%cDreamCar HQ AI Copy %c· Claude assistant wired', 'color:#8b5cf6;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ AI Copy %c· Claude assistant wired (DreamCar-only)', 'color:#8b5cf6;font-weight:700;', 'color:#888;');
 })();
