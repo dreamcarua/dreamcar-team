@@ -13,8 +13,6 @@
     return base.replace(/\/$/, '') + '/functions/v1/' + name;
   }
 
-  // Override onTgAuth — Telegram widget викликає це після того як юзер натиснув
-  // «Log in with Telegram» у себе у TG-клієнті
   window.onTgAuth = async function (user) {
     if (!user || !user.hash) {
       if (typeof toast === 'function') toast('TG Login', 'error', 'Невалідні дані з Telegram');
@@ -47,8 +45,6 @@
         return;
       }
 
-      // Set session — Supabase SDK сам збереже tokens у localStorage,
-      // ауто-refresh activate автоматично.
       var setResult = await window.supabase.auth.setSession({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
@@ -58,7 +54,6 @@
         return;
       }
       if (typeof toast === 'function') toast('Вхід через Telegram', 'success', 'Перезавантажую…');
-      // Reload — boot() підбере сесію і покаже HQ
       setTimeout(function () { location.reload(); }, 600);
     } catch (e) {
       console.error('onTgAuth network err:', e);
@@ -67,4 +62,21 @@
   };
 
   console.log('%cDreamCar HQ TG Login %c· onTgAuth wired to tg-login-verify', 'color:#0088cc;font-weight:700;', 'color:#888;');
+
+  // ============================================================
+  // LOADER CHAIN — підвантажуємо нові модулі (G1, G5a, G6, G7, C2)
+  // ============================================================
+  var chain = [
+    'app-access-request.js',   // G1
+    'app-vacation.js',         // G5a
+    'app-fts-search.js',       // G6
+    'app-analytics.js',        // C2 + G7
+  ];
+  chain.forEach(function (name) {
+    if (document.querySelector('script[src*="' + name + '"]')) return;
+    var s = document.createElement('script');
+    s.src = name + '?v=' + Date.now();
+    s.defer = true;
+    document.head.appendChild(s);
+  });
 })();
