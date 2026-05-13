@@ -63,8 +63,10 @@
 
   // ============================================================
   // LOADER CHAIN — підвантажуємо нові модулі
+  // app-brand.js — першим (візуальна ідентичність)
   // ============================================================
   var chain = [
+    'app-brand.js',            // DreamCar visual identity (logo, favicon, colors)
     'app-access-request.js',   // G1
     'app-vacation.js',         // G5a
     'app-fts-search.js',       // G6
