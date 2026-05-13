@@ -1,6 +1,7 @@
 /* ============================================================
    DreamCar HQ — Soft-Lock через editing_sessions
    Завантажується ПІСЛЯ app-core.js + app-views.js + app-patches.js.
+   Також завантажує app-extras.js у кінці (loader chain).
    ============================================================ */
 
 (function () {
@@ -42,11 +43,9 @@
       }, { onConflict: 'publication_id,user_id' });
     } catch (e) { console.warn('startLock:', e); }
 
-    // Periodic ping
     if (_pingTimer) clearInterval(_pingTimer);
     _pingTimer = setInterval(pingLock, SOFT_LOCK_PING_MS);
 
-    // Realtime — слухати інших
     try {
       if (_rtChannel) window.supabase.removeChannel(_rtChannel);
       _rtChannel = window.supabase.channel('hq-lock-' + pubId)
@@ -104,7 +103,6 @@
         .gt('expires_at', nowIso)
         .neq('user_id', me.id);
       var sessions = resp.data || [];
-      // Підвантажуємо імена окремо (RLS дозволяє select на users усім authenticated)
       var names = [];
       if (sessions.length > 0) {
         var userIds = sessions.map(function (s) { return s.user_id; });
@@ -126,15 +124,12 @@
     } catch (e) { console.warn('refreshBanner:', e); }
   }
 
-  // ---- Hook у openCard / Modal.close ----
   function patchOpenCardForLock() {
     if (typeof window.openCard !== 'function' || window.openCard.__lockPatched) return;
     var _orig = window.openCard;
     window.openCard = function (id) {
       _orig.call(this, id);
-      // Запускаємо lock тільки для існуючих публікацій (не 'new')
       if (id && id !== 'new') {
-        // Затримка щоб упевнитися що modal вже у DOM
         setTimeout(function () { startLock(id); }, 100);
       }
     };
@@ -152,15 +147,23 @@
   patchOpenCardForLock(); setTimeout(patchOpenCardForLock, 300); setTimeout(patchOpenCardForLock, 1500);
   patchModalCloseForLock(); setTimeout(patchModalCloseForLock, 300); setTimeout(patchModalCloseForLock, 1500);
 
-  // beforeunload — fire-and-forget delete
   window.addEventListener('beforeunload', function () {
     try { endLock(); } catch (_) {}
   });
 
-  // Debug
   window.HQ_LOCKS = {
     start: startLock, end: endLock, ping: pingLock, refresh: refreshBanner,
     current: function () { return _currentLockPubId; },
   };
   console.log('%cDreamCar HQ Soft-Lock %c· active', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+
+  // ============================================================
+  // LOADER CHAIN — підвантажуємо app-extras.js
+  // ============================================================
+  if (!document.querySelector('script[src*="app-extras.js"]')) {
+    var s = document.createElement('script');
+    s.src = 'app-extras.js?v=' + Date.now();
+    s.defer = true;
+    document.head.appendChild(s);
+  }
 })();
