@@ -1,10 +1,7 @@
 /* ============================================================
-   DreamCar HQ — Extras
-   • Дублювання публікації
-   • Експорт у .ics
-   • Keyboard help (?)
-   • Settings route fix (hashchange race з app-views.js)
-   • Deep-link "Прив'язати через бот" у Settings
+   DreamCar HQ — Extras v2
+   • Duplicate, ICS, kbd-help, settings-route-fix
+   • Deep-link "Прив'язати через бот" (з retry)
    ============================================================ */
 
 (function () {
@@ -34,7 +31,7 @@
   })();
 
   // ============================================================
-  // FIX: settings route (high-priority hashchange listener)
+  // Settings route fix + auto bind-block
   // ============================================================
   function maybeRenderSettings() {
     var hash = (location.hash || '').slice(1);
@@ -49,24 +46,37 @@
     var bc = document.getElementById('breadcrumb');
     if (bc) bc.innerHTML = 'Стіл SMM · <b>Налаштування</b>';
     window.renderSettings(main);
-    // Після рендеру додамо TG bind block
-    setTimeout(enhanceTgBindBlock, 80);
+    // Після рендеру — retry-ланцюг для bind-block
+    [80, 300, 1000, 2500].forEach(function (ms) { setTimeout(enhanceTgBindBlock, ms); });
   }
   window.addEventListener('hashchange', maybeRenderSettings);
-  setTimeout(maybeRenderSettings, 200);
-  setTimeout(maybeRenderSettings, 1000);
+  [200, 1000].forEach(function (ms) { setTimeout(maybeRenderSettings, ms); });
 
-  // ---- TG bind block у Settings ----
+  // ---- TG bind block (з retry) ----
   function enhanceTgBindBlock() {
     var input = document.getElementById('set_tg_chat_id');
     if (!input) return;
     var section = input.closest('div[style*="background:var(--bg-2)"]') || input.parentElement;
     if (!section) return;
-    if (section.querySelector('.tg-bind-block')) return;
 
     var me = window.Store && Store.currentUser && Store.currentUser();
     var userId = me && me.id;
     var botUsername = (window.HQ_CONFIG && (window.HQ_CONFIG.TG_BOT_USERNAME || window.HQ_CONFIG.TG_LOGIN_BOT)) || '';
+
+    // Якщо це новий блок або існуючий ще "недоступно" — видаляємо існуючий перед перерендером.
+    // Якщо вже HAS deep-link cta → не чіпаємо.
+    var existing = section.querySelector('.tg-bind-block');
+    if (existing) {
+      var hasCta = !!existing.querySelector('a.tb-cta');
+      if (hasCta) return; // уже OK, не чіпаємо
+      existing.remove();
+    }
+
+    // Якщо userId ще не доступний — НЕ робимо fallback, чекаємо наступного retry
+    if (botUsername && !userId) {
+      // Не вставляємо порожній блок; retry через setTimeout у maybeRenderSettings подбає.
+      return;
+    }
 
     var block = document.createElement('div');
     block.className = 'tg-bind-block';
@@ -77,14 +87,15 @@
         '<div class="tb-desc">Натисни кнопку — відкриється Telegram з ботом. Тисни <b>«Start»</b> у боті — і chat_id привʼяжеться автоматично, без копіювання чисел.</div>' +
         '<a class="tb-cta" href="' + url + '" target="_blank" rel="noopener">🔗 Прив\'язати через @' + (botUsername.replace(/^@/, '')) + '</a>';
     } else {
+      // Нема botUsername — fallback
       block.innerHTML =
         '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
-        '<div class="tb-desc">Поки що недоступно — адмін не задав <code>TG_BOT_USERNAME</code> у <code>config.js</code>. Скоро буде. Зараз — введи <code>chat_id</code> вручну нижче.</div>';
+        '<div class="tb-desc">Поки що недоступно — адмін не задав <code>TG_BOT_USERNAME</code> у <code>config.js</code>. Зараз — введи <code>chat_id</code> вручну нижче.</div>';
     }
-    // Вставити перед input-row
     var inputRow = input.closest('div[style*="display:flex"]') || input.parentElement;
     if (inputRow && inputRow.parentNode) inputRow.parentNode.insertBefore(block, inputRow);
   }
+  window.enhanceTgBindBlock = enhanceTgBindBlock;
 
   // ============================================================
   // DUPLICATE PUBLICATION
@@ -158,8 +169,7 @@
     window.openCard.__extrasPatched = true;
   }
   patchOpenCardForExtras();
-  setTimeout(patchOpenCardForExtras, 300);
-  setTimeout(patchOpenCardForExtras, 1500);
+  [300, 1500].forEach(function (ms) { setTimeout(patchOpenCardForExtras, ms); });
 
   // ============================================================
   // ICS EXPORT
@@ -172,10 +182,8 @@
       return;
     }
     var lines = [];
-    lines.push('BEGIN:VCALENDAR');
-    lines.push('VERSION:2.0');
-    lines.push('PRODID:-//DreamCar//HQ Calendar//UK');
-    lines.push('CALSCALE:GREGORIAN');
+    lines.push('BEGIN:VCALENDAR'); lines.push('VERSION:2.0');
+    lines.push('PRODID:-//DreamCar//HQ Calendar//UK'); lines.push('CALSCALE:GREGORIAN');
     function ics(dt) {
       var d = new Date(dt); if (isNaN(d.getTime())) return '';
       var pad = function (n) { return String(n).padStart(2, '0'); };
@@ -188,8 +196,7 @@
     var STATUS_LABELS = { draft: 'Чернетка', in_work: 'В роботі', review: 'На погодженні', approved: 'Погоджено', published: 'Опубліковано', rework: 'Доопрацювання' };
     pubs.forEach(function (p) {
       if (p._trashed) return;
-      var start = ics(p.dateTime);
-      if (!start) return;
+      var start = ics(p.dateTime); if (!start) return;
       var endDt = new Date(p.dateTime); endDt.setMinutes(endDt.getMinutes() + 30);
       var end = ics(endDt.toISOString());
       var platforms = (p.platforms || []).join(',');
@@ -199,8 +206,7 @@
       lines.push('BEGIN:VEVENT');
       lines.push('UID:' + p.id + '@dreamcar-hq');
       lines.push('DTSTAMP:' + ics(new Date().toISOString()));
-      lines.push('DTSTART:' + start);
-      lines.push('DTEND:' + end);
+      lines.push('DTSTART:' + start); lines.push('DTEND:' + end);
       lines.push('SUMMARY:' + escIcs(p.title || 'Без назви'));
       lines.push('DESCRIPTION:' + escIcs(desc));
       lines.push('URL:https://dreamcarua.github.io/dreamcar-team/hq/#publication/' + p.id);
@@ -210,11 +216,8 @@
     var blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
-    a.href = url;
-    a.download = 'dreamcar-hq-calendar.ics';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    a.href = url; a.download = 'dreamcar-hq-calendar.ics';
+    document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     if (typeof toast === 'function') toast('Експорт', 'success', 'dreamcar-hq-calendar.ics завантажено');
   }
@@ -256,5 +259,5 @@
     }
   });
 
-  console.log('%cDreamCar HQ Extras %c· duplicate + ICS + kbd-help + settings + tg-bind active', 'color:#a78bfa;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Extras v2 %c· bind-block retry-loop active', 'color:#a78bfa;font-weight:700;', 'color:#888;');
 })();
