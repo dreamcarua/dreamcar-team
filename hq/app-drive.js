@@ -314,4 +314,14 @@
     chunkSize: CHUNK_SIZE,
   };
   console.log('%cDreamCar HQ Drive %c· upload >50MB + UUID creative-id fix active', 'color:#4285F4;font-weight:700;', 'color:#888;');
+
+  // ============================================================
+  // LOADER CHAIN — підвантажуємо app-context-menu.js (#40)
+  // ============================================================
+  if (!document.querySelector('script[src*="app-context-menu.js"]')) {
+    var sCtx = document.createElement('script');
+    sCtx.src = 'app-context-menu.js?v=' + Date.now();
+    sCtx.defer = true;
+    document.head.appendChild(sCtx);
+  }
 })();
