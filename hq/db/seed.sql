@@ -22,11 +22,12 @@ on conflict (slug) do update set name = excluded.name;
 -- 2. Users (без auth.users — на dev сервері; в prod auth_id = auth.uid())
 -- ---------------------------------------------------------------------
 insert into users (id, email, name, role, telegram_username) values
-    ('aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'vg@dreamcar.ua',     'Вадим',       'ceo',    'vadym_g'),
-    ('aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'danil@dreamcar.ua',  'Даніл',       'coo',    'danil_dc'),
-    ('aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'sasha@dreamcar.ua',  'Олександра',  'lead',   'sasha_smm'),
-    ('aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'artem@dreamcar.ua',  'Артем',       'member', 'artem_dc'),
-    ('aaaaaaa5-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'vira@dreamcar.ua',   'Віра',        'member', 'vira_dc')
+    ('aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'vg@abrisart.com',      'Вадим', 'ceo',    null),
+    ('aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'smth.mario@gmail.com', 'Давид', 'coo',    null),
+    ('aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'lexbelov21@gmail.com', 'Саша',  'lead',   null),
+    ('aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '1avrybak@gmail.com',   'Артем', 'member', null),
+    ('aaaaaaa5-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'verusya.nec@gmail.com','Віра',  'member', null),
+    ('aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'vdenishchuk@gmail.com','Вова',  'member', null)
 on conflict (email) do nothing;
 
 -- ---------------------------------------------------------------------
@@ -76,7 +77,6 @@ on conflict do nothing;
 
 -- ---------------------------------------------------------------------
 -- 7. Publications
--- (11 з 25 — за ключовими сценаріями: погоджена, на погодженні, draft, rework, missed)
 -- ---------------------------------------------------------------------
 insert into publications (id, desk_id, title, publish_at, content_type, text_body, hashtags, rubric_id, launch_id, status, deadline_on, created_by, created_at, updated_at) values
     ('eeeeeee1-eeee-eeee-eeee-eeeeeeeeeeee', '11111111-1111-1111-1111-111111111111', 'Audi E-tron — перші тест-драйви',
