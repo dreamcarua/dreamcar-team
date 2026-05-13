@@ -1,8 +1,6 @@
 /* ============================================================
    DreamCar HQ — Telegram Login Widget wire-up (#27)
    ============================================================ */
-// Override window.onTgAuth (заглушка з app-views.js) на справжній виклик
-// Edge Function tg-login-verify → setSession → reload.
 
 (function () {
   if (window.__hqTgLoginLoaded) return;
@@ -64,13 +62,14 @@
   console.log('%cDreamCar HQ TG Login %c· onTgAuth wired to tg-login-verify', 'color:#0088cc;font-weight:700;', 'color:#888;');
 
   // ============================================================
-  // LOADER CHAIN — підвантажуємо нові модулі (G1, G5a, G6, G7, C2)
+  // LOADER CHAIN — підвантажуємо нові модулі
   // ============================================================
   var chain = [
     'app-access-request.js',   // G1
     'app-vacation.js',         // G5a
     'app-fts-search.js',       // G6
     'app-analytics.js',        // C2 + G7
+    'app-ai-copy.js',          // A2
   ];
   chain.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
