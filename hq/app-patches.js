@@ -1,5 +1,5 @@
 /* ============================================================
-   DreamCar HQ — Patches v2 (real thumbnails)
+   DreamCar HQ — Patches v2 (real thumbnails + team refresh)
    Завантажується ПІСЛЯ app-core.js + app-views.js. Перевизначає
    render-функції так, щоб photo/video креативи показували реальне
    зображення/відео замість emoji. Emoji залишається як fallback,
@@ -7,6 +7,52 @@
    ============================================================ */
 
 (function () {
+  // ---- Patch demo-team одразу: оновити імена/емейли у localStorage,
+  // якщо ще зі старим seed-набором (Даніл/Олександра без Вови).
+  function refreshDemoTeam() {
+    if (window.HQ_BACKEND) return; // у backend-режимі — дані з Supabase
+    try {
+      var data = window.Store && Store._data;
+      if (!data || !Array.isArray(data.users)) return;
+      var users = data.users;
+      // Мапінг по старих email → новий name/email/role/initial
+      var migrations = {
+        'vg@dreamcar.ua':    { email: 'vg@abrisart.com',      name: 'Вадим', role: 'ceo',    initial: 'В' },
+        'danil@dreamcar.ua': { email: 'smth.mario@gmail.com', name: 'Давид', role: 'coo',    initial: 'Д' },
+        'sasha@dreamcar.ua': { email: 'lexbelov21@gmail.com', name: 'Саша',  role: 'lead',   initial: 'С' },
+        'artem@dreamcar.ua': { email: '1avrybak@gmail.com',   name: 'Артем', role: 'member', initial: 'А' },
+        'vira@dreamcar.ua':  { email: 'verusya.nec@gmail.com',name: 'Віра',  role: 'member', initial: 'В' },
+      };
+      var changed = false;
+      users.forEach(function (u) {
+        var m = migrations[u.email];
+        if (m) {
+          u.email = m.email;
+          u.name = m.name;
+          u.role = m.role;
+          u.initial = m.initial;
+          changed = true;
+        }
+      });
+      // Додаємо Вову, якщо ще нема
+      var hasVova = users.some(function (u) { return u.email === 'vdenishchuk@gmail.com'; });
+      if (!hasVova) {
+        users.push({ id: 'u_vova', name: 'Вова', role: 'member', email: 'vdenishchuk@gmail.com', initial: 'В' });
+        changed = true;
+      }
+      if (changed && typeof Store._saveLocal === 'function') {
+        Store._saveLocal();
+        // Якщо UI вже відрендерено — оновити sidebar/badge
+        if (typeof renderRoleBadge === 'function') renderRoleBadge();
+        if (typeof renderSidebarFilters === 'function') renderSidebarFilters();
+      }
+    } catch (e) { console.warn('refreshDemoTeam:', e); }
+  }
+  // Запускаємо одразу і ще раз з затримкою (на випадок якщо Store ще не ініціалізований)
+  refreshDemoTeam();
+  setTimeout(refreshDemoTeam, 500);
+  setTimeout(refreshDemoTeam, 2000);
+
   // ---- Helpers (additive, не конфліктують зі старими) ----
   function safeUrl(u) {
     if (!u || typeof u !== 'string') return '';
@@ -33,7 +79,6 @@
     }
     return emoji;
   }
-  // Експортуємо для інших файлів (на майбутнє)
   window.mediaThumb = mediaThumb;
   window.safeUrl = safeUrl;
 
@@ -109,7 +154,7 @@
     });
   };
 
-  // ---- Override: openCreative (modal — велике прев'ю фото/відео) ----
+  // ---- Override: openCreative ----
   window.openCreative = function (id) {
     var c = Store.creative(id);
     if (!c) return;
@@ -170,7 +215,7 @@
     );
   };
 
-  // ---- Override: renderPreviewSection (IG/TG превʼю з реальним медіа) ----
+  // ---- Override: renderPreviewSection ----
   window.renderPreviewSection = function (p) {
     var cr = (p.creatives || []).map(function (id) { return Store.creative(id); }).filter(Boolean);
     var first = cr[0];
@@ -225,7 +270,7 @@
       var c = Store.creative(cid);
       if (!c) return;
       var hasImg = item.querySelector('img, video');
-      if (hasImg) return; // вже патчено
+      if (hasImg) return;
       item.style.position = 'relative';
       item.style.overflow = 'hidden';
       var removeBtn = item.querySelector('.cs-remove');
@@ -234,7 +279,6 @@
     });
   }
 
-  // Перехоплюємо openCard щоб після його завершення перерендерити strip.
   var _origOpenCard = window.openCard;
   window.openCard = function (id) {
     _origOpenCard.call(this, id);
@@ -242,12 +286,10 @@
     if (p) setTimeout(function () { refreshCreativeStrip(p); }, 0);
   };
 
-  // Перехоплюємо uploadCreativeFile щоб оновити thumb після upload.
   var _origUpload = window.uploadCreativeFile;
   if (typeof _origUpload === 'function') {
     window.uploadCreativeFile = function (file, pub) {
       var r = _origUpload.call(this, file, pub);
-      // _origUpload async — чекаємо .then; якщо повернув не-Promise, патчимо через timeout
       if (r && typeof r.then === 'function') {
         return r.then(function (v) { refreshCreativeStrip(pub); return v; });
       }
@@ -256,7 +298,6 @@
     };
   }
 
-  // ---- Override: openCreativePicker (теж замінити preview всередині пікера) ----
   if (typeof window.openCreativePicker === 'function') {
     var _origPicker = window.openCreativePicker;
     window.openCreativePicker = function (p) {
@@ -281,5 +322,5 @@
     };
   }
 
-  console.log('%cDreamCar HQ Patches v2 %c· real thumbnails active', 'color:#4ade80;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Patches v2 %c· real thumbnails + team refresh active', 'color:#4ade80;font-weight:700;', 'color:#888;');
 })();
