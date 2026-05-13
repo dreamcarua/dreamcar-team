@@ -1,10 +1,12 @@
 /* ============================================================
-   DreamCar HQ — Patches v2 (real thumbnails + team refresh + UUID fix)
+   DreamCar HQ — Patches v2
    Завантажується ПІСЛЯ app-core.js + app-views.js.
+   Real thumbnails + team refresh + UUID fix + multi-platform previews
+   + real bell counter + /settings route.
    ============================================================ */
 
 (function () {
-  // ---- UUID helper: для backend-mode потрібен валідний UUID, а не "p_xxx"
+  // ---- UUID helper ----
   function uuidV4() {
     if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -17,7 +19,6 @@
   function isUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
   window.uuidV4 = uuidV4;
 
-  // ---- Patch newPubObject: id завжди UUID (інакше Supabase упаде на upsert)
   function patchNewPub() {
     if (typeof window.newPubObject !== 'function' || window.newPubObject.__uuidPatched) return;
     var _orig = window.newPubObject;
@@ -32,7 +33,6 @@
   setTimeout(patchNewPub, 300);
   setTimeout(patchNewPub, 1500);
 
-  // ---- Patch Store.upsertPub: підмінити "p_xxx" на UUID перед persist
   function patchUpsert() {
     if (!window.Store || typeof Store.upsertPub !== 'function' || Store.upsertPub.__uuidPatched) return;
     var _orig = Store.upsertPub.bind(Store);
@@ -53,7 +53,7 @@
   setTimeout(patchUpsert, 300);
   setTimeout(patchUpsert, 1500);
 
-  // ---- Refresh demo team (тільки для demo, не backend)
+  // ---- Refresh demo team ----
   function refreshDemoTeam() {
     if (window.HQ_BACKEND) return;
     try {
@@ -232,37 +232,242 @@
     );
   };
 
-  // ---- Override: renderPreviewSection ----
+  // ============================================================
+  // PREVIEWS for all platforms — IG / TG / TT / YT / FB / Threads
+  // ============================================================
+  var PLATFORM_PREVIEW_META = {
+    ig: { brand: 'Instagram', handle: '@dreamcar.ua',   accent: '#E1306C', aspect: '4/5'  },
+    tg: { brand: 'Telegram',  handle: '@dreamcar_ua',   accent: '#0088cc', aspect: '16/9' },
+    tt: { brand: 'TikTok',    handle: '@dreamcar.ua',   accent: '#fe2c55', aspect: '9/16' },
+    yt: { brand: 'YT Shorts', handle: '@dreamcar',      accent: '#ff0000', aspect: '9/16' },
+    th: { brand: 'Threads',   handle: '@dreamcar.ua',   accent: '#a78bfa', aspect: '4/5'  },
+    fb: { brand: 'Facebook',  handle: 'Dream Car',      accent: '#1877f2', aspect: '16/9' },
+  };
+  function previewMediaBg(first) {
+    var hasRealMedia = first && (first.url || first.thumbnail_url) && (first.type === 'photo' || first.type === 'video');
+    if (hasRealMedia) return 'background:#000;';
+    var color = (first && first.color) || '#cc0000';
+    return 'background: linear-gradient(135deg, ' + color + '33, var(--bg-2));';
+  }
+  function previewText(p) {
+    var txt = escapeHtml(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
+    var hashLine = (p.hashtags || []).map(function (h) { return h.indexOf('#') === 0 ? h : '#' + h; }).join(' ');
+    var hashHtml = hashLine
+      ? '<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">' +
+        escapeHtml(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>') + '</div>'
+      : '';
+    return { txt: txt, hashHtml: hashHtml };
+  }
+  function buildPlatformCard(platform, p, firstMedia, mediaBg, txt, hashHtml) {
+    var meta = PLATFORM_PREVIEW_META[platform];
+    if (!meta) return '';
+    var aspectStyle = 'aspect-ratio:' + meta.aspect + ';';
+    var head = '<div class="pv-head" style="background:linear-gradient(180deg, ' + meta.accent + '20, transparent);">' +
+      '<div class="pv-avatar" style="background:linear-gradient(135deg,' + meta.accent + ',' + meta.accent + 'aa);">DC</div>' +
+      '<div><div class="pv-name">' + escapeHtml(meta.brand) + '</div>' +
+        '<div class="pv-handle">' + escapeHtml(meta.handle) + ' · ' + fmtTime(p.dateTime) + '</div></div>' +
+    '</div>';
+    var media = '<div class="pv-media" style="' + mediaBg + aspectStyle + 'position:relative;overflow:hidden;font-size:48px;display:flex;align-items:center;justify-content:center;">' +
+      firstMedia +
+      // Platform-specific overlay
+      (platform === 'tt' || platform === 'yt'
+        ? '<div style="position:absolute;right:8px;bottom:10px;display:flex;flex-direction:column;gap:10px;font-size:16px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6);"><span>♥</span><span>💬</span><span>↗</span></div>'
+        : '') +
+    '</div>';
+    var actions = '';
+    if (platform === 'ig') {
+      actions = '<div class="pv-actions">♥ &nbsp; 💬 &nbsp; ↗ &nbsp; <span style="margin-left:auto">🔖</span></div>';
+    } else if (platform === 'fb') {
+      actions = '<div class="pv-actions">👍 Подобається &nbsp; 💬 Коментар &nbsp; ↗ Поділитися</div>';
+    } else if (platform === 'th') {
+      actions = '<div class="pv-actions">♥ &nbsp; 💬 &nbsp; 🔁 &nbsp; ↗</div>';
+    }
+    var body = '<div class="pv-text">' +
+      (platform === 'ig' || platform === 'th' ? '<b>' + escapeHtml(meta.handle.replace(/^@/, '')) + '</b> ' : '') +
+      (txt || '<i style="color:var(--grey)">(пусто)</i>') + hashHtml +
+    '</div>';
+    return '<div class="preview-card ' + platform + '" style="border-top:2px solid ' + meta.accent + ';">' + head + media + actions + body + '</div>';
+  }
+
   window.renderPreviewSection = function (p) {
     var cr = (p.creatives || []).map(function (id) { return Store.creative(id); }).filter(Boolean);
     var first = cr[0];
     var firstMedia = first ? mediaThumb(first, { size: 'preview' }) : '<span style="font-size:48px;">🚗</span>';
-    var firstColor = (first && first.color) || '#cc0000';
-    var hasRealMedia = first && (first.url || first.thumbnail_url) && (first.type === 'photo' || first.type === 'video');
-    var mediaBg = hasRealMedia ? 'background:#000;' : 'background: linear-gradient(135deg, ' + firstColor + '33, var(--bg-2));';
-    var txt = escapeHtml(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
-    var hashLine = (p.hashtags || []).map(function (h) { return h.indexOf('#') === 0 ? h : '#' + h; }).join(' ');
-    var hashHtml = hashLine ? '<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">' + escapeHtml(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>') + '</div>' : '';
-    var showIg = p.platforms.indexOf('ig') >= 0;
-    var showTg = p.platforms.indexOf('tg') >= 0;
-    if (!showIg && !showTg) return '<div style="color:var(--grey);font-size:12px;padding:8px 0;">Оберіть Instagram або Telegram у майданчиках — побачите прев\'ю.</div>';
-    var igCard = !showIg ? '' :
-      '<div class="preview-card ig">' +
-        '<div class="pv-head"><div class="pv-avatar">DC</div><div><div class="pv-name">dreamcar.ua</div><div class="pv-handle">Sponsored</div></div></div>' +
-        '<div class="pv-media" style="' + mediaBg + 'position:relative;overflow:hidden;">' + firstMedia + '</div>' +
-        '<div class="pv-actions">♥ &nbsp; 💬 &nbsp; ↗ &nbsp; <span style="margin-left:auto">🔖</span></div>' +
-        '<div class="pv-text"><b>dreamcar.ua</b> ' + (txt || '<i style="color:var(--grey)">(пусто)</i>') + hashHtml + '</div>' +
-      '</div>';
-    var tgCard = !showTg ? '' :
-      '<div class="preview-card tg">' +
-        '<div class="pv-head"><div class="pv-avatar">DC</div><div><div class="pv-name">Dream Car</div><div class="pv-handle">@dreamcar_ua · ' + fmtDate(new Date()) + ' ' + fmtTime(p.dateTime) + '</div></div></div>' +
-        '<div class="pv-media tg" style="' + mediaBg + 'position:relative;overflow:hidden;">' + firstMedia + '</div>' +
-        '<div class="pv-text">' + (txt || '<i style="color:var(--grey)">(пусто)</i>') + hashHtml + '</div>' +
-      '</div>';
-    return '<div class="preview-row">' + igCard + tgCard + '</div>';
+    var mediaBg = previewMediaBg(first);
+    var t = previewText(p);
+    if (!p.platforms || !p.platforms.length) {
+      return '<div style="color:var(--grey);font-size:12px;padding:8px 0;">Оберіть майданчики — побачите прев\'ю.</div>';
+    }
+    var cards = p.platforms.map(function (pl) {
+      return buildPlatformCard(pl, p, firstMedia, mediaBg, t.txt, t.hashHtml);
+    }).join('');
+    // wrap у горизонтальний скрол, бо на 5+ платформах не вліз
+    return '<div class="preview-row" style="overflow-x:auto;gap:14px;padding-bottom:8px;">' + cards + '</div>';
   };
 
-  // ---- Patch: refresh creative-strip у відкритій картці ----
+  // ============================================================
+  // REAL BELL COUNTER
+  // ============================================================
+  function computeBellCount() {
+    try {
+      if (!window.Store || typeof Store.pubs !== 'function') return 0;
+      var me = Store.currentUser && Store.currentUser();
+      if (!me) return 0;
+      var pubs = Store.pubs();
+      var board = pubs.filter(function (p) { return p.status === 'review' && (p.approvers || []).indexOf(me.id) >= 0; }).length;
+      var missed = pubs.filter(function (p) { return typeof urgencyClass === 'function' && urgencyClass(p) === 'missed'; }).length;
+      var urgent = pubs.filter(function (p) { return typeof urgencyClass === 'function' && urgencyClass(p) === 'urgent-red'; }).length;
+      return board + missed + urgent;
+    } catch (e) { return 0; }
+  }
+  function updateBellBadge() {
+    var el = document.getElementById('bellBadge');
+    if (!el) return;
+    var n = computeBellCount();
+    if (n > 0) {
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+  // Запуск і періодичне оновлення
+  updateBellBadge();
+  setTimeout(updateBellBadge, 800);
+  setTimeout(updateBellBadge, 2500);
+  setInterval(updateBellBadge, 30000);
+  // Хук: оновити після hashchange/будь-якої навігації
+  window.addEventListener('hashchange', function () { setTimeout(updateBellBadge, 300); });
+  // Хук: оновити після зміни статусу публікації — обертаємо upsertPub
+  var _origUpsertForBell = Store && Store.upsertPub;
+  if (_origUpsertForBell && !_origUpsertForBell.__bellPatched) {
+    var _f = _origUpsertForBell.bind(Store);
+    Store.upsertPub = function (pub) {
+      var r = _f(pub);
+      if (r && typeof r.then === 'function') return r.then(function (v) { setTimeout(updateBellBadge, 300); return v; });
+      setTimeout(updateBellBadge, 300);
+      return r;
+    };
+    Store.upsertPub.__uuidPatched = _origUpsertForBell.__uuidPatched;
+    Store.upsertPub.__bellPatched = true;
+  }
+  window.updateBellBadge = updateBellBadge;
+
+  // ============================================================
+  // /settings ROUTE — заглушка, повна реалізація у наступному коміті
+  // ============================================================
+  function renderSettings(root) {
+    var me = Store.currentUser ? Store.currentUser() : null;
+    root.innerHTML =
+      '<div class="view-header">' +
+        '<h1>Налаштування</h1>' +
+        '<span class="view-meta">· профіль і інтеграції</span>' +
+      '</div>' +
+      '<div style="padding:22px 28px;max-width:680px;">' +
+        '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px;">' +
+          '<h3 style="font-size:14px;color:#fff;margin-bottom:12px;">👤 Профіль</h3>' +
+          '<div style="display:grid;grid-template-columns:140px 1fr;gap:10px 18px;font-size:13px;">' +
+            '<div style="color:var(--grey);">Імʼя</div><div style="color:#fff;font-weight:600;">' + escapeHtml((me && me.name) || '—') + '</div>' +
+            '<div style="color:var(--grey);">Email</div><div style="color:#fff;">' + escapeHtml((me && me.email) || '—') + '</div>' +
+            '<div style="color:var(--grey);">Роль</div><div><span class="status ' + ((me && me.role) || 'member') + '">' + escapeHtml((me && me.role) || '—') + '</span></div>' +
+            '<div style="color:var(--grey);">ID</div><div style="color:var(--grey-2);font-family:monospace;font-size:11px;">' + escapeHtml((me && me.id) || '—') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px;">' +
+          '<h3 style="font-size:14px;color:#fff;margin-bottom:8px;">✈️ Telegram — персональні сповіщення</h3>' +
+          '<p style="color:var(--grey);font-size:12px;line-height:1.6;margin-bottom:14px;">Щоб отримувати DM від HQ-бота про твої публікації — додай свій <code>tg_chat_id</code>. Як знайти: напиши боту <code>/start</code>, відкрий <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>, скопіюй число з <code>chat.id</code>.</p>' +
+          '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<input id="set_tg_chat_id" type="text" placeholder="123456789" value="' + escapeHtml((me && (me.tg_chat_id || '')) + '') + '" style="flex:1;background:var(--bg);border:1px solid var(--border);color:#fff;padding:9px 12px;border-radius:8px;font-size:13px;font-family:monospace;"/>' +
+            '<button class="btn btn-primary" id="set_tg_save">Зберегти</button>' +
+          '</div>' +
+          '<div id="set_tg_status" style="font-size:11px;color:var(--grey);margin-top:8px;"></div>' +
+        '</div>' +
+        '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:22px;">' +
+          '<h3 style="font-size:14px;color:#fff;margin-bottom:8px;">🔔 Сповіщення</h3>' +
+          '<div style="font-size:12px;color:var(--grey);line-height:1.7;">' +
+            'Поточна логіка:<br>' +
+            '· Group chat — усі події (новий пост на погодженні, погоджено, повернуто, новий коментар).<br>' +
+            '· DM — приходять, якщо твій <code>tg_chat_id</code> заповнений вище.<br>' +
+            '<i style="color:var(--grey-2)">Тонкі налаштування (які саме події) — у наступній ітерації.</i>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    var saveBtn = document.getElementById('set_tg_save');
+    if (saveBtn) saveBtn.onclick = saveTgChatId;
+  }
+
+  async function saveTgChatId() {
+    var inp = document.getElementById('set_tg_chat_id');
+    var status = document.getElementById('set_tg_status');
+    if (!inp) return;
+    var v = (inp.value || '').trim();
+    var num = v === '' ? null : parseInt(v, 10);
+    if (v !== '' && (isNaN(num) || Math.abs(num) < 1000)) {
+      status.textContent = '⚠ chat_id має бути числом (наприклад, 123456789).';
+      status.style.color = 'var(--red-soft)';
+      return;
+    }
+    if (!window.HQ_BACKEND) {
+      status.textContent = 'У demo-режимі чат збережено лише локально.';
+      status.style.color = 'var(--grey)';
+      var me = Store.currentUser();
+      if (me) { me.tg_chat_id = num; Store._saveLocal && Store._saveLocal(); }
+      return;
+    }
+    var sb = window.supabase;
+    if (!sb) { status.textContent = '⚠ Supabase клієнт недоступний.'; status.style.color = 'var(--red-soft)'; return; }
+    status.textContent = 'Зберігаю…'; status.style.color = 'var(--gold)';
+    try {
+      var me = Store.currentUser();
+      var { error } = await sb.from('users').update({ tg_chat_id: num }).eq('id', me.id);
+      if (error) throw error;
+      if (me) me.tg_chat_id = num;
+      status.textContent = '✓ Збережено. Тепер бот зможе писати тобі DM.';
+      status.style.color = 'var(--green-soft)';
+      if (typeof toast === 'function') toast('Збережено', 'success', 'TG chat_id оновлено');
+    } catch (e) {
+      console.error(e);
+      status.textContent = '⚠ Помилка: ' + (e.message || e);
+      status.style.color = 'var(--red-soft)';
+    }
+  }
+  window.renderSettings = renderSettings;
+
+  // Хук на router: якщо хеш = #settings — рендеримо нашу view
+  function ensureSettingsRoute() {
+    var _origNavigate = window.navigate;
+    if (typeof _origNavigate !== 'function' || _origNavigate.__settingsPatched) return;
+    window.navigate = function () {
+      var hash = (location.hash || '').slice(1);
+      var route = hash.split('/')[0];
+      if (route === 'settings') {
+        document.querySelectorAll('.sidebar a.nav-item').forEach(function (a) { a.classList.remove('active'); });
+        var bc = document.getElementById('breadcrumb');
+        if (bc) bc.innerHTML = 'Стіл SMM · <b>Налаштування</b>';
+        var main = document.getElementById('main');
+        if (main) renderSettings(main);
+        if (typeof updateNavCounts === 'function') updateNavCounts();
+        return;
+      }
+      return _origNavigate.apply(this, arguments);
+    };
+    window.navigate.__settingsPatched = true;
+  }
+  ensureSettingsRoute();
+  setTimeout(ensureSettingsRoute, 300);
+
+  // Зробити role-switch клік на «Профіль» — переходити у /settings
+  // (легка надбудова: коли користувач у меню профілю клацає «Профіль» — навігація)
+  document.addEventListener('click', function (e) {
+    var item = e.target && e.target.closest && e.target.closest('.dropdown-item');
+    if (item && /Профіль/i.test(item.textContent || '')) {
+      e.preventDefault();
+      location.hash = '#settings';
+      if (window.Modal && typeof Modal.close === 'function') Modal.close();
+    }
+  }, true);
+
+  // ---- Patch: refresh creative-strip ----
   function refreshCreativeStrip(p) {
     var strip = document.getElementById('f_creatives');
     if (!strip || !p) return;
@@ -278,14 +483,12 @@
       if (removeBtn) item.appendChild(removeBtn);
     });
   }
-
   var _origOpenCard = window.openCard;
   window.openCard = function (id) {
     _origOpenCard.call(this, id);
     var p = id === 'new' ? null : Store.pub(id);
     if (p) setTimeout(function () { refreshCreativeStrip(p); }, 0);
   };
-
   var _origUpload = window.uploadCreativeFile;
   if (typeof _origUpload === 'function') {
     window.uploadCreativeFile = function (file, pub) {
@@ -295,7 +498,6 @@
       return r;
     };
   }
-
   if (typeof window.openCreativePicker === 'function') {
     var _origPicker = window.openCreativePicker;
     window.openCreativePicker = function (p) {
@@ -320,5 +522,5 @@
     };
   }
 
-  console.log('%cDreamCar HQ Patches v2 %c· thumbs + team + UUID active', 'color:#4ade80;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Patches v2 %c· thumbs + team + UUID + previews + bell + settings active', 'color:#4ade80;font-weight:700;', 'color:#888;');
 })();
