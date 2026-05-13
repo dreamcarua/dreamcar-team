@@ -1,13 +1,14 @@
 // =====================================================================
-// DreamCar HQ — TG Webhook v2 (inbound bot + diagnostics)
+// DreamCar HQ — TG Webhook v3
+// Fallback на HQ_DB_SERVICE_KEY якщо SUPABASE_SERVICE_ROLE_KEY не задано
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const TG_BOT_TOKEN      = Deno.env.get("TG_BOT_TOKEN")      ?? "";
 const TG_WEBHOOK_SECRET = Deno.env.get("TG_WEBHOOK_SECRET")  ?? "";
-const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")      ?? "";
-const SERVICE_ROLE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")      ?? Deno.env.get("HQ_DB_URL") ?? "";
+const SERVICE_ROLE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
 
 const HQ_URL = "https://dreamcarua.github.io/dreamcar-team/hq/";
 
@@ -51,11 +52,7 @@ async function handleStart(supabase: ReturnType<typeof createClient>, chatId: nu
       `Це бот <b>DreamCar HQ</b>.\n\n` +
       `🆔 <b>Твій chat_id:</b> <code>${chatId}</code>\n` +
       (tgUser.username ? `📛 <b>TG username:</b> @${escHtml(tgUser.username)}\n\n` : "\n") +
-      `Щоб привʼязати акаунт:\n` +
-      `1. Відкрий HQ: <a href="${HQ_URL}">${HQ_URL}</a>\n` +
-      `2. Залогінься (Google)\n` +
-      `3. Перейди у <b>Налаштування → Telegram</b>\n` +
-      `4. Або встав <code>chat_id</code> вручну, або тисни «Прив'язати через бот»\n\n` +
+      `Щоб привʼязати акаунт — у HQ Налаштування → «Прив'язати через бот».\n\n` +
       `Команди: /whoami /unbind /help`
     );
     return;
@@ -73,26 +70,22 @@ async function handleStart(supabase: ReturnType<typeof createClient>, chatId: nu
       `⚠️ Помилка БД при пошуку користувача.\n\n` +
       `<code>${escHtml(error.message || JSON.stringify(error))}</code>\n\n` +
       `🆔 chat_id: <code>${chatId}</code>\n` +
-      `🔎 шукав id: <code>${escHtml(userId)}</code>\n\n` +
-      `Передай скрін Вадиму.`
+      `🔎 шукав id: <code>${escHtml(userId)}</code>`
     );
     return;
   }
   if (!user) {
     await tgSend(chatId,
-      `⚠️ Користувача з ID <code>${escHtml(userId)}</code> не знайдено в БД.\n\n` +
-      `Перевір що у HQ ти залогінений як CEO і id той самий.\n\n` +
-      `🆔 Твій chat_id: <code>${chatId}</code>\n` +
-      `Можна привʼязати вручну: у Supabase SQL Editor —\n` +
-      `<code>update public.users set tg_chat_id = ${chatId} where email = 'твій-email';</code>`
+      `⚠️ Користувача з ID <code>${escHtml(userId)}</code> не знайдено.\n\n` +
+      `🆔 Твій chat_id: <code>${chatId}</code>`
     );
     return;
   }
 
   if (user.tg_chat_id && user.tg_chat_id !== chatId) {
     await tgSend(chatId,
-      `⚠️ Цей акаунт уже привʼязаний до іншого TG-чату (chat_id: ${user.tg_chat_id}).\n\n` +
-      `Якщо хочеш перепривʼязати — спочатку у старому чаті виконай /unbind, потім спробуй знову.`
+      `⚠️ Цей акаунт уже привʼязаний до іншого TG-чату (chat_id: ${user.tg_chat_id}).\n` +
+      `У старому чаті виконай /unbind і спробуй знову.`
     );
     return;
   }
@@ -139,8 +132,7 @@ async function handleWhoami(supabase: ReturnType<typeof createClient>, chatId: n
     `Імʼя: <b>${escHtml(user.name || "—")}</b>\n` +
     `Email: ${escHtml(user.email || "—")}\n` +
     `Роль: ${escHtml(user.role || "—")}\n` +
-    `chat_id: <code>${chatId}</code>\n` +
-    `user.id: <code>${escHtml(user.id || "")}</code>`
+    `chat_id: <code>${chatId}</code>`
   );
 }
 
@@ -175,6 +167,11 @@ Deno.serve(async (req: Request) => {
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     console.error("Missing service config", { hasUrl: !!SUPABASE_URL, hasKey: !!SERVICE_ROLE_KEY });
+    // Якщо є TG_BOT_TOKEN, скажемо юзеру про помилку
+    try {
+      const chatId = msg.chat.id;
+      await tgSend(chatId, "⚠️ Сервер не налаштований: відсутній HQ_DB_SERVICE_KEY або HQ_DB_URL. Передай скрін Вадиму.");
+    } catch (_) {}
     return new Response("Missing service config", { status: 500 });
   }
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
