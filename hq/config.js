@@ -17,13 +17,15 @@ window.HQ_CONFIG = {
   SUPABASE_URL:      'https://wotghlaehnvxyeacznvv.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A',
 
-  // ---- Telegram Login (опційно) ----
-  // Bot username у вигляді "dreamcar_hr_bot" (без @)
-  // Для роботи Login Widget bot має бути зареєстрований у @BotFather
-  // через /setdomain → dreamcarua.github.io
-  TG_LOGIN_BOT: '',
+  // ---- Telegram bot ----
+  // Bot username у вигляді "dreamcar_team_bot" (без @)
+  // Використовується для:
+  //   - кнопки «🔗 Прив'язати через бот» у Settings (deep-link)
+  //   - Login Widget (потребує /setdomain dreamcarua.github.io у @BotFather)
+  TG_BOT_USERNAME: 'dreamcar_team_bot',
+  TG_LOGIN_BOT:    '',  // залиш порожнім поки не зробиш /setdomain
 
-  // ---- TG bot для сповіщень (вже маємо) ----
+  // ---- TG bot токен (для сповіщень) ----
   TG_BOT_TOKEN:  '8461032235:AAE70f7xmBIrGW7-dC5GfcYvQjjRYUk6IEg',
   TG_GROUP_CHAT: '-5205303628',
 
