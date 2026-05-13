@@ -4,6 +4,7 @@
    • Експорт у .ics
    • Keyboard help (?)
    • Settings route fix (hashchange race з app-views.js)
+   • Deep-link "Прив'язати через бот" у Settings
    ============================================================ */
 
 (function () {
@@ -23,17 +24,18 @@
       '.kbd-help-card .kbd-row:last-child { border-bottom: none; }' +
       '.kbd-help-card .kbd-key { background: var(--bg-3); border: 1px solid var(--border); border-bottom: 2px solid var(--border-2); border-radius: 5px; padding: 3px 9px; font-family: ui-monospace, "Courier New", monospace; font-size: 11px; color: var(--gold); font-weight: 700; min-width: 22px; text-align: center; }' +
       '.kbd-help-card .kbd-desc { color: #ddd; font-size: 13px; }' +
-      '.kbd-help-card .kbd-foot { margin-top: 16px; font-size: 11px; color: var(--grey); text-align: center; }';
+      '.kbd-help-card .kbd-foot { margin-top: 16px; font-size: 11px; color: var(--grey); text-align: center; }' +
+      '.tg-bind-block { background: linear-gradient(135deg, rgba(0,136,204,0.1), transparent); border: 1px solid rgba(0,136,204,0.3); border-radius: 8px; padding: 14px; margin-bottom: 12px; }' +
+      '.tg-bind-block .tb-title { font-weight: 700; color: #fff; margin-bottom: 6px; font-size: 13px; }' +
+      '.tg-bind-block .tb-desc { font-size: 12px; color: var(--grey); line-height: 1.5; margin-bottom: 10px; }' +
+      '.tg-bind-block a.tb-cta { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; background: #0088cc; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; transition: background 0.15s; }' +
+      '.tg-bind-block a.tb-cta:hover { background: #0099e0; }';
     document.head.appendChild(css);
   })();
 
   // ============================================================
   // FIX: settings route (high-priority hashchange listener)
   // ============================================================
-  // app-views.js підписався на hashchange ще ДО того, як app-patches.js
-  // підмінив window.navigate. Через closure listener дзвонить стару
-  // версію без settings-маршруту. Тому додаємо ВЛАСНИЙ listener,
-  // який спрацьовує паралельно й гарантовано рендерить settings.
   function maybeRenderSettings() {
     var hash = (location.hash || '').slice(1);
     var route = hash.split('/')[0];
@@ -41,18 +43,48 @@
     if (typeof window.renderSettings !== 'function') return;
     var main = document.getElementById('main');
     if (!main) return;
-    // Очистити active у sidebar
     document.querySelectorAll('.sidebar a.nav-item').forEach(function (a) { a.classList.remove('active'); });
     var settingsLink = document.querySelector('.sidebar a[data-route="settings"]');
     if (settingsLink) settingsLink.classList.add('active');
     var bc = document.getElementById('breadcrumb');
     if (bc) bc.innerHTML = 'Стіл SMM · <b>Налаштування</b>';
     window.renderSettings(main);
+    // Після рендеру додамо TG bind block
+    setTimeout(enhanceTgBindBlock, 80);
   }
   window.addEventListener('hashchange', maybeRenderSettings);
-  // Перевірити одразу при завантаженні
   setTimeout(maybeRenderSettings, 200);
   setTimeout(maybeRenderSettings, 1000);
+
+  // ---- TG bind block у Settings ----
+  function enhanceTgBindBlock() {
+    var input = document.getElementById('set_tg_chat_id');
+    if (!input) return;
+    var section = input.closest('div[style*="background:var(--bg-2)"]') || input.parentElement;
+    if (!section) return;
+    if (section.querySelector('.tg-bind-block')) return;
+
+    var me = window.Store && Store.currentUser && Store.currentUser();
+    var userId = me && me.id;
+    var botUsername = (window.HQ_CONFIG && (window.HQ_CONFIG.TG_BOT_USERNAME || window.HQ_CONFIG.TG_LOGIN_BOT)) || '';
+
+    var block = document.createElement('div');
+    block.className = 'tg-bind-block';
+    if (botUsername && userId) {
+      var url = 'https://t.me/' + botUsername.replace(/^@/, '') + '?start=hq_' + encodeURIComponent(userId);
+      block.innerHTML =
+        '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
+        '<div class="tb-desc">Натисни кнопку — відкриється Telegram з ботом. Тисни <b>«Start»</b> у боті — і chat_id привʼяжеться автоматично, без копіювання чисел.</div>' +
+        '<a class="tb-cta" href="' + url + '" target="_blank" rel="noopener">🔗 Прив\'язати через @' + (botUsername.replace(/^@/, '')) + '</a>';
+    } else {
+      block.innerHTML =
+        '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
+        '<div class="tb-desc">Поки що недоступно — адмін не задав <code>TG_BOT_USERNAME</code> у <code>config.js</code>. Скоро буде. Зараз — введи <code>chat_id</code> вручну нижче.</div>';
+    }
+    // Вставити перед input-row
+    var inputRow = input.closest('div[style*="display:flex"]') || input.parentElement;
+    if (inputRow && inputRow.parentNode) inputRow.parentNode.insertBefore(block, inputRow);
+  }
 
   // ============================================================
   // DUPLICATE PUBLICATION
@@ -224,5 +256,5 @@
     }
   });
 
-  console.log('%cDreamCar HQ Extras %c· duplicate + ICS + kbd-help + settings-route-fix active', 'color:#a78bfa;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Extras %c· duplicate + ICS + kbd-help + settings + tg-bind active', 'color:#a78bfa;font-weight:700;', 'color:#888;');
 })();
