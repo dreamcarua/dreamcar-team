@@ -1,7 +1,6 @@
 /* ============================================================
    DreamCar HQ — Extras v3
    FIX: Store визначаємо через typeof Store !== 'undefined'
-   (бо const Store не біндиться на window у класичних script-ах)
    ============================================================ */
 
 (function () {
@@ -69,10 +68,9 @@
     var userId = me && me.id;
     var botUsername = (window.HQ_CONFIG && (window.HQ_CONFIG.TG_BOT_USERNAME || window.HQ_CONFIG.TG_LOGIN_BOT)) || '';
 
-    // Видаляємо старий блок (якщо нема CTA — підмінюємо; якщо є — не чіпаємо)
     var existing = section.querySelector('.tg-bind-block');
     if (existing) {
-      if (existing.querySelector('a.tb-cta')) return; // вже OK
+      if (existing.querySelector('a.tb-cta')) return;
       existing.remove();
     }
 
@@ -84,10 +82,9 @@
       var url = 'https://t.me/' + ucName + '?start=hq_' + encodeURIComponent(userId);
       block.innerHTML =
         '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
-        '<div class="tb-desc">Натисни кнопку — відкриється Telegram з ботом. Тисни <b>«Start»</b> у боті — і chat_id привʼяжеться автоматично, без копіювання чисел.</div>' +
+        '<div class="tb-desc">Натисни кнопку — відкриється Telegram з ботом. Тисни <b>«Start»</b> у боті — chat_id привʼяжеться автоматично.</div>' +
         '<a class="tb-cta" href="' + url + '" target="_blank" rel="noopener">🔗 Прив\'язати через @' + ucName + '</a>';
     } else if (botUsername && !userId) {
-      // Юзер не залогінений / Store ще не готовий — даємо просте посилання на бота
       block.innerHTML =
         '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
         '<div class="tb-desc">Спочатку залогінься у HQ (Google). Якщо вже залогінений — оновись сторінку (Ctrl+Shift+R).</div>' +
@@ -265,4 +262,14 @@
   });
 
   console.log('%cDreamCar HQ Extras v3 %c· Store via typeof, bind-block fixed', 'color:#a78bfa;font-weight:700;', 'color:#888;');
+
+  // ============================================================
+  // LOADER CHAIN — підвантажуємо app-drive.js
+  // ============================================================
+  if (!document.querySelector('script[src*="app-drive.js"]')) {
+    var s = document.createElement('script');
+    s.src = 'app-drive.js?v=' + Date.now();
+    s.defer = true;
+    document.head.appendChild(s);
+  }
 })();
