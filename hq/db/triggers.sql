@@ -1,6 +1,6 @@
 -- =====================================================================
 -- DreamCar HQ — Triggers
--- v1.0
+-- v1.1 (fix: column name is_active, not active)
 -- Виконати в Supabase SQL Editor ПІСЛЯ schema.sql + rls.sql
 -- =====================================================================
 
@@ -40,12 +40,12 @@ begin
     v_role := 'member'::public.user_role;
   end if;
 
-  insert into public.users (auth_id, email, name, role, active)
+  insert into public.users (auth_id, email, name, role, is_active)
   values (new.id, v_email, v_name, v_role, true)
   on conflict (email) do update
-    set auth_id = excluded.auth_id,
-        name    = coalesce(public.users.name, excluded.name),
-        active  = true;
+    set auth_id   = excluded.auth_id,
+        name      = coalesce(public.users.name, excluded.name),
+        is_active = true;
 
   return new;
 end;
@@ -65,7 +65,7 @@ create trigger on_auth_user_created
 -- запустіть цей блок щоб не залишити «бездомних» юзерів.
 -- ---------------------------------------------------------------------
 
-insert into public.users (auth_id, email, name, role, active)
+insert into public.users (auth_id, email, name, role, is_active)
 select
   au.id,
   lower(au.email),
@@ -83,10 +83,10 @@ select
 from auth.users au
 where au.email is not null
 on conflict (email) do update
-  set auth_id = excluded.auth_id,
-      active  = true;
+  set auth_id   = excluded.auth_id,
+      is_active = true;
 
 -- ---------------------------------------------------------------------
 -- Готово. Перевірка:
---   select email, role, active from public.users order by created_at desc;
+--   select email, role, is_active from public.users order by created_at desc;
 -- ---------------------------------------------------------------------
