@@ -1,34 +1,122 @@
 /* ============================================================
-   DreamCar HQ — Drive Resumable Upload (для файлів > 50 MB)
-   Завантажується через loader chain (app-locks.js).
+   DreamCar HQ — Drive Resumable Upload + creative-id UUID fix
    ============================================================ */
 
 (function () {
   if (window.__hqDriveLoaded) return;
   window.__hqDriveLoaded = true;
 
-  var DRIVE_THRESHOLD_BYTES = 50 * 1024 * 1024; // 50 MB
-  var CHUNK_SIZE = 8 * 1024 * 1024;             // 8 MB
+  var DRIVE_THRESHOLD_BYTES = 50 * 1024 * 1024;
+  var CHUNK_SIZE = 8 * 1024 * 1024;
 
   function fnUrl(name) {
     var base = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_URL) || '';
     return base.replace(/\/$/, '') + '/functions/v1/' + name;
   }
-
   async function getAccessJwt() {
     if (!window.supabase) return null;
     var { data } = await window.supabase.auth.getSession();
     return data && data.session && data.session.access_token || null;
   }
-
   function humanSize(b) {
     if (b < 1024) return b + ' B';
     if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
     if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
     return (b/1024/1024/1024).toFixed(2) + ' GB';
   }
+  function getUuid() {
+    if (window.uuidV4) return window.uuidV4();
+    if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      var v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 
+  // ============================================================
+  // FIX: createCreativeRecord — id має бути UUID, а не "cr_xxx"
+  // ============================================================
+  function overrideCreateCreativeRecord() {
+    // Якщо ще не доступна — пробуємо пізніше
+    if (typeof window.createCreativeRecord !== 'function' && typeof createCreativeRecord !== 'function') return false;
+    if (window.createCreativeRecord && window.createCreativeRecord.__uuidPatched) return true;
+
+    var _orig = (typeof window.createCreativeRecord === 'function')
+      ? window.createCreativeRecord
+      : (typeof createCreativeRecord === 'function' ? createCreativeRecord : null);
+    if (!_orig) return false;
+
+    window.createCreativeRecord = async function (meta) {
+      // Дублюємо оригінальну логіку з виправленим id
+      var id = getUuid();
+      var previewMap = { photo: '🖼️', video: '🎬', doc: '📄', audio: '🎵' };
+      var colorMap   = { photo: '#ff6577', video: '#7ab0ff', doc: '#888', audio: '#fbbf24' };
+      var meId = (typeof Store !== 'undefined' && Store.currentUser && Store.currentUser().id) || null;
+      var local = {
+        id: id,
+        name: meta.name,
+        type: meta.type,
+        size: humanSize(meta.size_bytes),
+        duration: null,
+        res: '—',
+        tags: [],
+        uploadedBy: meId,
+        uploadedAt: new Date().toISOString(),
+        preview: previewMap[meta.type] || '📦',
+        color: colorMap[meta.type] || '#888',
+        url: meta.url,
+      };
+      // optimistic cache
+      if (typeof Store !== 'undefined' && Store._data && Array.isArray(Store._data.creatives)) {
+        Store._data.creatives.unshift(local);
+      }
+
+      if (!window.HQ_BACKEND) {
+        if (typeof Store !== 'undefined' && typeof Store._saveLocal === 'function') Store._saveLocal();
+        return local;
+      }
+      var sb = window.supabase;
+      if (!sb) return local;
+      try {
+        var { error } = await sb.from('creatives').insert({
+          id: id,
+          desk_id: '11111111-1111-1111-1111-111111111111',
+          name: meta.name,
+          type: meta.type,
+          size_bytes: meta.size_bytes,
+          drive_file_id: meta.storage_path,
+          thumbnail_url: meta.url,
+          tags: [],
+          uploaded_by: meId,
+        });
+        if (error) {
+          console.error('creatives insert (patched):', error);
+          if (typeof toast === 'function') toast('Не зберіг у БД', 'error', error.message);
+          // rollback
+          if (typeof Store !== 'undefined' && Store._data) {
+            Store._data.creatives = (Store._data.creatives || []).filter(function (c) { return c.id !== id; });
+          }
+          throw error;
+        }
+      } catch (e) {
+        console.error('createCreativeRecord patched threw:', e);
+        throw e;
+      }
+      return local;
+    };
+    window.createCreativeRecord.__uuidPatched = true;
+    return true;
+  }
+  if (!overrideCreateCreativeRecord()) {
+    setTimeout(overrideCreateCreativeRecord, 300);
+    setTimeout(overrideCreateCreativeRecord, 1000);
+    setTimeout(overrideCreateCreativeRecord, 2500);
+  }
+
+  // ============================================================
   // Прогрес-toast (живий, оновлюється)
+  // ============================================================
   function makeProgressToast(initMsg) {
     var stack = document.getElementById('toastStack');
     if (!stack) return { update: function(){}, close: function(){} };
@@ -59,6 +147,9 @@
     };
   }
 
+  // ============================================================
+  // Upload via Drive (>50MB)
+  // ============================================================
   async function uploadViaDrive(file, pub) {
     if (!window.HQ_BACKEND || !window.supabase) {
       if (typeof toast === 'function') toast('Drive потребує авторизації', 'error');
@@ -71,7 +162,6 @@
     var prog = makeProgressToast(file.name + ' (' + humanSize(file.size) + ')');
 
     try {
-      // 1. Init resumable
       prog.update(1, 'Створюю Drive-сесію…');
       var initResp = await fetch(fnUrl('drive-init-upload'), {
         method: 'POST',
@@ -87,7 +177,6 @@
       var uploadUrl = initData.uploadUrl;
       var chunkSize = initData.maxChunkSize || CHUNK_SIZE;
 
-      // 2. Chunked upload
       var offset = 0;
       var driveFileId = null;
       while (offset < file.size) {
@@ -102,25 +191,21 @@
           body: chunk,
         });
         if (putResp.status === 308) {
-          // Resume — Range header у відповіді каже скільки прийняли
           var rangeRcv = putResp.headers.get('range') || '';
           var m = rangeRcv.match(/bytes=0-(\d+)/);
           offset = m ? parseInt(m[1], 10) + 1 : end;
           continue;
         }
         if (putResp.status === 200 || putResp.status === 201) {
-          // Завершено — у тілі file metadata з id
           var meta = await putResp.json();
           driveFileId = meta.id;
           break;
         }
-        // Будь-який інший — помилка
         var errText = await putResp.text();
         throw new Error('upload chunk fail ' + putResp.status + ': ' + errText);
       }
       if (!driveFileId) throw new Error('No file id from Drive after upload');
 
-      // 3. Finalize: зробити публічним + запис у creatives
       prog.update(97, 'Реєструю файл…');
       var finResp = await fetch(fnUrl('drive-finalize-upload'), {
         method: 'POST',
@@ -140,7 +225,6 @@
       var finData = await finResp.json();
       var creative = finData.creative;
 
-      // 4. Додати у локальний Store + у pub.creatives
       var previewMap = { photo: '🖼️', video: '🎬', doc: '📄', audio: '🎵' };
       var colorMap   = { photo: '#ff6577', video: '#7ab0ff', doc: '#888', audio: '#fbbf24' };
       var local = {
@@ -166,7 +250,6 @@
         if (typeof refreshPreview === 'function') refreshPreview(pub);
         if (typeof autosave === 'function') autosave(pub);
       }
-      // Re-render creative-strip
       try {
         var strip = document.getElementById('f_creatives');
         if (strip && typeof mediaThumb === 'function') {
@@ -206,12 +289,10 @@
     var _orig = window.uploadCreativeFile;
     window.uploadCreativeFile = async function (file, pub) {
       if (!file) return;
-      // Якщо файл >50MB і ми у backend-режимі — через Drive
       if (file.size > DRIVE_THRESHOLD_BYTES && window.HQ_BACKEND) {
         try {
           return await uploadViaDrive(file, pub);
         } catch (e) {
-          // Fallback на оригінал тільки якщо файл уміщається у Supabase Storage limit
           if (file.size <= 100 * 1024 * 1024) {
             if (typeof toast === 'function') toast('Drive впав, пробую Storage…', 'warn');
             return _orig.call(this, file, pub);
@@ -219,7 +300,6 @@
           throw e;
         }
       }
-      // Інакше — стандартний flow
       return _orig.call(this, file, pub);
     };
     window.uploadCreativeFile.__drivePatched = true;
@@ -233,5 +313,5 @@
     threshold: DRIVE_THRESHOLD_BYTES,
     chunkSize: CHUNK_SIZE,
   };
-  console.log('%cDreamCar HQ Drive %c· upload >50MB через Google Drive active', 'color:#4285F4;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Drive %c· upload >50MB + UUID creative-id fix active', 'color:#4285F4;font-weight:700;', 'color:#888;');
 })();
