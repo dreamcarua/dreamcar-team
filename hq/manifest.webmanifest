@@ -1,0 +1,45 @@
+{
+  "name": "DreamCar HQ — Командний штаб",
+  "short_name": "DC HQ",
+  "description": "Контент-план + операційка SMM-команди DreamCar.",
+  "start_url": "/dreamcar-team/hq/",
+  "scope": "/dreamcar-team/hq/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0a0a0e",
+  "background_color": "#0a0a0e",
+  "lang": "uk-UA",
+  "icons": [
+    {
+      "src": "https://etron.dreamcar.ua/etron/assets/img/dreamcar-avatar-mark.ico",
+      "sizes": "any",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "https://etron.dreamcar.ua/etron/assets/img/dreamcar-racing-plate.webp",
+      "sizes": "any",
+      "type": "image/webp",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Календар",
+      "short_name": "Календар",
+      "url": "/dreamcar-team/hq/#calendar"
+    },
+    {
+      "name": "Дошка погоджень",
+      "short_name": "Дошка",
+      "url": "/dreamcar-team/hq/#board"
+    },
+    {
+      "name": "Аналітика",
+      "short_name": "Stats",
+      "url": "/dreamcar-team/hq/#analytics"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "prefer_related_applications": false
+}
