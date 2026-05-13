@@ -1,6 +1,5 @@
 // =====================================================================
-// DreamCar HQ — TG Webhook v3
-// Fallback на HQ_DB_SERVICE_KEY якщо SUPABASE_SERVICE_ROLE_KEY не задано
+// DreamCar HQ — TG Webhook v4 (verbose key diagnostics)
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -8,24 +7,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 const TG_BOT_TOKEN      = Deno.env.get("TG_BOT_TOKEN")      ?? "";
 const TG_WEBHOOK_SECRET = Deno.env.get("TG_WEBHOOK_SECRET")  ?? "";
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")      ?? Deno.env.get("HQ_DB_URL") ?? "";
-const SERVICE_ROLE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
+const SUP_KEY_RAW       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const HQ_KEY_RAW        = Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
+const SERVICE_ROLE_KEY  = HQ_KEY_RAW || SUP_KEY_RAW;
+const KEY_SOURCE        = HQ_KEY_RAW ? "HQ_DB_SERVICE_KEY" : (SUP_KEY_RAW ? "SUPABASE_SERVICE_ROLE_KEY" : "MISSING");
 
 const HQ_URL = "https://dreamcarua.github.io/dreamcar-team/hq/";
+
+// Декодує JWT payload (без перевірки підпису) — лише для діагностики
+function jwtRole(jwt: string): string {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length < 2) return "not-jwt";
+    const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    const obj = JSON.parse(json);
+    return String(obj.role || "no-role-field");
+  } catch (_e) { return "decode-err"; }
+}
 
 async function tgSend(chatId: number | string, text: string): Promise<void> {
   if (!TG_BOT_TOKEN) return;
   const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
-  const body = {
-    chat_id: chatId,
-    text,
-    parse_mode: "HTML",
-    disable_web_page_preview: true,
-  };
   try {
     const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }),
     });
     if (!r.ok) console.error("tgSend fail", r.status, await r.text());
   } catch (e) { console.error("tgSend threw", e); }
@@ -49,44 +56,38 @@ async function handleStart(supabase: ReturnType<typeof createClient>, chatId: nu
   if (!m) {
     await tgSend(chatId,
       `👋 Привіт${tgUser.first_name ? ", " + escHtml(tgUser.first_name) : ""}!\n\n` +
-      `Це бот <b>DreamCar HQ</b>.\n\n` +
       `🆔 <b>Твій chat_id:</b> <code>${chatId}</code>\n` +
       (tgUser.username ? `📛 <b>TG username:</b> @${escHtml(tgUser.username)}\n\n` : "\n") +
-      `Щоб привʼязати акаунт — у HQ Налаштування → «Прив'язати через бот».\n\n` +
-      `Команди: /whoami /unbind /help`
+      `Команди: /whoami /unbind /help /diag`
     );
     return;
   }
   const userId = m[1].toLowerCase();
-  console.log("handleStart: looking up userId", userId);
+  const role = jwtRole(SERVICE_ROLE_KEY);
+  console.log("handleStart: userId=", userId, " keySource=", KEY_SOURCE, " role=", role);
 
   const { data: user, error } = await supabase
     .from("users").select("id, name, email, tg_chat_id")
     .eq("id", userId).maybeSingle();
 
   if (error) {
-    console.error("select user error:", error);
     await tgSend(chatId,
-      `⚠️ Помилка БД при пошуку користувача.\n\n` +
+      `⚠️ <b>Помилка БД</b>\n` +
       `<code>${escHtml(error.message || JSON.stringify(error))}</code>\n\n` +
+      `🔑 Key source: <b>${KEY_SOURCE}</b>\n` +
+      `🎭 JWT role: <b>${role}</b> ← має бути "service_role"\n` +
       `🆔 chat_id: <code>${chatId}</code>\n` +
       `🔎 шукав id: <code>${escHtml(userId)}</code>`
     );
     return;
   }
   if (!user) {
-    await tgSend(chatId,
-      `⚠️ Користувача з ID <code>${escHtml(userId)}</code> не знайдено.\n\n` +
-      `🆔 Твій chat_id: <code>${chatId}</code>`
-    );
+    await tgSend(chatId, `⚠️ User <code>${escHtml(userId)}</code> not found.\n\nKey: ${KEY_SOURCE} (role=${role})\nchat_id: <code>${chatId}</code>`);
     return;
   }
 
   if (user.tg_chat_id && user.tg_chat_id !== chatId) {
-    await tgSend(chatId,
-      `⚠️ Цей акаунт уже привʼязаний до іншого TG-чату (chat_id: ${user.tg_chat_id}).\n` +
-      `У старому чаті виконай /unbind і спробуй знову.`
-    );
+    await tgSend(chatId, `⚠️ Уже привʼязаний до chat_id ${user.tg_chat_id}. Виконай /unbind у старому чаті.`);
     return;
   }
 
@@ -94,7 +95,6 @@ async function handleStart(supabase: ReturnType<typeof createClient>, chatId: nu
     .from("users").update({ tg_chat_id: chatId, tg_username: tgUser.username ?? null })
     .eq("id", userId);
   if (upErr) {
-    console.error("bind fail", upErr);
     await tgSend(chatId, `⚠️ Не вдалось привʼязати: <code>${escHtml(upErr.message)}</code>`);
     return;
   }
@@ -103,28 +103,40 @@ async function handleStart(supabase: ReturnType<typeof createClient>, chatId: nu
     `✅ <b>Привʼязано!</b>\n` +
     `Акаунт: <b>${escHtml(user.name || user.email || userId.slice(0, 8))}</b>\n` +
     `chat_id: <code>${chatId}</code>\n\n` +
-    `Тепер я надсилатиму тобі сповіщення.\n\n` +
     `🔗 <a href="${HQ_URL}">Відкрити HQ</a>`
   );
 }
 
+async function handleDiag(chatId: number): Promise<void> {
+  const role = jwtRole(SERVICE_ROLE_KEY);
+  await tgSend(chatId,
+    `🔧 <b>Diag</b>\n` +
+    `URL set: ${SUPABASE_URL ? "✅" : "❌"}\n` +
+    `Key source: <b>${KEY_SOURCE}</b>\n` +
+    `JWT role: <b>${role}</b> ${role === "service_role" ? "✅" : "❌"}\n` +
+    `Key length: ${SERVICE_ROLE_KEY.length}\n` +
+    `Bot token set: ${TG_BOT_TOKEN ? "✅" : "❌"}\n` +
+    `Webhook secret set: ${TG_WEBHOOK_SECRET ? "✅" : "❌"}\n` +
+    `chat_id: <code>${chatId}</code>`
+  );
+}
+
 async function handleUnbind(supabase: ReturnType<typeof createClient>, chatId: number): Promise<void> {
-  const { data: user } = await supabase
+  const { data: user, error } = await supabase
     .from("users").select("id, name, email").eq("tg_chat_id", chatId).maybeSingle();
-  if (!user) {
-    await tgSend(chatId, "ℹ️ У цьому чаті немає прив'язки.");
-    return;
-  }
+  if (error) { await tgSend(chatId, `⚠️ ${escHtml(error.message)}`); return; }
+  if (!user) { await tgSend(chatId, "ℹ️ Немає прив'язки."); return; }
   await supabase.from("users").update({ tg_chat_id: null, tg_username: null }).eq("id", user.id);
-  await tgSend(chatId, `🔌 Прив'язку видалено для <b>${escHtml(user.name || user.email || "")}</b>.`);
+  await tgSend(chatId, `🔌 Привʼязку видалено для <b>${escHtml(user.name || user.email || "")}</b>.`);
 }
 
 async function handleWhoami(supabase: ReturnType<typeof createClient>, chatId: number, tgUser: { username?: string }): Promise<void> {
-  const { data: user } = await supabase
+  const { data: user, error } = await supabase
     .from("users").select("id, name, email, role")
     .eq("tg_chat_id", chatId).maybeSingle();
+  if (error) { await tgSend(chatId, `⚠️ ${escHtml(error.message)}\nKey: ${KEY_SOURCE} role=${jwtRole(SERVICE_ROLE_KEY)}`); return; }
   if (!user) {
-    await tgSend(chatId, `🚫 Цей чат не привʼязаний.\n\n🆔 Твій chat_id: <code>${chatId}</code>${tgUser.username ? "\n📛 @" + escHtml(tgUser.username) : ""}`);
+    await tgSend(chatId, `🚫 Не привʼязаний.\n\n🆔 chat_id: <code>${chatId}</code>${tgUser.username ? "\n📛 @" + escHtml(tgUser.username) : ""}`);
     return;
   }
   await tgSend(chatId,
@@ -142,8 +154,8 @@ async function handleHelp(chatId: number): Promise<void> {
     `/start — старт + інструкція\n` +
     `/whoami — глянути привʼязку\n` +
     `/unbind — видалити привʼязку\n` +
-    `/help — ця довідка\n\n` +
-    `🔗 <a href="${HQ_URL}">Відкрити HQ</a>`
+    `/diag — діагностика secrets\n` +
+    `/help — ця довідка`
   );
 }
 
@@ -166,13 +178,10 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    console.error("Missing service config", { hasUrl: !!SUPABASE_URL, hasKey: !!SERVICE_ROLE_KEY });
-    // Якщо є TG_BOT_TOKEN, скажемо юзеру про помилку
     try {
-      const chatId = msg.chat.id;
-      await tgSend(chatId, "⚠️ Сервер не налаштований: відсутній HQ_DB_SERVICE_KEY або HQ_DB_URL. Передай скрін Вадиму.");
+      await tgSend(msg.chat.id, `⚠️ Server config missing.\nURL: ${SUPABASE_URL ? "✅" : "❌"}\nKey source: ${KEY_SOURCE}`);
     } catch (_) {}
-    return new Response("Missing service config", { status: 500 });
+    return new Response("Missing config", { status: 500 });
   }
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
@@ -181,7 +190,9 @@ Deno.serve(async (req: Request) => {
   const text = msg.text.trim();
 
   try {
-    if (text.startsWith("/start")) {
+    if (text === "/diag") {
+      await handleDiag(chatId);
+    } else if (text.startsWith("/start")) {
       const payload = text.slice(6).trim();
       await handleStart(supabase, chatId, tgUser, payload);
     } else if (text === "/unbind") {
@@ -195,7 +206,7 @@ Deno.serve(async (req: Request) => {
     }
   } catch (e) {
     console.error("handler error", e);
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 
   return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
