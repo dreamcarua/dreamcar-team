@@ -29,6 +29,13 @@ window.HQ_CONFIG = {
   TG_BOT_TOKEN:  '8461032235:AAE70f7xmBIrGW7-dC5GfcYvQjjRYUk6IEg',
   TG_GROUP_CHAT: '-5205303628',
 
+  // ---- AI Copy Assistant ----
+  // HQ_AI_SECRET — це shared token що відсікає випадкових сканерів URL
+  // (повна авторизація — через JWT юзера в HQ, цей токен тільки додатковий
+  // anti-abuse). ANTHROPIC_API_KEY зберігається ТІЛЬКИ в Edge Functions secrets.
+  HQ_AI_SECRET:    '88ccbae03aef16c08cf59614977fc519d9c8c3aa90f946dfa1d4680060fda5ed',
+  DEFAULT_BRAND:   'dreamcar',  // за замовчуванням у AI-modal
+
   // ---- Поведінка ----
   // Якщо true — навіть при наявному backend дозволяє demo-режим
   // (для розробки/презентації без логіну)
