@@ -1,12 +1,20 @@
 /* ============================================================
-   DreamCar HQ — Extras v2
-   • Duplicate, ICS, kbd-help, settings-route-fix
-   • Deep-link "Прив'язати через бот" (з retry)
+   DreamCar HQ — Extras v3
+   FIX: Store визначаємо через typeof Store !== 'undefined'
+   (бо const Store не біндиться на window у класичних script-ах)
    ============================================================ */
 
 (function () {
   if (window.__hqExtrasLoaded) return;
   window.__hqExtrasLoaded = true;
+
+  // Гнучкий accessor до Store / currentUser
+  function getStore() { try { return Store; } catch (_) { return null; } }
+  function getCurrentUser() {
+    var s = getStore();
+    if (!s || typeof s.currentUser !== 'function') return null;
+    try { return s.currentUser() || null; } catch (_) { return null; }
+  }
 
   // ---- CSS ----
   (function () {
@@ -22,16 +30,16 @@
       '.kbd-help-card .kbd-key { background: var(--bg-3); border: 1px solid var(--border); border-bottom: 2px solid var(--border-2); border-radius: 5px; padding: 3px 9px; font-family: ui-monospace, "Courier New", monospace; font-size: 11px; color: var(--gold); font-weight: 700; min-width: 22px; text-align: center; }' +
       '.kbd-help-card .kbd-desc { color: #ddd; font-size: 13px; }' +
       '.kbd-help-card .kbd-foot { margin-top: 16px; font-size: 11px; color: var(--grey); text-align: center; }' +
-      '.tg-bind-block { background: linear-gradient(135deg, rgba(0,136,204,0.1), transparent); border: 1px solid rgba(0,136,204,0.3); border-radius: 8px; padding: 14px; margin-bottom: 12px; }' +
+      '.tg-bind-block { background: linear-gradient(135deg, rgba(0,136,204,0.12), transparent); border: 1px solid rgba(0,136,204,0.35); border-radius: 8px; padding: 14px; margin-bottom: 12px; }' +
       '.tg-bind-block .tb-title { font-weight: 700; color: #fff; margin-bottom: 6px; font-size: 13px; }' +
       '.tg-bind-block .tb-desc { font-size: 12px; color: var(--grey); line-height: 1.5; margin-bottom: 10px; }' +
-      '.tg-bind-block a.tb-cta { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; background: #0088cc; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; transition: background 0.15s; }' +
+      '.tg-bind-block a.tb-cta { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: #0088cc; color: #fff !important; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 13px; transition: background 0.15s; }' +
       '.tg-bind-block a.tb-cta:hover { background: #0099e0; }';
     document.head.appendChild(css);
   })();
 
   // ============================================================
-  // Settings route fix + auto bind-block
+  // Settings route + bind-block
   // ============================================================
   function maybeRenderSettings() {
     var hash = (location.hash || '').slice(1);
@@ -46,52 +54,50 @@
     var bc = document.getElementById('breadcrumb');
     if (bc) bc.innerHTML = 'Стіл SMM · <b>Налаштування</b>';
     window.renderSettings(main);
-    // Після рендеру — retry-ланцюг для bind-block
     [80, 300, 1000, 2500].forEach(function (ms) { setTimeout(enhanceTgBindBlock, ms); });
   }
   window.addEventListener('hashchange', maybeRenderSettings);
   [200, 1000].forEach(function (ms) { setTimeout(maybeRenderSettings, ms); });
 
-  // ---- TG bind block (з retry) ----
   function enhanceTgBindBlock() {
     var input = document.getElementById('set_tg_chat_id');
     if (!input) return;
     var section = input.closest('div[style*="background:var(--bg-2)"]') || input.parentElement;
     if (!section) return;
 
-    var me = window.Store && Store.currentUser && Store.currentUser();
+    var me = getCurrentUser();
     var userId = me && me.id;
     var botUsername = (window.HQ_CONFIG && (window.HQ_CONFIG.TG_BOT_USERNAME || window.HQ_CONFIG.TG_LOGIN_BOT)) || '';
 
-    // Якщо це новий блок або існуючий ще "недоступно" — видаляємо існуючий перед перерендером.
-    // Якщо вже HAS deep-link cta → не чіпаємо.
+    // Видаляємо старий блок (якщо нема CTA — підмінюємо; якщо є — не чіпаємо)
     var existing = section.querySelector('.tg-bind-block');
     if (existing) {
-      var hasCta = !!existing.querySelector('a.tb-cta');
-      if (hasCta) return; // уже OK, не чіпаємо
+      if (existing.querySelector('a.tb-cta')) return; // вже OK
       existing.remove();
-    }
-
-    // Якщо userId ще не доступний — НЕ робимо fallback, чекаємо наступного retry
-    if (botUsername && !userId) {
-      // Не вставляємо порожній блок; retry через setTimeout у maybeRenderSettings подбає.
-      return;
     }
 
     var block = document.createElement('div');
     block.className = 'tg-bind-block';
+    var ucName = botUsername.replace(/^@/, '');
+
     if (botUsername && userId) {
-      var url = 'https://t.me/' + botUsername.replace(/^@/, '') + '?start=hq_' + encodeURIComponent(userId);
+      var url = 'https://t.me/' + ucName + '?start=hq_' + encodeURIComponent(userId);
       block.innerHTML =
         '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
         '<div class="tb-desc">Натисни кнопку — відкриється Telegram з ботом. Тисни <b>«Start»</b> у боті — і chat_id привʼяжеться автоматично, без копіювання чисел.</div>' +
-        '<a class="tb-cta" href="' + url + '" target="_blank" rel="noopener">🔗 Прив\'язати через @' + (botUsername.replace(/^@/, '')) + '</a>';
-    } else {
-      // Нема botUsername — fallback
+        '<a class="tb-cta" href="' + url + '" target="_blank" rel="noopener">🔗 Прив\'язати через @' + ucName + '</a>';
+    } else if (botUsername && !userId) {
+      // Юзер не залогінений / Store ще не готовий — даємо просте посилання на бота
       block.innerHTML =
         '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
-        '<div class="tb-desc">Поки що недоступно — адмін не задав <code>TG_BOT_USERNAME</code> у <code>config.js</code>. Зараз — введи <code>chat_id</code> вручну нижче.</div>';
+        '<div class="tb-desc">Спочатку залогінься у HQ (Google). Якщо вже залогінений — оновись сторінку (Ctrl+Shift+R).</div>' +
+        '<a class="tb-cta" href="https://t.me/' + ucName + '" target="_blank" rel="noopener">🔗 Відкрити @' + ucName + '</a>';
+    } else {
+      block.innerHTML =
+        '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
+        '<div class="tb-desc">Адмін не задав <code>TG_BOT_USERNAME</code> у <code>config.js</code>.</div>';
     }
+
     var inputRow = input.closest('div[style*="display:flex"]') || input.parentElement;
     if (inputRow && inputRow.parentNode) inputRow.parentNode.insertBefore(block, inputRow);
   }
@@ -101,9 +107,8 @@
   // DUPLICATE PUBLICATION
   // ============================================================
   function duplicatePub(srcId) {
-    if (!window.Store) return;
-    var src = Store.pub(srcId);
-    if (!src) return;
+    var s = getStore(); if (!s) return;
+    var src = s.pub(srcId); if (!src) return;
     var clone = JSON.parse(JSON.stringify(src));
     clone.id = (window.uuidV4 && window.uuidV4()) ||
       (window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'p_' + Math.random().toString(36).slice(2, 10));
@@ -118,20 +123,19 @@
       }
     } catch (_) {}
     clone.comments = [];
+    var me = getCurrentUser();
     clone.history = [{
       id: (window.uuidV4 && window.uuidV4()) || Math.random().toString(36).slice(2,10),
       at: new Date().toISOString(),
-      author: Store.currentUser && Store.currentUser().id,
+      author: me && me.id,
       action: 'create',
       detail: 'дубль публікації ' + src.id.slice(0,8),
     }];
     clone.createdAt = new Date().toISOString();
     clone.updatedAt = new Date().toISOString();
-    delete clone._trashed;
-    delete clone._trashedAt;
-    delete clone._isNew;
+    delete clone._trashed; delete clone._trashedAt; delete clone._isNew;
 
-    var r = Store.upsertPub(clone);
+    var r = s.upsertPub(clone);
     if (r && typeof r.then === 'function') {
       r.then(function () {
         if (typeof toast === 'function') toast('Створено копію', 'success', clone.title);
@@ -163,7 +167,8 @@
     var _orig = window.openCard;
     window.openCard = function (id) {
       _orig.call(this, id);
-      var p = id === 'new' ? null : (Store.pub && Store.pub(id));
+      var s = getStore();
+      var p = (id === 'new' || !s || !s.pub) ? null : s.pub(id);
       if (p) setTimeout(function () { addDuplicateButton(p); }, 100);
     };
     window.openCard.__extrasPatched = true;
@@ -175,8 +180,8 @@
   // ICS EXPORT
   // ============================================================
   function exportIcs() {
-    if (!window.Store) return;
-    var pubs = Store.pubs ? Store.pubs() : [];
+    var s = getStore(); if (!s) return;
+    var pubs = s.pubs ? s.pubs() : [];
     if (!pubs.length) {
       if (typeof toast === 'function') toast('Нічого експортувати', 'warn');
       return;
@@ -224,7 +229,7 @@
   window.exportIcs = exportIcs;
 
   // ============================================================
-  // KEYBOARD HELP OVERLAY
+  // KEYBOARD HELP
   // ============================================================
   function showKbdHelp() {
     if (document.querySelector('.kbd-help-overlay')) return;
@@ -235,13 +240,13 @@
         '<h2>⌨️ Гарячі клавіші</h2>' +
         '<div class="kbd-row"><span class="kbd-key">C</span><span class="kbd-desc">Створити нову публікацію</span></div>' +
         '<div class="kbd-row"><span class="kbd-key">/</span><span class="kbd-desc">Фокус на пошук</span></div>' +
-        '<div class="kbd-row"><span class="kbd-key">1</span><span class="kbd-desc">Календар: режим «Місяць»</span></div>' +
-        '<div class="kbd-row"><span class="kbd-key">2</span><span class="kbd-desc">Календар: режим «Тиждень»</span></div>' +
-        '<div class="kbd-row"><span class="kbd-key">3</span><span class="kbd-desc">Календар: режим «День»</span></div>' +
-        '<div class="kbd-row"><span class="kbd-key">4</span><span class="kbd-desc">Календар: режим «Список»</span></div>' +
+        '<div class="kbd-row"><span class="kbd-key">1</span><span class="kbd-desc">Календар: «Місяць»</span></div>' +
+        '<div class="kbd-row"><span class="kbd-key">2</span><span class="kbd-desc">Календар: «Тиждень»</span></div>' +
+        '<div class="kbd-row"><span class="kbd-key">3</span><span class="kbd-desc">Календар: «День»</span></div>' +
+        '<div class="kbd-row"><span class="kbd-key">4</span><span class="kbd-desc">Календар: «Список»</span></div>' +
         '<div class="kbd-row"><span class="kbd-key">?</span><span class="kbd-desc">Ця підказка</span></div>' +
         '<div class="kbd-row"><span class="kbd-key">Esc</span><span class="kbd-desc">Закрити модалку</span></div>' +
-        '<div class="kbd-foot">DreamCar HQ · v0.3 · Натисни Esc щоб закрити</div>' +
+        '<div class="kbd-foot">DreamCar HQ · v0.3 · Натисни Esc</div>' +
       '</div>';
     overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
     document.addEventListener('keydown', function escHandler(e) {
@@ -259,5 +264,5 @@
     }
   });
 
-  console.log('%cDreamCar HQ Extras v2 %c· bind-block retry-loop active', 'color:#a78bfa;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Extras v3 %c· Store via typeof, bind-block fixed', 'color:#a78bfa;font-weight:700;', 'color:#888;');
 })();
