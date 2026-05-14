@@ -91,7 +91,8 @@
     'app-pravky2-fix.js',
     'app-pravky2b-fix.js',
     'app-pravky2c-fix.js',
-    'app-pravky2d-fix.js',          // FIX: f_appr direct fix
+    'app-pravky2d-fix.js',
+    'app-pravky2e-fix.js',          // FIX: creatives rescue на hashchange
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
