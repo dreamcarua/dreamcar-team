@@ -221,9 +221,6 @@
     [400, 1500].forEach(function (ms) { setTimeout(rescueAndRender, ms); });
   });
 
-  // =================================================================
-  // BOOTSTRAP — load all missing patches via SCRIPT inject
-  // =================================================================
   var nextPatches = [
     'app-library-delete.js',
     'app-pravky2b-fix.js',
@@ -236,6 +233,7 @@
     'app-dragdrop-fix.js',
     'app-char-counter.js',
     'app-calendar-dots.js',
+    'app-preview-tabs.js',
   ];
   nextPatches.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
