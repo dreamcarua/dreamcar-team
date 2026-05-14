@@ -1,8 +1,9 @@
 /* ============================================================
    DreamCar HQ — Multi-approver AND logic
    ============================================================ */
-// Перехоплює клік на data-action="approve" у Board (та аналогічні точки
-// активації) і викликає Postgres RPC `register_approval` яка:
+// Перехоплює клік на data-action="approve" (board view) ТА
+// data-transition="approved" (card modal) і викликає Postgres RPC
+// `register_approval` яка:
 //  - додає юзера у approved_by[]
 //  - якщо policy='all' і всі approvers погодили → status='approved'
 //  - якщо policy='any' і хоч один → status='approved'
@@ -61,38 +62,70 @@
     }
   }
 
-  // Перехоплюємо клік на approve buttons на дошці погоджень
+  // Перехоплюємо кліки на approve у обох місцях:
+  //  1) Board view — data-action="approve"
+  //  2) Card modal — data-transition="approved"
   document.addEventListener('click', async function (e) {
-    var btn = e.target && e.target.closest && e.target.closest('[data-action="approve"]');
+    var boardBtn = e.target && e.target.closest && e.target.closest('[data-action="approve"]');
+    var cardBtn = e.target && e.target.closest && e.target.closest('[data-transition="approved"]');
+    var btn = boardBtn || cardBtn;
     if (!btn) return;
-    var pubId = btn.dataset.id || (btn.closest('[data-id]') && btn.closest('[data-id]').dataset.id);
+
+    var pubId;
+    if (boardBtn) {
+      pubId = btn.dataset.id || (btn.closest('[data-id]') && btn.closest('[data-id]').dataset.id);
+    } else if (cardBtn) {
+      // Картка — pubId беремо з URL (#publication/...) або з window.__hqCurrentPub
+      var hash = (location.hash || '').slice(1);
+      if (hash.indexOf('publication/') === 0) {
+        pubId = hash.split('/')[1];
+      } else if (window.__hqCurrentPub && window.__hqCurrentPub.id) {
+        pubId = window.__hqCurrentPub.id;
+      }
+    }
     if (!pubId) return;
-    // Перевірити чи це multi-approver case
+
     var p = Store.pub && Store.pub(pubId);
     if (!p) return;
     var approvers = (p.approvers || []);
-    var policy = p.approverPolicy || p.approver_policy || 'all';
-    // Якщо single-approver і policy='any' — стара логіка ОК, але робимо RPC однаково для консистентності
     if (approvers.length === 0) {
-      // Старий fallback: пряма зміна статусу
-      return; // дозволяємо оригінальному handler виконатись
+      // Старий fallback: пряма зміна статусу — дозволяємо оригіналу виконатись
+      return;
     }
-    // Перехоплюємо click — викликаємо нашу RPC
+
+    // Перехоплюємо
     e.preventDefault();
     e.stopImmediatePropagation();
+    e.stopPropagation();
 
-    // Відключити кнопку щоб не натиснули двічі
     var orig = btn.textContent;
     btn.disabled = true;
     btn.textContent = '⏳…';
+
+    // Якщо це card modal — спочатку запитаємо коментар (як робить transitionStatus)
+    var comment = null;
+    if (cardBtn) {
+      comment = prompt('Коментар (опційно):', '') || '';
+    }
 
     var result = await registerApproval(pubId);
 
     btn.disabled = false;
     btn.textContent = orig;
 
-    // Якщо успіх — ререндер сторінки
+    if (result && result.ok && comment && comment.trim()) {
+      // Додаємо коментар окремо, бо RPC не приймає його
+      try {
+        if (typeof Store.addComment === 'function') await Store.addComment(pubId, comment);
+      } catch (_) {}
+    }
+
     if (result && result.ok) {
+      // Закриваємо модалку якщо це card
+      if (cardBtn && window.Modal && typeof window.Modal.close === 'function') {
+        try { window.Modal.close(); } catch (_) {}
+      }
+      // Ререндер
       if (typeof window.navigate === 'function') {
         setTimeout(window.navigate, 300);
       }
@@ -102,9 +135,12 @@
     }
   }, true);
 
-  // Експортуємо для зовнішнього використання (TG-bot або скрипти)
+  // Також — rework через card modal має скидати approved_by[] (це робить SQL trigger
+  // trg_reset_approvals on update). Тут нічого додатково не треба — статус='rework'
+  // через transitionStatus → upsertPub → DB UPDATE → trigger → approved_by=[].
+
   window.HQ_registerApproval = registerApproval;
 
-  console.log('%cDreamCar HQ Multi-approver %c· AND logic via register_approval RPC',
+  console.log('%cDreamCar HQ Multi-approver %c· AND logic у board + card modal',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();
