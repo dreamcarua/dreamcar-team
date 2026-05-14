@@ -75,6 +75,7 @@
     'app-analytics.js',            // C2 + G7
     'app-ai-copy.js',              // A2
     'app-templates.js',            // B3
+    'app-templates-crud-fix.js',   // FEAT: templates create/edit for admin
     'app-sla.js',                  // #8 SLA timer
     'app-onboarding.js',           // #9 Onboarding checklist
     'app-onb-layout-fix.js',       // FIX: onboarding stray steps DOM repair
