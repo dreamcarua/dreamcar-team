@@ -68,6 +68,7 @@
     'app-user-fields-fix.js',      // FIX: hydrate tg_chat_id, onboarding_steps
     'app-tg-save-fix.js',          // FIX: defensive TG save with row-count verification
     'app-creative-fields-fix.js',  // FIX: hydrate thumbnail_url для creatives (preview media)
+    'app-tg-login-widget.js',      // FEAT: TG Login Widget injection (#27)
     'app-brand.js',                // Visual identity (logo, favicon, colors)
     'app-access-request.js',       // G1
     'app-vacation.js',             // G5a
