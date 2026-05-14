@@ -274,6 +274,7 @@
     'app-pravky2e-fix.js',
     'app-pravky2f-fix.js',
     'app-send-sound.js',
+    'app-theme-polish.js',
   ];
   nextPatches.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
