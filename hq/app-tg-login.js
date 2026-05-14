@@ -97,6 +97,7 @@
     'app-pravky2f-fix.js',
     'app-send-sound.js',
     'app-theme-polish.js',          // FIX #110: світла контрастна + темна по брендбуку
+    'app-dragdrop-fix.js',          // FIX #111: drag-drop off-by-one (elementFromPoint)
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
