@@ -99,7 +99,8 @@
     'app-theme-polish.js',          // FIX #110
     'app-dragdrop-fix.js',          // FIX #111
     'app-char-counter.js',          // FEAT #117
-    'app-calendar-dots.js',         // FEAT #118: кольорові точки платформ
+    'app-calendar-dots.js',         // FEAT #118
+    'app-preview-tabs.js',          // FEAT #119: per-platform preview tabs
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
