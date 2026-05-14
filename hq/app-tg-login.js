@@ -88,7 +88,7 @@
     'app-reapprove-on-edit.js',
     'app-ui-extras.js',
     'app-launches-crud.js',
-    'app-library-delete.js',        // FEAT: delete + bulk-delete у Бібліотеці
+    'app-library-delete.js',
     'app-pravky2-fix.js',
     'app-pravky2b-fix.js',
     'app-pravky2c-fix.js',
@@ -96,9 +96,10 @@
     'app-pravky2e-fix.js',
     'app-pravky2f-fix.js',
     'app-send-sound.js',
-    'app-theme-polish.js',          // FIX #110: світла контрастна + темна по брендбуку
-    'app-dragdrop-fix.js',          // FIX #111: drag-drop off-by-one (elementFromPoint)
-    'app-char-counter.js',          // FEAT #117: per-platform char counter
+    'app-theme-polish.js',          // FIX #110
+    'app-dragdrop-fix.js',          // FIX #111
+    'app-char-counter.js',          // FEAT #117
+    'app-calendar-dots.js',         // FEAT #118: кольорові точки платформ
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
