@@ -120,7 +120,7 @@ const Store = {
     this._data = {
       version: 1,
       currentUserId: (users.data || []).find(u => u.auth_id === SUPABASE_USER_ID)?.id || null,
-      users:    (users.data || []).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, initial: u.initial, auth_id: u.auth_id, is_active: u.is_active !== false })),
+      users:    (users.data || []).map(u => ({ ...u, is_active: u.is_active !== false })),
       rubrics:  rubrics.data || [],
       launches: (launches.data || []).map(l => ({ id: l.id, name: l.name, from: l.starts_on, to: l.ends_on, color: l.color })),
       creatives: (creatives.data || []).map(c => ({
