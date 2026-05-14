@@ -3,9 +3,9 @@
    ============================================================ */
 // БАГ: app-core.js _loadFromBackend mapping creatives робить cherry-pick:
 //   {id, name, type, size, duration, res, tags, uploadedBy, uploadedAt, preview, color}
-// ВТРАЧАЄ: thumbnail_url, drive_file_id, mime — все що потрібно для рендеру.
+// ВТРАЧАЄ: thumbnail_url, drive_file_id — все що потрібно для рендеру preview.
 // FIX: окремий select після _loadFromBackend який hydrate-ить ці поля
-// + додає `url` (resolved від storage path якщо треба) для зручності.
+// + додає `url` alias для зручності mediaThumb.
 
 (function () {
   if (window.__hqCreativeFieldsFix) return;
@@ -18,7 +18,7 @@
       if (Store._data.creatives.length === 0) return;
 
       var resp = await sb.from('creatives')
-        .select('id, thumbnail_url, drive_file_id, mime, width_px, height_px, size_bytes, duration_sec')
+        .select('id, thumbnail_url, drive_file_id, width_px, height_px, size_bytes, duration_sec')
         .is('deleted_at', null);
       if (resp.error) { console.warn('creative hydrate err:', resp.error); return; }
 
@@ -31,7 +31,6 @@
         if (!extra) return;
         c.thumbnail_url = extra.thumbnail_url || null;
         c.drive_file_id = extra.drive_file_id || null;
-        c.mime = extra.mime || null;
         // url alias — щоб mediaThumb знаходив незалежно від ключа
         if (!c.url && extra.thumbnail_url) c.url = extra.thumbnail_url;
         updated++;
@@ -79,9 +78,6 @@
       hydrate();
     }
   }, 1800);
-
-  // Re-hydrate коли creatives додаються/змінюються
-  // (refresh-after-change у app-core викликає _loadFromBackend, що тригерить мій патч)
 
   console.log('%cDreamCar HQ Creative-fields fix %c· installed', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
 })();
