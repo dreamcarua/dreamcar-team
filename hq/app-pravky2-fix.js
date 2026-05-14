@@ -234,6 +234,7 @@
     'app-char-counter.js',
     'app-calendar-dots.js',
     'app-preview-tabs.js',
+    'app-duplicate-to.js',
   ];
   nextPatches.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
