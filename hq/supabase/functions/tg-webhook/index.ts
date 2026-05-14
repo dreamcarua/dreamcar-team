@@ -1,5 +1,6 @@
 // =====================================================================
-// DreamCar HQ — TG Webhook v9
+// DreamCar HQ — TG Webhook v10
+// + multi-approver AND logic via register_approval RPC
 // + /approve flow (черга погоджень з кнопками)
 // + File upload (photo/video/document → creative)
 // =====================================================================
@@ -16,7 +17,7 @@ const KEY_SOURCE        = HQ_KEY_RAW ? "HQ_DB_SERVICE_KEY" : (SUP_KEY_RAW ? "SUP
 
 const HQ_URL = "https://dreamcarua.github.io/dreamcar-team/hq/";
 const STORAGE_BUCKET = "creatives";
-const TG_FILE_MAX_BYTES = 20 * 1024 * 1024; // 20 MB — обмеження TG bot API
+const TG_FILE_MAX_BYTES = 20 * 1024 * 1024;
 
 const PLATFORM_NAMES: Record<string, string> = {
   ig: "IG", tg: "TG", tt: "TT", yt: "YT", fb: "FB", th: "TH",
@@ -161,7 +162,74 @@ async function findUser(supabase: ReturnType<typeof createClient>, chatId: numbe
 }
 
 // =====================================================================
-// /approve — черга погоджень з кнопками (показуємо по одному)
+// SHARED HELPER: process approval decision via register_approval RPC
+// =====================================================================
+interface ApprovalResult {
+  ok: boolean;
+  finalStatus: string;
+  shortLabel: string;
+  longLabel: string;
+  error?: string;
+}
+
+async function processApprovalDecision(
+  supabase: ReturnType<typeof createClient>,
+  pubId: string,
+  userId: string,
+  decision: "y" | "n",
+  via: "tg-button" | "tg-queue",
+): Promise<ApprovalResult> {
+  if (decision === "y") {
+    // Multi-approver AND logic — RPC сама обчислює чи треба перемикати статус
+    const { data, error } = await supabase.rpc('register_approval', {
+      pub_id: pubId, by_user: userId,
+    });
+    if (error) {
+      return { ok: false, finalStatus: "review", shortLabel: "Помилка", longLabel: "", error: error.message };
+    }
+    // @ts-ignore RPC returns jsonb
+    const r = data as { ok: boolean; status: string; all_approved: boolean; approved_count: number; required_count: number; error?: string };
+    if (!r?.ok) {
+      return { ok: false, finalStatus: "review", shortLabel: "Не пройшло", longLabel: "", error: r?.error || "unknown" };
+    }
+    if (r.all_approved) {
+      return {
+        ok: true, finalStatus: "approved",
+        shortLabel: "✅ Погоджено!",
+        longLabel: `✅ <b>Погоджено усіма</b> (${r.approved_count}/${r.required_count})`,
+      };
+    } else {
+      const remaining = r.required_count - r.approved_count;
+      return {
+        ok: true, finalStatus: "review",
+        shortLabel: `✓ Враховано (${r.approved_count}/${r.required_count})`,
+        longLabel: `✅ <b>Голос враховано</b> · ${r.approved_count}/${r.required_count} (чекаємо ще ${remaining})`,
+      };
+    }
+  } else {
+    // Rework — пряма зміна статусу + reset approved_by через trigger
+    const { error: updErr } = await supabase
+      .from("publications")
+      .update({ status: "rework", updated_at: new Date().toISOString(), last_action_via: via })
+      .eq("id", pubId);
+    if (updErr) {
+      return { ok: false, finalStatus: "review", shortLabel: "Помилка", longLabel: "", error: updErr.message };
+    }
+    await supabase.from("publication_history").insert({
+      publication_id: pubId, actor_id: userId,
+      action: "reject",
+      detail: via === "tg-queue" ? "↩️ через /approve" : "↩️ через TG-кнопку",
+    });
+    return {
+      ok: true, finalStatus: "rework",
+      shortLabel: "↩️ Повернуто",
+      longLabel: "↩️ <b>Повернуто на доопрацювання</b>",
+    };
+  }
+}
+
+// =====================================================================
+// /approve — черга погоджень з кнопками
 // =====================================================================
 function buildQueueKeyboard(pubId: string): ReplyMarkup {
   return {
@@ -223,7 +291,7 @@ async function handleQueueCallback(supabase: ReturnType<typeof createClient>, cb
   const me = await findUser(supabase, fromId);
   if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start", true); return; }
 
-  // Skip — просто переходимо на наступну
+  // Skip
   if (decision === "s") {
     await tgAnswerCallback(cb.id, "Пропущено");
     const remaining = await getQueueForUser(supabase, me.id, [pubId]);
@@ -236,48 +304,36 @@ async function handleQueueCallback(supabase: ReturnType<typeof createClient>, cb
     return;
   }
 
-  // Approve / Reject — як у звичайному callback'у
+  // Verify approver + pub status before calling RPC
   const { data: appr } = await supabase
     .from("publication_approvers")
     .select("user_id").eq("publication_id", pubId).eq("user_id", me.id).maybeSingle();
-  if (!appr) { await tgAnswerCallback(cb.id, "Ти не у списку погоджувачів цієї публікації", true); return; }
+  if (!appr) { await tgAnswerCallback(cb.id, "Ти не у списку погоджувачів", true); return; }
 
   const { data: pub } = await supabase
     .from("publications").select("id, title, status").eq("id", pubId).maybeSingle();
-  if (!pub) { await tgAnswerCallback(cb.id, "Публікацію не знайдено", true); return; }
+  if (!pub) { await tgAnswerCallback(cb.id, "Не знайдено", true); return; }
   if (pub.status !== "review") { await tgAnswerCallback(cb.id, `Статус: ${pub.status}`, true); return; }
 
-  const newStatus = decision === "y" ? "approved" : "rework";
-  const { error: updErr } = await supabase
-    .from("publications")
-    .update({ status: newStatus, updated_at: new Date().toISOString(), last_action_via: "tg" })
-    .eq("id", pubId);
-  if (updErr) { await tgAnswerCallback(cb.id, `Помилка: ${updErr.message}`, true); return; }
+  // Use shared helper з register_approval RPC
+  const result = await processApprovalDecision(supabase, pubId, me.id, decision as "y" | "n", "tg-queue");
+  if (!result.ok) { await tgAnswerCallback(cb.id, result.error || result.shortLabel, true); return; }
 
-  await supabase.from("publication_history").insert({
-    publication_id: pubId, actor_id: me.id,
-    action: decision === "y" ? "approve" : "reject",
-    detail: decision === "y" ? "✓ через /approve" : "↩️ через /approve",
-  });
+  await tgAnswerCallback(cb.id, result.shortLabel);
 
-  await tgAnswerCallback(cb.id, decision === "y" ? "✅ Погоджено!" : "↩️ Повернуто");
-
-  // Показуємо наступну
+  // Next in queue
   const remaining = await getQueueForUser(supabase, me.id);
-  const decisionLabel = decision === "y" ? "✅ Погоджено" : "↩️ Повернуто";
   if (remaining.length === 0) {
-    await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "").replace(/Тисни кнопку.*$/, "") + `\n${decisionLabel}\n\n🎉 <b>Черга оброблена!</b>`);
+    await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "").replace(/Тисни кнопку.*$/, "") + `\n${result.longLabel}\n\n🎉 <b>Черга оброблена!</b>`);
     return;
   }
   const next = remaining[0];
-  // Поточне повідомлення — фіналізуємо
-  await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "").replace(/Тисни кнопку.*$/, "") + `\n${decisionLabel}`);
-  // Шлемо наступне
+  await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "").replace(/Тисни кнопку.*$/, "") + `\n${result.longLabel}`);
   await tgSend(msg.chat.id, formatPubForQueue(next, 1, remaining.length), { reply_markup: buildQueueKeyboard(next.id) });
 }
 
 // =====================================================================
-// File upload (photo/video/document) → creative
+// File upload
 // =====================================================================
 
 interface DownloadedFile {
@@ -321,14 +377,10 @@ async function downloadTgFile(fileId: string, fallbackName: string, fallbackMime
 
 async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg: TgMessage, isGroup: boolean): Promise<void> {
   const chatId = msg.chat.id;
-  if (isGroup) {
-    // У групах не приймаємо файли (флуд)
-    return;
-  }
+  if (isGroup) return;
   const me = await findUser(supabase, chatId);
   if (!me) { await tgSend(chatId, "🚫 Спочатку прив'яжи акаунт: /start"); return; }
 
-  // Визначаємо який саме файл
   let fileId: string | null = null;
   let filename = "";
   let mime = "";
@@ -350,7 +402,6 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
     filename = msg.video.file_name || `video_${Date.now()}.mp4`;
     mime = msg.video.mime_type || "video/mp4";
   } else if (msg.photo && msg.photo.length > 0) {
-    // Беремо найбільший варіант
     const best = msg.photo[msg.photo.length - 1];
     if ((best.file_size ?? 0) > TG_FILE_MAX_BYTES) {
       await tgSend(chatId, `⚠️ Фото задовге. Завантаж через HQ-сайт.`);
@@ -361,10 +412,7 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
     mime = "image/jpeg";
   }
 
-  if (!fileId) {
-    // Не файл — нічого не робимо
-    return;
-  }
+  if (!fileId) return;
 
   const progress = await tgSend(chatId, "📥 Завантажую файл...");
   const dl = await downloadTgFile(fileId, filename, mime);
@@ -373,7 +421,6 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
     return;
   }
 
-  // Завантажуємо у Supabase Storage
   const ext = dl.filename.includes(".") ? dl.filename.slice(dl.filename.lastIndexOf(".")) : "";
   const storagePath = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
   if (progress) await tgEditMessage(chatId, progress.message_id, `📤 Завантажую у бібліотеку (${(dl.size/1024/1024).toFixed(1)} MB)...`);
@@ -388,7 +435,6 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
   const { data: pub2 } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
   const url = pub2?.publicUrl || "";
 
-  // Створюємо creative запис
   const creativeId = uuidV4();
   const { error: cErr } = await supabase.from("creatives").insert({
     id: creativeId,
@@ -406,7 +452,6 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
     return;
   }
 
-  // Знаходимо останні 3 draft публікації де я responsible — щоб запропонувати прикріпити
   const { data: drafts } = await supabase
     .from("publication_responsibles")
     .select("publication_id, publications!inner(id, title, status, deleted_at)")
@@ -448,13 +493,11 @@ async function handleAttachCallback(supabase: ReturnType<typeof createClient>, c
   const me = await findUser(supabase, cb.from.id);
   if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start", true); return; }
 
-  // Перевіряємо, що user — responsible для цієї публікації
   const { data: resp } = await supabase
     .from("publication_responsibles")
     .select("user_id").eq("publication_id", pubIdOrSkip).eq("user_id", me.id).maybeSingle();
   if (!resp) { await tgAnswerCallback(cb.id, "Ти не відповідальний за цю публікацію", true); return; }
 
-  // Знайти max sort_order для creative_publications цього pub
   const { data: existing } = await supabase
     .from("creative_publications").select("sort_order")
     .eq("publication_id", pubIdOrSkip).order("sort_order", { ascending: false }).limit(1);
@@ -467,7 +510,6 @@ async function handleAttachCallback(supabase: ReturnType<typeof createClient>, c
 
   await tgAnswerCallback(cb.id, "📎 Прикріплено!");
 
-  // Edit повідомлення
   const { data: pub } = await supabase
     .from("publications").select("title").eq("id", pubIdOrSkip).maybeSingle();
   if (cb.message) {
@@ -479,7 +521,7 @@ async function handleAttachCallback(supabase: ReturnType<typeof createClient>, c
 }
 
 // =====================================================================
-// /today /queue /late /my /me — швидкі довідки
+// /today /queue /late /my /me
 // =====================================================================
 async function handleToday(supabase: ReturnType<typeof createClient>, chatId: number, isGroup: boolean): Promise<void> {
   if (isGroup) { await tgSend(chatId, "🔒 /today — тільки у DM.", { silent: true }); return; }
@@ -708,7 +750,7 @@ async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
 }
 
 // =====================================================================
-// CALLBACK QUERY (диспетчер)
+// CALLBACK QUERY DISPATCHER
 // =====================================================================
 async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgCallbackQuery): Promise<void> {
   const data = (cb.data || "").trim();
@@ -718,12 +760,10 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
   const parts = data.split(":");
   const action = parts[0];
 
-  // qappr:<pubId>:y|n|s — /approve flow
   if (action === "qappr") {
     await handleQueueCallback(supabase, cb, parts[1], parts[2]);
     return;
   }
-  // attach:<creativeId>:<pubId|skip>
   if (action === "attach") {
     await handleAttachCallback(supabase, cb, parts[1], parts[2]);
     return;
@@ -733,6 +773,8 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     const pubId = parts[1]; const decision = parts[2];
     const me = await findUser(supabase, cb.from.id);
     if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start у DM", true); return; }
+
+    // Verify approver + pub status
     const { data: appr } = await supabase
       .from("publication_approvers").select("user_id").eq("publication_id", pubId).eq("user_id", me.id).maybeSingle();
     if (!appr) { await tgAnswerCallback(cb.id, "Ти не у списку погоджувачів", true); return; }
@@ -744,24 +786,19 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id, msg.text + `\n\n<i>⚠️ Статус: ${pub.status}</i>`);
       return;
     }
-    const newStatus = decision === "y" ? "approved" : "rework";
-    const { error: updErr } = await supabase
-      .from("publications").update({ status: newStatus, updated_at: new Date().toISOString(), last_action_via: "tg" }).eq("id", pubId);
-    if (updErr) { await tgAnswerCallback(cb.id, `Помилка: ${updErr.message}`, true); return; }
-    await supabase.from("publication_history").insert({
-      publication_id: pubId, actor_id: me.id,
-      action: decision === "y" ? "approve" : "reject",
-      detail: decision === "y" ? "✓ через TG-кнопку" : "↩️ через TG-кнопку",
-    });
-    const decisionLabel = decision === "y" ? "✅ <b>Погоджено</b>" : "↩️ <b>Повернуто</b>";
+
+    // Multi-approver AND logic
+    const result = await processApprovalDecision(supabase, pubId, me.id, decision as "y" | "n", "tg-button");
+    if (!result.ok) { await tgAnswerCallback(cb.id, result.error || result.shortLabel, true); return; }
+
+    await tgAnswerCallback(cb.id, result.shortLabel);
+
     const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
     await tgEditMessage(msg.chat.id, msg.message_id,
-      (msg.text || "") + `\n\n${decisionLabel} · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
-    await tgAnswerCallback(cb.id, decision === "y" ? "✅ Погоджено!" : "↩️ Повернуто");
+      (msg.text || "") + `\n\n${result.longLabel} · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
     return;
   }
 
-  // open — legacy
   if (action === "open") {
     await tgAnswerCallback(cb.id, "Відкрий: " + HQ_URL + "#publication/" + parts[1]);
     return;
@@ -805,13 +842,11 @@ Deno.serve(async (req: Request) => {
     const isGroup = chatType !== "private";
     const tgUser = msg.from || {};
 
-    // Файл? (photo/video/document)
     if (!isGroup && (msg.photo || msg.video || msg.document)) {
       await handleFileMessage(supabase, msg, isGroup);
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
-    // Текст?
     if (!msg.text) return new Response(JSON.stringify({ ok: true, ignored: "non-text" }), { status: 200, headers: { "Content-Type": "application/json" } });
 
     const { cmd, payload } = parseCommand(msg.text);
