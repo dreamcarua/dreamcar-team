@@ -101,7 +101,8 @@
     'app-char-counter.js',          // FEAT #117
     'app-calendar-dots.js',         // FEAT #118
     'app-preview-tabs.js',          // FEAT #119
-    'app-duplicate-to.js',          // FEAT #120: дублювати на іншу платформу
+    'app-duplicate-to.js',          // FEAT #120
+    'app-library-bulk.js',          // FEAT #121: bulk tag у Бібліотеці
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
