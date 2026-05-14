@@ -65,23 +65,26 @@
   // LOADER CHAIN — підвантажуємо нові модулі
   // ============================================================
   var chain = [
-    'app-user-fields-fix.js',      // FIX: hydrate tg_chat_id, onboarding_steps
-    'app-tg-save-fix.js',          // FIX: defensive TG save with row-count verification
-    'app-creative-fields-fix.js',  // FIX: hydrate thumbnail_url для creatives (preview media)
-    'app-tg-login-widget.js',      // FEAT: TG Login Widget injection (#27)
-    'app-brand.js',                // Visual identity (logo, favicon, colors)
-    'app-access-request.js',       // G1
-    'app-vacation.js',             // G5a
-    'app-fts-search.js',           // G6
-    'app-analytics.js',            // C2 + G7
-    'app-ai-copy.js',              // A2
-    'app-templates.js',            // B3
-    'app-templates-crud-fix.js',   // FEAT: templates create/edit for admin
-    'app-sla.js',                  // #8 SLA timer
-    'app-onboarding.js',           // #9 Onboarding checklist
-    'app-onb-layout-fix.js',       // FIX: onboarding stray steps DOM repair
-    'app-multi-approver-fix.js',   // FEAT: multi-approver AND logic via RPC
-    'app-pwa.js',                  // #10 PWA install
+    'app-user-fields-fix.js',         // FIX: hydrate tg_chat_id, onboarding_steps
+    'app-tg-save-fix.js',             // FIX: defensive TG save with row-count verification
+    'app-creative-fields-fix.js',     // FIX: hydrate thumbnail_url для creatives (preview media)
+    'app-tg-login-widget.js',         // FEAT: TG Login Widget injection (#27)
+    'app-brand.js',                   // Visual identity (logo, favicon, colors)
+    'app-access-request.js',          // G1
+    'app-vacation.js',                // G5a
+    'app-fts-search.js',              // G6
+    'app-analytics.js',               // C2 + G7
+    'app-ai-copy.js',                 // A2
+    'app-templates.js',               // B3
+    'app-templates-crud-fix.js',      // FEAT: templates create/edit for admin
+    'app-sla.js',                     // #8 SLA timer
+    'app-onboarding.js',              // #9 Onboarding checklist
+    'app-onb-layout-fix.js',          // FIX: onboarding stray steps DOM repair
+    'app-multi-approver-fix.js',      // FEAT: multi-approver AND logic via RPC
+    'app-realtime-fix.js',            // FEAT A: real-time updates без F5
+    'app-calendar-per-platform.js',   // FEAT F: дублювати пост на платформу
+    'app-mentions.js',                // FEAT L: @mentions у коментарях
+    'app-pwa.js',                     // #10 PWA install
   ];
   chain.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
