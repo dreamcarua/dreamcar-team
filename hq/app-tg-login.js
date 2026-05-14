@@ -66,6 +66,7 @@
   // ============================================================
   var chain = [
     'app-user-fields-fix.js',  // FIX: hydrate tg_chat_id, onboarding_steps (must load FIRST)
+    'app-tg-save-fix.js',      // FIX: defensive TG save with row-count verification
     'app-brand.js',            // Visual identity (logo, favicon, colors)
     'app-access-request.js',   // G1
     'app-vacation.js',         // G5a
