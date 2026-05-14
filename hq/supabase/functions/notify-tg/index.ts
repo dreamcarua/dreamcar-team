@@ -1,6 +1,7 @@
 // =====================================================================
-// DreamCar HQ — Notify TG v4
+// DreamCar HQ — Notify TG v5
 // "Відкрити в HQ" — URL-кнопка (без callback, не флудить групу)
+// + Review messages показують ХТО має погодити (Має погодити: X, Y)
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -30,6 +31,7 @@ interface PubRow {
   id: string; title: string; status: string; publish_at: string;
   deadline_on: string | null; created_by: string | null;
   last_action_via: string | null;
+  approver_policy?: string | null;
 }
 interface UserRow {
   id: string; name: string; email: string | null; role: string;
@@ -76,13 +78,29 @@ function reviewKeyboard(pubId: string): ReplyMarkup {
   };
 }
 
-function buildReviewMessage(pub: PubRow, requester: UserRow | null): string {
+function buildReviewMessage(
+  pub: PubRow,
+  requester: UserRow | null,
+  approvers: UserRow[],
+): string {
   const lines: string[] = [];
   lines.push(`📝 <b>На погодження</b>`);
   lines.push(`«${escHtml(pub.title)}»`);
   if (requester) lines.push(`Від: ${escHtml(requester.name)}`);
-  lines.push(`Публікація: ${fmtDt(pub.publish_at)}`);
-  if (pub.deadline_on) lines.push(`Дедлайн матеріалу: ${pub.deadline_on}`);
+
+  // Список approver'ів — хто саме має погодити
+  if (approvers.length > 0) {
+    const names = approvers.map(u => escHtml(u.name)).join(", ");
+    const policy = pub.approver_policy === "any" ? "будь-хто з" : "потрібен ✓ від ВСІХ";
+    if (approvers.length === 1) {
+      lines.push(`👤 Має погодити: <b>${names}</b>`);
+    } else {
+      lines.push(`👥 Має погодити (${policy}): <b>${names}</b>`);
+    }
+  }
+
+  lines.push(`📅 Публікація: ${fmtDt(pub.publish_at)}`);
+  if (pub.deadline_on) lines.push(`⏰ Дедлайн матеріалу: ${pub.deadline_on}`);
   return lines.join("\n");
 }
 function buildApprovedMessage(pub: PubRow, approver: UserRow | null): string {
@@ -129,21 +147,27 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
   }
 
   if (rec.status === "review") {
-    const { data: approvers } = await supabase
+    const { data: approversData } = await supabase
       .from("publication_approvers")
       .select("user_id, users:user_id (id, name, email, role, tg_chat_id, tg_username)")
       .eq("publication_id", rec.id);
+
+    // Витягуємо ужпачкований список UserRow
+    const approverUsers: UserRow[] = (approversData ?? [])
+      // @ts-ignore join shape
+      .map(row => row.users as UserRow)
+      .filter(Boolean);
+
     const requester = rec.created_by
       ? await supabase.from("users").select("*").eq("id", rec.created_by).maybeSingle().then(({ data }) => data)
       : null;
-    const text = buildReviewMessage(rec, requester as UserRow | null);
+
+    const text = buildReviewMessage(rec, requester as UserRow | null, approverUsers);
     const kb = reviewKeyboard(rec.id);
 
     if (TG_GROUP_CHAT_ID) await tgSend(TG_GROUP_CHAT_ID, text, { reply_markup: kb });
 
-    for (const row of approvers ?? []) {
-      // @ts-ignore join shape
-      const u: UserRow | undefined = row.users;
+    for (const u of approverUsers) {
       if (u?.tg_chat_id) await tgSend(u.tg_chat_id, text, { reply_markup: kb });
     }
   } else if (rec.status === "approved" || rec.status === "rework") {
