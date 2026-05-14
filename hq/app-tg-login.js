@@ -62,32 +62,34 @@
   console.log('%cDreamCar HQ TG Login %c· onTgAuth wired to tg-login-verify', 'color:#0088cc;font-weight:700;', 'color:#888;');
 
   // ============================================================
-  // LOADER CHAIN — підвантажуємо нові модулі
+  // LOADER CHAIN
   // ============================================================
   var chain = [
-    'app-user-fields-fix.js',         // FIX: hydrate tg_chat_id, onboarding_steps
-    'app-tg-save-fix.js',             // FIX: defensive TG save with row-count verification
-    'app-creative-fields-fix.js',     // FIX: hydrate thumbnail_url для creatives (preview media)
-    'app-tg-login-widget.js',         // FEAT: TG Login Widget injection (#27)
-    'app-brand.js',                   // Visual identity
-    'app-access-request.js',          // G1
-    'app-vacation.js',                // G5a
-    'app-fts-search.js',              // G6
-    'app-analytics.js',               // C2 + G7
-    'app-ai-copy.js',                 // A2
-    'app-no-hashtags.js',             // FEAT E: hashtags removal (must load AFTER ai-copy)
-    'app-templates.js',               // B3
-    'app-templates-crud-fix.js',      // FEAT: templates create/edit for admin
-    'app-sla.js',                     // #8 SLA timer
-    'app-onboarding.js',              // #9 Onboarding checklist
-    'app-onb-layout-fix.js',          // FIX: onboarding stray steps DOM repair
-    'app-multi-approver-fix.js',      // FEAT: multi-approver AND logic via RPC
-    'app-realtime-fix.js',            // FEAT A: real-time updates без F5
-    'app-calendar-per-platform.js',   // FEAT F: дублювати пост на платформу
-    'app-mentions.js',                // FEAT L: @mentions у коментарях
-    'app-reapprove-on-edit.js',       // FEAT H: auto-revert у review при >10 chars edit
-    'app-ui-extras.js',               // FEAT C+D+J+K: pending approvers + theme + sidebar + sounds
-    'app-pwa.js',                     // #10 PWA install
+    'app-user-fields-fix.js',
+    'app-tg-save-fix.js',
+    'app-creative-fields-fix.js',
+    'app-tg-login-widget.js',
+    'app-brand.js',
+    'app-access-request.js',
+    'app-vacation.js',
+    'app-fts-search.js',
+    'app-analytics.js',
+    'app-ai-copy.js',
+    'app-no-hashtags.js',
+    'app-templates.js',
+    'app-templates-crud-fix.js',
+    'app-sla.js',
+    'app-onboarding.js',
+    'app-onb-layout-fix.js',
+    'app-multi-approver-fix.js',
+    'app-realtime-fix.js',
+    'app-calendar-per-platform.js',
+    'app-mentions.js',
+    'app-reapprove-on-edit.js',
+    'app-ui-extras.js',
+    'app-launches-crud.js',         // FEAT: Запуски CRUD для admin
+    'app-pravky2-fix.js',           // FIX: sound unlock + mention + Artem + comments RT + media rescue
+    'app-pwa.js',
   ];
   chain.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
