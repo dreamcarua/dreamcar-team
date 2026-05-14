@@ -65,19 +65,20 @@
   // LOADER CHAIN — підвантажуємо нові модулі
   // ============================================================
   var chain = [
-    'app-user-fields-fix.js',  // FIX: hydrate tg_chat_id, onboarding_steps (must load FIRST)
-    'app-tg-save-fix.js',      // FIX: defensive TG save with row-count verification
-    'app-brand.js',            // Visual identity (logo, favicon, colors)
-    'app-access-request.js',   // G1
-    'app-vacation.js',         // G5a
-    'app-fts-search.js',       // G6
-    'app-analytics.js',        // C2 + G7
-    'app-ai-copy.js',          // A2
-    'app-templates.js',        // B3
-    'app-sla.js',              // #8 SLA timer
-    'app-onboarding.js',       // #9 Onboarding checklist
-    'app-onb-layout-fix.js',   // FIX: onboarding stray steps DOM repair
-    'app-pwa.js',              // #10 PWA install
+    'app-user-fields-fix.js',      // FIX: hydrate tg_chat_id, onboarding_steps
+    'app-tg-save-fix.js',          // FIX: defensive TG save with row-count verification
+    'app-creative-fields-fix.js',  // FIX: hydrate thumbnail_url для creatives (preview media)
+    'app-brand.js',                // Visual identity (logo, favicon, colors)
+    'app-access-request.js',       // G1
+    'app-vacation.js',             // G5a
+    'app-fts-search.js',           // G6
+    'app-analytics.js',            // C2 + G7
+    'app-ai-copy.js',              // A2
+    'app-templates.js',            // B3
+    'app-sla.js',                  // #8 SLA timer
+    'app-onboarding.js',           // #9 Onboarding checklist
+    'app-onb-layout-fix.js',       // FIX: onboarding stray steps DOM repair
+    'app-pwa.js',                  // #10 PWA install
   ];
   chain.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
