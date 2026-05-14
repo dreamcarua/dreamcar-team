@@ -119,7 +119,8 @@
     try { localStorage.setItem('hq-sounds', on ? '1' : '0'); } catch (_) {}
     var btn = document.getElementById('hq-sound-toggle');
     if (btn) {
-      btn.textContent = on ? '🔔' : '🔕';
+      // Динамік замість дзвіночка (щоб не плутати з bell)
+      btn.textContent = on ? '🔊' : '🔇';
       btn.title = on ? 'Вимкнути звуки' : 'Увімкнути звуки';
     }
   }
@@ -224,11 +225,9 @@
     var modal = document.getElementById('modal');
     if (!modal) return;
 
-    // Remove попередню
     var existing = modal.querySelector('.hq-approvers-panel');
     if (existing) existing.remove();
 
-    // Anchor — після поля approvers або перед comments
     var anchor = modal.querySelector('#f_approvers, [data-section="approvers"]') ||
                  modal.querySelector('.comments-area, #commentsList') ||
                  modal.querySelector('.modal-body');
@@ -270,7 +269,6 @@
     btn.disabled = true;
     btn.textContent = '⏳…';
     try {
-      // Шлемо коментар з @mention — mentioned юзер отримає DM через webhook
       var uname = String(u.name || '').toLowerCase().replace(/[^a-zа-яёіїєґ0-9_]/gi, '');
       var me = Store.currentUser && Store.currentUser();
       var meName = me?.name || 'SMM';
@@ -292,7 +290,6 @@
     }
   }
 
-  // Hook у openCard → рендерити approvers panel
   function patchOpenCard() {
     if (typeof window.openCard !== 'function' || window.openCard.__approversPanel) return false;
     var _orig = window.openCard;
@@ -326,7 +323,6 @@
     }
     var chan = sb.channel('hq-sounds-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, function (payload) {
-        // Не звучимо для власних коментарів
         if (payload.new && payload.new.author_id !== me.id) {
           window.HQ_playEvent('comment');
         }
