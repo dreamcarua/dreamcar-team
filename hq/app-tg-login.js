@@ -89,7 +89,8 @@
     'app-ui-extras.js',
     'app-launches-crud.js',
     'app-pravky2-fix.js',
-    'app-pravky2b-fix.js',          // FIX: Артем у approvers + audio eager + cur-pub
+    'app-pravky2b-fix.js',
+    'app-pravky2c-fix.js',          // FIX: robust approvers rerender + meta
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
