@@ -69,12 +69,13 @@
     'app-tg-save-fix.js',             // FIX: defensive TG save with row-count verification
     'app-creative-fields-fix.js',     // FIX: hydrate thumbnail_url для creatives (preview media)
     'app-tg-login-widget.js',         // FEAT: TG Login Widget injection (#27)
-    'app-brand.js',                   // Visual identity (logo, favicon, colors)
+    'app-brand.js',                   // Visual identity
     'app-access-request.js',          // G1
     'app-vacation.js',                // G5a
     'app-fts-search.js',              // G6
     'app-analytics.js',               // C2 + G7
     'app-ai-copy.js',                 // A2
+    'app-no-hashtags.js',             // FEAT E: hashtags removal (must load AFTER ai-copy)
     'app-templates.js',               // B3
     'app-templates-crud-fix.js',      // FEAT: templates create/edit for admin
     'app-sla.js',                     // #8 SLA timer
@@ -84,6 +85,8 @@
     'app-realtime-fix.js',            // FEAT A: real-time updates без F5
     'app-calendar-per-platform.js',   // FEAT F: дублювати пост на платформу
     'app-mentions.js',                // FEAT L: @mentions у коментарях
+    'app-reapprove-on-edit.js',       // FEAT H: auto-revert у review при >10 chars edit
+    'app-ui-extras.js',               // FEAT C+D+J+K: pending approvers + theme + sidebar + sounds
     'app-pwa.js',                     // #10 PWA install
   ];
   chain.forEach(function (name) {
