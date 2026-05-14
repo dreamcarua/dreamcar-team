@@ -1,11 +1,12 @@
 /* ============================================================
-   DreamCar HQ — Service Worker (PWA Phase 1)
+   DreamCar HQ — Service Worker v2 (force cache nuke)
    ============================================================ */
+// v2: nuclear cache clear on activate (SW v1 тримав старий tg-login.js
+// без нових patches → юзери не бачили звуків, library delete, тощо).
 // Network-first для HTML/JS, cache-first для статики.
-// Push handler готовий — потребує VAPID на бекенді (Phase 2).
 
-const CACHE_VERSION = 'hq-v1';
-const RUNTIME_CACHE = 'hq-runtime';
+const CACHE_VERSION = 'hq-v2-' + '20260514a';  // bumped
+const RUNTIME_CACHE = 'hq-runtime-v2';
 
 const PRECACHE = [
   '/dreamcar-team/hq/',
@@ -21,9 +22,13 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  // NUCLEAR: delete ВСІ старі кеші (hq-v1, hq-runtime — все)
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter((k) => k !== CACHE_VERSION && k !== RUNTIME_CACHE).map((k) => caches.delete(k))
+      keys.filter((k) => k !== CACHE_VERSION && k !== RUNTIME_CACHE).map((k) => {
+        console.log('SW: deleting old cache', k);
+        return caches.delete(k);
+      })
     )).then(() => self.clients.claim())
   );
 });
@@ -46,6 +51,7 @@ self.addEventListener('fetch', (event) => {
                  url.pathname.endsWith('.html') ||
                  url.pathname.endsWith('.js');
   if (isCode) {
+    // Network-first для JS — завжди свіже
     event.respondWith(
       fetch(req).then((resp) => {
         const copy = resp.clone();
