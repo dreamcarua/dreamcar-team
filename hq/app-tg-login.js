@@ -88,13 +88,14 @@
     'app-reapprove-on-edit.js',
     'app-ui-extras.js',
     'app-launches-crud.js',
+    'app-library-delete.js',        // FEAT: delete + bulk-delete у Бібліотеці
     'app-pravky2-fix.js',
     'app-pravky2b-fix.js',
     'app-pravky2c-fix.js',
     'app-pravky2d-fix.js',
     'app-pravky2e-fix.js',
     'app-pravky2f-fix.js',
-    'app-send-sound.js',            // FEAT: swoosh sound on own comment send
+    'app-send-sound.js',
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
