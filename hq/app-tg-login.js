@@ -78,6 +78,7 @@
     'app-sla.js',                  // #8 SLA timer
     'app-onboarding.js',           // #9 Onboarding checklist
     'app-onb-layout-fix.js',       // FIX: onboarding stray steps DOM repair
+    'app-multi-approver-fix.js',   // FEAT: multi-approver AND logic via RPC
     'app-pwa.js',                  // #10 PWA install
   ];
   chain.forEach(function (name) {
