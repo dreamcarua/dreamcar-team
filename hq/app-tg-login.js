@@ -65,6 +65,7 @@
   // LOADER CHAIN — підвантажуємо нові модулі
   // ============================================================
   var chain = [
+    'app-user-fields-fix.js',  // FIX: hydrate tg_chat_id, onboarding_steps (must load FIRST)
     'app-brand.js',            // Visual identity (logo, favicon, colors)
     'app-access-request.js',   // G1
     'app-vacation.js',         // G5a
