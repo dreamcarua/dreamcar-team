@@ -1,17 +1,11 @@
 /* ============================================================
    DreamCar HQ — Pravky-2 ALL-IN-ONE (SW bypass bootstrap)
    ============================================================ */
-// КРИТИЧНО: SW тримав старий tg-login.js без нових chain entries.
-// app-pravky2-fix.js гарантовано у DOM усіх юзерів — використовуємо
-// як bootstrap loader для всіх наступних патчів.
 
 (function () {
   if (window.__hqPravky2) return;
   window.__hqPravky2 = true;
 
-  // =================================================================
-  // Eager AudioContext + Sound system
-  // =================================================================
   (function () {
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
@@ -30,21 +24,16 @@
     if (!getSoundsEnabled()) return;
     var ctx = window.__hqAudioCtxPersist;
     if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      try { ctx.resume(); } catch (_) {}
-    }
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
     try {
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = freq || 880;
-      osc.type = 'sine';
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq || 880; osc.type = 'sine';
       gain.gain.setValueAtTime(0.0001, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (dur || 0.2));
-      osc.start();
-      osc.stop(ctx.currentTime + (dur || 0.2));
+      osc.start(); osc.stop(ctx.currentTime + (dur || 0.2));
     } catch (e) { console.warn('playTone:', e); }
   }
 
@@ -62,9 +51,7 @@
   function resumeAudio() {
     var ctx = window.__hqAudioCtxPersist;
     if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      try { ctx.resume(); } catch (_) {}
-    }
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
   }
   document.addEventListener('click', resumeAudio, true);
   document.addEventListener('keydown', resumeAudio, true);
@@ -81,9 +68,7 @@
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, function (payload) {
         var newC = payload.new;
         if (!newC) return;
-        if (newC.author_id !== me.id) {
-          window.HQ_playEvent('comment');
-        }
+        if (newC.author_id !== me.id) window.HQ_playEvent('comment');
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'publications' }, function (payload) {
         if (payload.old?.status !== payload.new?.status) {
@@ -126,9 +111,7 @@
       };
       console.log('%cDreamCar HQ %c· rolled back per-platform expansion',
         'color:#ff6577;font-weight:700;', 'color:#888;');
-      if (typeof window.navigate === 'function') {
-        try { window.navigate(); } catch (_) {}
-      }
+      if (typeof window.navigate === 'function') { try { window.navigate(); } catch (_) {} }
     }
     return true;
   }
@@ -186,9 +169,7 @@
         if (ix >= 0) pub.approvers.splice(ix, 1);
         else pub.approvers.push(uid);
         chip.classList.toggle('on');
-        if (typeof window.autosave === 'function') {
-          try { window.autosave(pub); } catch (_) {}
-        }
+        if (typeof window.autosave === 'function') { try { window.autosave(pub); } catch (_) {} }
       };
     });
     return true;
@@ -229,9 +210,7 @@
       if (updated > 0) {
         console.log('%cDreamCar HQ Rescue %c· ' + updated + ' creatives + force navigate',
           'color:#7ab0ff;font-weight:700;', 'color:#888;');
-        if (typeof window.navigate === 'function') {
-          try { window.navigate(); } catch (_) {}
-        }
+        if (typeof window.navigate === 'function') { try { window.navigate(); } catch (_) {} }
       }
     } catch (e) { console.warn('rescue:', e); }
   }
@@ -256,6 +235,7 @@
     'app-theme-polish.js',
     'app-dragdrop-fix.js',
     'app-char-counter.js',
+    'app-calendar-dots.js',
   ];
   nextPatches.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
