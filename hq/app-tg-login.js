@@ -98,6 +98,7 @@
     'app-send-sound.js',
     'app-theme-polish.js',          // FIX #110: світла контрастна + темна по брендбуку
     'app-dragdrop-fix.js',          // FIX #111: drag-drop off-by-one (elementFromPoint)
+    'app-char-counter.js',          // FEAT #117: per-platform char counter
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
