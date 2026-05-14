@@ -59,7 +59,6 @@
   };
   window.HQ_playSend = function () { window.HQ_playEvent('send'); };
 
-  // Unlock на ANY gesture
   function resumeAudio() {
     var ctx = window.__hqAudioCtxPersist;
     if (!ctx) return;
@@ -72,7 +71,6 @@
   document.addEventListener('touchstart', resumeAudio, true);
   document.addEventListener('pointerdown', resumeAudio, true);
 
-  // Subscribe realtime для звуків (із власних коментарів — send sound)
   function subscribeSoundsRealtime() {
     var sb = window.supabase;
     if (!sb || !sb.channel) return;
@@ -101,7 +99,6 @@
   setTimeout(subscribeSoundsRealtime, 2500);
   setTimeout(subscribeSoundsRealtime, 6000);
 
-  // Patch Store.addComment для send-sound
   function patchAddComment() {
     if (!window.Store || typeof Store.addComment !== 'function') return false;
     if (Store.addComment.__sendSound) return true;
@@ -121,9 +118,6 @@
     }, 250);
   }
 
-  // =================================================================
-  // ROLLBACK: per-platform expansion (ламав drag-drop)
-  // =================================================================
   function rollbackPerPlatform() {
     if (!window.Store) return false;
     if (Store.pubs.__perPlatExpanded) {
@@ -141,9 +135,6 @@
   setTimeout(rollbackPerPlatform, 1500);
   setTimeout(rollbackPerPlatform, 4000);
 
-  // =================================================================
-  // activeUsers() — всіх включно member
-  // =================================================================
   function patchActiveUsers() {
     if (!window.Store || typeof Store.activeUsers !== 'function') return false;
     if (Store.activeUsers.__patched99) return true;
@@ -161,9 +152,6 @@
     }, 250);
   }
 
-  // =================================================================
-  // Approvers picker (f_appr) — re-render усіма
-  // =================================================================
   function rerenderApprovers() {
     var chipRow = document.getElementById('f_appr');
     if (!chipRow) return false;
@@ -219,9 +207,6 @@
     if (document.getElementById('f_appr')) rerenderApprovers();
   }, 1500);
 
-  // =================================================================
-  // Media rescue + force re-render
-  // =================================================================
   async function rescueAndRender() {
     try {
       var sb = window.supabase;
@@ -270,6 +255,7 @@
     'app-send-sound.js',
     'app-theme-polish.js',
     'app-dragdrop-fix.js',
+    'app-char-counter.js',
   ];
   nextPatches.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
