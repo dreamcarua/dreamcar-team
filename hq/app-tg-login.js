@@ -87,8 +87,9 @@
     'app-mentions.js',
     'app-reapprove-on-edit.js',
     'app-ui-extras.js',
-    'app-launches-crud.js',         // FEAT: Запуски CRUD для admin
-    'app-pravky2-fix.js',           // FIX: sound unlock + mention + Artem + comments RT + media rescue
+    'app-launches-crud.js',
+    'app-pravky2-fix.js',
+    'app-pravky2b-fix.js',          // FIX: Артем у approvers + audio eager + cur-pub
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
