@@ -92,7 +92,8 @@
     'app-pravky2b-fix.js',
     'app-pravky2c-fix.js',
     'app-pravky2d-fix.js',
-    'app-pravky2e-fix.js',          // FIX: creatives rescue на hashchange
+    'app-pravky2e-fix.js',
+    'app-pravky2f-fix.js',          // FIX: force navigate() after rescue
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
