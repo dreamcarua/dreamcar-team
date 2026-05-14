@@ -124,20 +124,14 @@
   // =================================================================
   // ROLLBACK: per-platform expansion (ламав drag-drop)
   // =================================================================
-  // Якщо Store.pubs.__perPlatExpanded — повертаємо нормальну Store.pubs
   function rollbackPerPlatform() {
     if (!window.Store) return false;
     if (Store.pubs.__perPlatExpanded) {
-      // Знайти original
-      var _origPubs = Store.pubs;
-      // Шукаємо найгuneскорочений варіант — це _origPubs.bind(Store) у app-core
-      // Simply replace з функцією що повертає _data.publications
       Store.pubs = function () {
         return (this._data && this._data.publications) ? this._data.publications.filter(function (p) { return !p._trashed; }) : [];
       };
       console.log('%cDreamCar HQ %c· rolled back per-platform expansion',
         'color:#ff6577;font-weight:700;', 'color:#888;');
-      // Force re-render
       if (typeof window.navigate === 'function') {
         try { window.navigate(); } catch (_) {}
       }
@@ -275,6 +269,7 @@
     'app-pravky2f-fix.js',
     'app-send-sound.js',
     'app-theme-polish.js',
+    'app-dragdrop-fix.js',
   ];
   nextPatches.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
