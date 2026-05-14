@@ -1,31 +1,16 @@
 // =====================================================================
-// DreamCar HQ — Telegram Login Widget Verifier
+// DreamCar HQ — Telegram Login Widget Verifier v2
 // =====================================================================
-// Тікет #27 з ТЗ.
+// Mapping:
+//   1. Шукаємо public.users.tg_chat_id == TG user.id
+//   2. Якщо знайшли → set deterministic password для existing auth_id
+//      та signin його email — це той самий профіль що Google-login.
+//   3. Якщо не знайшли → 403 з підказкою спочатку привʼязати бот у Settings.
 //
-// Telegram Login Widget на фронті отримує об'єкт юзера з hash, який
-// підписаний ботом. Тут ми:
-//   1. Валідовуємо hash через HMAC-SHA256(SHA256(BOT_TOKEN), data_check_string)
-//   2. Перевіряємо що auth_date свіжий (< 1 день)
-//   3. Знаходимо/створюємо auth.user по email `tg_<id>@dreamcar.team`
-//      з детермінованим паролем = HMAC(TG_LOGIN_SALT, tg_id)
-//   4. Логінимо й повертаємо access_token + refresh_token для фронта.
+// Secrets: TG_BOT_TOKEN, TG_LOGIN_SALT, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+//          SUPABASE_ANON_KEY (або HQ_DB_* alias-и).
 //
-// Secrets (Settings → Edge Functions → Manage):
-//   TG_BOT_TOKEN              (той самий, що для notify-tg)
-//   TG_LOGIN_SALT             (випадковий 32+ char секрет, для пароля)
-//   HQ_DB_URL / SUPABASE_URL
-//   HQ_DB_SERVICE_KEY / SUPABASE_SERVICE_ROLE_KEY
-//   SUPABASE_ANON_KEY         (для signInWithPassword)
-//
-// Settings (на функції):
-//   Verify JWT з legacy secret = OFF
-//
-// BotFather config (одноразово):
-//   /setdomain → @dreamcar_team_bot → dreamcarua.github.io
-//
-// Frontend config.js:
-//   TG_LOGIN_BOT: 'dreamcar_team_bot'
+// BotFather: /setdomain → @<bot> → dreamcarua.github.io
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -36,7 +21,7 @@ const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")  ?? Deno.env.get("HQ_DB_URL")
 const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
 const ANON_KEY      = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("HQ_DB_ANON_KEY") ?? "";
 
-const AUTH_MAX_AGE_SEC = 60 * 60 * 24;  // 1 day
+const AUTH_MAX_AGE_SEC = 60 * 60 * 24;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,18 +48,12 @@ async function sha256(data: string | Uint8Array): Promise<Uint8Array> {
 }
 async function hmacSha256(keyBytes: Uint8Array, message: string): Promise<Uint8Array> {
   const cryptoKey = await crypto.subtle.importKey(
-    "raw", keyBytes,
-    { name: "HMAC", hash: "SHA-256" },
-    false, ["sign"]
+    "raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
   const sig = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(message));
   return new Uint8Array(sig);
 }
 
-/**
- * Telegram Login Widget verification.
- * https://core.telegram.org/widgets/login#checking-authorization
- */
 async function verifyTelegramAuth(user: TgUser): Promise<boolean> {
   if (!user.hash) return false;
   const { hash, ...rest } = user;
@@ -86,132 +65,103 @@ async function verifyTelegramAuth(user: TgUser): Promise<boolean> {
 }
 
 async function derivePassword(tgId: number): Promise<string> {
-  // detеrministic, але непередбачувано без LOGIN_SALT
   const key = new TextEncoder().encode(LOGIN_SALT || "fallback_salt_change_me");
   const sig = await hmacSha256(key, `tg:${tgId}`);
-  // 40-char hex is plenty for password strength
   return bytesToHex(sig).slice(0, 40);
 }
 
+function errResp(status: number, error: string, hint?: string) {
+  return new Response(JSON.stringify({ ok: false, error, hint }), {
+    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-  if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
 
   if (!TG_BOT_TOKEN || !SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
-    return new Response(JSON.stringify({ error: "Server misconfigured: missing secrets" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return errResp(500, "Server misconfigured: missing secrets",
+      "Перевір TG_BOT_TOKEN, TG_LOGIN_SALT, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY у Edge Function Secrets.");
   }
 
   let body: TgUser;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response("Invalid JSON", { status: 400, headers: corsHeaders });
-  }
+  try { body = await req.json(); }
+  catch { return errResp(400, "Invalid JSON"); }
+
   if (!body || !body.id || !body.auth_date || !body.hash) {
-    return new Response("Missing fields", { status: 400, headers: corsHeaders });
+    return errResp(400, "Missing fields", "TG widget має повернути id, auth_date, hash");
   }
 
   // 1. Verify hash
   const valid = await verifyTelegramAuth(body);
-  if (!valid) {
-    return new Response(JSON.stringify({ error: "Hash mismatch — auth rejected" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  if (!valid) return errResp(403, "Hash mismatch — auth rejected",
+    "Перевір TG_BOT_TOKEN відповідає боту що генерує widget; також /setdomain dreamcarua.github.io у @BotFather");
 
-  // 2. Verify auth_date freshness
+  // 2. Auth_date freshness
   const now = Math.floor(Date.now() / 1000);
   if (now - body.auth_date > AUTH_MAX_AGE_SEC) {
-    return new Response(JSON.stringify({ error: "auth_date too old (>1 day)" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return errResp(403, "auth_date too old (>1 day) — натисни кнопку ще раз");
   }
-
-  // 3. Find or create auth.user
-  const email = `tg_${body.id}@dreamcar.team`;
-  const password = await derivePassword(body.id);
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-
-  // Try sign-in first (existing user with same password)
   const userClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
   const fullName = [body.first_name, body.last_name].filter(Boolean).join(" ") || (body.username || "");
-  const userMetadata = {
-    tg_id: body.id,
-    tg_username: body.username || null,
-    photo_url: body.photo_url || null,
-    first_name: body.first_name || null,
-    last_name: body.last_name || null,
-    full_name: fullName,
-    source: "tg_login",
-  };
+  const password = await derivePassword(body.id);
 
-  let signIn = await userClient.auth.signInWithPassword({ email, password });
+  // 3. Шукаємо public.users з tg_chat_id == TG user.id
+  const { data: existingUser, error: lookupErr } = await admin
+    .from("users")
+    .select("id, auth_id, email, name")
+    .eq("tg_chat_id", body.id)
+    .maybeSingle();
 
-  if (signIn.error) {
-    // Likely user doesn't exist — create
-    const created = await admin.auth.admin.createUser({
-      email,
+  if (lookupErr) {
+    return errResp(500, "DB lookup failed: " + lookupErr.message);
+  }
+
+  if (existingUser && existingUser.auth_id && existingUser.email) {
+    // ✓ Existing user — реактивуємо його auth.user
+    // (а) Set deterministic password на існуючому auth_id
+    const upd = await admin.auth.admin.updateUserById(existingUser.auth_id, {
       password,
-      email_confirm: true,
-      user_metadata: userMetadata,
+      user_metadata: {
+        tg_id: body.id,
+        tg_username: body.username || null,
+        photo_url: body.photo_url || null,
+        last_tg_login: new Date().toISOString(),
+      },
     });
-    if (created.error) {
-      return new Response(JSON.stringify({ error: "createUser failed: " + created.error.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (upd.error) {
+      return errResp(500, "updateUserById failed: " + upd.error.message);
     }
-    // Try sign-in again
-    signIn = await userClient.auth.signInWithPassword({ email, password });
+    // (б) signin цим email + password
+    const signIn = await userClient.auth.signInWithPassword({
+      email: existingUser.email, password,
+    });
     if (signIn.error) {
-      return new Response(JSON.stringify({ error: "post-create signIn failed: " + signIn.error.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errResp(500, "signin failed: " + signIn.error.message);
     }
-  } else {
-    // Existing user — refresh metadata silently
+    // (в) Оновити tg_username (chat_id вже є)
     try {
-      const authUserId = signIn.data.user?.id;
-      if (authUserId) {
-        await admin.auth.admin.updateUserById(authUserId, { user_metadata: userMetadata });
-      }
-    } catch (e) { console.warn("update metadata failed:", e); }
+      await admin.from("users").update({
+        tg_username: body.username || null,
+      }).eq("id", existingUser.id);
+    } catch (e) { console.warn("update tg_username failed:", e); }
+
+    const session = signIn.data.session!;
+    return new Response(JSON.stringify({
+      ok: true,
+      mapped: true,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      user: { id: existingUser.id, email: existingUser.email, name: existingUser.name, tg_id: body.id },
+    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  // 4. Update public.users (best-effort, тригер handle_new_user уже міг створити)
-  try {
-    const authUserId = signIn.data.user!.id;
-    await admin.from("users").upsert({
-      auth_id: authUserId,
-      name: fullName,
-      email: email,
-      tg_chat_id: body.id,
-      tg_username: body.username || null,
-    }, { onConflict: "auth_id" });
-  } catch (e) {
-    console.warn("public.users upsert failed (non-fatal):", e);
-  }
-
-  const session = signIn.data.session;
-  if (!session) {
-    return new Response(JSON.stringify({ error: "no session after sign-in" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  return new Response(JSON.stringify({
-    ok: true,
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    user: { email, tg_id: body.id, full_name: fullName },
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  // 4. Не знайдено — відмова з підказкою
+  return errResp(403,
+    "TG-акаунт не привʼязаний до жодного юзера HQ",
+    "Спочатку зайди через Google login у HQ, потім у Settings → 'Привʼязати через @dreamcar_team_bot'. Після цього TG-login буде працювати.",
+  );
 });
