@@ -90,7 +90,8 @@
     'app-launches-crud.js',
     'app-pravky2-fix.js',
     'app-pravky2b-fix.js',
-    'app-pravky2c-fix.js',          // FIX: robust approvers rerender + meta
+    'app-pravky2c-fix.js',
+    'app-pravky2d-fix.js',          // FIX: f_appr direct fix
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
