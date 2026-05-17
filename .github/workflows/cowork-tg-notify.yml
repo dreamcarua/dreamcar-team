@@ -6,10 +6,11 @@ name: Cowork → TG Notify
 # 1. Claude комічу файл `cowork-notify/<timestamp>.json` з {text, type, link}
 # 2. Цей workflow тригериться на push у cowork-notify/*.json
 # 3. Action читає файл → шле повідомлення у TG через бот @dreamcar_team_bot
-# 4. Файл архівується у cowork-notify/archive/ щоб не висіти у активній черзі
+# 4. Файл архівується у cowork-notify/archive/ з `[skip ci]` у commit message,
+#    тож GitHub автоматично НЕ запускає workflow на цей коміт (no loop).
 #
 # Secrets потрібні у repo Settings → Secrets and variables → Actions:
-#   - TG_BOT_TOKEN  (той самий що у Supabase secrets — для @dreamcar_team_bot)
+#   - TG_BOT_TOKEN  (для @dreamcar_team_bot — той самий що у Supabase)
 #   - TG_CHAT_ID    (chat_id Вадима, число)
 
 on:
@@ -19,13 +20,8 @@ on:
     branches:
       - main
 
-concurrency:
-  group: cowork-tg-notify
-  cancel-in-progress: false
-
 jobs:
   send-tg:
-    if: github.event.head_commit.author.name != 'cowork-notify-bot'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -38,9 +34,14 @@ jobs:
       - name: Find new notify files
         id: files
         run: |
-          NEW_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'cowork-notify/*.json' || true)
+          # Файли які були ДОДАНІ у цьому push-і
+          NEW_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'cowork-notify/*.json' 2>/dev/null || true)
+          # Fallback: якщо diff не спрацював (наприклад перший push) — беремо ВСІ файли у cowork-notify/
           if [ -z "$NEW_FILES" ]; then
-            echo "No new notify files. Exit."
+            NEW_FILES=$(find cowork-notify -maxdepth 1 -name '*.json' -type f 2>/dev/null || true)
+          fi
+          if [ -z "$NEW_FILES" ]; then
+            echo "No notify files. Exit."
             echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -133,6 +134,7 @@ $SAFE_TEXT"
           git config user.name "cowork-notify-bot"
           git config user.email "cowork-bot@dreamcar.ua"
           if ! git diff --staged --quiet; then
+            # [skip ci] у повідомленні — GitHub автоматично НЕ запустить workflow
             git commit -m "chore: archive cowork-notify files [skip ci]"
             git push
           else
