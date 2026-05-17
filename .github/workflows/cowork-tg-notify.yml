@@ -6,11 +6,10 @@ name: Cowork → TG Notify
 # 1. Claude комічу файл `cowork-notify/<timestamp>.json` з {text, type, link}
 # 2. Цей workflow тригериться на push у cowork-notify/*.json
 # 3. Action читає файл → шле повідомлення у TG через бот @dreamcar_team_bot
-# 4. Файл архівується у cowork-notify/archive/ з `[skip ci]` у commit message,
-#    тож GitHub автоматично НЕ запускає workflow на цей коміт (no loop).
+# 4. Файл архівується у cowork-notify/archive/ з `[skip ci]` у commit message.
 #
 # Secrets потрібні у repo Settings → Secrets and variables → Actions:
-#   - TG_BOT_TOKEN  (для @dreamcar_team_bot — той самий що у Supabase)
+#   - TG_BOT_TOKEN  (для @dreamcar_team_bot)
 #   - TG_CHAT_ID    (chat_id Вадима, число)
 
 on:
@@ -34,9 +33,7 @@ jobs:
       - name: Find new notify files
         id: files
         run: |
-          # Файли які були ДОДАНІ у цьому push-і
           NEW_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'cowork-notify/*.json' 2>/dev/null || true)
-          # Fallback: якщо diff не спрацював (наприклад перший push) — беремо ВСІ файли у cowork-notify/
           if [ -z "$NEW_FILES" ]; then
             NEW_FILES=$(find cowork-notify -maxdepth 1 -name '*.json' -type f 2>/dev/null || true)
           fi
@@ -57,56 +54,48 @@ jobs:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           FILES: ${{ steps.files.outputs.files }}
+        shell: bash
         run: |
           set -e
           if [ -z "$TG_BOT_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
             echo "::error::Missing TG_BOT_TOKEN or TG_CHAT_ID secrets"
             exit 1
           fi
-
+          NL=$'\n'
           while IFS= read -r file; do
             [ -z "$file" ] && continue
-            [ ! -f "$file" ] && { echo "Skip missing: $file"; continue; }
-
+            if [ ! -f "$file" ]; then
+              echo "Skip missing: $file"
+              continue
+            fi
             echo "Processing $file..."
             TEXT=$(jq -r '.text // ""' "$file")
             TYPE=$(jq -r '.type // "info"' "$file")
             LINK=$(jq -r '.link // ""' "$file")
-
             if [ -z "$TEXT" ]; then
               echo "::warning::Empty text in $file, skip"
               continue
             fi
-
             case "$TYPE" in
               deploy) EMOJI="🚀" ;;
-              task)   EMOJI="✅" ;;
-              warn)   EMOJI="⚠️" ;;
-              error)  EMOJI="🔴" ;;
+              task) EMOJI="✅" ;;
+              warn) EMOJI="⚠️" ;;
+              error) EMOJI="🔴" ;;
               question) EMOJI="❓" ;;
               info|*) EMOJI="🤖" ;;
             esac
-
             TS=$(date -u +"%H:%M UTC · %d.%m")
             SAFE_TEXT=$(echo "$TEXT" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
-
-            MSG="$EMOJI <b>Cowork</b> · $TS
-
-$SAFE_TEXT"
-
+            MSG="${EMOJI} <b>Cowork</b> · ${TS}${NL}${NL}${SAFE_TEXT}"
             if [ -n "$LINK" ] && [ "$LINK" != "null" ]; then
-              MSG="$MSG
-
-🔗 <a href=\"$LINK\">Відкрити</a>"
+              MSG="${MSG}${NL}${NL}🔗 <a href=\"${LINK}\">Відкрити</a>"
             fi
-
             HTTP=$(curl -s -o /tmp/tg-resp.txt -w "%{http_code}" \
               "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
               -d "chat_id=$TG_CHAT_ID" \
               --data-urlencode "text=$MSG" \
               -d "parse_mode=HTML" \
               -d "disable_web_page_preview=true")
-
             if [ "$HTTP" != "200" ]; then
               echo "::error::TG send failed for $file (HTTP $HTTP):"
               cat /tmp/tg-resp.txt
@@ -134,7 +123,6 @@ $SAFE_TEXT"
           git config user.name "cowork-notify-bot"
           git config user.email "cowork-bot@dreamcar.ua"
           if ! git diff --staged --quiet; then
-            # [skip ci] у повідомленні — GitHub автоматично НЕ запустить workflow
             git commit -m "chore: archive cowork-notify files [skip ci]"
             git push
           else
