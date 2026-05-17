@@ -1,16 +1,13 @@
 // =====================================================================
-// DreamCar HQ — Cowork → TG Notify v1
+// DreamCar HQ — Cowork → TG Notify v2
 // =====================================================================
 // Edge Function для push-нотифікацій від Claude (Cowork mode) у TG.
-// Викликається curl-ом з будь-якої Cowork-сесії після значного action-у
-// (git push, Edge Function deploy, SQL migration, sprint completion).
+// Викликається curl-ом з будь-якої Cowork-сесії після значного action-у.
 //
-// Шле DM Вадиму через @dreamcar_team_bot (chat_id береться з users
-// таблиці за email vg@abrisart.com).
+// Receiver: береться з env COWORK_NOTIFY_CHAT_ID (primary), або з users
+// таблиці за email vg@abrisart.com / dreamcarua@gmail.com (fallback).
 //
 // Authentication: secret token у header `x-cowork-token` (env COWORK_NOTIFY_TOKEN).
-// Без токена — 401. Це не суворо — токен лежить у Global Instructions,
-// але обмежує public spam.
 //
 // Body schema:
 //   { text: string (max 500), link?: string, type?: "deploy"|"task"|"info" }
@@ -23,9 +20,10 @@ const SUP_KEY_RAW      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const HQ_KEY_RAW       = Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
 const SERVICE_ROLE_KEY = HQ_KEY_RAW || SUP_KEY_RAW;
 const COWORK_TOKEN     = Deno.env.get("COWORK_NOTIFY_TOKEN") ?? "";
+const COWORK_CHAT_ID   = Deno.env.get("COWORK_NOTIFY_CHAT_ID") ?? "";
 
-// Hardcoded — отримує тільки Вадим. Інші користувачі — окремий endpoint.
-const RECEIVER_EMAIL = "vg@abrisart.com";
+// Fallback emails якщо env не задано
+const FALLBACK_EMAILS = ["vg@abrisart.com", "dreamcarua@gmail.com", "vg@dreamcar.ua"];
 
 const TYPE_EMOJI: Record<string, string> = {
   deploy: "🚀",
@@ -58,6 +56,36 @@ async function tgSendMessage(chatId: number, text: string): Promise<void> {
   }
 }
 
+async function resolveChatId(supabase: ReturnType<typeof createClient>): Promise<{ chatId: number | null; source: string; }> {
+  // 1. Primary: env var
+  if (COWORK_CHAT_ID) {
+    const n = Number(COWORK_CHAT_ID);
+    if (!isNaN(n) && n > 0) return { chatId: n, source: "env" };
+  }
+  // 2. Fallback: DB by emails
+  for (const email of FALLBACK_EMAILS) {
+    const { data } = await supabase
+      .from("users")
+      .select("tg_chat_id, name")
+      .eq("email", email)
+      .maybeSingle();
+    if (data && data.tg_chat_id) {
+      return { chatId: data.tg_chat_id as number, source: "db:" + email };
+    }
+  }
+  // 3. Fallback: any CEO with tg_chat_id
+  const { data: ceos } = await supabase
+    .from("users")
+    .select("tg_chat_id, name, email")
+    .eq("role", "ceo")
+    .not("tg_chat_id", "is", null)
+    .limit(1);
+  if (ceos && ceos.length > 0 && ceos[0].tg_chat_id) {
+    return { chatId: ceos[0].tg_chat_id as number, source: "db:ceo-fallback" };
+  }
+  return { chatId: null, source: "none" };
+}
+
 Deno.serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
@@ -75,7 +103,7 @@ Deno.serve(async (req: Request) => {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
-  // Auth via secret token (loose — щоб обмежити public spam)
+  // Auth via secret token
   if (COWORK_TOKEN) {
     const got = req.headers.get("x-cowork-token");
     if (got !== COWORK_TOKEN) {
@@ -103,21 +131,14 @@ Deno.serve(async (req: Request) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-  // Знайти chat_id Вадима
-  const { data: user, error: e1 } = await supabase
-    .from("users")
-    .select("tg_chat_id, name")
-    .eq("email", RECEIVER_EMAIL)
-    .maybeSingle();
-  if (e1) {
-    console.error("user lookup:", e1);
-    return new Response(JSON.stringify({ ok: false, error: e1.message }), { status: 500, headers: { "Content-Type": "application/json" } });
-  }
-  if (!user || !user.tg_chat_id) {
-    return new Response(JSON.stringify({ ok: false, error: "receiver has no tg_chat_id" }), { status: 404, headers: { "Content-Type": "application/json" } });
+  const { chatId, source } = await resolveChatId(supabase);
+  if (!chatId) {
+    return new Response(JSON.stringify({
+      ok: false,
+      error: "no chat_id available — set COWORK_NOTIFY_CHAT_ID env, or bind your TG to HQ via /start hq_<userId>"
+    }), { status: 404, headers: { "Content-Type": "application/json" } });
   }
 
-  // Сформувати повідомлення
   const emoji = TYPE_EMOJI[body.type || ""] || "🤖";
   const ts = new Date().toLocaleString("uk-UA", { timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit" });
   let text = `${emoji} <b>Cowork</b> · ${escHtml(ts)}\n\n${escHtml(rawText)}`;
@@ -126,13 +147,13 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    await tgSendMessage(user.tg_chat_id as number, text);
+    await tgSendMessage(chatId, text);
   } catch (e) {
     console.error("tgSend err:", e);
-    return new Response(JSON.stringify({ ok: false, error: String((e as Error).message || e) }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: false, error: String((e as Error).message || e), source }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 
-  return new Response(JSON.stringify({ ok: true, sent_to: user.name }), {
+  return new Response(JSON.stringify({ ok: true, chat_id: chatId, source }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
 });
