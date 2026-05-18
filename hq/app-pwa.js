@@ -1,6 +1,8 @@
 /* ============================================================
    DreamCar HQ — PWA install + service worker registration
    ============================================================ */
+// FIX #131: install button перенесено з bottom-right fixed (перекривав CTA
+// "Взяти в роботу" / "На погодження") у topbar поряд з bell-іконкою.
 
 (function () {
   if (window.__hqPwaLoaded) return;
@@ -53,40 +55,106 @@
     });
   }
 
-  // ---- 3. Install prompt ----
+  // ---- 3. Install prompt у TOPBAR (поряд з bell) ----
   var deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferredPrompt = e;
-    showInstallButton();
+    showInstallTopbarIcon();
   });
 
-  function showInstallButton() {
+  function showInstallTopbarIcon() {
+    // Якщо запущений як standalone PWA — кнопка не потрібна
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return;
     if (document.getElementById('hq-pwa-install')) return;
+
+    // Прибрати залишки старого bottom-right розташування (на випадок старого кешу)
+    var legacyBtn = document.querySelector('button[id="hq-pwa-install-legacy"], #hq-pwa-install-old');
+    if (legacyBtn) legacyBtn.remove();
+
+    var actions = document.querySelector('.topbar .actions');
+    if (!actions) {
+      // Topbar не готовий — почекаємо
+      setTimeout(showInstallTopbarIcon, 500);
+      return;
+    }
+
     var btn = document.createElement('button');
     btn.id = 'hq-pwa-install';
-    btn.innerHTML = '📲 Встановити HQ';
+    btn.className = 'hq-topbar-icon';
+    btn.title = 'Встановити HQ як додаток';
+    btn.setAttribute('aria-label', 'Встановити HQ як додаток');
+    btn.innerHTML = '<span style="font-size:14px;">↓</span>';
     btn.style.cssText =
-      'position:fixed;bottom:18px;right:18px;z-index:9000;' +
-      'background:var(--brand-grad, linear-gradient(135deg,#d80004,#ff6a1f));' +
-      'color:#fff;border:none;padding:11px 18px;border-radius:30px;' +
-      'font-weight:700;font-size:13px;cursor:pointer;' +
-      'box-shadow:0 8px 28px -6px rgba(216,0,4,0.5);' +
-      'transition:transform 0.15s;';
-    btn.onmouseenter = function () { btn.style.transform = 'translateY(-2px)'; };
-    btn.onmouseleave = function () { btn.style.transform = ''; };
+      'background:var(--bg-3);border:1px solid var(--border);' +
+      'width:36px;height:36px;border-radius:8px;' +
+      'display:flex;align-items:center;justify-content:center;' +
+      'color:#fff;font-size:14px;cursor:pointer;' +
+      'transition:background 0.15s,border-color 0.15s;' +
+      'position:relative;';
+    btn.onmouseenter = function () {
+      btn.style.background = 'var(--bg-hover)';
+      btn.style.borderColor = 'var(--red, #d80004)';
+    };
+    btn.onmouseleave = function () {
+      btn.style.background = 'var(--bg-3)';
+      btn.style.borderColor = 'var(--border)';
+    };
+
     btn.onclick = async function () {
-      if (!deferredPrompt) return;
+      if (!deferredPrompt) {
+        if (typeof toast === 'function') toast('Встановлення', 'info', 'Браузер не дозволяє встановлення зараз. Спробуй через меню браузера (⋮ → Встановити DreamCar HQ).');
+        return;
+      }
       deferredPrompt.prompt();
       var choice = await deferredPrompt.userChoice;
       if (choice.outcome === 'accepted') {
-        if (typeof toast === 'function') toast('HQ', 'success', 'Встановлено!');
+        if (typeof toast === 'function') toast('HQ', 'success', 'Встановлено як додаток');
       }
       deferredPrompt = null;
       btn.remove();
     };
-    document.body.appendChild(btn);
+
+    // Маленька червона crowna що приваблює увагу 1 раз
+    var seenInstallBadge = false;
+    try { seenInstallBadge = localStorage.getItem('hq-pwa-seen-badge') === '1'; } catch (_) {}
+    if (!seenInstallBadge) {
+      var pulse = document.createElement('span');
+      pulse.style.cssText =
+        'position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;' +
+        'background:#d80004;box-shadow:0 0 0 0 rgba(216,0,4,0.6);' +
+        'animation:hq-pwa-pulse 2s infinite;';
+      btn.appendChild(pulse);
+      // Прибираємо pulse після першого натискання
+      btn.addEventListener('click', function once() {
+        try { localStorage.setItem('hq-pwa-seen-badge', '1'); } catch (_) {}
+        if (pulse.parentNode) pulse.parentNode.removeChild(pulse);
+        btn.removeEventListener('click', once);
+      });
+
+      // Pulse animation keyframes (одноразово)
+      if (!document.getElementById('hq-pwa-pulse-style')) {
+        var style = document.createElement('style');
+        style.id = 'hq-pwa-pulse-style';
+        style.textContent = '@keyframes hq-pwa-pulse{0%{box-shadow:0 0 0 0 rgba(216,0,4,0.6)}70%{box-shadow:0 0 0 8px rgba(216,0,4,0)}100%{box-shadow:0 0 0 0 rgba(216,0,4,0)}}';
+        document.head.appendChild(style);
+      }
+    }
+
+    // Вставити ПЕРЕД bell (щоб порядок: install · bell · role-switch)
+    var bell = actions.querySelector('.bell, #bellBtn');
+    if (bell) {
+      actions.insertBefore(btn, bell);
+    } else {
+      actions.insertBefore(btn, actions.firstChild);
+    }
   }
+
+  // Якщо beforeinstallprompt вже спрацював до того як ми завантажились
+  // (наприклад app-pwa.js завантажено пізніше) — спробувати показати кнопку
+  setTimeout(function () {
+    if (deferredPrompt) showInstallTopbarIcon();
+  }, 500);
 
   window.addEventListener('appinstalled', function () {
     var btn = document.getElementById('hq-pwa-install');
@@ -138,5 +206,5 @@
     return arr;
   }
 
-  console.log('%cDreamCar HQ PWA %c· wired (manifest + SW + install)', 'color:#4ade80;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ PWA %c· wired (topbar install + SW + push)', 'color:#4ade80;font-weight:700;', 'color:#888;');
 })();
