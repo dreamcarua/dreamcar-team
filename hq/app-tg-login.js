@@ -96,14 +96,15 @@
     'app-pravky2e-fix.js',
     'app-pravky2f-fix.js',
     'app-send-sound.js',
-    'app-theme-polish.js',          // FIX #110
-    'app-dragdrop-fix.js',          // FIX #111
-    'app-char-counter.js',          // FEAT #117
-    'app-calendar-dots.js',         // FEAT #118
-    'app-preview-tabs.js',          // FEAT #119
-    'app-duplicate-to.js',          // FEAT #120
-    'app-library-bulk.js',          // FEAT #121
-    'app-uxr.js',                   // FEAT #132-136: UX Round (Olexandr feedback)
+    'app-theme-polish.js',
+    'app-dragdrop-fix.js',
+    'app-char-counter.js',
+    'app-calendar-dots.js',
+    'app-preview-tabs.js',
+    'app-duplicate-to.js',
+    'app-library-bulk.js',
+    'app-uxr.js',
+    'app-rework-modal.js',          // FEAT #122: structured rework feedback
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
