@@ -236,6 +236,8 @@
     'app-preview-tabs.js',
     'app-duplicate-to.js',
     'app-library-bulk.js',
+    'app-uxr.js',
+    'app-pwa.js',
   ];
   nextPatches.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
