@@ -237,6 +237,7 @@
     'app-duplicate-to.js',
     'app-library-bulk.js',
     'app-uxr.js',
+    'app-rework-modal.js',
     'app-pwa.js',
   ];
   nextPatches.forEach(function (name) {
