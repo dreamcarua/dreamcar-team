@@ -1,8 +1,10 @@
 // =====================================================================
-// DreamCar HQ — Cron Reminders (gaps G2/G3/G4/G5b з ТЗ §7.2 + §14.2)
+// DreamCar HQ — Cron Reminders v2
+// + #125 G6 (T-10хв): за 10 хв до publish_at — пінг responsibles
+// + #125 G7 (T+10хв): через 10 хв після publish_at якщо не published — ескалація
 // =====================================================================
-// Викликається через pg_cron щогодини. Перевіряє публікації і шле
-// time-based нагадування у TG. Anti-spam: state-маркер у polled_reminders.
+// Викликається через pg_cron. РЕКОМЕНДОВАНО ТЕПЕР КОЖНІ 5 ХВ
+// (замість щогодини) — щоб ловити -10хв / +10хв вікна.
 //
 // Тригери:
 //   G2a. publish_at у наступні 2 дні + текст < 50 chars → ping responsible
@@ -10,6 +12,8 @@
 //   G3.  status='review' AND updated_at < now-24h → ре-пінг approver
 //   G4.  publish_at < now AND status != 'published' AND raised < 15хв тому → ескалація CEO/COO
 //   G5b. status='review' AND created_at < now-48h → ескалація до інших founders
+//   G6.  publish_at у вікні now+5хв..now+15хв AND status!='published' → пінг -10хв
+//   G7.  publish_at у вікні now-15хв..now-5хв AND status!='published' → ескалація +10хв
 //
 // Secrets:
 //   TG_BOT_TOKEN, HQ_CRON_SECRET, SUPABASE_URL/HQ_DB_URL,
@@ -55,7 +59,6 @@ interface Pub {
 }
 
 async function checkReminderSent(supabase: ReturnType<typeof createClient>, pubId: string, kind: string, windowHrs: number): Promise<boolean> {
-  // Anti-spam: ми зберігаємо history-запис типу `reminder:${kind}` і не шлемо знов протягом windowHrs.
   const since = new Date(Date.now() - windowHrs * 3600 * 1000).toISOString();
   const { count } = await supabase
     .from("publication_history")
@@ -78,12 +81,9 @@ async function recordReminder(supabase: ReturnType<typeof createClient>, pubId: 
 
 async function getRecipients(supabase: ReturnType<typeof createClient>, pubId: string, role: "responsibles" | "approvers"): Promise<UserRow[]> {
   const joinTable = role === "responsibles" ? "publication_responsibles" : "publication_approvers";
-  // Get user_ids
   const { data } = await supabase.from(joinTable).select("user_id").eq("publication_id", pubId);
   const userIds = (data ?? []).map(r => r.user_id);
   if (userIds.length === 0) return [];
-
-  // Replace by vacation deputies if any
   const { data: vacs } = await supabase
     .from("user_vacations")
     .select("user_id, deputy_id, from_date, to_date")
@@ -96,7 +96,6 @@ async function getRecipients(supabase: ReturnType<typeof createClient>, pubId: s
     }
   }
   const finalIds = Array.from(new Set(userIds.map(id => replacements[id] ?? id)));
-
   const { data: users } = await supabase
     .from("users")
     .select("id, name, role, tg_chat_id")
@@ -120,7 +119,11 @@ async function run(supabase: ReturnType<typeof createClient>) {
   const in2dIso = new Date(Date.now() + 2 * 86400000).toISOString();
   const ago24hIso = new Date(Date.now() - 24 * 3600000).toISOString();
   const ago48hIso = new Date(Date.now() - 48 * 3600000).toISOString();
-  const ago15mIso = new Date(Date.now() - 15 * 60000).toISOString();
+  // #125: T-10хв / T+10хв вікна (5..15 хв буфер щоб точно зловити при 5-хвилинному cron)
+  const tMinus15 = new Date(Date.now() + 5 * 60000).toISOString();   // +5хв
+  const tMinus5 = new Date(Date.now() + 15 * 60000).toISOString();   // +15хв
+  const tPlus5 = new Date(Date.now() - 5 * 60000).toISOString();     // -5хв
+  const tPlus15 = new Date(Date.now() - 15 * 60000).toISOString();   // -15хв
 
   let pinged = 0;
 
@@ -138,7 +141,6 @@ async function run(supabase: ReturnType<typeof createClient>) {
 
     for (const p of (pubs ?? []) as Pub[]) {
       const textShort = (p.text || "").trim().length < 50;
-      // creatives
       const { count: creCnt } = await supabase
         .from("creative_publications")
         .select("creative_id", { count: "exact", head: true })
@@ -207,7 +209,7 @@ async function run(supabase: ReturnType<typeof createClient>) {
       .from("publications")
       .select("id, title, status, publish_at, updated_at, created_at")
       .lt("publish_at", nowIso)
-      .gt("publish_at", new Date(Date.now() - 6 * 3600000).toISOString())  // тільки свіжі (за останні 6 год)
+      .gt("publish_at", new Date(Date.now() - 6 * 3600000).toISOString())
       .not("status", "in", "(published)")
       .is("deleted_at", null);
     for (const p of (pubs ?? []) as Pub[]) {
@@ -237,7 +239,6 @@ async function run(supabase: ReturnType<typeof createClient>) {
     for (const p of (pubs ?? []) as Pub[]) {
       if (await checkReminderSent(supabase, p.id, "esc48h", 48)) continue;
       const founders = await getFounders(supabase);
-      // Виключити тих, хто вже approver (вони і так отримали G3)
       const { data: approvers } = await supabase.from("publication_approvers").select("user_id").eq("publication_id", p.id);
       const approverIds = new Set((approvers ?? []).map(r => r.user_id));
       const escalateTo = founders.filter(u => !approverIds.has(u.id));
@@ -252,8 +253,71 @@ async function run(supabase: ReturnType<typeof createClient>) {
     }
   }
 
-  // Anti-warning: unused but reserved
-  void ago15mIso;
+  // ====================================================================
+  // #125 G6: T-10хв — за 10 хв до публікації, якщо status != 'published'
+  // ====================================================================
+  {
+    const { data: pubs } = await supabase
+      .from("publications")
+      .select("id, title, status, publish_at, updated_at, created_at")
+      .gte("publish_at", tMinus15)
+      .lte("publish_at", tMinus5)
+      .not("status", "in", "(published)")
+      .is("deleted_at", null);
+    for (const p of (pubs ?? []) as Pub[]) {
+      if (await checkReminderSent(supabase, p.id, "t-10", 1)) continue;
+      const recipients = await getRecipients(supabase, p.id, "responsibles");
+      // Якщо approved і recipients нема — пінгнемо founders як fallback
+      const finalList = recipients.length > 0 ? recipients : await getFounders(supabase);
+      for (const u of finalList) {
+        await tgSend(u.tg_chat_id!,
+          `🟡 <b>Через 10 хв публікація</b> — «${escHtml(p.title)}»\n` +
+          `📅 ${fmtDateTime(p.publish_at)}\n` +
+          `📊 Поточний статус: <b>${p.status}</b>\n` +
+          `${p.status === 'approved' ? '✅ Готово до публікації. Якщо постиш руками — час!' : '⚠️ Ще не approved!'}\n\n` +
+          `🔗 <a href="${HQ_URL}#publication/${p.id}">Відкрити в HQ</a>`);
+        pinged++;
+      }
+      await recordReminder(supabase, p.id, "t-10", `${finalList.length} pinged at T-10`);
+    }
+  }
+
+  // ====================================================================
+  // #125 G7: T+10хв — після часу публікації, якщо ще не published
+  // ====================================================================
+  {
+    const { data: pubs } = await supabase
+      .from("publications")
+      .select("id, title, status, publish_at, updated_at, created_at")
+      .gte("publish_at", tPlus15)
+      .lte("publish_at", tPlus5)
+      .not("status", "in", "(published)")
+      .is("deleted_at", null);
+    for (const p of (pubs ?? []) as Pub[]) {
+      if (await checkReminderSent(supabase, p.id, "t+10", 1)) continue;
+      const recipients = await getRecipients(supabase, p.id, "responsibles");
+      const founders = await getFounders(supabase);
+      // Об'єднуємо без дублів
+      const seen = new Set<string>();
+      const allRecipients = [...recipients, ...founders].filter(u => {
+        if (seen.has(u.id)) return false;
+        seen.add(u.id);
+        return true;
+      });
+      for (const u of allRecipients) {
+        await tgSend(u.tg_chat_id!,
+          `🔴 <b>+10 хв ПОСЛЕ ЧАСУ — НЕ ОПУБЛІКОВАНО!</b>\n` +
+          `«${escHtml(p.title)}»\n` +
+          `📅 Мало вийти: ${fmtDateTime(p.publish_at)}\n` +
+          `📊 Поточний статус: <b>${p.status}</b>\n\n` +
+          `🚨 Терміново перевір і опублікуй або переплануй!\n` +
+          `🔗 <a href="${HQ_URL}#publication/${p.id}">Відкрити в HQ</a>`);
+        pinged++;
+      }
+      await recordReminder(supabase, p.id, "t+10", `${allRecipients.length} escalated at T+10`);
+    }
+  }
+
   return pinged;
 }
 
@@ -274,7 +338,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const pinged = await run(supabase);
-    return new Response(JSON.stringify({ ok: true, pinged }), {
+    return new Response(JSON.stringify({ ok: true, pinged, version: "v2-#125" }), {
       status: 200, headers: { "Content-Type": "application/json" },
     });
   } catch (e) {
