@@ -238,6 +238,7 @@
     'app-library-bulk.js',
     'app-uxr.js',
     'app-rework-modal.js',
+    'app-analytics-v2.js',
     'app-pwa.js',
   ];
   nextPatches.forEach(function (name) {
