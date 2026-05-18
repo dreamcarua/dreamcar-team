@@ -102,7 +102,8 @@
     'app-calendar-dots.js',         // FEAT #118
     'app-preview-tabs.js',          // FEAT #119
     'app-duplicate-to.js',          // FEAT #120
-    'app-library-bulk.js',          // FEAT #121: bulk tag у Бібліотеці
+    'app-library-bulk.js',          // FEAT #121
+    'app-uxr.js',                   // FEAT #132-136: UX Round (Olexandr feedback)
     'app-pwa.js',
   ];
   chain.forEach(function (name) {
