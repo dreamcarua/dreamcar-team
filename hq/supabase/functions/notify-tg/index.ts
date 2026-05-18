@@ -1,5 +1,6 @@
 // =====================================================================
-// DreamCar HQ — Notify TG v6
+// DreamCar HQ — Notify TG v7
+// + #124 Chain progress approvers: "Артем ✓ 1/3 · Чекаємо: Вадим, Вова"
 // + text_body публікації у review messages
 // + sendPhoto/sendVideo якщо є creatives (preview як у HQ)
 // + Хто має погодити, deadline, requester
@@ -14,8 +15,8 @@ const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")     ?? Deno.env.get("HQ_DB
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
 
 const HQ_BASE_URL = "https://dreamcarua.github.io/dreamcar-team/hq/";
-const MAX_CAPTION = 1024;  // TG limit для photo/video caption
-const MAX_TEXT_PREVIEW = 800;  // обрізаємо text_body щоб лишилось місце на header
+const MAX_CAPTION = 1024;
+const MAX_TEXT_PREVIEW = 800;
 
 const ALLOWED_ORIGINS = [
   "https://dreamcarua.github.io",
@@ -40,6 +41,10 @@ interface PubRow {
 interface UserRow {
   id: string; name: string; email: string | null; role: string;
   tg_chat_id: number | string | null; tg_username: string | null;
+}
+// #124: Approver з рішенням
+interface ApproverWithDecision extends UserRow {
+  is_approved: boolean | null;
 }
 interface CreativeRow {
   id: string; type: string; thumbnail_url: string | null; name: string;
@@ -123,10 +128,38 @@ function reviewKeyboard(pubId: string): ReplyMarkup {
   };
 }
 
+// #124: Render chain progress
+function buildChainProgress(approvers: ApproverWithDecision[], policy: string): string {
+  if (approvers.length === 0) return "";
+  const approved = approvers.filter(a => a.is_approved === true);
+  const pending = approvers.filter(a => a.is_approved !== true);
+  const total = approvers.length;
+  const lines: string[] = [];
+
+  if (approved.length > 0) {
+    const names = approved.map(a => `<b>${escHtml(a.name)}</b> ✓`).join(", ");
+    lines.push(`👍 Погодили (${approved.length}/${total}): ${names}`);
+  }
+  if (pending.length > 0) {
+    const names = pending.map(a => `<b>${escHtml(a.name)}</b>`).join(", ");
+    if (approved.length === 0) {
+      const policyLabel = policy === "any" ? "будь-хто з" : "потрібен ✓ від ВСІХ";
+      if (total === 1) {
+        lines.push(`👤 Має погодити: ${names}`);
+      } else {
+        lines.push(`👥 Має погодити (${policyLabel}): ${names}`);
+      }
+    } else {
+      lines.push(`⏳ Чекаємо: ${names}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 function buildReviewMessage(
   pub: PubRow,
   requester: UserRow | null,
-  approvers: UserRow[],
+  approvers: ApproverWithDecision[],
   forCaption: boolean,
 ): string {
   const lines: string[] = [];
@@ -134,20 +167,12 @@ function buildReviewMessage(
   lines.push(`«${escHtml(pub.title)}»`);
   if (requester) lines.push(`Від: ${escHtml(requester.name)}`);
 
-  if (approvers.length > 0) {
-    const names = approvers.map(u => escHtml(u.name)).join(", ");
-    const policy = pub.approver_policy === "any" ? "будь-хто з" : "потрібен ✓ від ВСІХ";
-    if (approvers.length === 1) {
-      lines.push(`👤 Має погодити: <b>${names}</b>`);
-    } else {
-      lines.push(`👥 Має погодити (${policy}): <b>${names}</b>`);
-    }
-  }
+  const chain = buildChainProgress(approvers, pub.approver_policy || "all");
+  if (chain) lines.push(chain);
 
   lines.push(`📅 Публікація: ${fmtDt(pub.publish_at)}`);
   if (pub.deadline_on) lines.push(`⏰ Дедлайн матеріалу: ${pub.deadline_on}`);
 
-  // Додаємо повний text body публікації (з обмеженням)
   if (pub.text_body && pub.text_body.trim()) {
     const textMaxLen = forCaption ? Math.max(0, MAX_CAPTION - lines.join("\n").length - 40) : MAX_TEXT_PREVIEW;
     const body = pub.text_body.trim();
@@ -156,7 +181,6 @@ function buildReviewMessage(
     lines.push(`<i>${escHtml(truncated)}</i>`);
   }
 
-  // Hashtags як bonus
   if (pub.hashtags && pub.hashtags.length > 0 && !forCaption) {
     lines.push("");
     lines.push(pub.hashtags.map(h => h.startsWith("#") ? h : "#" + h).join(" "));
@@ -165,15 +189,17 @@ function buildReviewMessage(
   return lines.join("\n");
 }
 
-function buildApprovedMessage(pub: PubRow, approver: UserRow | null): string {
+function buildApprovedMessage(pub: PubRow, approver: UserRow | null, approvers: ApproverWithDecision[]): string {
+  const chain = approvers.length > 1 ? `\n\n${buildChainProgress(approvers, pub.approver_policy || "all")}` : "";
   return [
     `✅ <b>Погоджено</b>`,
     `«${escHtml(pub.title)}»`,
-    approver ? `${escHtml(approver.name)} погодив(ла)` : "",
+    approver ? `${escHtml(approver.name)} погодив(ла) — фінальний голос${chain}` : `Усі погоджено${chain}`,
     ``,
     `🔗 <a href="${HQ_BASE_URL}#publication/${pub.id}">Відкрити в HQ</a>`,
   ].filter(Boolean).join("\n");
 }
+
 function buildReworkMessage(pub: PubRow, approver: UserRow | null): string {
   return [
     `↩️ <b>Повернуто на доопрацювання</b>`,
@@ -183,6 +209,7 @@ function buildReworkMessage(pub: PubRow, approver: UserRow | null): string {
     `🔗 <a href="${HQ_BASE_URL}#publication/${pub.id}">Відкрити в HQ · подивись коментар</a>`,
   ].filter(Boolean).join("\n");
 }
+
 function buildCommentMessage(pub: PubRow, comment: string, author: UserRow | null): string {
   const truncated = comment.length > 240 ? comment.slice(0, 237) + "…" : comment;
   return [
@@ -208,12 +235,26 @@ async function loadFirstCreative(supabase: ReturnType<typeof createClient>, pubI
   return c;
 }
 
+async function loadApproversWithDecision(supabase: ReturnType<typeof createClient>, pubId: string): Promise<ApproverWithDecision[]> {
+  const { data } = await supabase
+    .from("publication_approvers")
+    .select("user_id, is_approved, users:user_id (id, name, email, role, tg_chat_id, tg_username)")
+    .eq("publication_id", pubId);
+  return (data ?? []).map(row => {
+    // @ts-ignore
+    const u = row.users as UserRow;
+    if (!u) return null;
+    // @ts-ignore
+    return { ...u, is_approved: row.is_approved };
+  }).filter((x): x is ApproverWithDecision => x !== null);
+}
+
 async function sendReviewToChat(
   chatId: string | number,
   pub: PubRow,
   creative: CreativeRow | null,
   requester: UserRow | null,
-  approvers: UserRow[],
+  approvers: ApproverWithDecision[],
 ) {
   const kb = reviewKeyboard(pub.id);
   if (creative && creative.thumbnail_url) {
@@ -223,7 +264,6 @@ async function sendReviewToChat(
       ? await tgSendVideo(chatId, creative.thumbnail_url, caption, { reply_markup: kb })
       : await tgSendPhoto(chatId, creative.thumbnail_url, caption, { reply_markup: kb });
     if (ok) return;
-    // Fallback на text якщо media не послалась
   }
   const text = buildReviewMessage(pub, requester, approvers, false);
   await tgSend(chatId, text, { reply_markup: kb });
@@ -243,14 +283,7 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
   }
 
   if (rec.status === "review") {
-    const { data: approversData } = await supabase
-      .from("publication_approvers")
-      .select("user_id, users:user_id (id, name, email, role, tg_chat_id, tg_username)")
-      .eq("publication_id", rec.id);
-    const approverUsers: UserRow[] = (approversData ?? [])
-      // @ts-ignore join shape
-      .map(row => row.users as UserRow)
-      .filter(Boolean);
+    const approverUsers = await loadApproversWithDecision(supabase, rec.id);
 
     const requester = rec.created_by
       ? await supabase.from("users").select("*").eq("id", rec.created_by).maybeSingle().then(({ data }) => data)
@@ -275,8 +308,10 @@ async function handlePubChange(supabase: ReturnType<typeof createClient>, payloa
       .select("user_id, users:user_id (id, name, email, role, tg_chat_id, tg_username)")
       .eq("publication_id", rec.id);
 
+    const approvers = await loadApproversWithDecision(supabase, rec.id);
+
     const text = rec.status === "approved"
-      ? buildApprovedMessage(rec, approverData as UserRow | null)
+      ? buildApprovedMessage(rec, approverData as UserRow | null, approvers)
       : buildReworkMessage(rec, approverData as UserRow | null);
 
     if (TG_GROUP_CHAT_ID) await tgSend(TG_GROUP_CHAT_ID, text);
