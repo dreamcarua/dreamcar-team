@@ -1,10 +1,9 @@
 // =====================================================================
-// DreamCar HQ — TG Webhook v11
+// DreamCar HQ — TG Webhook v12
+// + #140 FIX /approve черга: виключаємо публікації де я вже погодив
+//   (filter is_approved !== true → не повторюємо завдання поточному approver-у)
 // + #123 Structured rework feedback via inline buttons (двокроковий)
-//   - 9 категорій (toggle), Submit без коментаря або +Коментар (ForceReply)
-//   - Working for both notification "appr:n" and queue "qappr:n"
-//   - Зберігається у publication_history.detail як JSON (compat з #122)
-//   - Зберігається у comments.body як текст (compat з #122)
+// + #124 chain progress у buildChainProgress
 // + multi-approver AND logic via register_approval RPC
 // + /approve flow (черга погоджень з кнопками)
 // + File upload (photo/video/document → creative)
@@ -191,9 +190,6 @@ async function findUser(supabase: ReturnType<typeof createClient>, chatId: numbe
   return data || null;
 }
 
-// =====================================================================
-// SHARED HELPER: process approval decision via register_approval RPC
-// =====================================================================
 interface ApprovalResult {
   ok: boolean;
   finalStatus: string;
@@ -236,7 +232,6 @@ async function processApprovalDecision(
       };
     }
   } else {
-    // Plain rework (без причин) — legacy path, на випадок коли структуровану ще не відкрили
     const { error: updErr } = await supabase
       .from("publications")
       .update({ status: "rework", updated_at: new Date().toISOString() })
@@ -257,11 +252,6 @@ async function processApprovalDecision(
   }
 }
 
-// =====================================================================
-// #123: STRUCTURED REWORK FLOW
-// =====================================================================
-
-// State = string з цифрами 0-8 (відсортовано unique), e.g. "025"
 function toggleState(state: string, idx: number): string {
   const set = new Set(state.split(""));
   const k = String(idx);
@@ -291,7 +281,6 @@ function buildReworkText(reasons: string[], comment: string): string {
 function buildReworkKeyboard(pubId: string, state: string, via: "N" | "Q"): ReplyMarkup {
   const prefix = via === "Q" ? "rwkQ" : "rwkN";
   const rows: InlineButton[][] = [];
-  // 9 reasons → 5 рядів (4×2 + 1×1)
   for (let i = 0; i < REWORK_REASONS.length; i += 2) {
     const row: InlineButton[] = [];
     for (let j = i; j < Math.min(i + 2, REWORK_REASONS.length); j++) {
@@ -305,7 +294,6 @@ function buildReworkKeyboard(pubId: string, state: string, via: "N" | "Q"): Repl
     }
     rows.push(row);
   }
-  // Action buttons
   const submitLabel = state.length > 0
     ? `↩ Зберегти (${state.length})`
     : `↩ Зберегти без причин`;
@@ -344,15 +332,10 @@ async function processStructuredRework(
   comment: string,
   via: "tg-button-rwk" | "tg-queue-rwk",
 ): Promise<ApprovalResult> {
-  const feedback = {
-    reasons,
-    comment,
-    at: new Date().toISOString(),
-  };
+  const feedback = { reasons, comment, at: new Date().toISOString() };
   const feedbackJson = JSON.stringify(feedback);
   const feedbackText = buildReworkText(reasons, comment);
 
-  // 1. Status → rework
   const { error: updErr } = await supabase
     .from("publications")
     .update({ status: "rework", updated_at: new Date().toISOString() })
@@ -361,7 +344,6 @@ async function processStructuredRework(
     return { ok: false, finalStatus: "review", shortLabel: "Помилка", longLabel: "", error: updErr.message };
   }
 
-  // 2. History: structured JSON (як у #122)
   const { error: histErr } = await supabase.from("publication_history").insert({
     publication_id: pubId, actor_id: userId,
     action: "reject",
@@ -369,7 +351,6 @@ async function processStructuredRework(
   });
   if (histErr) console.warn("history insert err:", histErr);
 
-  // 3. Comments: текст для backward compat (як у #122)
   const { error: cErr } = await supabase.from("comments").insert({
     publication_id: pubId, author_id: userId,
     body: feedbackText,
@@ -377,7 +358,6 @@ async function processStructuredRework(
   });
   if (cErr) console.warn("comments insert err:", cErr);
 
-  // Format final label
   const labels = reasons.map(rid => {
     const r = REWORK_REASONS.find(x => x.id === rid);
     return r ? `${r.icon} ${r.label}` : rid;
@@ -386,14 +366,9 @@ async function processStructuredRework(
   if (labels.length > 0) longLabel += `\n<b>Причини:</b> ${labels.join(" · ")}`;
   if (comment) longLabel += `\n<b>Деталі:</b> <i>${escHtml(comment)}</i>`;
 
-  return {
-    ok: true, finalStatus: "rework",
-    shortLabel: "↩️ Повернуто",
-    longLabel,
-  };
+  return { ok: true, finalStatus: "rework", shortLabel: "↩️ Повернуто", longLabel };
 }
 
-// Маркер для парсингу ForceReply відповіді користувача
 function buildCommentMarker(pubId: string, state: string, via: "N" | "Q"): string {
   return `#rwk:${via}:${pubId}:${state}`;
 }
@@ -404,7 +379,6 @@ function parseCommentMarker(text: string): { via: "N" | "Q"; pubId: string; stat
   return { via: m[1] as "N" | "Q", pubId: m[2], state: m[3] };
 }
 
-// Open the rework picker (after user clicked ↩ on notification or queue)
 async function handleReworkStart(
   supabase: ReturnType<typeof createClient>,
   cb: TgCallbackQuery,
@@ -412,8 +386,6 @@ async function handleReworkStart(
   via: "N" | "Q",
 ): Promise<void> {
   const msg = cb.message!;
-
-  // Permission + status check
   const me = await findUser(supabase, cb.from.id);
   if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start", true); return; }
 
@@ -437,7 +409,6 @@ async function handleReworkStart(
   await tgEditMessage(msg.chat.id, msg.message_id, header, keyboard);
 }
 
-// Обробка кнопок усередині rework-picker
 async function handleReworkCallback(
   supabase: ReturnType<typeof createClient>,
   cb: TgCallbackQuery,
@@ -450,7 +421,6 @@ async function handleReworkCallback(
   const me = await findUser(supabase, cb.from.id);
   if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start", true); return; }
 
-  // Перевірка прав і статусу
   const { data: appr } = await supabase
     .from("publication_approvers")
     .select("user_id").eq("publication_id", pubId).eq("user_id", me.id).maybeSingle();
@@ -460,7 +430,6 @@ async function handleReworkCallback(
     .from("publications").select("id, title, status").eq("id", pubId).maybeSingle();
   if (!pub) { await tgAnswerCallback(cb.id, "Не знайдено", true); return; }
 
-  // Toggle reason → rebuild keyboard
   if (sub === "t") {
     await tgAnswerCallback(cb.id, "");
     const header = buildReworkHeader(pub.title, state);
@@ -469,7 +438,6 @@ async function handleReworkCallback(
     return;
   }
 
-  // Cancel — повернути до початкового стану з кнопками ✓/↩
   if (sub === "x") {
     await tgAnswerCallback(cb.id, "Скасовано");
     await tgEditMessage(msg.chat.id, msg.message_id,
@@ -480,7 +448,6 @@ async function handleReworkCallback(
     return;
   }
 
-  // Submit без коментаря
   if (sub === "sk") {
     if (pub.status !== "review") {
       await tgAnswerCallback(cb.id, `Статус: ${pub.status}`, true);
@@ -505,7 +472,6 @@ async function handleReworkCallback(
       undefined,
     );
 
-    // Якщо це queue flow — підкинути наступний пост
     if (via === "Q") {
       const remaining = await getQueueForUser(supabase, me.id);
       if (remaining.length > 0) {
@@ -518,14 +484,12 @@ async function handleReworkCallback(
     return;
   }
 
-  // Submit + Comment — шлемо ForceReply
   if (sub === "sc") {
     if (pub.status !== "review") {
       await tgAnswerCallback(cb.id, `Статус: ${pub.status}`, true);
       return;
     }
     await tgAnswerCallback(cb.id, "Опиши деталі ↓");
-    // 1. "Запечатати" picker → видалити кнопки, написати pending state
     const reasons = stateToReasonIds(state);
     const reasonsLabels = reasons.map(rid => {
       const r = REWORK_REASONS.find(x => x.id === rid);
@@ -538,7 +502,6 @@ async function handleReworkCallback(
     pickerFinal += `<i>Дай відповідь на наступне повідомлення з деталями ↓</i>`;
     await tgEditMessage(msg.chat.id, msg.message_id, pickerFinal, undefined);
 
-    // 2. Send ForceReply message з прихованим marker
     const marker = buildCommentMarker(pubId, state, via);
     const promptText =
       `✍️ <b>Деталі повернення</b>\n` +
@@ -555,7 +518,6 @@ async function handleReworkCallback(
   await tgAnswerCallback(cb.id, "Невідома дія");
 }
 
-// Парсинг force-reply відповіді з коментарем
 async function handleReworkCommentReply(
   supabase: ReturnType<typeof createClient>,
   msg: TgMessage,
@@ -574,7 +536,6 @@ async function handleReworkCommentReply(
   const me = await findUser(supabase, msg.chat.id);
   if (!me) { await tgSend(msg.chat.id, "🚫 Спочатку /start"); return true; }
 
-  // Re-check pub status
   const { data: pub } = await supabase
     .from("publications").select("id, title, status").eq("id", parsed.pubId).maybeSingle();
   if (!pub) { await tgSend(msg.chat.id, "⚠️ Пост не знайдено"); return true; }
@@ -604,7 +565,6 @@ async function handleReworkCommentReply(
     { reply_to_message_id: msg.message_id },
   );
 
-  // Якщо queue flow — підкинути наступний
   if (parsed.via === "Q") {
     const remaining = await getQueueForUser(supabase, me.id);
     if (remaining.length > 0) {
@@ -617,9 +577,6 @@ async function handleReworkCommentReply(
   return true;
 }
 
-// =====================================================================
-// /approve — черга погоджень з кнопками
-// =====================================================================
 function buildQueueKeyboard(pubId: string): ReplyMarkup {
   return {
     inline_keyboard: [
@@ -636,13 +593,16 @@ function buildQueueKeyboard(pubId: string): ReplyMarkup {
 }
 
 async function getQueueForUser(supabase: ReturnType<typeof createClient>, userId: string, skippedIds: string[] = []): Promise<{ id: string; title: string; publish_at: string }[]> {
+  // #140 FIX: select is_approved + filter rows where current user already voted (is_approved === true).
   const { data: apprList } = await supabase
     .from("publication_approvers")
-    .select("publication_id, publications!inner(id, title, status, publish_at, deleted_at)")
+    .select("publication_id, is_approved, publications!inner(id, title, status, publish_at, deleted_at)")
     .eq("user_id", userId);
   return (apprList ?? [])
+    // @ts-ignore
+    .filter((row: any) => row.is_approved !== true)  // #140 — виключаємо вже погоджені цим юзером
     // @ts-ignore — join shape
-    .map(r => r.publications as { id: string; title: string; status: string; publish_at: string; deleted_at?: string | null })
+    .map((r: any) => r.publications as { id: string; title: string; status: string; publish_at: string; deleted_at?: string | null })
     .filter(p => p && p.status === "review" && !p.deleted_at && !skippedIds.includes(p.id))
     .sort((a, b) => new Date(a.publish_at).getTime() - new Date(b.publish_at).getTime());
 }
@@ -680,7 +640,6 @@ async function handleQueueCallback(supabase: ReturnType<typeof createClient>, cb
   const me = await findUser(supabase, fromId);
   if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start", true); return; }
 
-  // Skip
   if (decision === "s") {
     await tgAnswerCallback(cb.id, "Пропущено");
     const remaining = await getQueueForUser(supabase, me.id, [pubId]);
@@ -693,7 +652,6 @@ async function handleQueueCallback(supabase: ReturnType<typeof createClient>, cb
     return;
   }
 
-  // Verify approver + pub status
   const { data: appr } = await supabase
     .from("publication_approvers")
     .select("user_id").eq("publication_id", pubId).eq("user_id", me.id).maybeSingle();
@@ -704,19 +662,16 @@ async function handleQueueCallback(supabase: ReturnType<typeof createClient>, cb
   if (!pub) { await tgAnswerCallback(cb.id, "Не знайдено", true); return; }
   if (pub.status !== "review") { await tgAnswerCallback(cb.id, `Статус: ${pub.status}`, true); return; }
 
-  // #123: "n" → open structured rework picker замість instant reject
   if (decision === "n") {
     await handleReworkStart(supabase, cb, pubId, "Q");
     return;
   }
 
-  // "y" → старий шлях через RPC
   const result = await processApprovalDecision(supabase, pubId, me.id, decision as "y" | "n", "tg-queue");
   if (!result.ok) { await tgAnswerCallback(cb.id, result.error || result.shortLabel, true); return; }
 
   await tgAnswerCallback(cb.id, result.shortLabel);
 
-  // Next in queue
   const remaining = await getQueueForUser(supabase, me.id);
   if (remaining.length === 0) {
     await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "").replace(/Тисни кнопку.*$/, "") + `\n${result.longLabel}\n\n🎉 <b>Черга оброблена!</b>`);
@@ -726,10 +681,6 @@ async function handleQueueCallback(supabase: ReturnType<typeof createClient>, cb
   await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "").replace(/Тисни кнопку.*$/, "") + `\n${result.longLabel}`);
   await tgSend(msg.chat.id, formatPubForQueue(next, 1, remaining.length), { reply_markup: buildQueueKeyboard(next.id) });
 }
-
-// =====================================================================
-// File upload (unchanged)
-// =====================================================================
 
 interface DownloadedFile {
   buf: ArrayBuffer;
@@ -915,9 +866,6 @@ async function handleAttachCallback(supabase: ReturnType<typeof createClient>, c
   }
 }
 
-// =====================================================================
-// /today /queue /late /my /me (unchanged)
-// =====================================================================
 async function handleToday(supabase: ReturnType<typeof createClient>, chatId: number, isGroup: boolean): Promise<void> {
   if (isGroup) { await tgSend(chatId, "🔒 /today — тільки у DM.", { silent: true }); return; }
   const { startIso, endIso, dateLabel } = todayBoundsKyiv();
@@ -1036,9 +984,9 @@ async function handleMe(supabase: ReturnType<typeof createClient>, chatId: numbe
     .from("publications").select("id", { count: "exact", head: true })
     .gte("publish_at", startIso).lte("publish_at", endIso).is("deleted_at", null);
   const { data: apprList } = await supabase
-    .from("publication_approvers").select("publication_id, publications!inner(status, deleted_at)").eq("user_id", me.id);
-  // @ts-ignore
-  const queueCount = (apprList ?? []).filter(r => r.publications?.status === "review" && !r.publications?.deleted_at).length;
+    .from("publication_approvers").select("publication_id, is_approved, publications!inner(status, deleted_at)").eq("user_id", me.id);
+  // @ts-ignore — #140 також тут фільтр
+  const queueCount = (apprList ?? []).filter((r: any) => r.is_approved !== true && r.publications?.status === "review" && !r.publications?.deleted_at).length;
   const { data: respList } = await supabase
     .from("publication_responsibles").select("publication_id, publications!inner(status, deleted_at)").eq("user_id", me.id);
   // @ts-ignore
@@ -1058,9 +1006,6 @@ async function handleMe(supabase: ReturnType<typeof createClient>, chatId: numbe
   await tgSend(chatId, lines.join("\n"));
 }
 
-// =====================================================================
-// /start /help /whoami /unbind /diag (unchanged)
-// =====================================================================
 async function handleStart(supabase: ReturnType<typeof createClient>, chatId: number, tgUser: { username?: string; first_name?: string; last_name?: string }, payload: string, isGroup: boolean): Promise<void> {
   const m = payload.match(/^hq_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
   if (!m) {
@@ -1102,7 +1047,7 @@ async function handleStart(supabase: ReturnType<typeof createClient>, chatId: nu
 async function handleDiag(chatId: number, isGroup: boolean): Promise<void> {
   if (isGroup) { await tgSend(chatId, `🔒 /diag — у DM.`, { silent: true }); return; }
   await tgSend(chatId,
-    `🔧 Diag v11 (#123 rework picker)\nURL: ${SUPABASE_URL ? "✅" : "❌"} · Key: ${KEY_SOURCE} (role=${jwtRole(SERVICE_ROLE_KEY)})\nchat_id: <code>${chatId}</code>`
+    `🔧 Diag v12 (#140 queue-filter)\nURL: ${SUPABASE_URL ? "✅" : "❌"} · Key: ${KEY_SOURCE} (role=${jwtRole(SERVICE_ROLE_KEY)})\nchat_id: <code>${chatId}</code>`
   );
 }
 
@@ -1130,7 +1075,7 @@ async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
     return;
   }
   await tgSend(chatId,
-    `🤖 <b>DreamCar HQ bot</b> v11\n\n` +
+    `🤖 <b>DreamCar HQ bot</b> v12\n\n` +
     `<b>Швидкі довідки:</b>\n` +
     `/me — мій зведений дайджест\n` +
     `/today — публікації сьогодні\n` +
@@ -1145,9 +1090,6 @@ async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
   );
 }
 
-// =====================================================================
-// CALLBACK QUERY DISPATCHER
-// =====================================================================
 async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgCallbackQuery): Promise<void> {
   const data = (cb.data || "").trim();
   const msg = cb.message;
@@ -1156,11 +1098,10 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
   const parts = data.split(":");
   const action = parts[0];
 
-  // #123: Rework picker callbacks (notification or queue flow)
   if (action === "rwkN" || action === "rwkQ") {
     const via = action === "rwkQ" ? "Q" : "N";
     const pubId = parts[1];
-    const sub = parts[2]; // t | sk | sc | x
+    const sub = parts[2];
     const state = parts[3] || "";
     await handleReworkCallback(supabase, cb, via, pubId, sub, state);
     return;
@@ -1174,13 +1115,11 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     await handleAttachCallback(supabase, cb, parts[1], parts[2]);
     return;
   }
-  // appr:<pubId>:y|n — звичайна нотифікація
   if (action === "appr") {
     const pubId = parts[1]; const decision = parts[2];
     const me = await findUser(supabase, cb.from.id);
     if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start у DM", true); return; }
 
-    // Verify approver + pub status
     const { data: appr } = await supabase
       .from("publication_approvers").select("user_id").eq("publication_id", pubId).eq("user_id", me.id).maybeSingle();
     if (!appr) { await tgAnswerCallback(cb.id, "Ти не у списку погоджувачів", true); return; }
@@ -1193,13 +1132,11 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       return;
     }
 
-    // #123: "n" → відкриваємо structured picker замість instant reject
     if (decision === "n") {
       await handleReworkStart(supabase, cb, pubId, "N");
       return;
     }
 
-    // "y" → старий шлях
     const result = await processApprovalDecision(supabase, pubId, me.id, decision as "y" | "n", "tg-button");
     if (!result.ok) { await tgAnswerCallback(cb.id, result.error || result.shortLabel, true); return; }
 
@@ -1219,9 +1156,6 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
   await tgAnswerCallback(cb.id, "Невідома дія");
 }
 
-// =====================================================================
-// HTTP entry
-// =====================================================================
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
@@ -1254,7 +1188,6 @@ Deno.serve(async (req: Request) => {
     const isGroup = chatType !== "private";
     const tgUser = msg.from || {};
 
-    // #123: Check for ForceReply response з rework-comment маркером (БЕЗ команди)
     if (!isGroup && msg.text && msg.reply_to_message) {
       const handled = await handleReworkCommentReply(supabase, msg);
       if (handled) {
