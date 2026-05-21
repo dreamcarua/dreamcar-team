@@ -1,20 +1,18 @@
 // =====================================================================
-// DreamCar HQ — Notify TG v8
-// + #141 Hardcoded fallback TG_GROUP_CHAT_ID = DreamCar SMM (-1003933841573)
-//   Бо Supabase Dashboard крашиться при спробі змінити env var через Chrome.
-//   Env var, якщо встановлений у Secrets, має перевагу над hardcoded value.
-// + #124 Chain progress approvers: "Артем ✓ 1/3 · Чекаємо: Вадим, Вова"
-// + text_body публікації у review messages
-// + sendPhoto/sendVideo якщо є creatives (preview як у HQ)
-// + Хто має погодити, deadline, requester
+// DreamCar HQ — Notify TG v8.1
+// + #141 TG_GROUP_CHAT_ID = DreamCar SMM (-1003933841573)
+//   Стара env var TG_GROUP_CHAT_ID ще містить старе значення — ignored.
+//   Нова env DCSMM_GROUP_CHAT_ID не встановлена → завжди fallback hardcode.
+//   Щоб у майбутньому змінити чат: встановити DCSMM_GROUP_CHAT_ID у Secrets.
+// + #124 Chain progress approvers
+// + text_body + sendPhoto/sendVideo creative preview
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const TG_BOT_TOKEN     = Deno.env.get("TG_BOT_TOKEN")     ?? "";
-// #141: hardcoded fallback на DreamCar SMM групу.
-// Якщо env var TG_GROUP_CHAT_ID встановлено у Supabase Secrets — env var має перевагу.
-const TG_GROUP_CHAT_ID = Deno.env.get("TG_GROUP_CHAT_ID") || "-1003933841573";
+// #141: нова env var щоб ігнорувати застарілий TG_GROUP_CHAT_ID
+const TG_GROUP_CHAT_ID = Deno.env.get("DCSMM_GROUP_CHAT_ID") || "-1003933841573";
 const HQ_WEBHOOK_SECRET = Deno.env.get("HQ_WEBHOOK_SECRET") ?? "";
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")     ?? Deno.env.get("HQ_DB_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
