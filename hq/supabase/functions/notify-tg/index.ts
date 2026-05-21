@@ -1,5 +1,8 @@
 // =====================================================================
-// DreamCar HQ — Notify TG v7
+// DreamCar HQ — Notify TG v8
+// + #141 Hardcoded fallback TG_GROUP_CHAT_ID = DreamCar SMM (-1003933841573)
+//   Бо Supabase Dashboard крашиться при спробі змінити env var через Chrome.
+//   Env var, якщо встановлений у Secrets, має перевагу над hardcoded value.
 // + #124 Chain progress approvers: "Артем ✓ 1/3 · Чекаємо: Вадим, Вова"
 // + text_body публікації у review messages
 // + sendPhoto/sendVideo якщо є creatives (preview як у HQ)
@@ -9,7 +12,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const TG_BOT_TOKEN     = Deno.env.get("TG_BOT_TOKEN")     ?? "";
-const TG_GROUP_CHAT_ID = Deno.env.get("TG_GROUP_CHAT_ID") ?? "";
+// #141: hardcoded fallback на DreamCar SMM групу.
+// Якщо env var TG_GROUP_CHAT_ID встановлено у Supabase Secrets — env var має перевагу.
+const TG_GROUP_CHAT_ID = Deno.env.get("TG_GROUP_CHAT_ID") || "-1003933841573";
 const HQ_WEBHOOK_SECRET = Deno.env.get("HQ_WEBHOOK_SECRET") ?? "";
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")     ?? Deno.env.get("HQ_DB_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
@@ -42,7 +47,6 @@ interface UserRow {
   id: string; name: string; email: string | null; role: string;
   tg_chat_id: number | string | null; tg_username: string | null;
 }
-// #124: Approver з рішенням
 interface ApproverWithDecision extends UserRow {
   is_approved: boolean | null;
 }
@@ -128,7 +132,6 @@ function reviewKeyboard(pubId: string): ReplyMarkup {
   };
 }
 
-// #124: Render chain progress
 function buildChainProgress(approvers: ApproverWithDecision[], policy: string): string {
   if (approvers.length === 0) return "";
   const approved = approvers.filter(a => a.is_approved === true);
