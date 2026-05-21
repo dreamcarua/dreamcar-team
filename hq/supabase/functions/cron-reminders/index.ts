@@ -1,19 +1,22 @@
 // =====================================================================
-// DreamCar HQ — Cron Reminders v2
-// + #125 G6 (T-10хв): за 10 хв до publish_at — пінг responsibles
-// + #125 G7 (T+10хв): через 10 хв після publish_at якщо не published — ескалація
+// DreamCar HQ — Cron Reminders v3
+// + #142 FIX: припинити спам нагадуваннями на approved-постах
+//   - G4 (CEO escalation): виключено approved (approved готовий, не критичне)
+//   - G6 (T-10хв): виключено approved
+//   - G7 (T+10хв): anti-spam 1h → 24h, фокус на не-approved
+//   - НОВЕ G4a: approved + минув час → ТІЛЬКИ responsibles (1×/24h, "опубліковуй!")
+// + #125 G6/G7 (T-10хв / T+10хв)
 // =====================================================================
-// Викликається через pg_cron. РЕКОМЕНДОВАНО ТЕПЕР КОЖНІ 5 ХВ
-// (замість щогодини) — щоб ловити -10хв / +10хв вікна.
+// pg_cron РЕКОМЕНДОВАНО КОЖНІ 5 ХВ.
 //
 // Тригери:
-//   G2a. publish_at у наступні 2 дні + текст < 50 chars → ping responsible
-//   G2b. publish_at у наступні 2 дні + creatives.length === 0 → ping responsible
-//   G3.  status='review' AND updated_at < now-24h → ре-пінг approver
-//   G4.  publish_at < now AND status != 'published' AND raised < 15хв тому → ескалація CEO/COO
-//   G5b. status='review' AND created_at < now-48h → ескалація до інших founders
-//   G6.  publish_at у вікні now+5хв..now+15хв AND status!='published' → пінг -10хв
-//   G7.  publish_at у вікні now-15хв..now-5хв AND status!='published' → ескалація +10хв
+//   G2a/G2b. publish_at у наст. 2 дні + текст<50 АБО no creatives → ping responsibles
+//   G3.      status='review' AND updated_at<now-24h → ре-пінг approver
+//   G4.      publish_at<now AND status NOT IN (published,approved) AND <6h → CEO/COO ескалація
+//   G4a.     publish_at<now AND status='approved' → ТІЛЬКИ responsibles "опубліковуй!" (24h anti-spam)
+//   G5b.     status='review' AND created_at<now-48h → ескалація іншому founder
+//   G6.      publish_at у вікні now+5..+15хв AND status NOT IN (published,approved) → пінг -10хв
+//   G7.      publish_at у вікні now-15..-5хв AND status NOT IN (published) → ескалація +10хв (24h anti-spam)
 //
 // Secrets:
 //   TG_BOT_TOKEN, HQ_CRON_SECRET, SUPABASE_URL/HQ_DB_URL,
@@ -119,11 +122,10 @@ async function run(supabase: ReturnType<typeof createClient>) {
   const in2dIso = new Date(Date.now() + 2 * 86400000).toISOString();
   const ago24hIso = new Date(Date.now() - 24 * 3600000).toISOString();
   const ago48hIso = new Date(Date.now() - 48 * 3600000).toISOString();
-  // #125: T-10хв / T+10хв вікна (5..15 хв буфер щоб точно зловити при 5-хвилинному cron)
-  const tMinus15 = new Date(Date.now() + 5 * 60000).toISOString();   // +5хв
-  const tMinus5 = new Date(Date.now() + 15 * 60000).toISOString();   // +15хв
-  const tPlus5 = new Date(Date.now() - 5 * 60000).toISOString();     // -5хв
-  const tPlus15 = new Date(Date.now() - 15 * 60000).toISOString();   // -15хв
+  const tMinus15 = new Date(Date.now() + 5 * 60000).toISOString();
+  const tMinus5 = new Date(Date.now() + 15 * 60000).toISOString();
+  const tPlus5 = new Date(Date.now() - 5 * 60000).toISOString();
+  const tPlus15 = new Date(Date.now() - 15 * 60000).toISOString();
 
   let pinged = 0;
 
@@ -202,7 +204,8 @@ async function run(supabase: ReturnType<typeof createClient>) {
   }
 
   // ====================================================================
-  // G4: дата минула + не published → immediate escalation CEO/COO
+  // G4: дата минула + draft/in_work/review/rework → CEO/COO ескалація
+  // #142: ВИКЛЮЧЕНО approved — для approved використовуй G4a
   // ====================================================================
   {
     const { data: pubs } = await supabase
@@ -210,7 +213,7 @@ async function run(supabase: ReturnType<typeof createClient>) {
       .select("id, title, status, publish_at, updated_at, created_at")
       .lt("publish_at", nowIso)
       .gt("publish_at", new Date(Date.now() - 6 * 3600000).toISOString())
-      .not("status", "in", "(published)")
+      .not("status", "in", "(published,approved)")
       .is("deleted_at", null);
     for (const p of (pubs ?? []) as Pub[]) {
       if (await checkReminderSent(supabase, p.id, "missed", 6)) continue;
@@ -223,6 +226,33 @@ async function run(supabase: ReturnType<typeof createClient>) {
         pinged++;
       }
       await recordReminder(supabase, p.id, "missed", `${founders.length} founders pinged`);
+    }
+  }
+
+  // ====================================================================
+  // #142 G4a: approved + час публікації минув → м'яке нагадування RESPONSIBLES
+  // Anti-spam 24h (1×/добу максимум, не спамити CEO)
+  // ====================================================================
+  {
+    const { data: pubs } = await supabase
+      .from("publications")
+      .select("id, title, status, publish_at, updated_at, created_at")
+      .lt("publish_at", nowIso)
+      .gt("publish_at", new Date(Date.now() - 48 * 3600000).toISOString())
+      .eq("status", "approved")
+      .is("deleted_at", null);
+    for (const p of (pubs ?? []) as Pub[]) {
+      if (await checkReminderSent(supabase, p.id, "approved-missed", 24)) continue;
+      const recipients = await getRecipients(supabase, p.id, "responsibles");
+      for (const u of recipients) {
+        await tgSend(u.tg_chat_id!,
+          `📤 <b>Готовий пост — час публікувати!</b>\n` +
+          `«${escHtml(p.title)}» — approved, мала вийти ${fmtDateTime(p.publish_at)}.\n` +
+          `Опублікуй у соцмережі та постав статус «Опубліковано» у HQ.\n\n` +
+          `🔗 <a href="${HQ_URL}#publication/${p.id}">Відкрити в HQ</a>`);
+        pinged++;
+      }
+      await recordReminder(supabase, p.id, "approved-missed", `${recipients.length} responsibles pinged (G4a)`);
     }
   }
 
@@ -254,7 +284,8 @@ async function run(supabase: ReturnType<typeof createClient>) {
   }
 
   // ====================================================================
-  // #125 G6: T-10хв — за 10 хв до публікації, якщо status != 'published'
+  // #125 G6: T-10хв — за 10 хв до публікації
+  // #142: виключено approved (approved уже готовий, не треба нагадувати)
   // ====================================================================
   {
     const { data: pubs } = await supabase
@@ -262,19 +293,18 @@ async function run(supabase: ReturnType<typeof createClient>) {
       .select("id, title, status, publish_at, updated_at, created_at")
       .gte("publish_at", tMinus15)
       .lte("publish_at", tMinus5)
-      .not("status", "in", "(published)")
+      .not("status", "in", "(published,approved)")
       .is("deleted_at", null);
     for (const p of (pubs ?? []) as Pub[]) {
       if (await checkReminderSent(supabase, p.id, "t-10", 1)) continue;
       const recipients = await getRecipients(supabase, p.id, "responsibles");
-      // Якщо approved і recipients нема — пінгнемо founders як fallback
       const finalList = recipients.length > 0 ? recipients : await getFounders(supabase);
       for (const u of finalList) {
         await tgSend(u.tg_chat_id!,
           `🟡 <b>Через 10 хв публікація</b> — «${escHtml(p.title)}»\n` +
           `📅 ${fmtDateTime(p.publish_at)}\n` +
           `📊 Поточний статус: <b>${p.status}</b>\n` +
-          `${p.status === 'approved' ? '✅ Готово до публікації. Якщо постиш руками — час!' : '⚠️ Ще не approved!'}\n\n` +
+          `⚠️ Ще не approved!\n\n` +
           `🔗 <a href="${HQ_URL}#publication/${p.id}">Відкрити в HQ</a>`);
         pinged++;
       }
@@ -284,6 +314,7 @@ async function run(supabase: ReturnType<typeof createClient>) {
 
   // ====================================================================
   // #125 G7: T+10хв — після часу публікації, якщо ще не published
+  // #142: anti-spam 1h → 24h (не спамити кожну годину)
   // ====================================================================
   {
     const { data: pubs } = await supabase
@@ -294,10 +325,9 @@ async function run(supabase: ReturnType<typeof createClient>) {
       .not("status", "in", "(published)")
       .is("deleted_at", null);
     for (const p of (pubs ?? []) as Pub[]) {
-      if (await checkReminderSent(supabase, p.id, "t+10", 1)) continue;
+      if (await checkReminderSent(supabase, p.id, "t+10", 24)) continue;  // #142: 1→24h
       const recipients = await getRecipients(supabase, p.id, "responsibles");
       const founders = await getFounders(supabase);
-      // Об'єднуємо без дублів
       const seen = new Set<string>();
       const allRecipients = [...recipients, ...founders].filter(u => {
         if (seen.has(u.id)) return false;
@@ -338,7 +368,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const pinged = await run(supabase);
-    return new Response(JSON.stringify({ ok: true, pinged, version: "v2-#125" }), {
+    return new Response(JSON.stringify({ ok: true, pinged, version: "v3-#142" }), {
       status: 200, headers: { "Content-Type": "application/json" },
     });
   } catch (e) {
