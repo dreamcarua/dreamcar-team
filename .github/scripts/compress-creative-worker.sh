@@ -21,6 +21,19 @@ CLAIMED=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/claim_compress_jobs" \
   -H "Content-Type: application/json" \
   -d "{\"worker_name\":\"$WORKER_ID\",\"max_jobs\":1}")
 
+echo "Raw CLAIMED response (first 500 chars):"
+echo "$CLAIMED" | head -c 500
+echo ""
+
+CLAIMED_TYPE=$(echo "$CLAIMED" | jq -r 'type')
+echo "CLAIMED type: $CLAIMED_TYPE"
+
+if [ "$CLAIMED_TYPE" != "array" ]; then
+  echo "::error::claim_compress_jobs returned non-array ($CLAIMED_TYPE) — likely DB error"
+  echo "Full response: $CLAIMED"
+  exit 1
+fi
+
 JOB_COUNT=$(echo "$CLAIMED" | jq 'length')
 echo "Got $JOB_COUNT jobs"
 
@@ -29,7 +42,7 @@ if [ "$JOB_COUNT" = "0" ]; then
   exit 0
 fi
 
-# AWS Sig V4 signed PUT to R2 — реалізація на Python (інтерпретатор завжди є у GH ubuntu).
+# AWS Sig V4 signed PUT to R2 — реалізація на Python.
 sign_r2_put() {
   python3 - "$1" "$2" "$3" <<'PYEOF'
 import sys, os, hmac, hashlib, datetime, urllib.parse
