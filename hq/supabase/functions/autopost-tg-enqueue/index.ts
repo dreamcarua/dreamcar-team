@@ -7,26 +7,28 @@
 // Target chat (тестовий!): -1003933841573 (DreamCar SMM)
 // Production канал: -1002496656144 — НЕ використовуємо допоки не
 // відпрацюємо нюанси. Перемикати тільки після ручного схвалення Вадима.
+//
+// Authentication:
+//   ?secret=<HQ_CRON_SECRET> у URL АБО header x-hq-cron-secret.
+//   Default: "dc-autopost-2026" (можна перекрити env-var HQ_CRON_SECRET).
+//   Edge Function має бути deploy-нута з --no-verify-jwt АБО з вимкненим
+//   "Verify JWT with legacy secret" у Settings, інакше anon-auth блок.
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")  ?? Deno.env.get("HQ_DB_URL") ?? "";
 const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
-const CRON_SECRET   = Deno.env.get("HQ_CRON_SECRET") ?? "";
+// #143 FIX: Supabase не дозволяє alter database set — захардкодимо default secret.
+const CRON_SECRET   = Deno.env.get("HQ_CRON_SECRET") || "dc-autopost-2026";
 
-// #141/#143: тестовий канал (DreamCar SMM група) — поки не повний production
 const TARGET_TG_CHAT_ID = Deno.env.get("DCSMM_TG_CHANNEL") || "-1003933841573";
 
 async function run(supabase: ReturnType<typeof createClient>) {
   const nowIso = new Date().toISOString();
-  // Окно: pubs, чий publish_at у межах -2хв ... +10хв від зараз
-  // (-2хв) — щоб одразу підхопити «прострочені на пару хв» approved пости
-  // (+10хв) — наступний cron-tick через 5хв все одно ловитиме нові
   const fromIso = new Date(Date.now() - 2 * 60000).toISOString();
   const toIso = new Date(Date.now() + 10 * 60000).toISOString();
 
-  // 1) Шукаємо approved pubs з TG-platform у вікні
   const { data: candidates, error: e1 } = await supabase
     .from("publications")
     .select(`
@@ -48,11 +50,9 @@ async function run(supabase: ReturnType<typeof createClient>) {
     return { ok: true, enqueued: 0, window: { from: fromIso, to: toIso } };
   }
 
-  // 2) Для кожного — пропускаємо ті що вже у queue (active або done)
   let enqueued = 0;
   const skipped: string[] = [];
   for (const p of candidates) {
-    // Перевіряємо чи цей pub вже у queue з active-статусом
     const { data: existing } = await supabase
       .from("tg_autopost_queue")
       .select("id, status")
@@ -65,7 +65,6 @@ async function run(supabase: ReturnType<typeof createClient>) {
       continue;
     }
 
-    // Insert у queue
     const { error: insErr } = await supabase
       .from("tg_autopost_queue")
       .insert({
@@ -80,7 +79,6 @@ async function run(supabase: ReturnType<typeof createClient>) {
       continue;
     }
 
-    // Mark pub
     await supabase
       .from("publications")
       .update({ autopost_status: "pending", autopost_error: null })
@@ -103,19 +101,19 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method !== "POST" && req.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
 
-  if (CRON_SECRET) {
-    const got = req.headers.get("x-hq-cron-secret");
-    const urlSec = new URL(req.url).searchParams.get("secret");
-    if (got !== CRON_SECRET && urlSec !== CRON_SECRET) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+  // Auth check — header або query string
+  const got = req.headers.get("x-hq-cron-secret");
+  const urlSec = new URL(req.url).searchParams.get("secret");
+  if (got !== CRON_SECRET && urlSec !== CRON_SECRET) {
+    return new Response("Unauthorized", { status: 401 });
   }
+
   if (!SUPABASE_URL || !SERVICE_KEY) return new Response("Missing config", { status: 500 });
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const result = await run(supabase);
-    return new Response(JSON.stringify({ ...result, version: "v1-#143" }), {
+    return new Response(JSON.stringify({ ...result, version: "v1.1-#143" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
