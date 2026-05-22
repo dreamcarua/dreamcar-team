@@ -1,12 +1,21 @@
 /* ============================================================
    DreamCar HQ — Drive Resumable Upload + creative-id UUID fix
+   ============================================================
+   STATUS: Drive path TEMPORARILY DISABLED (threshold = MAX_SAFE_INTEGER)
+   до моменту повного деплою drive-init-upload + drive-finalize-upload
+   Edge Functions. Усе йде через Supabase Storage (_orig.uploadCreativeFile).
+   Storage bucket file_size_limit = 200MB.
+   UUID creative-id fix лишається активним.
    ============================================================ */
 
 (function () {
   if (window.__hqDriveLoaded) return;
   window.__hqDriveLoaded = true;
 
-  var DRIVE_THRESHOLD_BYTES = 50 * 1024 * 1024;
+  // TEMP: вимкнено доти, доки не задеплоїмо drive-* edge functions.
+  // Раніше було: 50 * 1024 * 1024 → файли >50MB йшли через Drive.
+  // Тепер: ніколи, бо init-upload повертає 404.
+  var DRIVE_THRESHOLD_BYTES = Number.MAX_SAFE_INTEGER;
   var CHUNK_SIZE = 8 * 1024 * 1024;
 
   function fnUrl(name) {
@@ -148,7 +157,7 @@
   }
 
   // ============================================================
-  // Upload via Drive (>50MB)
+  // Upload via Drive (>50MB) — disabled until edge functions deployed
   // ============================================================
   async function uploadViaDrive(file, pub) {
     if (!window.HQ_BACKEND || !window.supabase) {
@@ -313,7 +322,7 @@
     threshold: DRIVE_THRESHOLD_BYTES,
     chunkSize: CHUNK_SIZE,
   };
-  console.log('%cDreamCar HQ Drive %c· upload >50MB + UUID creative-id fix active', 'color:#4285F4;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Drive %c· Drive DISABLED (threshold = MAX_SAFE_INTEGER) · usage Storage path · UUID creative-id fix active', 'color:#4285F4;font-weight:700;', 'color:#888;');
 
   // ============================================================
   // LOADER CHAIN — підвантажуємо app-context-menu.js (#40)
