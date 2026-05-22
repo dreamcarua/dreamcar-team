@@ -1,0 +1,16 @@
+name: Setup Heavy Video Test
+on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ffmpeg + jq
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg jq
+      - name: Run uploader
+        env:
+          SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
+          SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
+        run: bash .github/scripts/upload-heavy-test-video.sh
