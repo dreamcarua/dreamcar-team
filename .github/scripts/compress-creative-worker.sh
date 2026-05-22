@@ -2,20 +2,12 @@
 # Compress Creative Worker — TARGET-BITRATE 2-pass H.264 high, max quality ≤49.5MB.
 #
 # ENV optional:
-#   ENABLE_HEVC=1   — додатково створює H.265 варіант, зберігає у compressed_url_hevc
-#
-# Strategy:
-#   1. ffprobe → duration + native resolution
-#   2. Budget = 49.5MB → video_kbps = (budget*8/duration) - audio - mux
-#   3. Adaptive resolution by bitrate budget (1080p/720p/480p/360p) — ASPECT PRESERVED
-#   4. Two-pass H.264 high profile slower + advanced (bframes=8, refs=6, aq-mode=2)
-#   5. Audio AAC 96-128 kbps
-#   6. Якщо overshoot — retry once з 92% budget
-#   7. Якщо ENABLE_HEVC — також H.265 main10 при тому ж budget (краща якість)
+#   ENABLE_HEVC=1         — додатково створює H.265 варіант, зберігає у compressed_url_hevc
+#   DISPATCH_AUTOPOST=1   — після complete викликає dispatch-workflow Edge Function щоб
+#                           одразу тригернути autopost замість чекати cron
 #
 # Error handling:
 #   • set -e + trap → будь-яка помилка викликає fail_compress_job ОДРАЗУ.
-#   • Без цього row застрягав у 'processing' назавжди.
 set -euo pipefail
 
 TARGET_BUDGET_BYTES=$((49500000))
@@ -23,6 +15,7 @@ MUX_OVERHEAD_KBPS=50
 MIN_AUDIO_KBPS=96
 MAX_AUDIO_KBPS=128
 ENABLE_HEVC="${ENABLE_HEVC:-0}"
+DISPATCH_AUTOPOST="${DISPATCH_AUTOPOST:-1}"
 
 : "${SUPABASE_URL:?HQ_DB_URL required}"
 : "${SERVICE_KEY:?HQ_DB_SERVICE_KEY required}"
@@ -32,9 +25,8 @@ ENABLE_HEVC="${ENABLE_HEVC:-0}"
 : "${R2_BUCKET:=dreamcar-creatives}"
 : "${R2_PUBLIC_BASE:?required}"
 
-CRE_ID=""  # буде встановлено після claim
+CRE_ID=""
 
-# ── Error trap: при будь-якій помилці фіксуємо у DB
 on_error() {
   local exit_code=$?
   local line_no=$1
@@ -52,7 +44,6 @@ on_error() {
 }
 trap 'on_error $LINENO' ERR
 
-# ── Claim
 echo "Claiming compress jobs as ${WORKER_ID:-unknown}..."
 CLAIMED=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/claim_compress_jobs" \
   -H "apikey: $SERVICE_KEY" \
@@ -72,7 +63,6 @@ if [ "$JOB_COUNT" = "0" ]; then
   exit 0
 fi
 
-# AWS Sig V4 для R2 PUT
 sign_r2_put() {
   python3 - "$1" "$2" "$3" <<'PYEOF'
 import sys, os, hmac, hashlib, datetime, urllib.parse
@@ -141,7 +131,6 @@ IN_SIZE=$(stat -c%s "$INPUT")
 IN_MB=$(awk "BEGIN{printf \"%.1f\", $IN_SIZE/1024/1024}")
 echo "Downloaded: $IN_SIZE bytes (${IN_MB} MB)"
 
-# ── Probe
 PROBE=$(ffprobe -v error -select_streams v:0 \
   -show_entries stream=width,height,r_frame_rate,duration \
   -show_entries format=duration \
@@ -151,10 +140,8 @@ SRC_H=$(echo "$PROBE" | jq -r '.streams[0].height')
 DURATION=$(echo "$PROBE" | jq -r '.format.duration // .streams[0].duration' | awk '{printf "%.2f", $1}')
 SRC_FPS_RAW=$(echo "$PROBE" | jq -r '.streams[0].r_frame_rate')
 SRC_FPS=$(echo "$SRC_FPS_RAW" | awk -F'/' '{ if ($2 > 0) printf "%.2f", $1/$2; else printf "%.2f", $1 }')
-
 echo "Source: ${SRC_W}×${SRC_H} @ ${SRC_FPS}fps, ${DURATION}s"
 
-# ── Budget calc
 TOTAL_KBPS=$(awk "BEGIN{printf \"%.0f\", ($TARGET_BUDGET_BYTES * 8 / 1024) / $DURATION}")
 echo "Total bitrate budget: ${TOTAL_KBPS} kbps"
 
@@ -165,7 +152,6 @@ VIDEO_KBPS=$((TOTAL_KBPS - AUDIO_KBPS - MUX_OVERHEAD_KBPS))
 if [ "$VIDEO_KBPS" -lt 300 ]; then VIDEO_KBPS=300; fi
 echo "Audio: ${AUDIO_KBPS}k | Video budget: ${VIDEO_KBPS}k"
 
-# Adaptive resolution
 if [ "$VIDEO_KBPS" -ge 4500 ]; then MAX_LONG=1920
 elif [ "$VIDEO_KBPS" -ge 2200 ]; then MAX_LONG=1280
 elif [ "$VIDEO_KBPS" -ge 1000 ]; then MAX_LONG=854
@@ -178,9 +164,6 @@ if [ "$SRC_LONG" -lt "$MAX_LONG" ]; then MAX_LONG=$SRC_LONG; fi
 SCALE_FILTER="scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
 echo "Target longest side: ${MAX_LONG}px (orig=${SRC_LONG}), aspect preserved"
 
-# ───────────────────────────────────────────────────────
-# H.264 pass (default, always)
-# ───────────────────────────────────────────────────────
 X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset slower -tune film"
 X264_PARAMS="bframes=8:b-adapt=2:ref=6:no-fast-pskip=1:aq-mode=2:aq-strength=0.9:psy-rd=1.0,0.15:rc-lookahead=60:trellis=2:me=umh:subme=8:mixed-refs=1:8x8dct=1:weightb=1"
 
@@ -207,7 +190,6 @@ ffmpeg -y -v error -stats -i "$INPUT" \
 
 OUT_SIZE=$(stat -c%s "$OUTPUT")
 
-# Retry if overshoot
 if [ "$OUT_SIZE" -gt "$TARGET_BUDGET_BYTES" ]; then
   RETRY_KBPS=$((VIDEO_KBPS * 92 / 100))
   echo "::warning::H.264 overshoot. Retry @ ${RETRY_KBPS}k..."
@@ -236,12 +218,10 @@ OUT_H=$(echo "$OUT_PROBE" | jq -r '.streams[0].height')
 echo ""
 echo "=== H.264 Final: ${OUT_MB} MB (${RATIO}% of original), ${OUT_W}×${OUT_H} ==="
 
-# Upload H.264 to R2
 OBJECT_KEY="video-compressed/${CRE_ID}.mp4"
 PUBLIC_URL=$(upload_to_r2 "$OUTPUT" "$OBJECT_KEY" "video/mp4")
 echo "H.264 uploaded: $PUBLIC_URL"
 
-# Update DB
 curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_compress_job" \
   -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
   -H "Content-Type: application/json" \
@@ -249,16 +229,11 @@ curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_compress_job" \
 
 echo "✓ H.264 DONE: $CRE_ID → $PUBLIC_URL ($OUT_MB MB, ${OUT_W}×${OUT_H})"
 
-# ───────────────────────────────────────────────────────
-# OPTIONAL: H.265 (HEVC) second pass для кращої якості
-# ───────────────────────────────────────────────────────
 if [ "$ENABLE_HEVC" = "1" ]; then
-  # HEVC значно ефективніший — той же 49.5MB бюджет дає кращу якість
-  # АБО ми можемо взяти ширший resolution (1920 завжди)
   HEVC_MAX_LONG=1920
   if [ "$SRC_LONG" -lt "$HEVC_MAX_LONG" ]; then HEVC_MAX_LONG=$SRC_LONG; fi
   HEVC_SCALE="scale='if(gt(iw,ih),min(${HEVC_MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${HEVC_MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
-  HEVC_KBPS=$((VIDEO_KBPS - 100))  # запас на overhead
+  HEVC_KBPS=$((VIDEO_KBPS - 100))
   if [ "$HEVC_KBPS" -lt 300 ]; then HEVC_KBPS=300; fi
 
   echo ""
@@ -287,7 +262,6 @@ if [ "$ENABLE_HEVC" = "1" ]; then
   if [ "$HEVC_SIZE" -le "$TARGET_BUDGET_BYTES" ]; then
     HEVC_OBJECT_KEY="video-compressed-hevc/${CRE_ID}.mp4"
     HEVC_URL=$(upload_to_r2 "$OUTPUT_HEVC" "$HEVC_OBJECT_KEY" "video/mp4")
-    # PATCH creatives.compressed_url_hevc — colunна може ще не існувати, тому tolerate помилку
     curl -sS -X PATCH "$SUPABASE_URL/rest/v1/creatives?id=eq.$CRE_ID" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
@@ -300,7 +274,25 @@ if [ "$ENABLE_HEVC" = "1" ]; then
   fi
 fi
 
-# Clean up trap (ми вже все обробили)
+# ───────────────────────────────────────────────────────
+# EVENT-DRIVEN: тригер autopost workflow одразу замість чекати cron
+# ───────────────────────────────────────────────────────
+if [ "$DISPATCH_AUTOPOST" = "1" ]; then
+  echo ""
+  echo "Triggering autopost workflow via dispatch-workflow Edge Function..."
+  DISPATCH_HTTP=$(curl -sS -o /tmp/cw/dispatch-resp.txt -w "%{http_code}" -X POST \
+    "$SUPABASE_URL/functions/v1/dispatch-workflow" \
+    -H "Authorization: Bearer $SERVICE_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"workflow":"autopost"}' || echo "000")
+  if [ "$DISPATCH_HTTP" = "200" ]; then
+    echo "✓ Autopost workflow dispatched"
+  else
+    echo "::warning::Dispatch autopost failed HTTP=$DISPATCH_HTTP: $(cat /tmp/cw/dispatch-resp.txt 2>/dev/null | head -c 300)"
+    echo "::warning::Cron */5min все одно підхопить через ≤5 хв"
+  fi
+fi
+
 trap - ERR
 rm -rf /tmp/cw
 
