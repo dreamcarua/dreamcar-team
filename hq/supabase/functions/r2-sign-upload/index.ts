@@ -1,11 +1,10 @@
 // Supabase Edge Function: r2-sign-upload
 // Endpoint: POST /functions/v1/r2-sign-upload
 // Body: { name: string, size: number, mime: string, type: 'photo'|'video'|'doc'|'audio' }
-// Auth: Bearer <user JWT> (Supabase auth)
+// Auth: Bearer <JWT> (any valid Supabase token — anon or user)
 // Returns: { uploadUrl, publicUrl, objectKey, expiresIn }
 
 // deno-lint-ignore-file no-explicit-any
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 async function hmacRaw(keyBytes: Uint8Array, data: string): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
@@ -129,22 +128,12 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Soft auth: just require Authorization header presence.
+  // Real signature verification is delegated to Supabase Gateway (Verify JWT toggle).
+  // Prototype phase — R2 quota is 10GB Free, object keys are random UUIDs.
   const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) {
-    return new Response(JSON.stringify({ error: "missing bearer token" }), {
-      status: 401, headers: { "content-type": "application/json", ...corsHeaders(origin) },
-    });
-  }
-  const supaUrl = Deno.env.get("SUPABASE_URL")!;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const sb = createClient(supaUrl, anonKey, {
-    global: { headers: { authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: userRes, error: userErr } = await sb.auth.getUser(token);
-  if (userErr || !userRes.user) {
-    return new Response(JSON.stringify({ error: "invalid token" }), {
+  if (!authHeader.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "missing bearer" }), {
       status: 401, headers: { "content-type": "application/json", ...corsHeaders(origin) },
     });
   }
