@@ -239,6 +239,7 @@
     'app-uxr.js',
     'app-rework-modal.js',
     'app-analytics-v2.js',
+    'app-autopost-status.js',
     'app-pwa.js',
   ];
   nextPatches.forEach(function (name) {
