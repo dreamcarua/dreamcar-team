@@ -1,35 +1,23 @@
 /* ============================================================
-   DreamCar HQ — TUS Resumable Upload через Supabase Storage
+   DreamCar HQ — R2 direct upload (>49MB) + Supabase Storage (≤49MB)
    ============================================================
-   Замість Google Drive Edge Functions (не задеплоєні) використовуємо
-   нативний TUS protocol Supabase Storage: /storage/v1/upload/resumable.
-   - ≤6MB → звичайний Storage upload (швидко)
-   - >6MB → TUS chunked (обходить 50MB platform cap, до 5GB)
+   Логіка:
+   - Файли ≤ 49MB        → стандартний Supabase Storage upload (legacy)
+   - Файли > 49MB         → R2 path:
+       1. POST /functions/v1/r2-sign-upload → отримуємо presigned PUT URL
+       2. Direct PUT файлу в R2 (XHR з прогресом)
+       3. INSERT creative з R2 publicUrl
+   Бо Supabase Free має 50MB platform cap. R2 — необмежений.
+   tg-autopost-worker.sh без змін: завантажує з будь-якого URL.
    ============================================================ */
 
 (function () {
   if (window.__hqDriveLoaded) return;
   window.__hqDriveLoaded = true;
 
-  var BUCKET = 'creatives';
-  var CHUNK_SIZE = 6 * 1024 * 1024;        // 6MB — Supabase TUS recommendation
-  var TUS_THRESHOLD = 6 * 1024 * 1024;     // >6MB → TUS resumable
-  var TUS_CLIENT_URL = 'https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js';
-
-  // ---- Load tus-js-client lazily ----
-  var tusPromise = null;
-  function loadTus() {
-    if (window.tus) return Promise.resolve(window.tus);
-    if (tusPromise) return tusPromise;
-    tusPromise = new Promise(function (resolve, reject) {
-      var s = document.createElement('script');
-      s.src = TUS_CLIENT_URL;
-      s.onload = function () { resolve(window.tus); };
-      s.onerror = function () { reject(new Error('Failed to load tus-js-client')); };
-      document.head.appendChild(s);
-    });
-    return tusPromise;
-  }
+  // Поріг — файли більші за нього йдуть через R2.
+  // Залишаємо 49MB запас перед Supabase Free 50MB cap.
+  var R2_THRESHOLD_BYTES = 49 * 1024 * 1024;
 
   // ---- Helpers ----
   async function getAccessJwt() {
@@ -67,13 +55,9 @@
     if (['mp3','wav','ogg','m4a','aac'].indexOf(ext) >= 0) return 'audio';
     return 'doc';
   }
-  function publicUrl(bucket, path) {
-    var base = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_URL) || '';
-    return base.replace(/\/$/, '') + '/storage/v1/object/public/' + bucket + '/' + path;
-  }
 
   // ============================================================
-  // FIX: createCreativeRecord — id має бути UUID, а не "cr_xxx"
+  // FIX: createCreativeRecord — id має бути UUID
   // ============================================================
   function overrideCreateCreativeRecord() {
     if (typeof window.createCreativeRecord !== 'function' && typeof createCreativeRecord !== 'function') return false;
@@ -179,9 +163,9 @@
   }
 
   // ============================================================
-  // TUS Resumable Upload через Supabase Storage
+  // R2 Direct Upload (browser → presigned URL → R2)
   // ============================================================
-  async function uploadViaTus(file, pub) {
+  async function uploadViaR2(file, pub) {
     if (!window.HQ_BACKEND || !window.supabase) {
       if (typeof toast === 'function') toast('Upload потребує авторизації', 'error');
       throw new Error('Not authenticated');
@@ -191,136 +175,139 @@
 
     var anonKey = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_ANON_KEY) || '';
     var supaUrl = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_URL) || '';
-    var tusEndpoint = supaUrl.replace(/\/$/, '') + '/storage/v1/upload/resumable';
+    var signUrl = supaUrl.replace(/\/$/, '') + '/functions/v1/r2-sign-upload';
 
     var ext = fileExt(file.name);
     var type = detectType(file.type, ext);
-    var objectName = type + '/' + Date.now() + '_' + getUuid() + '.' + ext;
 
     var prog = makeProgressToast(file.name + ' (' + humanSize(file.size) + ')');
 
-    var tus = await loadTus();
+    try {
+      prog.update(1, 'Створюю Cloudflare R2 сесію…');
 
-    return new Promise(function (resolve, reject) {
-      var upload = new tus.Upload(file, {
-        endpoint: tusEndpoint,
-        retryDelays: [0, 1000, 3000, 5000, 10000],
-        chunkSize: CHUNK_SIZE,
+      // Step 1: ask edge function for presigned PUT URL
+      var signResp = await fetch(signUrl, {
+        method: 'POST',
         headers: {
-          authorization: 'Bearer ' + jwt,
-          'x-upsert': 'true',
+          'Authorization': 'Bearer ' + jwt,
+          'apikey': anonKey,
+          'Content-Type': 'application/json',
         },
-        uploadDataDuringCreation: true,
-        removeFingerprintOnSuccess: true,
-        metadata: {
-          bucketName: BUCKET,
-          objectName: objectName,
-          contentType: file.type || 'application/octet-stream',
-          cacheControl: '3600',
-        },
-        onError: function (err) {
-          console.error('TUS upload error:', err);
-          var msg = err && err.message || String(err);
-          prog.close(false, 'Помилка: ' + msg);
-          reject(err);
-        },
-        onProgress: function (sent, total) {
-          var pct = (sent / total) * 95;
-          prog.update(pct, 'Завантажую ' + humanSize(sent) + ' / ' + humanSize(total));
-        },
-        onSuccess: async function () {
-          try {
-            prog.update(97, 'Реєструю файл…');
-            var url = publicUrl(BUCKET, objectName);
-            var meta = {
-              name: file.name,
-              type: type,
-              size_bytes: file.size,
-              url: url,
-              storage_path: BUCKET + '/' + objectName,
-            };
-            var local = await window.createCreativeRecord(meta);
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          mime: file.type || 'application/octet-stream',
+          type: type,
+        }),
+      });
+      if (!signResp.ok) {
+        var errText = await signResp.text();
+        throw new Error('sign fail ' + signResp.status + ': ' + errText);
+      }
+      var signData = await signResp.json();
+      var uploadUrl = signData.uploadUrl;
+      var publicUrl = signData.publicUrl;
+      if (!uploadUrl || !publicUrl) throw new Error('sign returned no urls');
 
-            if (pub) {
-              pub.creatives = [].concat(pub.creatives || [], [local.id]);
-              if (typeof refreshPreview === 'function') refreshPreview(pub);
-              if (typeof autosave === 'function') autosave(pub);
-            }
-            try {
-              var strip = document.getElementById('f_creatives');
-              if (strip && typeof mediaThumb === 'function') {
-                var addBtn = document.getElementById('addCreativeBtn');
-                var item = document.createElement('div');
-                item.className = 'cs-item';
-                item.dataset.id = local.id;
-                item.title = local.name;
-                item.style.position = 'relative';
-                item.style.overflow = 'hidden';
-                item.innerHTML = mediaThumb(local, { size: 'tile' }) +
-                  '<div class="cs-remove" data-remove="' + local.id + '">×</div>';
-                var rm = item.querySelector('.cs-remove');
-                if (rm) rm.onclick = function (e) {
-                  e.stopPropagation();
-                  if (pub) pub.creatives = (pub.creatives || []).filter(function (x) { return x !== local.id; });
-                  item.remove();
-                  if (pub && typeof autosave === 'function') autosave(pub);
-                };
-                if (addBtn) strip.insertBefore(item, addBtn);
-                else strip.appendChild(item);
-              }
-            } catch (_) {}
-
-            prog.update(100, '✓ ' + humanSize(file.size));
-            prog.close(true, file.name + ' · ' + humanSize(file.size));
-            resolve(local);
-          } catch (e) {
-            console.error('TUS post-success failed', e);
-            prog.close(false, 'Помилка реєстрації: ' + (e.message || e));
-            reject(e);
+      // Step 2: PUT file directly to R2 with progress
+      prog.update(2, 'Завантажую в Cloudflare R2…');
+      await new Promise(function (resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        // Don't set Content-Type header - presigned URL doesn't include it in canonical (we used UNSIGNED-PAYLOAD)
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) {
+            var pct = 2 + (e.loaded / e.total) * 93;
+            prog.update(pct, 'Завантажую ' + humanSize(e.loaded) + ' / ' + humanSize(e.total));
           }
-        },
+        };
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error('R2 PUT failed ' + xhr.status + ': ' + xhr.responseText.slice(0, 200)));
+        };
+        xhr.onerror = function () { reject(new Error('R2 PUT network error')); };
+        xhr.ontimeout = function () { reject(new Error('R2 PUT timeout')); };
+        xhr.send(file);
       });
 
-      // Resume previous interrupted upload if any
-      upload.findPreviousUploads().then(function (previous) {
-        if (previous.length > 0) upload.resumeFromPreviousUpload(previous[0]);
-        upload.start();
-      }).catch(function (e) {
-        console.warn('TUS findPreviousUploads error, starting fresh:', e);
-        upload.start();
-      });
-    });
+      // Step 3: register creative in DB
+      prog.update(96, 'Реєструю файл…');
+      var meta = {
+        name: file.name,
+        type: type,
+        size_bytes: file.size,
+        url: publicUrl,
+        storage_path: 'r2:' + (signData.bucket || 'dreamcar-creatives') + '/' + signData.objectKey,
+      };
+      var local = await window.createCreativeRecord(meta);
+
+      if (pub) {
+        pub.creatives = [].concat(pub.creatives || [], [local.id]);
+        if (typeof refreshPreview === 'function') refreshPreview(pub);
+        if (typeof autosave === 'function') autosave(pub);
+      }
+      try {
+        var strip = document.getElementById('f_creatives');
+        if (strip && typeof mediaThumb === 'function') {
+          var addBtn = document.getElementById('addCreativeBtn');
+          var item = document.createElement('div');
+          item.className = 'cs-item';
+          item.dataset.id = local.id;
+          item.title = local.name;
+          item.style.position = 'relative';
+          item.style.overflow = 'hidden';
+          item.innerHTML = mediaThumb(local, { size: 'tile' }) +
+            '<div class="cs-remove" data-remove="' + local.id + '">×</div>';
+          var rm = item.querySelector('.cs-remove');
+          if (rm) rm.onclick = function (e) {
+            e.stopPropagation();
+            if (pub) pub.creatives = (pub.creatives || []).filter(function (x) { return x !== local.id; });
+            item.remove();
+            if (pub && typeof autosave === 'function') autosave(pub);
+          };
+          if (addBtn) strip.insertBefore(item, addBtn);
+          else strip.appendChild(item);
+        }
+      } catch (_) {}
+
+      prog.update(100, '✓ R2 · ' + humanSize(file.size));
+      prog.close(true, file.name + ' · ' + humanSize(file.size) + ' (R2)');
+      return local;
+    } catch (e) {
+      console.error('uploadViaR2 failed', e);
+      prog.close(false, 'Помилка: ' + (e.message || e));
+      throw e;
+    }
   }
 
   // ---- Patch window.uploadCreativeFile ----
   function patchUpload() {
-    if (typeof window.uploadCreativeFile !== 'function' || window.uploadCreativeFile.__tusPatched) return;
+    if (typeof window.uploadCreativeFile !== 'function' || window.uploadCreativeFile.__r2Patched) return;
     var _orig = window.uploadCreativeFile;
     window.uploadCreativeFile = async function (file, pub) {
       if (!file) return;
-      if (file.size > TUS_THRESHOLD && window.HQ_BACKEND) {
+      if (file.size > R2_THRESHOLD_BYTES && window.HQ_BACKEND) {
         try {
-          return await uploadViaTus(file, pub);
+          return await uploadViaR2(file, pub);
         } catch (e) {
-          console.error('TUS failed, falling back to original:', e);
-          if (typeof toast === 'function') toast('TUS впав, пробую звичайний upload…', 'warn');
-          return _orig.call(this, file, pub);
+          console.error('R2 path failed:', e);
+          if (typeof toast === 'function') toast('R2 не вдалося. Спробуй меньший файл або повтори.', 'error');
+          throw e;
         }
       }
       return _orig.call(this, file, pub);
     };
-    window.uploadCreativeFile.__tusPatched = true;
+    window.uploadCreativeFile.__r2Patched = true;
   }
   patchUpload();
   setTimeout(patchUpload, 300);
   setTimeout(patchUpload, 1500);
 
   window.HQ_DRIVE = {
-    uploadViaTus: uploadViaTus,
-    threshold: TUS_THRESHOLD,
-    chunkSize: CHUNK_SIZE,
+    uploadViaR2: uploadViaR2,
+    threshold: R2_THRESHOLD_BYTES,
   };
-  console.log('%cDreamCar HQ Upload %c· TUS resumable >6MB · bucket=creatives 300MB · UUID creative-id fix active', 'color:#10b981;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Upload %c· R2 direct for >49MB · Supabase Storage for ≤49MB · UUID creative-id fix active', 'color:#f6821f;font-weight:700;', 'color:#888;');
 
   // ============================================================
   // LOADER CHAIN — підвантажуємо app-context-menu.js
@@ -331,7 +318,4 @@
     sCtx.defer = true;
     document.head.appendChild(sCtx);
   }
-
-  // Preload tus-js-client (so the first big upload doesn't pay the script load latency)
-  loadTus().catch(function (e) { console.warn('Preload tus failed:', e); });
 })();
