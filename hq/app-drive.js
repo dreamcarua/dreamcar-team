@@ -15,11 +15,8 @@
   if (window.__hqDriveLoaded) return;
   window.__hqDriveLoaded = true;
 
-  // Поріг — файли більші за нього йдуть через R2.
-  // Залишаємо 49MB запас перед Supabase Free 50MB cap.
   var R2_THRESHOLD_BYTES = 49 * 1024 * 1024;
 
-  // ---- Helpers ----
   async function getAccessJwt() {
     if (!window.supabase) return null;
     var { data } = await window.supabase.auth.getSession();
@@ -56,9 +53,6 @@
     return 'doc';
   }
 
-  // ============================================================
-  // FIX: createCreativeRecord — id має бути UUID
-  // ============================================================
   function overrideCreateCreativeRecord() {
     if (typeof window.createCreativeRecord !== 'function' && typeof createCreativeRecord !== 'function') return false;
     if (window.createCreativeRecord && window.createCreativeRecord.__uuidPatched) return true;
@@ -129,9 +123,6 @@
     setTimeout(overrideCreateCreativeRecord, 2500);
   }
 
-  // ============================================================
-  // Прогрес-toast
-  // ============================================================
   function makeProgressToast(initMsg) {
     var stack = document.getElementById('toastStack');
     if (!stack) return { update: function(){}, close: function(){} };
@@ -156,15 +147,12 @@
         else { el.classList.remove('info'); el.classList.add('error'); }
         var bd = el.querySelector('.toast-body');
         if (bd && finalBody) bd.textContent = finalBody;
-        setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 0.3s'; }, 2000);
-        setTimeout(function () { el.remove(); }, 2400);
+        setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 0.3s'; }, 6000);
+        setTimeout(function () { el.remove(); }, 6400);
       }
     };
   }
 
-  // ============================================================
-  // R2 Direct Upload (browser → presigned URL → R2)
-  // ============================================================
   async function uploadViaR2(file, pub) {
     if (!window.HQ_BACKEND || !window.supabase) {
       if (typeof toast === 'function') toast('Upload потребує авторизації', 'error');
@@ -185,7 +173,7 @@
     try {
       prog.update(1, 'Створюю Cloudflare R2 сесію…');
 
-      // Step 1: ask edge function for presigned PUT URL
+      console.log('[R2] POST', signUrl, { name: file.name, size: file.size, mime: file.type, type: type });
       var signResp = await fetch(signUrl, {
         method: 'POST',
         headers: {
@@ -202,19 +190,19 @@
       });
       if (!signResp.ok) {
         var errText = await signResp.text();
-        throw new Error('sign fail ' + signResp.status + ': ' + errText);
+        console.error('[R2] sign failed', signResp.status, errText);
+        throw new Error('sign ' + signResp.status + ' ' + errText.slice(0, 300));
       }
       var signData = await signResp.json();
+      console.log('[R2] sign OK', { hasUploadUrl: !!signData.uploadUrl, publicUrl: signData.publicUrl, objectKey: signData.objectKey });
       var uploadUrl = signData.uploadUrl;
       var publicUrl = signData.publicUrl;
       if (!uploadUrl || !publicUrl) throw new Error('sign returned no urls');
 
-      // Step 2: PUT file directly to R2 with progress
       prog.update(2, 'Завантажую в Cloudflare R2…');
       await new Promise(function (resolve, reject) {
         var xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl, true);
-        // Don't set Content-Type header - presigned URL doesn't include it in canonical (we used UNSIGNED-PAYLOAD)
         xhr.upload.onprogress = function (e) {
           if (e.lengthComputable) {
             var pct = 2 + (e.loaded / e.total) * 93;
@@ -222,15 +210,15 @@
           }
         };
         xhr.onload = function () {
+          console.log('[R2] PUT status', xhr.status);
           if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error('R2 PUT failed ' + xhr.status + ': ' + xhr.responseText.slice(0, 200)));
+          else reject(new Error('R2 PUT ' + xhr.status + ': ' + xhr.responseText.slice(0, 200)));
         };
-        xhr.onerror = function () { reject(new Error('R2 PUT network error')); };
+        xhr.onerror = function () { reject(new Error('R2 PUT network error (CORS?)')); };
         xhr.ontimeout = function () { reject(new Error('R2 PUT timeout')); };
         xhr.send(file);
       });
 
-      // Step 3: register creative in DB
       prog.update(96, 'Реєструю файл…');
       var meta = {
         name: file.name,
@@ -270,30 +258,24 @@
         }
       } catch (_) {}
 
-      prog.update(100, '✓ R2 · ' + humanSize(file.size));
+      prog.update(100, 'Готово · ' + humanSize(file.size));
       prog.close(true, file.name + ' · ' + humanSize(file.size) + ' (R2)');
       return local;
     } catch (e) {
-      console.error('uploadViaR2 failed', e);
-      prog.close(false, 'Помилка: ' + (e.message || e));
+      console.error('[R2] uploadViaR2 failed', e);
+      var msg = (e && e.message) || String(e);
+      prog.close(false, msg.slice(0, 250));
       throw e;
     }
   }
 
-  // ---- Patch window.uploadCreativeFile ----
   function patchUpload() {
     if (typeof window.uploadCreativeFile !== 'function' || window.uploadCreativeFile.__r2Patched) return;
     var _orig = window.uploadCreativeFile;
     window.uploadCreativeFile = async function (file, pub) {
       if (!file) return;
       if (file.size > R2_THRESHOLD_BYTES && window.HQ_BACKEND) {
-        try {
-          return await uploadViaR2(file, pub);
-        } catch (e) {
-          console.error('R2 path failed:', e);
-          if (typeof toast === 'function') toast('R2 не вдалося. Спробуй меньший файл або повтори.', 'error');
-          throw e;
-        }
+        return await uploadViaR2(file, pub);
       }
       return _orig.call(this, file, pub);
     };
@@ -309,9 +291,6 @@
   };
   console.log('%cDreamCar HQ Upload %c· R2 direct for >49MB · Supabase Storage for ≤49MB · UUID creative-id fix active', 'color:#f6821f;font-weight:700;', 'color:#888;');
 
-  // ============================================================
-  // LOADER CHAIN — підвантажуємо app-context-menu.js
-  // ============================================================
   if (!document.querySelector('script[src*="app-context-menu.js"]')) {
     var sCtx = document.createElement('script');
     sCtx.src = 'app-context-menu.js?v=' + Date.now();
