@@ -1,26 +1,52 @@
 #!/bin/bash
 # TG Autopost Worker — викликається з .github/workflows/tg-autopost.yml
 #
-# Новий flow з background compress:
-#   1. compressed_status='ready' → беремо compressed_url, без re-encoding
-#   2. compressed_status='pending'|'processing' → defer pub на +3 min
-#   3. compressed_status='n/a'|'failed' → старий ffmpeg path (для photo/audio чи fallback)
-set -e
+# Flow:
+#   1. claim_autopost_jobs (тільки publish_at <= now, attempts < 3)
+#   2. compressed_status='ready' → беремо compressed_url (або HEVC якщо PREFER_HEVC=1)
+#   3. compressed_status='pending'|'processing' → defer publish_at +3min, attempts=0
+#   4. compressed_status='n/a'|'failed' → fallback ffmpeg path
+#
+# ENV optional:
+#   PREFER_HEVC=1  — використовувати compressed_url_hevc якщо є
+set -euo pipefail
 
 NL=$'\n'
+PREFER_HEVC="${PREFER_HEVC:-0}"
+
+JOB_ID_GLOBAL=""
+PUB_ID_GLOBAL=""
+on_error() {
+  local exit_code=$?
+  local line_no=$1
+  if [ -n "$JOB_ID_GLOBAL" ]; then
+    echo "::error::Worker died on line $line_no (exit=$exit_code). Failing job $JOB_ID_GLOBAL"
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_autopost_job" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg jid "$JOB_ID_GLOBAL" --arg pid "$PUB_ID_GLOBAL" --arg err "Worker line $line_no exit $exit_code" '{job_id:$jid, pub_id:$pid, err_msg:$err}')" || true
+  fi
+  exit $exit_code
+}
+trap 'on_error $LINENO' ERR
 
 if [ -z "$TG_BOT_TOKEN" ] || [ -z "$SUPABASE_URL" ] || [ -z "$SERVICE_KEY" ]; then
   echo "::error::Missing TG_BOT_TOKEN / HQ_DB_URL / HQ_DB_SERVICE_KEY"
   exit 1
 fi
 
-echo "Claiming jobs as $WORKER_ID..."
+echo "Claiming jobs as ${WORKER_ID:-unknown}..."
 CLAIMED=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/claim_autopost_jobs" \
   -H "apikey: $SERVICE_KEY" \
   -H "Authorization: Bearer $SERVICE_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"worker_name\":\"$WORKER_ID\",\"max_jobs\":5}")
+  -d "{\"worker_name\":\"${WORKER_ID:-gh}\",\"max_jobs\":5}")
 
+CLAIMED_TYPE=$(echo "$CLAIMED" | jq -r 'type')
+if [ "$CLAIMED_TYPE" != "array" ]; then
+  echo "::error::claim_autopost_jobs returned non-array: $CLAIMED"
+  exit 1
+fi
 JOB_COUNT=$(echo "$CLAIMED" | jq 'length')
 echo "Got $JOB_COUNT jobs"
 
@@ -34,6 +60,8 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
   JOB_ID=$(echo "$JOB" | jq -r '.id')
   PUB_ID=$(echo "$JOB" | jq -r '.publication_id')
   CHAT_ID=$(echo "$JOB" | jq -r '.target_chat_id')
+  JOB_ID_GLOBAL="$JOB_ID"
+  PUB_ID_GLOBAL="$PUB_ID"
 
   echo ""
   echo "=== Job $JOB_ID pub $PUB_ID -> chat $CHAT_ID ==="
@@ -59,35 +87,39 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
     CAPTION="${CAPTION}${NL}${NL}${HASHTAGS}"
   fi
 
-  CREATIVE=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&limit=1&select=creative_id,creatives(id,type,thumbnail_url,compressed_url,compressed_status,compressed_size_bytes,drive_file_id,name)" \
+  # Запит креатива з усіма compressed-полями
+  CREATIVE=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&limit=1&select=creative_id,creatives(id,type,thumbnail_url,compressed_url,compressed_url_hevc,compressed_status,compressed_size_bytes,compressed_hevc_size_bytes,drive_file_id,name)" \
     -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" | jq -c '.[0].creatives')
 
   CRE_TYPE=$(echo "$CREATIVE"        | jq -r '.type // ""')
   CRE_URL=$(echo "$CREATIVE"         | jq -r '.thumbnail_url // ""')
-  CRE_COMPRESSED_URL=$(echo "$CREATIVE"  | jq -r '.compressed_url // ""')
+  CRE_H264_URL=$(echo "$CREATIVE"    | jq -r '.compressed_url // ""')
+  CRE_HEVC_URL=$(echo "$CREATIVE"    | jq -r '.compressed_url_hevc // ""')
   CRE_COMPRESSED_STATUS=$(echo "$CREATIVE" | jq -r '.compressed_status // "n/a"')
   CRE_COMPRESSED_SIZE=$(echo "$CREATIVE"  | jq -r '.compressed_size_bytes // 0')
-  echo "Creative: type=$CRE_TYPE | compressed=$CRE_COMPRESSED_STATUS ($CRE_COMPRESSED_SIZE bytes)"
+  CRE_HEVC_SIZE=$(echo "$CREATIVE"   | jq -r '.compressed_hevc_size_bytes // 0')
+  echo "Creative: type=$CRE_TYPE | compressed=$CRE_COMPRESSED_STATUS (h264=$CRE_COMPRESSED_SIZE, hevc=$CRE_HEVC_SIZE)"
 
   HTTP=""
 
   # ── Defer якщо video ще стискається
   if [ "$CRE_TYPE" = "video" ] && \
      ( [ "$CRE_COMPRESSED_STATUS" = "pending" ] || [ "$CRE_COMPRESSED_STATUS" = "processing" ] ); then
-    echo "::warning::Video compress not ready yet ($CRE_COMPRESSED_STATUS) — defer pub by 3 min"
-    # Перенесемо publish_at на +3хв і вийдемо з циклу без complete/fail (queue лишиться pending)
+    echo "::warning::Video compress not ready ($CRE_COMPRESSED_STATUS) — defer +3min, attempts→0"
     curl -sS -X PATCH "$SUPABASE_URL/rest/v1/publications?id=eq.$PUB_ID" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
       -H "Prefer: return=minimal" \
       -d '{"publish_at": "'"$(date -u -d '+3 minutes' '+%Y-%m-%dT%H:%M:%S.000Z')"'"}'
-    # Reset queue row до pending щоб наступний worker побачив його
+    # Reset queue + DECREMENT attempts (defer не "спроба")
     curl -sS -X PATCH "$SUPABASE_URL/rest/v1/tg_autopost_queue?id=eq.$JOB_ID" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
       -H "Prefer: return=minimal" \
-      -d '{"status":"pending","claimed_at":null}'
+      -d '{"status":"pending","claimed_at":null,"attempts":0,"last_error":"deferred for compress"}'
     echo "Deferred."
+    JOB_ID_GLOBAL=""
+    PUB_ID_GLOBAL=""
     continue
   fi
 
@@ -106,12 +138,18 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
       -F "caption=$CAPTION" \
       -F "parse_mode=HTML")
   elif [ "$CRE_TYPE" = "video" ]; then
-    # Вирішуємо який URL використовувати
+    # Вибір URL: HEVC якщо PREFER_HEVC=1 і є; інакше H.264 compressed_url; інакше fallback raw
     USE_URL=""
     NEED_REENCODE="no"
-    if [ "$CRE_COMPRESSED_STATUS" = "ready" ] && [ -n "$CRE_COMPRESSED_URL" ]; then
-      echo "Using pre-compressed URL ($CRE_COMPRESSED_SIZE bytes)"
-      USE_URL="$CRE_COMPRESSED_URL"
+    CODEC_USED="raw"
+    if [ "$PREFER_HEVC" = "1" ] && [ -n "$CRE_HEVC_URL" ]; then
+      echo "Using HEVC compressed URL ($CRE_HEVC_SIZE bytes)"
+      USE_URL="$CRE_HEVC_URL"
+      CODEC_USED="hevc"
+    elif [ "$CRE_COMPRESSED_STATUS" = "ready" ] && [ -n "$CRE_H264_URL" ]; then
+      echo "Using H.264 compressed URL ($CRE_COMPRESSED_SIZE bytes)"
+      USE_URL="$CRE_H264_URL"
+      CODEC_USED="h264"
     else
       echo "No compressed version available (status=$CRE_COMPRESSED_STATUS) — fallback to raw + ffmpeg"
       USE_URL="$CRE_URL"
@@ -121,7 +159,7 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
     curl -sS -o /tmp/input.mp4 -L "$USE_URL"
     IN_SIZE=$(stat -c%s /tmp/input.mp4)
     IN_MB=$(awk "BEGIN{printf \"%.1f\", $IN_SIZE/1024/1024}")
-    echo "Downloaded: $IN_SIZE bytes (${IN_MB} MB)"
+    echo "Downloaded: $IN_SIZE bytes (${IN_MB} MB), codec=$CODEC_USED"
 
     ffmpeg -y -v error -i /tmp/input.mp4 -ss 00:00:01 -vframes 1 -vf "scale='min(320,iw)':-2" /tmp/thumb.jpg 2>/dev/null || \
       ffmpeg -y -v error -i /tmp/input.mp4 -vframes 1 -vf "scale='min(320,iw)':-2" /tmp/thumb.jpg
@@ -139,8 +177,7 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
       if [ -f /tmp/out.mp4 ]; then
         OUT_SIZE=$(stat -c%s /tmp/out.mp4)
         FINAL_FILE=/tmp/out.mp4
-        OUT_MB=$(awk "BEGIN{printf \"%.1f\", $OUT_SIZE/1024/1024}")
-        echo "Re-encoded: $OUT_SIZE bytes (${OUT_MB} MB)"
+        echo "Re-encoded: $OUT_SIZE bytes"
       fi
     fi
 
@@ -150,7 +187,7 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
     FD=$(echo "$FPROBE" | jq -r '.streams[0].duration // "0"' | awk '{printf "%.0f", $1}')
 
     if [ "$OUT_SIZE" -le $((49 * 1024 * 1024)) ]; then
-      echo "→ sendVideo (${FW}x${FH}, ${FD}s, $OUT_SIZE bytes)"
+      echo "→ sendVideo (${FW}x${FH}, ${FD}s, $OUT_SIZE bytes, codec=$CODEC_USED)"
       HTTP=$(curl -sS -o /tmp/tg-resp.json -w "%{http_code}" --connect-timeout 60 --max-time 600 \
         "https://api.telegram.org/bot$TG_BOT_TOKEN/sendVideo" \
         -F "chat_id=$CHAT_ID" \
@@ -159,6 +196,22 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
         -F "width=$FW" -F "height=$FH" -F "duration=$FD" \
         -F "supports_streaming=true" \
         -F "caption=$CAPTION" -F "parse_mode=HTML")
+
+      # Якщо HEVC викинуло помилку — спробуємо H.264 fallback
+      if [ "$HTTP" != "200" ] && [ "$CODEC_USED" = "hevc" ] && [ -n "$CRE_H264_URL" ]; then
+        echo "::warning::HEVC failed (HTTP $HTTP), falling back to H.264..."
+        curl -sS -o /tmp/input.mp4 -L "$CRE_H264_URL"
+        OUT_SIZE=$(stat -c%s /tmp/input.mp4)
+        FINAL_FILE=/tmp/input.mp4
+        HTTP=$(curl -sS -o /tmp/tg-resp.json -w "%{http_code}" --connect-timeout 60 --max-time 600 \
+          "https://api.telegram.org/bot$TG_BOT_TOKEN/sendVideo" \
+          -F "chat_id=$CHAT_ID" \
+          -F "video=@$FINAL_FILE" \
+          -F "thumbnail=@/tmp/thumb.jpg" \
+          -F "width=$FW" -F "height=$FH" -F "duration=$FD" \
+          -F "supports_streaming=true" \
+          -F "caption=$CAPTION" -F "parse_mode=HTML")
+      fi
     else
       echo "::warning::Video >49MB — sendDocument fallback"
       DOC_CAPTION="${CAPTION}${NL}${NL}📎 Файл (відео завелике для inline)"
@@ -198,6 +251,8 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
       -d "$(jq -nc --arg jid "$JOB_ID" --arg pid "$PUB_ID" --arg err "HTTP $HTTP: $ERR" '{job_id:$jid, pub_id:$pid, err_msg:$err}')"
   fi
 
+  JOB_ID_GLOBAL=""
+  PUB_ID_GLOBAL=""
   rm -f /tmp/input.mp4 /tmp/out.mp4 /tmp/thumb.jpg /tmp/photo.bin /tmp/tg-resp.json
 done
 
