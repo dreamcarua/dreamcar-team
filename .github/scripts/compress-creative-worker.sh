@@ -1,17 +1,20 @@
 #!/bin/bash
-# Compress Creative Worker — TARGET-BITRATE 2-pass H.264 high, max quality ≤49.5MB.
+# Compress Creative Worker — TARGET-BITRATE 2-pass H.264 high, MAX quality ≤49.5MB.
+#
+# v2 — MAX quality tuning:
+#   • preset veryslow (was slower) — найповільніший аналіз, краще стиснення
+#   • bframes=12, ref=8, subme=10, aq-mode=3, merange=32, qcomp=0.7
+#   • Target 99% budget (was 91% effective fill) — використовуємо всі біти
+#   • Buffer 110% maxrate замість 110% — менш консервативно
 #
 # ENV optional:
-#   ENABLE_HEVC=1         — додатково створює H.265 варіант, зберігає у compressed_url_hevc
-#   DISPATCH_AUTOPOST=1   — після complete викликає dispatch-workflow Edge Function щоб
-#                           одразу тригернути autopost замість чекати cron
-#
-# Error handling:
-#   • set -e + trap → будь-яка помилка викликає fail_compress_job ОДРАЗУ.
+#   ENABLE_HEVC=1         — додатково створює H.265 варіант
+#   DISPATCH_AUTOPOST=1   — після complete викликає dispatch-workflow
 set -euo pipefail
 
-TARGET_BUDGET_BYTES=$((49500000))
-MUX_OVERHEAD_KBPS=50
+TARGET_BUDGET_BYTES=$((49500000))  # 49.5 MB hard ceiling
+TARGET_FILL_PCT=99                  # x264 target = 99% of budget (raise from default 91% undershoot)
+MUX_OVERHEAD_KBPS=40                # mp4 container/index overhead (зменшено з 50)
 MIN_AUDIO_KBPS=96
 MAX_AUDIO_KBPS=128
 ENABLE_HEVC="${ENABLE_HEVC:-0}"
@@ -142,8 +145,10 @@ SRC_FPS_RAW=$(echo "$PROBE" | jq -r '.streams[0].r_frame_rate')
 SRC_FPS=$(echo "$SRC_FPS_RAW" | awk -F'/' '{ if ($2 > 0) printf "%.2f", $1/$2; else printf "%.2f", $1 }')
 echo "Source: ${SRC_W}×${SRC_H} @ ${SRC_FPS}fps, ${DURATION}s"
 
-TOTAL_KBPS=$(awk "BEGIN{printf \"%.0f\", ($TARGET_BUDGET_BYTES * 8 / 1024) / $DURATION}")
-echo "Total bitrate budget: ${TOTAL_KBPS} kbps"
+# v2: Target = 99% of budget, не 91% undershoot
+EFFECTIVE_BUDGET=$((TARGET_BUDGET_BYTES * TARGET_FILL_PCT / 100))
+TOTAL_KBPS=$(awk "BEGIN{printf \"%.0f\", ($EFFECTIVE_BUDGET * 8 / 1024) / $DURATION}")
+echo "Total bitrate budget (99% fill): ${TOTAL_KBPS} kbps"
 
 AUDIO_KBPS=$MIN_AUDIO_KBPS
 if [ "$TOTAL_KBPS" -ge 1500 ]; then AUDIO_KBPS=$MAX_AUDIO_KBPS; fi
@@ -164,15 +169,18 @@ if [ "$SRC_LONG" -lt "$MAX_LONG" ]; then MAX_LONG=$SRC_LONG; fi
 SCALE_FILTER="scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
 echo "Target longest side: ${MAX_LONG}px (orig=${SRC_LONG}), aspect preserved"
 
-X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset slower -tune film"
-X264_PARAMS="bframes=8:b-adapt=2:ref=6:no-fast-pskip=1:aq-mode=2:aq-strength=0.9:psy-rd=1.0,0.15:rc-lookahead=60:trellis=2:me=umh:subme=8:mixed-refs=1:8x8dct=1:weightb=1"
+# v2: preset veryslow + advanced tuning
+X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset veryslow -tune film"
+# v2 params: bframes=12, ref=8 (max useful), subme=10, aq-mode=3 (autovariance-biased),
+#            merange=32 (was 16), qcomp=0.7 (was 0.6), psy-rd збільшено
+X264_PARAMS="bframes=12:b-adapt=2:ref=8:no-fast-pskip=1:aq-mode=3:aq-strength=1.0:psy-rd=1.1,0.2:rc-lookahead=80:trellis=2:me=umh:subme=10:mixed-refs=1:8x8dct=1:weightb=1:weightp=2:merange=32:qcomp=0.7:deblock=-1,-1"
 
 echo ""
-echo "[H.264 Pass 1/2] Analyzing @ ${VIDEO_KBPS}k..."
+echo "[H.264 Pass 1/2] veryslow analyzing @ ${VIDEO_KBPS}k..."
 ffmpeg -y -v error -stats -i "$INPUT" \
   $X264_OPTS \
   -x264-params "$X264_PARAMS" \
-  -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
+  -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 115 / 100))k" -bufsize "$((VIDEO_KBPS * 25 / 10))k" \
   -vf "$SCALE_FILTER" \
   -pass 1 -passlogfile "$PASS_LOG" \
   -an -f null /dev/null
@@ -181,7 +189,7 @@ echo "[H.264 Pass 2/2] Encoding @ ${VIDEO_KBPS}k + ${AUDIO_KBPS}k AAC..."
 ffmpeg -y -v error -stats -i "$INPUT" \
   $X264_OPTS \
   -x264-params "$X264_PARAMS" \
-  -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
+  -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 115 / 100))k" -bufsize "$((VIDEO_KBPS * 25 / 10))k" \
   -vf "$SCALE_FILTER" \
   -pass 2 -passlogfile "$PASS_LOG" \
   -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
@@ -191,8 +199,8 @@ ffmpeg -y -v error -stats -i "$INPUT" \
 OUT_SIZE=$(stat -c%s "$OUTPUT")
 
 if [ "$OUT_SIZE" -gt "$TARGET_BUDGET_BYTES" ]; then
-  RETRY_KBPS=$((VIDEO_KBPS * 92 / 100))
-  echo "::warning::H.264 overshoot. Retry @ ${RETRY_KBPS}k..."
+  RETRY_KBPS=$((VIDEO_KBPS * 93 / 100))
+  echo "::warning::H.264 overshoot ($OUT_SIZE > $TARGET_BUDGET_BYTES). Retry @ ${RETRY_KBPS}k..."
   ffmpeg -y -v error -stats -i "$INPUT" \
     $X264_OPTS -x264-params "$X264_PARAMS" \
     -b:v "${RETRY_KBPS}k" -maxrate "$((RETRY_KBPS * 110 / 100))k" -bufsize "$((RETRY_KBPS * 2))k" \
@@ -274,9 +282,6 @@ if [ "$ENABLE_HEVC" = "1" ]; then
   fi
 fi
 
-# ───────────────────────────────────────────────────────
-# EVENT-DRIVEN: тригер autopost workflow одразу замість чекати cron
-# ───────────────────────────────────────────────────────
 if [ "$DISPATCH_AUTOPOST" = "1" ]; then
   echo ""
   echo "Triggering autopost workflow via dispatch-workflow Edge Function..."
