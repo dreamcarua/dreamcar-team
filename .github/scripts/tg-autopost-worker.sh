@@ -1,5 +1,11 @@
 #!/bin/bash
 # TG Autopost Worker — викликається з .github/workflows/tg-autopost.yml
+#
+# ГОЛОВНЕ ПРАВИЛО: БЕЗ втрати якості.
+#   IN_SIZE < 45MB  → fast remux -c copy        → sendVideo inline (0% втрати)
+#   IN_SIZE ≥ 45MB  → one-shot CRF 18           → visually lossless
+#       якщо OUT ≤ 49MB  → sendVideo inline      (visually lossless)
+#       якщо OUT > 49MB  → sendDocument(input)   (100% якість, не inline)
 set -e
 
 NL=$'\n'
@@ -80,47 +86,57 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
   elif [ "$CRE_TYPE" = "video" ]; then
     curl -sS -o /tmp/input.mp4 -L "$CRE_URL"
     IN_SIZE=$(stat -c%s /tmp/input.mp4)
-    echo "Input video: $IN_SIZE bytes"
+    IN_MB=$(awk "BEGIN{printf \"%.1f\", $IN_SIZE/1024/1024}")
+    echo "Input video: $IN_SIZE bytes (${IN_MB} MB)"
 
+    # Thumbnail для inline preview (з 1-ї секунди)
     ffmpeg -y -v error -i /tmp/input.mp4 -ss 00:00:01 -vframes 1 -vf "scale='min(320,iw)':-2" /tmp/thumb.jpg 2>/dev/null || \
       ffmpeg -y -v error -i /tmp/input.mp4 -vframes 1 -vf "scale='min(320,iw)':-2" /tmp/thumb.jpg
 
     OUT_SIZE=99999999
     FINAL_FILE=""
+    PATH_USED=""
 
+    # ── Path A: input уже маленький → fast remux (нульова втрата)
     if [ "$IN_SIZE" -le $((45 * 1024 * 1024)) ]; then
+      echo "[A] Fast remux (-c copy) — input ≤45MB, 0% втрати"
       ffmpeg -y -v error -i /tmp/input.mp4 -c copy -movflags +faststart /tmp/out.mp4 2>&1 || true
       if [ -f /tmp/out.mp4 ]; then
         OUT_SIZE=$(stat -c%s /tmp/out.mp4)
         FINAL_FILE=/tmp/out.mp4
+        PATH_USED="A:remux"
       fi
     fi
 
-    if [ "$OUT_SIZE" -gt $((47 * 1024 * 1024)) ]; then
-      for CRF in 20 23 26; do
-        echo "Re-encode CRF=$CRF preset=slow"
-        ffmpeg -y -v error -i /tmp/input.mp4 \
-          -c:v libx264 -preset slow -crf "$CRF" \
-          -vf "scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(ih,iw),min(1920,ih),-2)'" \
-          -c:a aac -b:a 192k \
-          -movflags +faststart -pix_fmt yuv420p /tmp/out.mp4
+    # ── Path B: великий вхід → one-shot CRF 18 (visually lossless)
+    if [ -z "$FINAL_FILE" ] || [ "$OUT_SIZE" -gt $((49 * 1024 * 1024)) ]; then
+      echo "[B] CRF 18 preset slower — visually lossless для >45MB"
+      ffmpeg -y -v error -i /tmp/input.mp4 \
+        -c:v libx264 -preset slower -crf 18 \
+        -vf "scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(ih,iw),min(1920,ih),-2)'" \
+        -c:a aac -b:a 192k \
+        -movflags +faststart -pix_fmt yuv420p /tmp/out.mp4 2>&1 || true
+      if [ -f /tmp/out.mp4 ]; then
         OUT_SIZE=$(stat -c%s /tmp/out.mp4)
-        echo "CRF=$CRF -> $OUT_SIZE bytes"
-        if [ "$OUT_SIZE" -le $((47 * 1024 * 1024)) ]; then
+        OUT_MB=$(awk "BEGIN{printf \"%.1f\", $OUT_SIZE/1024/1024}")
+        echo "CRF 18 → $OUT_SIZE bytes (${OUT_MB} MB)"
+        if [ "$OUT_SIZE" -le $((49 * 1024 * 1024)) ]; then
           FINAL_FILE=/tmp/out.mp4
-          break
+          PATH_USED="B:crf18"
         fi
-      done
+      fi
     fi
 
-    if [ -n "$FINAL_FILE" ]; then
-      FPROBE=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of json "$FINAL_FILE")
-      FW=$(echo "$FPROBE" | jq -r '.streams[0].width // 1920')
-      FH=$(echo "$FPROBE" | jq -r '.streams[0].height // 1080')
-      FD=$(echo "$FPROBE" | jq -r '.streams[0].duration // "0"' | awk '{printf "%.0f", $1}')
-    fi
+    # ffprobe для streaming hints
+    PROBE_FILE="${FINAL_FILE:-/tmp/input.mp4}"
+    FPROBE=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of json "$PROBE_FILE")
+    FW=$(echo "$FPROBE" | jq -r '.streams[0].width // 1920')
+    FH=$(echo "$FPROBE" | jq -r '.streams[0].height // 1080')
+    FD=$(echo "$FPROBE" | jq -r '.streams[0].duration // "0"' | awk '{printf "%.0f", $1}')
 
+    # ── Decision: inline sendVideo або sendDocument fallback
     if [ -n "$FINAL_FILE" ] && [ "$OUT_SIZE" -le $((49 * 1024 * 1024)) ]; then
+      echo "→ sendVideo (path=$PATH_USED, ${FW}x${FH}, ${FD}s)"
       HTTP=$(curl -sS -o /tmp/tg-resp.json -w "%{http_code}" --connect-timeout 60 --max-time 600 \
         "https://api.telegram.org/bot$TG_BOT_TOKEN/sendVideo" \
         -F "chat_id=$CHAT_ID" \
@@ -130,12 +146,15 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
         -F "supports_streaming=true" \
         -F "caption=$CAPTION" -F "parse_mode=HTML")
     else
-      echo "::warning::Video >49MB after compression — fallback sendDocument"
-      HTTP=$(curl -sS -o /tmp/tg-resp.json -w "%{http_code}" --connect-timeout 60 --max-time 600 \
+      # CRF 18 не дав <49MB → НЕ деградуємо. Шлемо як file з оригіналом — 100% якість.
+      echo "::warning::CRF 18 still >49MB — sendDocument with ORIGINAL (100% quality, not inline)"
+      DOC_CAPTION="${CAPTION}${NL}${NL}📎 Файл (відео завелике для inline-плеєра, повна якість)"
+      HTTP=$(curl -sS -o /tmp/tg-resp.json -w "%{http_code}" --connect-timeout 60 --max-time 900 \
         "https://api.telegram.org/bot$TG_BOT_TOKEN/sendDocument" \
         -F "chat_id=$CHAT_ID" \
         -F "document=@/tmp/input.mp4" \
-        -F "caption=$CAPTION (file too big for inline)" \
+        -F "thumbnail=@/tmp/thumb.jpg" \
+        -F "caption=$DOC_CAPTION" \
         -F "parse_mode=HTML")
     fi
   else
