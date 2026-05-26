@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="uk" style="background:#0A0A0A;color-scheme:dark;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0A0A0A">
+<meta name="robots" content="noindex, nofollow">
+<title>Tasks · DreamCar Team Hub</title>
+<link rel="icon" href="https://brand.dreamcar.ua/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="https://brand.dreamcar.ua/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Archivo+Black&family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --black: #0A0A0A; --coal: #141414; --graphite: #1F1F1F; --steel: #2A2A2A;
+    --line: #2A2A2A; --ash: #888; --bone: #DDDDDD; --white: #FFFFFF;
+    --red: #E30613; --red-deep: #B8050F;
+    --success: #10B981; --warning: #F59E0B; --danger: #DC2626; --info: #3B82F6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--black); color: var(--white);
+    font-family: 'Manrope', sans-serif; line-height: 1.5;
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--red); color: var(--white); }
+
+  /* TOPBAR */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,10,0.95); backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .brand-mark {
+    font-family: 'Archivo Black', sans-serif; font-size: 16px;
+    color: var(--white); text-decoration: none; letter-spacing: 0.05em;
+  }
+  .brand-mark .red { color: var(--red); }
+  .brand-mark .meta {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--ash); letter-spacing: 0.15em; margin-left: 8px;
+  }
+  .topbar-actions { display: flex; gap: 12px; align-items: center; }
+  .filter-btn, .add-btn, .signin-btn {
+    padding: 8px 14px; background: var(--coal); border: 1px solid var(--line);
+    color: var(--white); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.15em; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-decoration: none;
+  }
+  .filter-btn:hover, .signin-btn:hover { border-color: var(--red); }
+  .filter-btn.active { background: var(--red); border-color: var(--red); }
+  .add-btn { background: var(--red); border-color: var(--red); font-family: 'Archivo Black', sans-serif; }
+  .add-btn:hover { background: #ff1a1a; }
+
+  .user-chip {
+    padding: 4px 12px; background: var(--coal); border: 1px solid var(--success);
+    border-radius: 999px; color: var(--success);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em;
+  }
+
+  /* LOGIN GATE */
+  .login-gate {
+    min-height: calc(100vh - 60px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 20px;
+    background: radial-gradient(ellipse at 60% 40%, rgba(227,6,19,0.18), transparent 60%);
+  }
+  .login-card {
+    max-width: 440px; width: 100%;
+    background: var(--coal); border: 1px solid var(--line);
+    padding: 40px 32px; text-align: center;
+  }
+  .login-card .icon { font-size: 56px; margin-bottom: 20px; }
+  .login-card h1 {
+    font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 32px;
+    color: var(--white); margin-bottom: 12px; letter-spacing: 0.01em;
+  }
+  .login-card p { color: var(--bone); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+  .login-btn {
+    width: 100%; padding: 14px; background: var(--red); border: none;
+    color: var(--white); font-family: 'Archivo Black', sans-serif;
+    font-size: 13px; letter-spacing: 0.1em; cursor: pointer;
+    border-radius: 999px; margin-bottom: 10px;
+    transition: background 0.15s;
+  }
+  .login-btn:hover { background: #ff1a1a; }
+  .login-btn.ghost { background: transparent; border: 1px solid var(--line); }
+  .login-btn.ghost:hover { border-color: var(--red); background: rgba(227,6,19,0.08); }
+
+  /* KANBAN */
+  .kanban {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    min-height: calc(100vh - 60px);
+  }
+  .col {
+    background: var(--coal); border: 1px solid var(--line);
+    border-radius: 4px; overflow: hidden;
+    display: flex; flex-direction: column;
+    min-height: 400px;
+  }
+  .col-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--graphite);
+  }
+  .col-title {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 0.22em; font-weight: 700;
+    text-transform: uppercase;
+  }
+  .col[data-status="inbox"] .col-title { color: var(--info); }
+  .col[data-status="doing"] .col-title { color: var(--warning); }
+  .col[data-status="review"] .col-title { color: var(--red); }
+  .col[data-status="done"] .col-title { color: var(--success); }
+  .col-count {
+    background: var(--coal); border: 1px solid var(--line);
+    padding: 2px 8px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--bone); border-radius: 3px;
+  }
+  .col-body {
+    padding: 12px; flex: 1; overflow-y: auto; max-height: calc(100vh - 180px);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .col-body::-webkit-scrollbar { width: 6px; }
+  .col-body::-webkit-scrollbar-thumb { background: var(--steel); }
+
+  /* TASK CARD */
+  .task {
+    background: var(--black); border: 1px solid var(--line);
+    padding: 12px 14px; cursor: grab; user-select: none;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .task:hover { border-color: var(--red); }
+  .task:active { cursor: grabbing; }
+  .task.dragging { opacity: 0.5; }
+  .task.drag-over { border-color: var(--red); border-style: dashed; }
+
+  .task-title {
+    font-size: 14px; color: var(--white); font-weight: 700;
+    margin-bottom: 8px; line-height: 1.35;
+  }
+  .task-meta {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--ash); letter-spacing: 0.1em;
+  }
+  .task-assignee {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--red); color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800;
+  }
+  .task-due {
+    padding: 2px 8px; background: var(--graphite); border-radius: 3px;
+    color: var(--bone);
+  }
+  .task-due.overdue { background: rgba(220,38,38,0.2); color: var(--danger); }
+  .task-due.today { background: rgba(245,158,11,0.2); color: var(--warning); }
+  .task-priority {
+    width: 6px; height: 6px; border-radius: 50%;
+    display: inline-block; margin-right: 4px;
+  }
+  .task-priority.p1 { background: var(--danger); }
+  .task-priority.p2 { background: var(--warning); }
+  .task-priority.p3 { background: var(--info); }
+  .task-priority.p4 { background: var(--ash); }
+  .task-tag {
+    padding: 1px 6px; background: var(--coal); border: 1px solid var(--line);
+    color: var(--bone); border-radius: 3px; font-size: 9px;
+  }
+
+  /* MODAL */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--coal); border: 1px solid var(--line);
+    max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto;
+    padding: 28px 28px 20px;
+  }
+  .modal h2 {
+    font-family: 'Oswald', sans-serif; font-weight: 700;
+    font-size: 24px; color: var(--white); margin-bottom: 20px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em; color: var(--bone);
+    margin-bottom: 6px; text-transform: uppercase;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 10px 12px;
+    background: var(--black); border: 1px solid var(--steel);
+    color: var(--white); font-family: 'Manrope', sans-serif; font-size: 14px;
+    outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--red); }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .modal-btn {
+    padding: 10px 18px; font-family: 'Archivo Black', sans-serif;
+    font-size: 12px; letter-spacing: 0.1em; cursor: pointer;
+    border: none; border-radius: 999px;
+  }
+  .modal-btn.primary { background: var(--red); color: var(--white); }
+  .modal-btn.primary:hover { background: #ff1a1a; }
+  .modal-btn.ghost { background: transparent; color: var(--bone); border: 1px solid var(--line); }
+  .modal-btn.ghost:hover { border-color: var(--red); }
+  .modal-btn.danger { background: var(--danger); color: var(--white); }
+
+  /* EMPTY STATE */
+  .col-empty {
+    color: var(--ash); text-align: center; padding: 40px 16px;
+    font-size: 12px; font-style: italic;
+  }
+
+  /* DEMO BANNER */
+  .demo-banner {
+    background: rgba(245,158,11,0.12); border-bottom: 1px solid var(--warning);
+    padding: 8px 24px; text-align: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--warning); letter-spacing: 0.1em;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--coal); border: 1px solid var(--red);
+    padding: 12px 20px; color: var(--white); font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    z-index: 2000; opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+  .toast.success { border-color: var(--success); }
+  .toast.error { border-color: var(--danger); }
+
+  @media (max-width: 900px) {
+    .kanban { grid-template-columns: 1fr; }
+    .col { min-height: 250px; }
+  }
+  @media (max-width: 600px) {
+    .topbar { padding: 12px 16px; }
+    .kanban { padding: 12px; gap: 12px; }
+    .brand-mark .meta { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .task, .modal-backdrop { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="/" class="brand-mark">DREAM<span class="red">CAR</span> · TASKS<span class="meta">/ TEAM HUB</span></a>
+  <div class="topbar-actions" id="topbarActions">
+    <a href="/" class="filter-btn">← HUB</a>
+    <span id="authChip"></span>
+  </div>
+</header>
+
+<!-- LOGIN GATE -->
+<div id="loginGate" class="login-gate" style="display:none;">
+  <div class="login-card">
+    <div class="icon">🔒</div>
+    <h1>ВХІД ДЛЯ <span style="color:var(--red);">КОМАНДИ</span></h1>
+    <p>Tasks — закрита система для команди DreamCar. Увійди через Google або Telegram щоб побачити задачі.</p>
+    <button class="login-btn" id="loginGoogle">УВІЙТИ ЧЕРЕЗ GOOGLE</button>
+    <button class="login-btn ghost" id="loginTelegram">УВІЙТИ ЧЕРЕЗ TELEGRAM</button>
+  </div>
+</div>
+
+<!-- AUTHENTICATED VIEW -->
+<div id="appView" style="display:none;">
+
+  <div class="topbar" style="position: static; padding: 10px 24px; background: var(--coal); border-top: none; border-bottom: 1px solid var(--line); justify-content: flex-end;">
+    <div style="display: flex; gap: 8px;">
+      <button class="filter-btn" data-filter="all">ВСІ</button>
+      <button class="filter-btn" data-filter="me">МОЇ</button>
+      <button class="filter-btn" data-filter="today">СЬОГОДНІ</button>
+      <button class="filter-btn" data-filter="overdue">ПРОТЕРМ.</button>
+      <button class="add-btn" id="addTaskBtn">+ ЗАВДАННЯ</button>
+    </div>
+  </div>
+
+  <div class="kanban">
+    <div class="col" data-status="inbox">
+      <div class="col-head">
+        <span class="col-title">📥 INBOX</span>
+        <span class="col-count" id="count-inbox">0</span>
+      </div>
+      <div class="col-body" data-status="inbox" id="col-inbox"></div>
+    </div>
+    <div class="col" data-status="doing">
+      <div class="col-head">
+        <span class="col-title">⚙ DOING</span>
+        <span class="col-count" id="count-doing">0</span>
+      </div>
+      <div class="col-body" data-status="doing" id="col-doing"></div>
+    </div>
+    <div class="col" data-status="review">
+      <div class="col-head">
+        <span class="col-title">👀 REVIEW</span>
+        <span class="col-count" id="count-review">0</span>
+      </div>
+      <div class="col-body" data-status="review" id="col-review"></div>
+    </div>
+    <div class="col" data-status="done">
+      <div class="col-head">
+        <span class="col-title">✅ DONE</span>
+        <span class="col-count" id="count-done">0</span>
+      </div>
+      <div class="col-body" data-status="done" id="col-done"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TASK MODAL -->
+<div class="modal-backdrop" id="taskModal">
+  <div class="modal">
+    <h2 id="modalTitle">+ НОВЕ ЗАВДАННЯ</h2>
+    <div class="field">
+      <label>НАЗВА</label>
+      <input type="text" id="f-title" placeholder="Що треба зробити?" autofocus>
+    </div>
+    <div class="field">
+      <label>ОПИС (опційно)</label>
+      <textarea id="f-description" placeholder="Деталі, контекст, лінки..."></textarea>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="field">
+        <label>СТАТУС</label>
+        <select id="f-status">
+          <option value="inbox">📥 Inbox</option>
+          <option value="doing">⚙ Doing</option>
+          <option value="review">👀 Review</option>
+          <option value="done">✅ Done</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ПРІОРИТЕТ</label>
+        <select id="f-priority">
+          <option value="p1">🔴 P1 — критично</option>
+          <option value="p2">🟡 P2 — важливо</option>
+          <option value="p3" selected>🔵 P3 — звичайно</option>
+          <option value="p4">⚪ P4 — низько</option>
+        </select>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="field">
+        <label>ВИКОНАВЕЦЬ</label>
+        <select id="f-assignee">
+          <option value="">— не призначено —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ДЕДЛАЙН</label>
+        <input type="date" id="f-due">
+      </div>
+    </div>
+    <div class="field">
+      <label>МІТКИ (через кому)</label>
+      <input type="text" id="f-tags" placeholder="hq, dreamcar, x5, brand">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn danger" id="deleteTaskBtn" style="display:none;">Видалити</button>
+      <button class="modal-btn ghost" id="cancelTaskBtn">Скасувати</button>
+      <button class="modal-btn primary" id="saveTaskBtn">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ========== CONFIG ==========
+const SUPABASE_URL  = 'https://wotghlaehnvxyeacznvv.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+});
+
+// ========== STATE ==========
+const state = {
+  user: null,
+  tasks: [],
+  users: [],
+  filter: 'all',
+  editingId: null,
+};
+
+// ========== AUTH ==========
+async function checkAuth() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session && session.user) {
+    state.user = session.user;
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('appView').style.display = 'block';
+    renderAuthChip();
+    await loadUsers();
+    await loadTasks();
+    subscribeRealtime();
+  } else {
+    document.getElementById('loginGate').style.display = 'flex';
+    document.getElementById('appView').style.display = 'none';
+  }
+}
+
+function renderAuthChip() {
+  const chip = document.getElementById('authChip');
+  const name = state.user.user_metadata?.full_name || state.user.email || 'user';
+  chip.innerHTML = `<span class="user-chip">✓ ${name.toUpperCase().slice(0, 16)}</span> <button class="filter-btn" id="signOutBtn">EXIT</button>`;
+  document.getElementById('signOutBtn').onclick = async () => {
+    await supabase.auth.signOut();
+    location.reload();
+  };
+}
+
+document.getElementById('loginGoogle').onclick = async () => {
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/tasks/' }
+  });
+};
+
+document.getElementById('loginTelegram').onclick = () => {
+  toast('Telegram login: підключайся через HQ → Settings → Telegram', 'info');
+  setTimeout(() => window.open('/hq/#settings', '_blank'), 800);
+};
+
+// ========== LOAD ==========
+async function loadUsers() {
+  // підтягуємо з HQ public.users якщо є — інакше demo
+  const { data, error } = await supabase.from('users').select('id, full_name, email').order('full_name');
+  state.users = data || [];
+  // populate dropdown
+  const sel = document.getElementById('f-assignee');
+  sel.innerHTML = '<option value="">— не призначено —</option>' +
+    state.users.map(u => `<option value="${u.id}">${u.full_name || u.email}</option>`).join('');
+}
+
+async function loadTasks() {
+  const { data, error } = await supabase
+    .from('team_tasks')
+    .select('*')
+    .order('updated_at', { ascending: false });
+  if (error) {
+    console.warn('[Tasks] load error (table maybe missing):', error.message);
+    state.tasks = [];
+  } else {
+    state.tasks = data || [];
+  }
+  renderBoard();
+}
+
+function subscribeRealtime() {
+  supabase
+    .channel('team_tasks_realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, payload => {
+      if (payload.eventType === 'INSERT') state.tasks.unshift(payload.new);
+      if (payload.eventType === 'UPDATE') {
+        const i = state.tasks.findIndex(t => t.id === payload.new.id);
+        if (i >= 0) state.tasks[i] = payload.new;
+      }
+      if (payload.eventType === 'DELETE') {
+        state.tasks = state.tasks.filter(t => t.id !== payload.old.id);
+      }
+      renderBoard();
+    })
+    .subscribe();
+}
+
+// ========== RENDER ==========
+function renderBoard() {
+  ['inbox','doing','review','done'].forEach(status => {
+    const col = document.getElementById('col-' + status);
+    const tasks = filterTasks(state.tasks.filter(t => t.status === status));
+    document.getElementById('count-' + status).textContent = tasks.length;
+
+    if (!tasks.length) {
+      col.innerHTML = '<div class="col-empty">Порожньо.<br>Додай завдання →</div>';
+      return;
+    }
+
+    col.innerHTML = tasks.map(t => renderTask(t)).join('');
+  });
+  bindDragDrop();
+  bindTaskClicks();
+}
+
+function filterTasks(tasks) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (state.filter === 'me') return tasks.filter(t => t.assignee_id === state.user.id);
+  if (state.filter === 'today') return tasks.filter(t => {
+    if (!t.due_date) return false;
+    const d = new Date(t.due_date); d.setHours(0,0,0,0);
+    return d.getTime() === today.getTime();
+  });
+  if (state.filter === 'overdue') return tasks.filter(t => {
+    if (!t.due_date || t.status === 'done') return false;
+    return new Date(t.due_date) < today;
+  });
+  return tasks;
+}
+
+function renderTask(t) {
+  const user = state.users.find(u => u.id === t.assignee_id);
+  const initials = user ? (user.full_name || user.email || '').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase() : '';
+  const tags = (t.tags || []).map(tag => `<span class="task-tag">${tag}</span>`).join('');
+  let dueClass = '';
+  let dueText = '';
+  if (t.due_date) {
+    const due = new Date(t.due_date);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dueDay = new Date(due); dueDay.setHours(0,0,0,0);
+    if (dueDay < today && t.status !== 'done') dueClass = 'overdue';
+    else if (dueDay.getTime() === today.getTime()) dueClass = 'today';
+    dueText = String(due.getDate()).padStart(2,'0') + '.' + String(due.getMonth()+1).padStart(2,'0');
+  }
+  return `
+    <div class="task" draggable="true" data-id="${t.id}">
+      <div class="task-title"><span class="task-priority ${t.priority||'p3'}"></span>${escapeHtml(t.title)}</div>
+      <div class="task-meta">
+        ${user ? `<div class="task-assignee" title="${escapeHtml(user.full_name || user.email)}">${initials}</div>` : ''}
+        ${dueText ? `<span class="task-due ${dueClass}">${dueText}</span>` : ''}
+        ${tags}
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ========== DRAG-DROP ==========
+function bindDragDrop() {
+  const tasks = document.querySelectorAll('.task');
+  const cols = document.querySelectorAll('.col-body');
+  tasks.forEach(t => {
+    t.addEventListener('dragstart', e => {
+      t.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', t.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    t.addEventListener('dragend', () => t.classList.remove('dragging'));
+  });
+  cols.forEach(col => {
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+    col.addEventListener('drop', async e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      const newStatus = col.dataset.status;
+      const task = state.tasks.find(t => t.id === id);
+      if (task && task.status !== newStatus) {
+        task.status = newStatus;
+        renderBoard();
+        const { error } = await supabase.from('team_tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+        if (error) { toast('Помилка: ' + error.message, 'error'); loadTasks(); }
+      }
+    });
+  });
+}
+
+function bindTaskClicks() {
+  document.querySelectorAll('.task').forEach(t => {
+    t.addEventListener('click', e => {
+      if (e.target.closest('.task').classList.contains('dragging')) return;
+      const task = state.tasks.find(x => x.id === t.dataset.id);
+      if (task) openModal(task);
+    });
+  });
+}
+
+// ========== MODAL ==========
+const modal = document.getElementById('taskModal');
+document.getElementById('addTaskBtn').onclick = () => openModal(null);
+document.getElementById('cancelTaskBtn').onclick = () => modal.classList.remove('show');
+document.getElementById('saveTaskBtn').onclick = saveTask;
+document.getElementById('deleteTaskBtn').onclick = deleteTask;
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
+
+function openModal(task) {
+  state.editingId = task?.id || null;
+  document.getElementById('modalTitle').textContent = task ? 'РЕДАГУВАТИ ЗАВДАННЯ' : '+ НОВЕ ЗАВДАННЯ';
+  document.getElementById('f-title').value = task?.title || '';
+  document.getElementById('f-description').value = task?.description || '';
+  document.getElementById('f-status').value = task?.status || 'inbox';
+  document.getElementById('f-priority').value = task?.priority || 'p3';
+  document.getElementById('f-assignee').value = task?.assignee_id || '';
+  document.getElementById('f-due').value = task?.due_date ? task.due_date.split('T')[0] : '';
+  document.getElementById('f-tags').value = (task?.tags || []).join(', ');
+  document.getElementById('deleteTaskBtn').style.display = task ? 'inline-block' : 'none';
+  modal.classList.add('show');
+  setTimeout(() => document.getElementById('f-title').focus(), 50);
+}
+
+async function saveTask() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { toast('Введи назву', 'error'); return; }
+  const data = {
+    title,
+    description: document.getElementById('f-description').value.trim() || null,
+    status: document.getElementById('f-status').value,
+    priority: document.getElementById('f-priority').value,
+    assignee_id: document.getElementById('f-assignee').value || null,
+    due_date: document.getElementById('f-due').value || null,
+    tags: document.getElementById('f-tags').value.split(',').map(s => s.trim()).filter(Boolean),
+    updated_at: new Date().toISOString(),
+  };
+  let res;
+  if (state.editingId) {
+    res = await supabase.from('team_tasks').update(data).eq('id', state.editingId);
+  } else {
+    data.created_by = state.user.id;
+    data.created_at = new Date().toISOString();
+    res = await supabase.from('team_tasks').insert(data);
+  }
+  if (res.error) {
+    toast('Помилка: ' + res.error.message, 'error');
+  } else {
+    toast(state.editingId ? 'Збережено' : 'Створено', 'success');
+    modal.classList.remove('show');
+    loadTasks();
+  }
+}
+
+async function deleteTask() {
+  if (!state.editingId) return;
+  if (!confirm('Видалити завдання? Це не можна скасувати.')) return;
+  const { error } = await supabase.from('team_tasks').delete().eq('id', state.editingId);
+  if (error) toast('Помилка: ' + error.message, 'error');
+  else {
+    toast('Видалено', 'success');
+    modal.classList.remove('show');
+    loadTasks();
+  }
+}
+
+// ========== FILTERS ==========
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.filter = btn.dataset.filter;
+    renderBoard();
+  });
+});
+document.querySelector('[data-filter="all"]').classList.add('active');
+
+// ========== TOAST ==========
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ========== KEYBOARD ==========
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && modal.classList.contains('show')) modal.classList.remove('show');
+  if ((e.key === 'n' || e.key === 'т') && !modal.classList.contains('show') && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && state.user) {
+    e.preventDefault();
+    openModal(null);
+  }
+});
+
+// ========== INIT ==========
+checkAuth();
+supabase.auth.onAuthStateChange(() => checkAuth());
+</script>
+
+</body>
+</html>
