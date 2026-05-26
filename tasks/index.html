@@ -94,6 +94,13 @@
   .login-btn:hover { background: #ff1a1a; }
   .login-btn.ghost { background: transparent; border: 1px solid var(--line); }
   .login-btn.ghost:hover { border-color: var(--red); background: rgba(227,6,19,0.08); }
+  .login-status {
+    margin-top: 14px; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em;
+    color: var(--ash); min-height: 16px;
+  }
+  .login-status.error { color: var(--danger); }
+  .login-status.success { color: var(--success); }
 
   /* KANBAN */
   .kanban {
@@ -230,14 +237,6 @@
     font-size: 12px; font-style: italic;
   }
 
-  /* DEMO BANNER */
-  .demo-banner {
-    background: rgba(245,158,11,0.12); border-bottom: 1px solid var(--warning);
-    padding: 8px 24px; text-align: center;
-    font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    color: var(--warning); letter-spacing: 0.1em;
-  }
-
   /* TOAST */
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -275,14 +274,15 @@
   </div>
 </header>
 
-<!-- LOGIN GATE -->
-<div id="loginGate" class="login-gate" style="display:none;">
+<!-- LOGIN GATE — visible by default (важливо: щоб користувач щось бачив навіть якщо JS падає) -->
+<div id="loginGate" class="login-gate">
   <div class="login-card">
     <div class="icon">🔒</div>
     <h1>ВХІД ДЛЯ <span style="color:var(--red);">КОМАНДИ</span></h1>
     <p>Tasks — закрита система для команди DreamCar. Увійди через Google або Telegram щоб побачити задачі.</p>
     <button class="login-btn" id="loginGoogle">УВІЙТИ ЧЕРЕЗ GOOGLE</button>
     <button class="login-btn ghost" id="loginTelegram">УВІЙТИ ЧЕРЕЗ TELEGRAM</button>
+    <div class="login-status" id="loginStatus">Перевіряю сесію…</div>
   </div>
 </div>
 
@@ -391,45 +391,110 @@
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
 // ========== CONFIG ==========
 const SUPABASE_URL  = 'https://wotghlaehnvxyeacznvv.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+const statusEl = document.getElementById('loginStatus');
+function setStatus(msg, cls) {
+  if (!statusEl) return;
+  statusEl.textContent = msg;
+  statusEl.className = 'login-status' + (cls ? ' ' + cls : '');
+}
+
+// ========== Import Supabase з resilient fallback ==========
+let supabase = null;
+async function importSupabase() {
+  const sources = [
+    'https://esm.sh/@supabase/supabase-js@2.45.4',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm',
+  ];
+  for (const url of sources) {
+    try {
+      const mod = await import(/* @vite-ignore */ url);
+      if (mod && mod.createClient) return mod.createClient;
+    } catch (e) {
+      console.warn('[Tasks] failed to load supabase from', url, e);
+    }
+  }
+  throw new Error('Не вдалося завантажити Supabase SDK (CDN заблоковано?)');
+}
+
+window.addEventListener('error', e => {
+  console.error('[Tasks] global error:', e.error || e.message);
+  setStatus('JS-помилка: ' + (e.message || 'див. консоль'), 'error');
+});
+window.addEventListener('unhandledrejection', e => {
+  console.error('[Tasks] unhandled rejection:', e.reason);
+  setStatus('Promise відкинуто: ' + (e.reason?.message || e.reason), 'error');
 });
 
 // ========== STATE ==========
 const state = {
-  user: null,
+  authUser: null,    // auth.users.id
+  publicUser: null,  // public.users record (id, name, email, role)
   tasks: [],
   users: [],
   filter: 'all',
   editingId: null,
 };
 
+// ========== INIT ==========
+(async () => {
+  try {
+    setStatus('Завантажую Supabase SDK…');
+    const createClient = await importSupabase();
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+    });
+    setStatus('Перевіряю сесію…');
+    await checkAuth();
+    supabase.auth.onAuthStateChange(() => checkAuth().catch(err => setStatus('Auth error: ' + err.message, 'error')));
+  } catch (err) {
+    console.error('[Tasks] init error:', err);
+    setStatus('❌ ' + err.message, 'error');
+  }
+})();
+
 // ========== AUTH ==========
 async function checkAuth() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session && session.user) {
-    state.user = session.user;
-    document.getElementById('loginGate').style.display = 'none';
-    document.getElementById('appView').style.display = 'block';
-    renderAuthChip();
-    await loadUsers();
-    await loadTasks();
-    subscribeRealtime();
-  } else {
-    document.getElementById('loginGate').style.display = 'flex';
-    document.getElementById('appView').style.display = 'none';
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (session && session.user) {
+      state.authUser = session.user;
+      // Підтягуємо публічний профіль (public.users.id ≠ auth.uid)
+      const { data: pu, error: puErr } = await supabase
+        .from('users')
+        .select('id, name, email, role')
+        .eq('auth_id', session.user.id)
+        .maybeSingle();
+      if (puErr) console.warn('[Tasks] fetch public.users:', puErr.message);
+      state.publicUser = pu || null;
+      if (!pu) {
+        setStatus('⚠ Профіль public.users не знайдено. Звернися до CEO.', 'error');
+        return;
+      }
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('appView').style.display = 'block';
+      renderAuthChip();
+      await loadUsers();
+      await loadTasks();
+      subscribeRealtime();
+    } else {
+      document.getElementById('loginGate').style.display = 'flex';
+      document.getElementById('appView').style.display = 'none';
+      setStatus('Готово до входу.', '');
+    }
+  } catch (err) {
+    console.error('[Tasks] auth error:', err);
+    setStatus('Помилка авторизації: ' + err.message, 'error');
   }
 }
 
 function renderAuthChip() {
   const chip = document.getElementById('authChip');
-  const name = state.user.user_metadata?.full_name || state.user.email || 'user';
+  const name = state.publicUser?.name || state.authUser.email || 'user';
   chip.innerHTML = `<span class="user-chip">✓ ${name.toUpperCase().slice(0, 16)}</span> <button class="filter-btn" id="signOutBtn">EXIT</button>`;
   document.getElementById('signOutBtn').onclick = async () => {
     await supabase.auth.signOut();
@@ -438,10 +503,13 @@ function renderAuthChip() {
 }
 
 document.getElementById('loginGoogle').onclick = async () => {
-  await supabase.auth.signInWithOAuth({
+  if (!supabase) { setStatus('SDK ще не завантажився…', 'error'); return; }
+  setStatus('Перенаправляю на Google…');
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + '/tasks/' }
   });
+  if (error) setStatus('OAuth error: ' + error.message, 'error');
 };
 
 document.getElementById('loginTelegram').onclick = () => {
@@ -451,13 +519,12 @@ document.getElementById('loginTelegram').onclick = () => {
 
 // ========== LOAD ==========
 async function loadUsers() {
-  // підтягуємо з HQ public.users якщо є — інакше demo
-  const { data, error } = await supabase.from('users').select('id, full_name, email').order('full_name');
-  state.users = data || [];
-  // populate dropdown
+  const { data, error } = await supabase.from('users').select('id, name, email, role, is_active').order('name');
+  if (error) { console.warn('[Tasks] loadUsers:', error.message); state.users = []; return; }
+  state.users = (data || []).filter(u => u.is_active !== false);
   const sel = document.getElementById('f-assignee');
   sel.innerHTML = '<option value="">— не призначено —</option>' +
-    state.users.map(u => `<option value="${u.id}">${u.full_name || u.email}</option>`).join('');
+    state.users.map(u => `<option value="${u.id}">${u.name || u.email}</option>`).join('');
 }
 
 async function loadTasks() {
@@ -466,7 +533,8 @@ async function loadTasks() {
     .select('*')
     .order('updated_at', { ascending: false });
   if (error) {
-    console.warn('[Tasks] load error (table maybe missing):', error.message);
+    console.warn('[Tasks] loadTasks:', error.message);
+    toast('Таблиця team_tasks ще не створена. Запусти tasks/db/schema.sql у Supabase.', 'error');
     state.tasks = [];
   } else {
     state.tasks = data || [];
@@ -475,20 +543,24 @@ async function loadTasks() {
 }
 
 function subscribeRealtime() {
-  supabase
-    .channel('team_tasks_realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, payload => {
-      if (payload.eventType === 'INSERT') state.tasks.unshift(payload.new);
-      if (payload.eventType === 'UPDATE') {
-        const i = state.tasks.findIndex(t => t.id === payload.new.id);
-        if (i >= 0) state.tasks[i] = payload.new;
-      }
-      if (payload.eventType === 'DELETE') {
-        state.tasks = state.tasks.filter(t => t.id !== payload.old.id);
-      }
-      renderBoard();
-    })
-    .subscribe();
+  try {
+    supabase
+      .channel('team_tasks_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, payload => {
+        if (payload.eventType === 'INSERT') state.tasks.unshift(payload.new);
+        if (payload.eventType === 'UPDATE') {
+          const i = state.tasks.findIndex(t => t.id === payload.new.id);
+          if (i >= 0) state.tasks[i] = payload.new;
+        }
+        if (payload.eventType === 'DELETE') {
+          state.tasks = state.tasks.filter(t => t.id !== payload.old.id);
+        }
+        renderBoard();
+      })
+      .subscribe();
+  } catch (e) {
+    console.warn('[Tasks] realtime subscribe failed:', e);
+  }
 }
 
 // ========== RENDER ==========
@@ -511,7 +583,7 @@ function renderBoard() {
 
 function filterTasks(tasks) {
   const today = new Date(); today.setHours(0,0,0,0);
-  if (state.filter === 'me') return tasks.filter(t => t.assignee_id === state.user.id);
+  if (state.filter === 'me') return tasks.filter(t => t.assignee_id === state.publicUser?.id);
   if (state.filter === 'today') return tasks.filter(t => {
     if (!t.due_date) return false;
     const d = new Date(t.due_date); d.setHours(0,0,0,0);
@@ -526,8 +598,8 @@ function filterTasks(tasks) {
 
 function renderTask(t) {
   const user = state.users.find(u => u.id === t.assignee_id);
-  const initials = user ? (user.full_name || user.email || '').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase() : '';
-  const tags = (t.tags || []).map(tag => `<span class="task-tag">${tag}</span>`).join('');
+  const initials = user ? (user.name || user.email || '').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase() : '';
+  const tags = (t.tags || []).map(tag => `<span class="task-tag">${escapeHtml(tag)}</span>`).join('');
   let dueClass = '';
   let dueText = '';
   if (t.due_date) {
@@ -542,7 +614,7 @@ function renderTask(t) {
     <div class="task" draggable="true" data-id="${t.id}">
       <div class="task-title"><span class="task-priority ${t.priority||'p3'}"></span>${escapeHtml(t.title)}</div>
       <div class="task-meta">
-        ${user ? `<div class="task-assignee" title="${escapeHtml(user.full_name || user.email)}">${initials}</div>` : ''}
+        ${user ? `<div class="task-assignee" title="${escapeHtml(user.name || user.email)}">${initials}</div>` : ''}
         ${dueText ? `<span class="task-due ${dueClass}">${dueText}</span>` : ''}
         ${tags}
       </div>
@@ -635,7 +707,8 @@ async function saveTask() {
   if (state.editingId) {
     res = await supabase.from('team_tasks').update(data).eq('id', state.editingId);
   } else {
-    data.created_by = state.user.id;
+    // created_by = public.users.id (не auth.uid!)
+    data.created_by = state.publicUser?.id;
     data.created_at = new Date().toISOString();
     res = await supabase.from('team_tasks').insert(data);
   }
@@ -682,15 +755,11 @@ function toast(msg, type) {
 // ========== KEYBOARD ==========
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && modal.classList.contains('show')) modal.classList.remove('show');
-  if ((e.key === 'n' || e.key === 'т') && !modal.classList.contains('show') && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && state.user) {
+  if ((e.key === 'n' || e.key === 'т') && !modal.classList.contains('show') && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && state.publicUser) {
     e.preventDefault();
     openModal(null);
   }
 });
-
-// ========== INIT ==========
-checkAuth();
-supabase.auth.onAuthStateChange(() => checkAuth());
 </script>
 
 </body>
