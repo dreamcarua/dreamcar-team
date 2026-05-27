@@ -174,11 +174,19 @@
   function crRow(p) {
     const items = p.creatives || [];
     if (!items.length) return '<span class="ov-empty">креативів немає</span>';
-    return items.slice(0, 8).map(c => {
-      const url = c.compressed_url || c.url || c.thumb_url || '';
-      const isV = (c.kind === 'video') || /\.(mp4|mov|webm)$/i.test(url);
-      if (isV) return `<div class="ov-cr-thumb">${url ? `<video src="${esc(url)}" muted></video>` : '🎬'}<span class="ov-cr-kind">VIDEO</span></div>`;
-      return `<div class="ov-cr-thumb">${url ? `<img src="${esc(url)}" alt="">` : '🖼'}</div>`;
+    // p.creatives — массив UUID-ів. Підіймаємо обʼєкти зі Store.
+    return items.slice(0, 8).map(item => {
+      const c = (typeof item === 'string')
+        ? (Store.creative ? Store.creative(item) : null)
+        : item;
+      if (!c) return `<div class="ov-cr-thumb">📦</div>`;
+      const url = c.compressed_url || c.thumbnail_url || c.url || c.thumb_url || c.drive_file_id || '';
+      const isVideo = c.type === 'video' || (c.kind === 'video') || /\.(mp4|mov|webm)$/i.test(url);
+      if (isVideo) {
+        // Для відео — namesake plate з emoji (HTML5 video не завжди тягне з R2 без CORS у preview)
+        return `<div class="ov-cr-thumb" title="${esc(c.name || 'video')}">${url ? `<video src="${esc(url)}" muted preload="metadata"></video>` : '🎬'}<span class="ov-cr-kind">VIDEO</span></div>`;
+      }
+      return `<div class="ov-cr-thumb" title="${esc(c.name || 'image')}">${url ? `<img src="${esc(url)}" alt="" loading="lazy">` : (c.preview || '🖼')}</div>`;
     }).join('') + (items.length > 8 ? `<div class="ov-cr-thumb">+${items.length-8}</div>` : '');
   }
   function apprRow(p) {
