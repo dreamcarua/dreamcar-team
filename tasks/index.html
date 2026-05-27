@@ -200,6 +200,78 @@
   @media (max-width:900px){.kanban{grid-template-columns:1fr;}.col{min-height:250px;}.notif-dropdown{width:calc(100vw - 24px);right:12px;}}
   @media (max-width:600px){.topbar{padding:12px 16px;}.kanban{padding:12px;gap:12px;}.brand-mark .meta{display:none;}.grid2,.grid3{grid-template-columns:1fr;}}
   @media (prefers-reduced-motion:reduce){.task,.modal-backdrop{transition:none;}}
+
+  /* OVERVIEW MODAL */
+  .ov-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:1100;padding:20px;}
+  .ov-modal-backdrop.show{display:flex;}
+  .ov-modal{background:var(--coal);border:1px solid var(--line);max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;}
+  .ov-head{padding:18px 22px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .ov-head h2{font-family:'Oswald',sans-serif;font-size:22px;color:var(--white);line-height:1.2;letter-spacing:0.01em;flex:1;}
+  .ov-head .ov-close{background:transparent;border:none;color:var(--ash);font-size:24px;cursor:pointer;line-height:1;padding:0 4px;}
+  .ov-head .ov-close:hover{color:var(--red);}
+  .ov-badges{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0;}
+  .ov-badge{padding:3px 9px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;border-radius:3px;text-transform:uppercase;}
+  .ov-badge.status-inbox{background:rgba(59,130,246,0.18);color:var(--info);}
+  .ov-badge.status-doing{background:rgba(245,158,11,0.18);color:var(--warning);}
+  .ov-badge.status-review{background:rgba(227,6,19,0.18);color:var(--red);}
+  .ov-badge.status-done{background:rgba(16,185,129,0.18);color:var(--success);}
+  .ov-badge.p1{background:rgba(220,38,38,0.2);color:var(--danger);}
+  .ov-badge.p2{background:rgba(245,158,11,0.2);color:var(--warning);}
+  .ov-badge.p3{background:rgba(59,130,246,0.2);color:var(--info);}
+  .ov-badge.p4{background:var(--graphite);color:var(--ash);}
+  .ov-badge.due-overdue{background:rgba(220,38,38,0.2);color:var(--danger);}
+  .ov-badge.due-today{background:rgba(245,158,11,0.2);color:var(--warning);}
+  .ov-badge.due-soon{background:var(--graphite);color:var(--bone);}
+  .ov-body{padding:18px 22px;overflow-y:auto;flex:1;}
+  .ov-section{margin-bottom:18px;}
+  .ov-section-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;color:var(--ash);text-transform:uppercase;margin-bottom:6px;display:block;}
+  .ov-desc{color:var(--bone);font-size:14px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;}
+  .ov-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--white);margin-bottom:4px;}
+  .ov-row .lbl{color:var(--ash);min-width:90px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;}
+  .ov-tags{display:flex;flex-wrap:wrap;gap:5px;}
+  .ov-tag{padding:2px 8px;background:var(--coal);border:1px solid var(--line);color:var(--bone);font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:3px;}
+  .ov-progress{height:6px;background:var(--graphite);border-radius:3px;overflow:hidden;margin-top:6px;}
+  .ov-progress-fill{height:100%;background:var(--success);transition:width 0.3s;}
+  .ov-subtask{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:var(--bone);}
+  .ov-subtask.done{color:var(--ash);text-decoration:line-through;}
+  .ov-subtask input[type=checkbox]{accent-color:var(--red);cursor:pointer;}
+  .ov-avatars{display:flex;gap:-4px;}
+  .ov-avatar{width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;border:2px solid var(--coal);margin-left:-6px;}
+  .ov-avatar:first-child{margin-left:0;}
+  .ov-comments-mini{display:flex;flex-direction:column;gap:8px;}
+  .ov-comment{padding:8px 10px;background:var(--black);border-left:2px solid var(--red);border-radius:0 3px 3px 0;}
+  .ov-comment .head{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ash);letter-spacing:0.1em;margin-bottom:3px;}
+  .ov-comment .head .who{color:var(--red);font-weight:700;}
+  .ov-comment .body{font-size:13px;color:var(--bone);line-height:1.4;word-wrap:break-word;}
+  .ov-empty{color:var(--ash);font-style:italic;font-size:12px;}
+  .ov-actions{padding:12px 18px;border-top:1px solid var(--line);background:var(--graphite);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .ov-btn{padding:9px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;border:1px solid var(--line);background:var(--black);color:var(--white);cursor:pointer;border-radius:3px;transition:border-color 120ms,background 120ms;}
+  .ov-btn:hover{border-color:var(--red);}
+  .ov-btn.primary{background:var(--red);border-color:var(--red);font-family:'Archivo Black',sans-serif;}
+  .ov-btn.primary:hover{background:#ff1a1a;}
+  .ov-btn.success{background:var(--success);border-color:var(--success);font-family:'Archivo Black',sans-serif;}
+  .ov-btn.warn{border-color:var(--warning);color:var(--warning);}
+  .ov-btn.danger{border-color:var(--danger);color:var(--danger);}
+  .ov-btn.danger:hover{background:var(--danger);color:#fff;}
+  .ov-btn-icon{padding:9px 11px;}
+  .ov-comment-form{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
+  .ov-comment-form.show{display:block;}
+  .ov-comment-form textarea{width:100%;background:var(--black);border:1px solid var(--steel);color:var(--white);padding:8px 10px;font-family:'Manrope',sans-serif;font-size:13px;min-height:60px;resize:vertical;outline:none;}
+  .ov-comment-form textarea:focus{border-color:var(--red);}
+  .ov-comment-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px;}
+
+  /* Mobile: bottom sheet */
+  @media (max-width:600px){
+    .ov-modal-backdrop{align-items:flex-end;padding:0;}
+    .ov-modal{max-width:none;max-height:92vh;border-radius:16px 16px 0 0;border-bottom:none;}
+    .ov-actions{padding:10px 12px;gap:6px;}
+    .ov-btn{flex:1 1 calc(50% - 6px);padding:11px 8px;font-size:10px;text-align:center;}
+    .ov-btn-icon{flex:0 0 auto;}
+    .ov-head{padding:14px 16px 10px;}
+    .ov-head h2{font-size:18px;}
+    .ov-body{padding:14px 16px;}
+  }
+
 </style>
 </head>
 <body>
@@ -257,7 +329,24 @@
   </div>
 </div>
 
+
+<!-- OVERVIEW MODAL -->
+<div class="ov-modal-backdrop" id="overviewModal">
+  <div class="ov-modal">
+    <div class="ov-head">
+      <div style="flex:1;">
+        <h2 id="ov-title">—</h2>
+        <div class="ov-badges" id="ov-badges"></div>
+      </div>
+      <button class="ov-close" id="ov-close" aria-label="Закрити">×</button>
+    </div>
+    <div class="ov-body" id="ov-body"></div>
+    <div class="ov-actions" id="ov-actions"></div>
+  </div>
+</div>
+
 <!-- TASK MODAL -->
+
 <div class="modal-backdrop" id="taskModal">
   <div class="modal">
     <h2 id="modalTitle">+ НОВЕ ЗАВДАННЯ</h2>
@@ -596,6 +685,201 @@ function bindTaskClicks(){
 }
 
 // ========== MODAL ==========
+
+
+// ========== OVERVIEW MODE ==========
+const overviewModal = document.getElementById('overviewModal');
+let _ovCurrentTask = null;
+
+function openTaskModal(task){
+  // Нове завдання — одразу у edit form
+  if(!task){ openEditModal(null); return; }
+  // Існуюче — спочатку overview
+  openOverview(task);
+}
+
+document.getElementById('ov-close').onclick = ()=> overviewModal.classList.remove('show');
+overviewModal.addEventListener('click', e => { if(e.target===overviewModal) overviewModal.classList.remove('show'); });
+
+function fmtDueLabel(t){
+  if(!t.due_date) return '';
+  const due = new Date(t.due_date);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dueDay = new Date(due); dueDay.setHours(0,0,0,0);
+  const days = Math.round((dueDay.getTime()-today.getTime())/86400000);
+  const ds = String(due.getDate()).padStart(2,'0')+'.'+String(due.getMonth()+1).padStart(2,'0');
+  if(t.status!=='done' && days<0) return {cls:'due-overdue', txt:`🔥 Прострочено · ${ds} (${-days} дн.)`};
+  if(days===0) return {cls:'due-today', txt:`⏰ Сьогодні · ${ds}`};
+  if(days===1) return {cls:'due-today', txt:`⏰ Завтра · ${ds}`};
+  return {cls:'due-soon', txt:`📅 ${ds} (через ${days} дн.)`};
+}
+
+async function openOverview(task){
+  _ovCurrentTask = task;
+  state.editingId = task.id;
+  // title
+  document.getElementById('ov-title').textContent = task.title || '—';
+  // badges
+  const badges = document.getElementById('ov-badges');
+  const STATUS_LBL = { inbox:'📥 Inbox', doing:'⚙ Doing', review:'👀 Review', done:'✅ Done' };
+  const PR_LBL = { p1:'🔴 P1 критично', p2:'🟡 P2', p3:'🔵 P3', p4:'⚪ P4' };
+  const due = fmtDueLabel(task);
+  let bhtml = `<span class="ov-badge status-${task.status||'inbox'}">${STATUS_LBL[task.status]||task.status}</span>`;
+  bhtml += `<span class="ov-badge ${task.priority||'p3'}">${PR_LBL[task.priority||'p3']}</span>`;
+  if(due && due.txt) bhtml += `<span class="ov-badge ${due.cls}">${due.txt}</span>`;
+  badges.innerHTML = bhtml;
+  // body
+  const assignee = state.users.find(u=>u.id===task.assignee_id);
+  const creator = state.users.find(u=>u.id===task.created_by);
+  const watchers = (task.watchers||[]).map(uid=>state.users.find(u=>u.id===uid)).filter(Boolean);
+  const subtasks = Array.isArray(task.subtasks)?task.subtasks:[];
+  const sDone = subtasks.filter(s=>s.done).length;
+  const sTotal = subtasks.length;
+  const pct = sTotal>0 ? Math.round(sDone/sTotal*100) : 0;
+
+  let body = '';
+  // assignee + creator
+  body += `<div class="ov-section">`;
+  if(assignee){
+    const init = (assignee.name||'').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+    body += `<div class="ov-row"><span class="lbl">Виконавець</span><div class="ov-avatar">${init}</div><span>${escapeHtml(assignee.name||assignee.email)}</span></div>`;
+  } else {
+    body += `<div class="ov-row"><span class="lbl">Виконавець</span><span class="ov-empty">не призначено</span></div>`;
+  }
+  if(creator) body += `<div class="ov-row"><span class="lbl">Створив</span><span>${escapeHtml(creator.name||creator.email)}</span></div>`;
+  if(task.estimated_h) body += `<div class="ov-row"><span class="lbl">Оцінка</span><span>${task.estimated_h} год</span></div>`;
+  if(task.recurrence) body += `<div class="ov-row"><span class="lbl">Повтор</span><span>${({daily:'щодня',weekly:'щотижня',monthly:'щомісяця',workdays:'будні'})[task.recurrence]||task.recurrence}</span></div>`;
+  body += `</div>`;
+
+  // description
+  if(task.description){
+    body += `<div class="ov-section"><span class="ov-section-label">Опис</span><div class="ov-desc">${escapeHtml(task.description)}</div></div>`;
+  }
+  // tags
+  if((task.tags||[]).length){
+    const tags = (task.tags||[]).map(t=>`<span class="ov-tag">${escapeHtml(t)}</span>`).join('');
+    body += `<div class="ov-section"><span class="ov-section-label">Мітки</span><div class="ov-tags">${tags}</div></div>`;
+  }
+  // subtasks
+  if(sTotal>0){
+    let sthtml = subtasks.map((st,i)=>`<div class="ov-subtask ${st.done?'done':''}"><input type="checkbox" ${st.done?'checked':''} data-idx="${i}" class="ov-st-check"><span>${escapeHtml(st.text||'')}</span></div>`).join('');
+    body += `<div class="ov-section"><span class="ov-section-label">Чек-лист (${sDone}/${sTotal} · ${pct}%)</span>${sthtml}<div class="ov-progress"><div class="ov-progress-fill" style="width:${pct}%"></div></div></div>`;
+  }
+  // watchers
+  if(watchers.length){
+    const ww = watchers.map(u=>{const i=(u.name||'').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();return `<div class="ov-avatar" title="${escapeHtml(u.name||u.email)}">${i}</div>`;}).join('');
+    body += `<div class="ov-section"><span class="ov-section-label">Спостерігачі (${watchers.length})</span><div class="ov-avatars">${ww}</div></div>`;
+  }
+  // comments (last 3)
+  body += `<div class="ov-section"><span class="ov-section-label">Останні коментарі</span><div class="ov-comments-mini" id="ov-comments-mini">Завантаження…</div>`;
+  body += `<div class="ov-comment-form" id="ov-comment-form"><textarea id="ov-comment-input" placeholder="Напиши коментар..."></textarea><div class="ov-comment-form-actions"><button class="ov-btn" id="ov-comment-cancel">Скасувати</button><button class="ov-btn primary" id="ov-comment-send">Відправити</button></div></div>`;
+  body += `</div>`;
+
+  document.getElementById('ov-body').innerHTML = body;
+
+  // subtask checkboxes — quick toggle
+  document.querySelectorAll('.ov-st-check').forEach(cb=>cb.onchange = async e=>{
+    const idx = +e.target.dataset.idx;
+    subtasks[idx].done = e.target.checked;
+    await supabase.from('team_tasks').update({subtasks:subtasks,updated_at:new Date().toISOString()}).eq('id',task.id);
+    openOverview({...task, subtasks:[...subtasks]});
+  });
+
+  // actions
+  const me = state.publicUser?.id;
+  const isCreator = task.created_by === me;
+  const isAdmin = state.publicUser?.role && ['ceo','coo','lead'].includes(state.publicUser.role);
+  const NEXT = { inbox:'doing', doing:'review', review:'done', done:null };
+  const nextStatus = NEXT[task.status];
+  const nextLabel = { doing:'⚙ У роботу', review:'👀 На рев\'ю', done:'✅ Завершити' }[nextStatus];
+
+  let actions = '';
+  if(nextStatus){
+    actions += `<button class="ov-btn ${nextStatus==='done'?'success':'primary'}" id="ov-act-next">${nextLabel}</button>`;
+  }
+  if(task.status !== 'inbox' && task.status !== 'done'){
+    actions += `<button class="ov-btn warn" id="ov-act-back">← На крок назад</button>`;
+  }
+  actions += `<button class="ov-btn" id="ov-act-comment">💬 Коментар</button>`;
+  actions += `<button class="ov-btn" id="ov-act-edit">✏ Редагувати</button>`;
+  if(isCreator || isAdmin) actions += `<button class="ov-btn-icon ov-btn danger" id="ov-act-delete" title="Видалити">🗑</button>`;
+  document.getElementById('ov-actions').innerHTML = actions;
+
+  // bind actions
+  document.getElementById('ov-act-next')?.addEventListener('click', async()=>{
+    if(!nextStatus) return;
+    const {error} = await supabase.from('team_tasks').update({status:nextStatus, updated_at:new Date().toISOString()}).eq('id',task.id);
+    if(error){toast(error.message,'error');return;}
+    toast(`Перенесено у ${STATUS_LBL[nextStatus]}`,'success');
+    triggerNotifyWorker();
+    overviewModal.classList.remove('show');
+  });
+  document.getElementById('ov-act-back')?.addEventListener('click', async()=>{
+    const BACK = { doing:'inbox', review:'doing', done:'review' };
+    const bs = BACK[task.status]; if(!bs) return;
+    const {error} = await supabase.from('team_tasks').update({status:bs,updated_at:new Date().toISOString()}).eq('id',task.id);
+    if(!error){toast('Повернуто','success');triggerNotifyWorker();overviewModal.classList.remove('show');}
+  });
+  document.getElementById('ov-act-comment')?.addEventListener('click', ()=>{
+    document.getElementById('ov-comment-form').classList.add('show');
+    setTimeout(()=>document.getElementById('ov-comment-input').focus(),50);
+  });
+  document.getElementById('ov-comment-cancel')?.addEventListener('click', ()=>{
+    document.getElementById('ov-comment-form').classList.remove('show');
+    document.getElementById('ov-comment-input').value='';
+  });
+  document.getElementById('ov-comment-send')?.addEventListener('click', async()=>{
+    const body = document.getElementById('ov-comment-input').value.trim();
+    if(!body) return;
+    const mentions = [];
+    const re = /@([A-Za-zА-Яа-яІіЇїЄєҐґ\-]+)/g;
+    let m; while((m=re.exec(body))){
+      const u = state.users.find(x=>x.name?.split(' ')[0].toLowerCase()===m[1].toLowerCase());
+      if(u && !mentions.includes(u.id)) mentions.push(u.id);
+    }
+    const {error} = await supabase.from('team_task_comments').insert({task_id:task.id, author_id:state.publicUser.id, body, mentions});
+    if(error){toast(error.message,'error');return;}
+    document.getElementById('ov-comment-input').value = '';
+    document.getElementById('ov-comment-form').classList.remove('show');
+    toast('Коментар додано','success');
+    triggerNotifyWorker();
+    // reload comments preview
+    loadOverviewComments(task.id);
+  });
+  document.getElementById('ov-act-edit')?.addEventListener('click', ()=>{
+    overviewModal.classList.remove('show');
+    openEditModal(task);
+  });
+  document.getElementById('ov-act-delete')?.addEventListener('click', async()=>{
+    if(!confirm('Видалити завдання? Це не можна скасувати.')) return;
+    const {error} = await supabase.from('team_tasks').delete().eq('id',task.id);
+    if(error) toast(error.message,'error');
+    else {toast('Видалено','success'); overviewModal.classList.remove('show');}
+  });
+
+  overviewModal.classList.add('show');
+  loadOverviewComments(task.id);
+}
+
+async function loadOverviewComments(taskId){
+  const target = document.getElementById('ov-comments-mini');
+  if(!target) return;
+  const {data} = await supabase.from('team_task_comments').select('*').eq('task_id',taskId).is('deleted_at',null).order('created_at',{ascending:false}).limit(3);
+  if(!data || !data.length){
+    target.innerHTML = '<div class="ov-empty">Немає коментарів. Будь першим у Редагуванні.</div>';
+    return;
+  }
+  target.innerHTML = data.reverse().map(c=>{
+    const a = state.users.find(u=>u.id===c.author_id);
+    let body = escapeHtml(c.body);
+    (c.mentions||[]).forEach(uid=>{
+      const u = state.users.find(x=>x.id===uid);
+      if(u){const re=new RegExp('@'+u.name.split(' ')[0],'gi');body=body.replace(re,`<span class="mention">@${escapeHtml(u.name.split(' ')[0])}</span>`);}
+    });
+    return `<div class="ov-comment"><div class="head"><span class="who">${escapeHtml(a?.name||'?')}</span><span>${timeAgo(c.created_at)}</span></div><div class="body">${body}</div></div>`;
+  }).join('');
+}
+
 const modal=document.getElementById('taskModal');
 document.getElementById('addTaskBtn').onclick=()=>openTaskModal(null);
 document.getElementById('cancelTaskBtn').onclick=()=>modal.classList.remove('show');
@@ -603,7 +887,7 @@ document.getElementById('saveTaskBtn').onclick=saveTask;
 document.getElementById('deleteTaskBtn').onclick=deleteTask;
 modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show');});
 
-function openTaskModal(task){
+function openEditModal(task){
   state.editingId=task?.id||null;
   document.getElementById('modalTitle').textContent=task?'РЕДАГУВАТИ':'+ НОВЕ ЗАВДАННЯ';
   document.getElementById('f-title').value=task?.title||'';
