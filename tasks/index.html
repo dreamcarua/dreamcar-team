@@ -31,6 +31,7 @@
   .brand-mark .red{color:var(--red);}
   .brand-mark .meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ash);letter-spacing:0.15em;margin-left:8px;}
   .topbar-actions{display:flex;gap:10px;align-items:center;}
+  @keyframes tgPulse{0%,100%{box-shadow:0 0 6px rgba(245,158,11,0.6);}50%{box-shadow:0 0 14px rgba(245,158,11,1);}}
   .filter-btn,.add-btn,.icon-btn{padding:8px 14px;background:var(--coal);border:1px solid var(--line);color:var(--white);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.15em;cursor:pointer;transition:border-color 0.15s,background 0.15s;text-decoration:none;}
   .filter-btn:hover,.icon-btn:hover{border-color:var(--red);}
   .filter-btn.active{background:var(--red);border-color:var(--red);}
@@ -315,10 +316,13 @@
       <button class="filter-btn" data-filter="all">ВСІ</button>
       <button class="filter-btn" data-filter="me">МОЇ</button>
       <button class="filter-btn" data-filter="watching">СТЕЖУ</button>
+      <button class="filter-btn" data-filter="created">Я СТВОРИВ</button>
+      <button class="filter-btn" data-filter="hipri">🔴 P1+P2</button>
       <button class="filter-btn" data-filter="today">СЬОГОДНІ</button>
       <button class="filter-btn" data-filter="overdue">ПРОТЕРМ.</button>
       <button class="filter-btn" data-filter="mentions">@МЕНЕ</button>
       <button class="add-btn" id="addTaskBtn">+ ЗАВДАННЯ (N)</button>
+      <button class="filter-btn" id="templatesBtn" title="Шаблони задач">📋 ШАБЛОНИ</button>
     </div>
   </div>
 
@@ -508,7 +512,12 @@ async function checkAuth(){
 
 function renderAuthChip(){
   const name=state.publicUser?.name||state.authUser.email||'user';
-  document.getElementById('authChip').innerHTML=`<span class="user-chip">✓ ${escapeHtml(name.toUpperCase().slice(0,16))}</span> <button class="filter-btn" id="signOutBtn">EXIT</button>`;
+  // TG-bind indicator: 📲 (привʼязано) або ⚠️ (не привʼязано)
+  const tgOk = !!state.publicUser?.tg_chat_id;
+  const tgDot = tgOk
+    ? '<span title="Telegram привʼязано" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 6px rgba(16,185,129,0.6);margin-right:6px;vertical-align:middle;"></span>'
+    : '<a href="https://t.me/dreamcar_team_bot?start=bind" target="_blank" title="Підключи TG для нотифікацій" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F59E0B;box-shadow:0 0 6px rgba(245,158,11,0.6);margin-right:6px;vertical-align:middle;text-decoration:none;animation:tgPulse 1.5s infinite;"></a>';
+  document.getElementById('authChip').innerHTML=`<span class="user-chip">${tgDot}✓ ${escapeHtml(name.toUpperCase().slice(0,16))}</span> <button class="filter-btn" id="signOutBtn">EXIT</button>`;
   document.getElementById('signOutBtn').onclick=async()=>{await supabase.auth.signOut();location.reload();};
 }
 
@@ -602,6 +611,8 @@ function filterTasks(tasks){
   const me=state.publicUser?.id;
   if(state.filter==='me')return tasks.filter(t=>t.assignee_id===me);
   if(state.filter==='watching')return tasks.filter(t=>(t.watchers||[]).includes(me));
+  if(state.filter==='created')return tasks.filter(t=>t.created_by===me);
+  if(state.filter==='hipri')return tasks.filter(t=>t.priority==='p1'||t.priority==='p2');
   if(state.filter==='today')return tasks.filter(t=>{if(!t.due_date)return false;const d=new Date(t.due_date);d.setHours(0,0,0,0);return d.getTime()===today.getTime();});
   if(state.filter==='overdue')return tasks.filter(t=>{if(!t.due_date||t.status==='done')return false;return new Date(t.due_date)<today;});
   if(state.filter==='mentions')return tasks.filter(t=>state.mentionAuthors.has(t.id));
@@ -1256,6 +1267,74 @@ window.addEventListener('hashchange',tryOpenFromHash);
 // чекаємо завантаження tasks, потім спробуємо
 const _origLoadTasks=loadTasks;
 window.addEventListener('load',()=>setTimeout(tryOpenFromHash,800));
+
+// ========== TASK TEMPLATES (localStorage) ==========
+const DEFAULT_TEMPLATES = [
+  { id:'t1', name:'🔁 Тижневий sync команди', priority:'p2', tags:['процес','sync'], description:'Стендап з командою.\n\n• Що зроблено за тиждень\n• Блокери\n• Плани на наступний тиждень\n• Метрики (KPI)' },
+  { id:'t2', name:'🚀 Запуск проекту DreamCar', priority:'p1', tags:['dreamcar','запуск'], description:'Чек-лист запуску нового авто:\n\n• [ ] Лендінг готовий і протестований\n• [ ] TG-канал прогрітий (3 пости + сторіс)\n• [ ] IG/TikTok контент-план\n• [ ] Email-розсилка база\n• [ ] Платіжна система перевірена\n• [ ] Контракти на доставку\n• [ ] Дата фіналу узгоджена' },
+  { id:'t3', name:'📝 Місячний звіт', priority:'p3', tags:['звіт'], description:'Підсумок місяця:\n\n• Виручка vs план\n• Розіграно/в роботі\n• Топ-3 досягнення\n• Топ-3 виклики\n• План на наступний місяць' },
+  { id:'t4', name:'🐛 Bug-fix продакшну', priority:'p1', tags:['bug','prod'], description:'Опис багу:\n\n• Що сталось?\n• Як відтворити (кроки)?\n• Очікувана vs фактична поведінка\n• Скріншоти/логи\n• Хто помітив (юзер, дата)?' },
+  { id:'t5', name:'🎯 Маркетинговий експеримент', priority:'p2', tags:['маркетинг','тест'], description:'A/B тест:\n\n• Гіпотеза\n• Метрика успіху\n• Сегмент аудиторії\n• Тривалість\n• Бюджет\n• Хто аналізує результат' },
+  { id:'t6', name:'🤝 Зустріч з кандидатом', priority:'p2', tags:['hiring'], description:'Інтерв\'ю:\n\n• Позиція\n• Резюме (лінк)\n• Питання до кандидата\n• Перевірити: експертиза, мотивація, fit з командою\n• Decision: hire/no/think' },
+];
+const TPL_KEY = 'dc_tasks_templates_v1';
+function getTemplates(){
+  try { const saved = JSON.parse(localStorage.getItem(TPL_KEY) || 'null'); return saved || DEFAULT_TEMPLATES; }
+  catch { return DEFAULT_TEMPLATES; }
+}
+function saveTemplates(arr){ try{ localStorage.setItem(TPL_KEY, JSON.stringify(arr)); }catch(e){} }
+function openTemplatesModal(){
+  const tpls = getTemplates();
+  const html = `
+    <div class="ov-modal-backdrop show" id="tplBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:#141414;border:1px solid #2A2A2A;border-radius:10px;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;">
+        <div style="padding:18px 22px;border-bottom:1px solid #2A2A2A;display:flex;align-items:center;gap:12px;">
+          <h2 style="margin:0;font-family:Oswald,sans-serif;font-size:22px;flex:1;">📋 Шаблони задач</h2>
+          <button id="tplClose" style="background:transparent;border:none;color:#888;font-size:22px;cursor:pointer;">×</button>
+        </div>
+        <div style="padding:18px 22px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px;">
+          ${tpls.map(t => `
+            <div data-tpl-id="${t.id}" style="background:rgba(255,255,255,0.03);border:1px solid #2A2A2A;border-radius:6px;padding:12px 14px;cursor:pointer;transition:border-color 120ms,background 120ms;" class="tpl-item">
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px;color:#fff;">${escapeHtml(t.name)}</div>
+              <div style="font-family:JetBrains Mono,monospace;font-size:10px;color:#888;letter-spacing:0.05em;">${(t.priority||'p3').toUpperCase()} · ${(t.tags||[]).join(' · ')}</div>
+              <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.4;max-height:36px;overflow:hidden;">${escapeHtml((t.description||'').slice(0,140))}…</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="padding:14px 22px;border-top:1px solid #2A2A2A;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+          <button id="tplReset" class="filter-btn" title="Відновити дефолтні шаблони">↺ Reset</button>
+          <button id="tplCloseFooter" class="filter-btn">Закрити</button>
+        </div>
+      </div>
+    </div>`;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap.firstElementChild);
+
+  const closeIt = () => document.getElementById('tplBackdrop')?.remove();
+  document.getElementById('tplClose').onclick = closeIt;
+  document.getElementById('tplCloseFooter').onclick = closeIt;
+  document.getElementById('tplBackdrop').onclick = e => { if(e.target.id==='tplBackdrop') closeIt(); };
+  document.getElementById('tplReset').onclick = () => { localStorage.removeItem(TPL_KEY); toast('Шаблони скинуто','success'); closeIt(); };
+  document.querySelectorAll('.tpl-item').forEach(item => {
+    item.onmouseover = () => { item.style.borderColor='#E30613'; item.style.background='rgba(227,6,19,0.06)'; };
+    item.onmouseout = () => { item.style.borderColor='#2A2A2A'; item.style.background='rgba(255,255,255,0.03)'; };
+    item.onclick = () => {
+      const tpl = tpls.find(x => x.id === item.dataset.tplId);
+      if (!tpl) return;
+      closeIt();
+      // Передаємо у openEditModal об'єкт-болванку з префіл-полями
+      openEditModal({
+        title: '',
+        description: tpl.description || '',
+        priority: tpl.priority || 'p3',
+        tags: tpl.tags || [],
+        status: 'inbox',
+      });
+    };
+  });
+}
+document.getElementById('templatesBtn').onclick = openTemplatesModal;
 </script>
 
 <script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
