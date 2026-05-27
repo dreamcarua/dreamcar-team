@@ -4,7 +4,7 @@
 // Підтягує справжні візуальні елементи DreamCar (з etron.dreamcar.ua):
 //   • favicon (racing plate avatar)
 //   • topbar logo (UA + DREAMCAR plate)
-//   • кольори: #d80004 (red glow), #141414 (bg)
+//   • кольори: #E30613 (red glow), #141414 (bg)
 //   • motorsport-стиль для headlines (Inter 900 + uppercase + tracking)
 
 (function () {
@@ -43,11 +43,11 @@
         '--bg-hover:  #2a2a2e;' +
         '--border:    #2a2a30;' +
         '--border-2:  #3a3a42;' +
-        '--red:       #d80004;' +
+        '--red:       #E30613;' +
         '--red-soft:  #ff3a3f;' +
         '--red-2:     #ff7a7e;' +
         '--red-dim:   rgba(216,0,4,0.15);' +
-        '--orange:    #ff6a1f;' +
+        '--orange:    #FF1A2B;' +
         '--orange-soft:#ff8e4a;' +
         '--gold:      #fbbf24;' +
         '--green:     #4ade80;' +
@@ -59,7 +59,7 @@
         '--grey:      #888;' +
         '--grey-2:    #555;' +
         '--shadow:    0 12px 32px rgba(0,0,0,0.55);' +
-        '--brand-grad: linear-gradient(135deg, #d80004, #ff6a1f);' +
+        '--brand-grad: linear-gradient(135deg, #E30613, #FF1A2B);' +
       '}' +
       // Brand buttons
       '.btn-primary {' +
@@ -203,5 +203,5 @@
   var obs = new MutationObserver(runAll);
   obs.observe(document.body, { childList: true, subtree: true });
 
-  console.log('%cDreamCar HQ Brand %c· Visual identity applied', 'color:#d80004;font-weight:800;', 'color:#888;');
+  console.log('%cDreamCar HQ Brand %c· Visual identity applied', 'color:#E30613;font-weight:800;', 'color:#888;');
 })();

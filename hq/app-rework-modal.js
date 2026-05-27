@@ -87,15 +87,15 @@
       kf.id = 'hq-rework-keyframes';
       kf.textContent = '@keyframes hq-rework-fade-in{from{opacity:0}to{opacity:1}}' +
         '.hq-rework-reason-card{transition:all 0.15s;}' +
-        '.hq-rework-reason-card:hover{border-color:#d80004 !important;background:rgba(216,0,4,0.05) !important;}' +
+        '.hq-rework-reason-card:hover{border-color:#E30613 !important;background:rgba(216,0,4,0.05) !important;}' +
         '.hq-rework-reason-card input:checked + span{color:#fff;font-weight:700;}' +
-        '.hq-rework-reason-card:has(input:checked){background:rgba(216,0,4,0.12) !important;border-color:#d80004 !important;}';
+        '.hq-rework-reason-card:has(input:checked){background:rgba(216,0,4,0.12) !important;border-color:#E30613 !important;}';
       document.head.appendChild(kf);
     }
 
     var reasonsHtml = REASONS.map(function (r) {
       return '<label class="hq-rework-reason-card" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg,#0a0a12);border:1px solid var(--border,#232338);border-radius:8px;cursor:pointer;font-size:13px;color:#e8e8f0;">' +
-        '<input type="checkbox" value="' + r.id + '" style="accent-color:#d80004;width:16px;height:16px;cursor:pointer;flex-shrink:0;"/>' +
+        '<input type="checkbox" value="' + r.id + '" style="accent-color:#E30613;width:16px;height:16px;cursor:pointer;flex-shrink:0;"/>' +
         '<span style="line-height:1.3;">' + r.icon + ' ' + r.label + '</span>' +
       '</label>';
     }).join('');

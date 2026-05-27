@@ -35,7 +35,7 @@
       '.hq-mention-popup { position: absolute; background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 4px; max-width: 260px; max-height: 220px; overflow-y: auto; z-index: 250; }' +
       '.hq-mention-popup .item { padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }' +
       '.hq-mention-popup .item:hover, .hq-mention-popup .item.active { background: var(--bg-hover); }' +
-      '.hq-mention-popup .ava { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg,#cc0000,#ff6577); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; color: #fff; }' +
+      '.hq-mention-popup .ava { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg,#E30613,#ff6577); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; color: #fff; }' +
       '.hq-mention-popup .nm { font-size: 13px; color: #fff; font-weight: 600; }' +
       '.hq-mention-popup .role { font-size: 10px; color: var(--grey); }';
     document.head.appendChild(css);

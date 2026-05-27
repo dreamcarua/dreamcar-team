@@ -25,7 +25,7 @@
     'pending':    { icon: '⏳', label: 'В черзі автопостингу',     color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
     'processing': { icon: '🚀', label: 'Постимо у TG…',            color: '#5a8fb8', bg: 'rgba(90,143,184,0.15)' },
     'done':       { icon: '✅', label: 'Опубліковано автоматично', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-    'failed':     { icon: '❌', label: 'Помилка автопостингу',      color: '#d80004', bg: 'rgba(216,0,4,0.15)' },
+    'failed':     { icon: '❌', label: 'Помилка автопостингу',      color: '#E30613', bg: 'rgba(216,0,4,0.15)' },
     'skipped':    { icon: '⏭', label: 'Автопост пропущено',        color: '#888',    bg: 'rgba(255,255,255,0.05)' },
   };
 
@@ -38,7 +38,7 @@
         '<span>' + v.label + '</span>' +
       '</div>';
     if (status === 'failed' && error) {
-      html += '<div style="font-size:11px;color:#d80004;padding:4px 10px;margin-top:4px;background:rgba(216,0,4,0.08);border-radius:6px;font-family:JetBrains Mono,monospace;">⚠️ ' + escHtml(String(error).slice(0, 200)) + '</div>';
+      html += '<div style="font-size:11px;color:#E30613;padding:4px 10px;margin-top:4px;background:rgba(216,0,4,0.08);border-radius:6px;font-family:JetBrains Mono,monospace;">⚠️ ' + escHtml(String(error).slice(0, 200)) + '</div>';
     }
     return html;
   }
