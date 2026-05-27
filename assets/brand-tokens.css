@@ -62,3 +62,73 @@ a:hover { color:var(--dc-red); }
 .dc-badge.danger { background:var(--dc-danger); color:#fff; }
 .dc-badge.info { background:var(--dc-info); color:#fff; }
 .dc-badge.red { background:var(--dc-red); color:#fff; }
+
+
+/* ========================================================================
+   MOBILE RESPONSIVE OVERRIDES — для HQ + Tasks + Survey + Onboarding
+   Працюють поверх inline-стилів через !important на ключових точках.
+   ======================================================================== */
+@media (max-width: 768px) {
+  /* HQ + Tasks: модалки full-width */
+  .modal, .ov-modal, [class*="modal-content"], #cardBody, #overviewModal > div {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    max-height: 100vh !important;
+  }
+  /* HQ sidebar колапс на мобільному */
+  .sidebar { width: 100% !important; max-width: 280px; }
+  /* Календар: одна колонка днів */
+  .cal-month, .cal-week { grid-template-columns: 1fr !important; }
+  .cal-day { min-height: 60px !important; padding: 6px !important; font-size: 11px; }
+  /* Дошка погоджень: stack вертикально */
+  .board-cols, .columns { grid-template-columns: 1fr !important; }
+  /* Pub-card layout */
+  .pub-card-layout, .form-row, .form-row-3, .form-row-2 { grid-template-columns: 1fr !important; }
+  /* Top bar */
+  .topbar { flex-wrap: wrap; padding: 8px 12px !important; gap: 8px !important; }
+  .topbar .search { order: 10; width: 100% !important; }
+  /* Filter buttons + bulk bar */
+  .filter-btn { padding: 6px 10px !important; font-size: 10px !important; }
+  .bulk-bar { left: 8px !important; right: 8px !important; transform: none !important; bottom: 8px !important; flex-wrap: wrap !important; padding: 10px !important; }
+  /* Tables — horizontal scroll */
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+  /* Inputs — fontsize ≥16px щоб iOS не зумив */
+  input, textarea, select { font-size: 16px !important; }
+  /* Headings smaller */
+  h1 { font-size: 28px !important; }
+  h2 { font-size: 22px !important; }
+  h3 { font-size: 18px !important; }
+  /* Reduce padding throughout */
+  .container, main, .main, .day-block, .welcome-hero { padding: 16px !important; }
+  /* Tasks board: gap менший */
+  .board { gap: 8px !important; }
+  .task-card { padding: 8px !important; font-size: 12px; }
+  /* TG-bind banner: stack column */
+  #tg-bind-section { padding: 18px 16px !important; }
+  #tg-bind-section > div { flex-direction: column !important; align-items: stretch !important; text-align: left; }
+  /* Touch-friendly: minimum 44x44 targets */
+  button, .btn, a.btn, .filter-btn, .add-btn, .dc-btn { min-height: 36px; }
+  /* Org chart: stack cards */
+  .authority-grid, .roles-grid, .org-grid { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 480px) {
+  /* Найдрібніший viewport — ще менше padding */
+  body { font-size: 13px; }
+  .container, main { padding: 12px !important; }
+  h1 { font-size: 24px !important; line-height: 1.1; }
+  .welcome-stats { grid-template-columns: 1fr 1fr !important; }
+  /* Auth-overlay card */
+  #dc-auth-overlay .dc-auth-card { padding: 24px 20px !important; }
+  /* Calendar: hide weekends optional, smaller cells */
+  .cal-day { min-height: 50px !important; }
+}
+
+/* Touch device: enable scroll momentum */
+@media (hover: none) and (pointer: coarse) {
+  * { -webkit-overflow-scrolling: touch; }
+  .modal, .ov-body, .sidebar, table { -webkit-overflow-scrolling: touch; }
+  /* Hover effects → disable (no false-hover on touch) */
+  .filter-btn:hover, .add-btn:hover, .task-card:hover { background: initial; }
+}
