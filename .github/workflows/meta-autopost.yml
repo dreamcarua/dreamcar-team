@@ -1,0 +1,44 @@
+name: Meta Autopost Worker (IG + FB + Threads)
+
+# Phase 1 foundation. Постить creatives у IG/FB/Threads через Graph API.
+# Worker фільтрує jobs з platform IN ('ig','fb','threads') — TG handled окремо.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # кожні 5 хв
+  workflow_dispatch:
+
+concurrency:
+  group: meta-autopost
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq + curl
+        run: sudo apt-get install -y -qq jq curl
+
+      - name: Run meta autopost worker
+        env:
+          SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
+          SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          META_FB_PAGE_TOKEN: ${{ secrets.META_FB_PAGE_TOKEN }}
+          META_FB_PAGE_ID: ${{ secrets.META_FB_PAGE_ID }}
+          META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
+          META_THREADS_USER_ID: ${{ secrets.META_THREADS_USER_ID }}
+          META_THREADS_TOKEN: ${{ secrets.META_THREADS_TOKEN }}
+          WORKER_ID: meta-gh-${{ github.run_id }}
+          MAX_JOBS: 3
+        run: |
+          # Якщо немає секретів — фейл softly (Phase 1 deploy без secrets)
+          if [ -z "$META_APP_ID" ] || [ -z "$META_FB_PAGE_TOKEN" ]; then
+            echo "::notice::Meta secrets not configured yet — skip. See docs/META_AUTOPOST_SETUP.md"
+            exit 0
+          fi
+          bash .github/scripts/meta-autopost-worker.sh
