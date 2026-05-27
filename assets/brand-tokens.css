@@ -1,0 +1,64 @@
+/* DreamCar Brand Tokens v1 — sync з brand.dreamcar.ua v3.9.2 */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Archivo+Black&display=swap');
+
+:root {
+  --dc-black:#0A0A0A; --dc-coal:#141414; --dc-graphite:#1F1F1F; --dc-steel:#2A2A2A;
+  --dc-line:#2A2A2A; --dc-ash:#888; --dc-bone:#DDD; --dc-white:#FFF;
+  --dc-red:#E30613; --dc-red-deep:#B8050F; --dc-red-glow:#FF1A2B;
+  --dc-success:#10B981; --dc-warning:#F59E0B; --dc-danger:#DC2626; --dc-info:#3B82F6; --dc-link:#60A5FA;
+  --dc-s-1:4px; --dc-s-2:8px; --dc-s-3:12px; --dc-s-4:16px; --dc-s-5:24px; --dc-s-6:32px; --dc-s-7:48px; --dc-s-8:64px;
+  --dc-r-sm:4px; --dc-r-md:8px; --dc-r-lg:16px; --dc-r-pill:999px;
+  --dc-font-body:'Manrope',sans-serif;
+  --dc-font-display:'Oswald','Bebas Neue',sans-serif;
+  --dc-font-accent:'Archivo Black',sans-serif;
+  --dc-font-mono:'JetBrains Mono',monospace;
+}
+
+/* Hard-overrides старих токенів */
+:root {
+  --bg:var(--dc-black) !important; --bg-1:var(--dc-black) !important;
+  --bg-2:var(--dc-coal) !important; --bg-3:var(--dc-graphite) !important;
+  --bg-4:var(--dc-steel) !important; --bg-hover:var(--dc-steel) !important;
+  --border:var(--dc-line) !important; --border-2:#3A3A3A !important;
+  --red:var(--dc-red) !important; --red-soft:var(--dc-red-glow) !important;
+  --green:var(--dc-success) !important; --gold:var(--dc-warning) !important;
+  --blue:var(--dc-info) !important; --grey:var(--dc-ash) !important;
+  --white:var(--dc-white) !important;
+  --orange:var(--dc-warning) !important;
+  --primary:var(--dc-red) !important;
+  --accent:var(--dc-red) !important;
+}
+html,body { background:var(--dc-black) !important; color:var(--dc-white) !important; font-family:var(--dc-font-body) !important; }
+body,p,span,div,li,td,button,input,textarea,select,label { font-family:var(--dc-font-body); }
+h1,h2,h3,h4,h5,h6,.h-display,.display,.hero-title,.section-title,.card-title,.s-title,.org-title {
+  font-family:var(--dc-font-display) !important; letter-spacing:0.01em;
+}
+code,pre,kbd,.mono,.badge,.meta,.filter-label { font-family:var(--dc-font-mono); }
+a { color:var(--dc-link); }
+a:hover { color:var(--dc-red); }
+
+/* DC components */
+.dc-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 18px; font-family:var(--dc-font-accent); font-size:13px;
+  letter-spacing:0.08em; text-transform:uppercase;
+  background:var(--dc-red); color:var(--dc-white);
+  border:none; border-radius:4px; cursor:pointer;
+  transition:background 120ms, transform 120ms;
+}
+.dc-btn:hover { background:var(--dc-red-deep); transform:translateY(-1px); }
+.dc-btn.ghost { background:transparent; color:var(--dc-white); border:1px solid var(--dc-line); }
+.dc-btn.ghost:hover { background:var(--dc-coal); border-color:var(--dc-red); }
+.dc-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 10px; border-radius:999px;
+  font-family:var(--dc-font-mono); font-size:10px;
+  letter-spacing:0.18em; text-transform:uppercase;
+  background:rgba(255,255,255,0.06); color:var(--dc-white);
+  border:1px solid var(--dc-line);
+}
+.dc-badge.success { background:var(--dc-success); color:#fff; }
+.dc-badge.warn { background:var(--dc-warning); color:#000; }
+.dc-badge.danger { background:var(--dc-danger); color:#fff; }
+.dc-badge.info { background:var(--dc-info); color:#fff; }
+.dc-badge.red { background:var(--dc-red); color:#fff; }
