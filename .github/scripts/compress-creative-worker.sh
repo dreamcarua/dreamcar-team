@@ -112,16 +112,97 @@ upload_to_r2() {
 
 JOB=$(echo "$CLAIMED" | jq -c '.[0]')
 CRE_ID=$(echo "$JOB"  | jq -r '.id')
-CRE_NAME=$(echo "$JOB" | jq -r '.name // "video.mp4"')
+CRE_NAME=$(echo "$JOB" | jq -r '.name // "creative"')
 CRE_URL=$(echo "$JOB"  | jq -r '.thumbnail_url')
 CRE_SIZE=$(echo "$JOB" | jq -r '.size_bytes // 0')
 CRE_ATTEMPTS=$(echo "$JOB" | jq -r '.attempts // 0')
+CRE_TYPE=$(echo "$JOB" | jq -r '.type // "video"')
 
 echo ""
-echo "=== Compressing $CRE_ID ($CRE_NAME, $CRE_SIZE bytes, attempt $CRE_ATTEMPTS) ==="
+echo "=== Compressing $CRE_ID ($CRE_TYPE, $CRE_NAME, $CRE_SIZE bytes, attempt $CRE_ATTEMPTS) ==="
 echo "Source URL: $CRE_URL"
 
 mkdir -p /tmp/cw
+
+# ============================================================
+# PHOTO branch: ImageMagick resize до 2560×2560 max + JPEG q90
+# ============================================================
+if [ "$CRE_TYPE" = "photo" ]; then
+  if ! command -v convert >/dev/null 2>&1; then
+    echo "Installing ImageMagick..."
+    sudo apt-get install -y -qq imagemagick
+  fi
+  PHOTO_IN=/tmp/cw/photo_in
+  PHOTO_OUT=/tmp/cw/photo_out.jpg
+  curl -fSL --connect-timeout 60 --max-time 600 -o "$PHOTO_IN" "$CRE_URL"
+  PHOTO_IN_SIZE=$(stat -c%s "$PHOTO_IN" 2>/dev/null || echo 0)
+  echo "Photo downloaded: $PHOTO_IN_SIZE bytes"
+
+  # Resize to fit 2560×2560 (тільки якщо більше), JPEG quality 90, strip metadata,
+  # progressive (вантажиться поступово), interlace plane
+  convert "$PHOTO_IN" \
+    -auto-orient \
+    -resize '2560x2560>' \
+    -strip \
+    -interlace Plane \
+    -sampling-factor 4:2:0 \
+    -quality 90 \
+    -define jpeg:fancy-upsampling=false \
+    "$PHOTO_OUT" 2>/tmp/cw/im-err.txt
+  IM_EXIT=$?
+  if [ $IM_EXIT -ne 0 ]; then
+    ERR_MSG=$(head -c 200 /tmp/cw/im-err.txt)
+    echo "::error::ImageMagick failed: $ERR_MSG"
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_compress_job" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{\"cre_id\":\"$CRE_ID\",\"err\":\"imagemagick: $ERR_MSG\"}"
+    exit 1
+  fi
+
+  PHOTO_OUT_SIZE=$(stat -c%s "$PHOTO_OUT")
+  PHOTO_OUT_MB=$(awk "BEGIN{printf \"%.2f\", $PHOTO_OUT_SIZE/1024/1024}")
+  echo "Photo compressed: $PHOTO_OUT_SIZE bytes (${PHOTO_OUT_MB} MB)"
+
+  # Якщо все ще > 9.5MB (TG sendPhoto ліміт 10MB), знизити quality поетапно
+  if [ "$PHOTO_OUT_SIZE" -gt 9500000 ]; then
+    for Q in 85 78 70 60; do
+      convert "$PHOTO_IN" -auto-orient -resize '2048x2048>' -strip -quality $Q "$PHOTO_OUT" 2>/dev/null
+      PHOTO_OUT_SIZE=$(stat -c%s "$PHOTO_OUT")
+      echo "Retry q=$Q → $PHOTO_OUT_SIZE bytes"
+      [ "$PHOTO_OUT_SIZE" -le 9500000 ] && break
+    done
+  fi
+
+  PHOTO_OBJECT_KEY="photo-compressed/${CRE_ID}.jpg"
+  PHOTO_PUBLIC_URL=$(upload_to_r2 "$PHOTO_OUT" "$PHOTO_OBJECT_KEY" "image/jpeg")
+  if [ -z "$PHOTO_PUBLIC_URL" ]; then
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_compress_job" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{\"cre_id\":\"$CRE_ID\",\"err\":\"r2 upload failed\"}"
+    exit 1
+  fi
+
+  echo "Uploaded to R2: $PHOTO_PUBLIC_URL"
+  curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_compress_job" \
+    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"cre_id\":\"$CRE_ID\",\"out_url\":\"$PHOTO_PUBLIC_URL\",\"out_size_bytes\":$PHOTO_OUT_SIZE}"
+
+  echo "=== Done photo $CRE_ID: $PHOTO_IN_SIZE → $PHOTO_OUT_SIZE bytes ==="
+  rm -f /tmp/cw/*
+  exit 0
+fi
+# Якщо тип не video — нічого з ним не робимо
+if [ "$CRE_TYPE" != "video" ]; then
+  echo "::warning::Unknown type '$CRE_TYPE' for $CRE_ID — skipping"
+  curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_compress_job" \
+    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"cre_id\":\"$CRE_ID\",\"err\":\"unsupported type: $CRE_TYPE\"}"
+  exit 0
+fi
 
 INPUT=/tmp/cw/in.mp4
 OUTPUT=/tmp/cw/out.mp4

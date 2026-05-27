@@ -87,10 +87,14 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
     CAPTION="${CAPTION}${NL}${NL}${HASHTAGS}"
   fi
 
-  # Запит креатива з усіма compressed-полями
-  CREATIVE=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&limit=1&select=creative_id,creatives(id,type,thumbnail_url,compressed_url,compressed_url_hevc,compressed_status,compressed_size_bytes,compressed_hevc_size_bytes,drive_file_id,name)" \
-    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" | jq -c '.[0].creatives')
+  # Запит ВСІХ creatives publication у правильному порядку (для media group)
+  CREATIVES_JSON=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&select=creative_id,creatives(id,type,thumbnail_url,compressed_url,compressed_url_hevc,compressed_status,compressed_size_bytes,compressed_hevc_size_bytes,drive_file_id,name)" \
+    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" | jq -c '[.[] | .creatives]')
+  CRE_COUNT=$(echo "$CREATIVES_JSON" | jq 'length')
+  echo "Creatives count: $CRE_COUNT"
 
+  # Перший creative — для legacy single-media branch
+  CREATIVE=$(echo "$CREATIVES_JSON" | jq -c '.[0] // null')
   CRE_TYPE=$(echo "$CREATIVE"        | jq -r '.type // ""')
   CRE_URL=$(echo "$CREATIVE"         | jq -r '.thumbnail_url // ""')
   CRE_H264_URL=$(echo "$CREATIVE"    | jq -r '.compressed_url // ""')
@@ -98,32 +102,78 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
   CRE_COMPRESSED_STATUS=$(echo "$CREATIVE" | jq -r '.compressed_status // "n/a"')
   CRE_COMPRESSED_SIZE=$(echo "$CREATIVE"  | jq -r '.compressed_size_bytes // 0')
   CRE_HEVC_SIZE=$(echo "$CREATIVE"   | jq -r '.compressed_hevc_size_bytes // 0')
-  echo "Creative: type=$CRE_TYPE | compressed=$CRE_COMPRESSED_STATUS (h264=$CRE_COMPRESSED_SIZE, hevc=$CRE_HEVC_SIZE)"
+  echo "First creative: type=$CRE_TYPE | compressed=$CRE_COMPRESSED_STATUS (h264=$CRE_COMPRESSED_SIZE, hevc=$CRE_HEVC_SIZE)"
 
-  HTTP=""
-
-  # ── Defer якщо video ще стискається
-  if [ "$CRE_TYPE" = "video" ] && \
-     ( [ "$CRE_COMPRESSED_STATUS" = "pending" ] || [ "$CRE_COMPRESSED_STATUS" = "processing" ] ); then
-    echo "::warning::Video compress not ready ($CRE_COMPRESSED_STATUS) — defer +3min, attempts→0"
+  # Якщо є відео що ще стискається у будь-якому creative — defer
+  ANY_VIDEO_PENDING=$(echo "$CREATIVES_JSON" | jq -r '[.[] | select(.type=="video" and (.compressed_status=="pending" or .compressed_status=="processing"))] | length')
+  if [ "$ANY_VIDEO_PENDING" -gt 0 ]; then
+    echo "::warning::Some video creative still compressing — defer +3min"
     curl -sS -X PATCH "$SUPABASE_URL/rest/v1/publications?id=eq.$PUB_ID" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
-      -H "Content-Type: application/json" \
-      -H "Prefer: return=minimal" \
+      -H "Content-Type: application/json" -H "Prefer: return=minimal" \
       -d '{"publish_at": "'"$(date -u -d '+3 minutes' '+%Y-%m-%dT%H:%M:%S.000Z')"'"}'
-    # Reset queue + DECREMENT attempts (defer не "спроба")
     curl -sS -X PATCH "$SUPABASE_URL/rest/v1/tg_autopost_queue?id=eq.$JOB_ID" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
-      -H "Content-Type: application/json" \
-      -H "Prefer: return=minimal" \
+      -H "Content-Type: application/json" -H "Prefer: return=minimal" \
       -d '{"status":"pending","claimed_at":null,"attempts":0,"last_error":"deferred for compress"}'
-    echo "Deferred."
-    JOB_ID_GLOBAL=""
-    PUB_ID_GLOBAL=""
+    JOB_ID_GLOBAL=""; PUB_ID_GLOBAL=""
     continue
   fi
 
-  if [ -z "$CRE_TYPE" ] || [ "$CRE_TYPE" = "null" ]; then
+  # ──── MEDIA GROUP (2-10 креативів) ────
+  if [ "$CRE_COUNT" -gt 1 ] && [ "$CRE_COUNT" -le 10 ]; then
+    echo "→ sendMediaGroup with $CRE_COUNT items"
+    MEDIA_JSON="["
+    ATTACH_ARGS=()
+    IDX=0
+    while IFS= read -r CR; do
+      [ -z "$CR" ] && continue
+      C_TYPE=$(echo "$CR" | jq -r '.type // "photo"')
+      C_THUMB=$(echo "$CR" | jq -r '.thumbnail_url // ""')
+      C_H264=$(echo "$CR" | jq -r '.compressed_url // ""')
+      C_HEVC=$(echo "$CR" | jq -r '.compressed_url_hevc // ""')
+      C_STATUS=$(echo "$CR" | jq -r '.compressed_status // "n/a"')
+      # Вибір URL: video — compressed; photo — thumbnail_url
+      ITEM_URL=""
+      if [ "$C_TYPE" = "video" ]; then
+        if [ "$PREFER_HEVC" = "1" ] && [ -n "$C_HEVC" ]; then ITEM_URL="$C_HEVC"
+        elif [ "$C_STATUS" = "ready" ] && [ -n "$C_H264" ]; then ITEM_URL="$C_H264"
+        else ITEM_URL="$C_THUMB"; fi
+      else
+        ITEM_URL="$C_THUMB"
+      fi
+      [ -z "$ITEM_URL" ] && { echo "Skip item $IDX: no URL"; IDX=$((IDX+1)); continue; }
+      curl -sS -o "/tmp/mg_$IDX.bin" -L "$ITEM_URL"
+      ITEM_SIZE=$(stat -c%s "/tmp/mg_$IDX.bin" 2>/dev/null || echo 0)
+      echo "  [$IDX] type=$C_TYPE size=$ITEM_SIZE → /tmp/mg_$IDX.bin"
+      MEDIA_TYPE="photo"; [ "$C_TYPE" = "video" ] && MEDIA_TYPE="video"
+      if [ $IDX -eq 0 ]; then
+        MEDIA_JSON="${MEDIA_JSON}{\"type\":\"$MEDIA_TYPE\",\"media\":\"attach://item$IDX\",\"caption\":$(echo "$CAPTION" | jq -Rs .),\"parse_mode\":\"HTML\"}"
+      else
+        MEDIA_JSON="${MEDIA_JSON},{\"type\":\"$MEDIA_TYPE\",\"media\":\"attach://item$IDX\"}"
+      fi
+      ATTACH_ARGS+=("-F" "item$IDX=@/tmp/mg_$IDX.bin")
+      IDX=$((IDX+1))
+    done < <(echo "$CREATIVES_JSON" | jq -c '.[]')
+    MEDIA_JSON="${MEDIA_JSON}]"
+
+    HTTP=$(curl -sS -o /tmp/tg-resp.json -w "%{http_code}" \
+      "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMediaGroup" \
+      -F "chat_id=$CHAT_ID" \
+      -F "media=$MEDIA_JSON" \
+      "${ATTACH_ARGS[@]}")
+    rm -f /tmp/mg_*.bin
+    # Перейти до перевірки результату — пропустити single-media блок
+    GROUP_SENT="yes"
+  fi
+  : "${GROUP_SENT:=no}"
+
+  HTTP="${HTTP:-}"
+
+  # Якщо вже надіслали як media group — пропустити single-media гілку
+  if [ "$GROUP_SENT" = "yes" ]; then
+    :  # HTTP вже встановлено sendMediaGroup
+  elif [ -z "$CRE_TYPE" ] || [ "$CRE_TYPE" = "null" ]; then
     HTTP=$(curl -sS -o /tmp/tg-resp.json -w "%{http_code}" \
       "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
       -d "chat_id=$CHAT_ID" \
