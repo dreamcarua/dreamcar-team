@@ -1009,7 +1009,12 @@ async function boot() {
   if (window.HQ_BACKEND) {
     showAuthScreen({ loading: true });
     try {
-      const session = await Auth.checkSession();
+      // SAFETY: timeout 6s — щоб getSession() не висів вічно (CDN/network glitch)
+      const sessionPromise = Auth.checkSession();
+      const session = await Promise.race([
+        sessionPromise,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Session check timeout')), 6000))
+      ]);
       if (!session) {
         showAuthScreen({ loading: false });
         ind.className = 'backend-indicator demo';
