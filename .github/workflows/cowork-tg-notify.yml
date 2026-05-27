@@ -19,6 +19,12 @@ on:
     branches:
       - main
 
+# Запобігаємо race condition між паралельними runs:
+# усі завдання у group "cowork-notify" виконуються послідовно (queue, не cancel).
+concurrency:
+  group: cowork-notify
+  cancel-in-progress: false
+
 jobs:
   send-tg:
     runs-on: ubuntu-latest
@@ -122,9 +128,22 @@ jobs:
         run: |
           git config user.name "cowork-notify-bot"
           git config user.email "cowork-bot@dreamcar.ua"
-          if ! git diff --staged --quiet; then
-            git commit -m "chore: archive cowork-notify files [skip ci]"
-            git push
-          else
+          if git diff --staged --quiet; then
             echo "Nothing to archive."
+            exit 0
           fi
+          git commit -m "chore: archive cowork-notify files [skip ci]"
+          # Retry loop: якщо інший паралельний run встиг запушити раніше — rebase і пробуй знову
+          for attempt in 1 2 3 4 5; do
+            if git push 2>/tmp/push_err; then
+              echo "✅ Push succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Push attempt $attempt failed:"
+            cat /tmp/push_err
+            echo "Rebasing onto origin/main and retrying..."
+            git pull --rebase origin main || true
+            sleep $((attempt * 2))
+          done
+          echo "::error::Push failed after 5 attempts"
+          exit 1
