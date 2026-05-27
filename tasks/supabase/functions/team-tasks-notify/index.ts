@@ -150,18 +150,26 @@ function formatMessage(n: Notification, recipient: UserRow, author: UserRow | nu
 // ---------------------------------------------------------------------
 // Channels
 // ---------------------------------------------------------------------
-async function sendTelegram(chatId: string, text: string): Promise<{ ok: boolean; err?: string }> {
+async function sendTelegram(
+  chatId: string,
+  text: string,
+  inlineKeyboard?: Array<Array<{ text: string; callback_data: string }>>,
+): Promise<{ ok: boolean; err?: string }> {
   if (!TG_BOT_TOKEN) return { ok: false, err: 'no_TG_BOT_TOKEN' };
   try {
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: false,
+    };
+    if (inlineKeyboard && inlineKeyboard.length) {
+      body.reply_markup = { inline_keyboard: inlineKeyboard };
+    }
     const r = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: false,
-      }),
+      body: JSON.stringify(body),
     });
     const j = await r.json();
     if (!j.ok) return { ok: false, err: j.description ?? 'tg_unknown' };
@@ -169,6 +177,24 @@ async function sendTelegram(chatId: string, text: string): Promise<{ ok: boolean
   } catch (e) {
     return { ok: false, err: (e as Error).message };
   }
+}
+
+// Build inline keyboard для task notification (assigned/reminder/overdue)
+function buildTaskKeyboard(taskId: string | null, kind: string): Array<Array<{ text: string; callback_data: string }>> | undefined {
+  if (!taskId) return undefined;
+  // Quick actions для actionable notifications
+  if (['assigned', 'reminder_24h', 'reminder_1h', 'overdue', 'recurring_created', 'mention', 'comment'].includes(kind)) {
+    return [
+      [
+        { text: '✅ Готово', callback_data: `task:done:${taskId}` },
+        { text: '▶ В роботу', callback_data: `task:doing:${taskId}` },
+      ],
+      [
+        { text: '👀 Відкрити', callback_data: `task:open:${taskId}` },
+      ],
+    ];
+  }
+  return undefined;
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; err?: string }> {
@@ -263,7 +289,8 @@ async function processBatch(limit = 25): Promise<{ processed: number; sent_tg: n
 
     // -------- TG --------
     if (tgEnabled && n.channels.includes('tg') && recipient.tg_chat_id) {
-      const res = await sendTelegram(recipient.tg_chat_id, text);
+      const keyboard = buildTaskKeyboard(n.task_id, n.kind);
+      const res = await sendTelegram(recipient.tg_chat_id, text, keyboard);
       if (res.ok) stats.sent_tg++;
       else stats.errors++;
       await supabase.rpc('mark_team_task_notification_done', {

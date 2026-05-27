@@ -1153,6 +1153,53 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     return;
   }
 
+  // ===== Tasks callbacks: task:done|doing|open:<task_id> =====
+  if (action === "task") {
+    const sub = parts[1]; // done | doing | open
+    const taskId = parts[2];
+    if (!taskId) { await tgAnswerCallback(cb.id, "Помилка task_id"); return; }
+
+    const me = await findUser(supabase, cb.from.id);
+    if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start у DM", true); return; }
+
+    if (sub === "open") {
+      const tasksUrl = HQ_URL.replace(/\/hq.*$/,'') + "/tasks/#task=" + taskId;
+      await tgAnswerCallback(cb.id, "Відкрий: " + tasksUrl);
+      return;
+    }
+
+    // Перевіряємо чи юзер має право міняти статус (assignee/creator/watcher або lead/ceo/coo)
+    const { data: t } = await supabase
+      .from("team_tasks")
+      .select("id, title, status, assignee_id, created_by, watchers")
+      .eq("id", taskId).maybeSingle();
+    if (!t) { await tgAnswerCallback(cb.id, "Задачу не знайдено", true); return; }
+
+    const isOwner = t.assignee_id === me.id || t.created_by === me.id
+      || (Array.isArray(t.watchers) && t.watchers.includes(me.id));
+    const isAdmin = ["ceo","coo","lead"].includes(me.role);
+    if (!isOwner && !isAdmin) {
+      await tgAnswerCallback(cb.id, "Ти не призначений на цю задачу", true);
+      return;
+    }
+
+    const newStatus = sub === "done" ? "done" : "doing";
+    const patch: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
+    if (newStatus === "done") patch.completed_at = new Date().toISOString();
+
+    const { error } = await supabase.from("team_tasks").update(patch).eq("id", taskId);
+    if (error) { await tgAnswerCallback(cb.id, "Помилка: " + error.message, true); return; }
+
+    const label = newStatus === "done" ? "✅ Готово" : "▶ В роботі";
+    await tgAnswerCallback(cb.id, label);
+    const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+    if (msg.text) {
+      await tgEditMessage(msg.chat.id, msg.message_id,
+        msg.text + `\n\n<i>${label} · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}</i>`);
+    }
+    return;
+  }
+
   await tgAnswerCallback(cb.id, "Невідома дія");
 }
 
