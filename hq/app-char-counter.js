@@ -48,11 +48,11 @@
       var weight = '500';
       var icon = '';
       if (pct >= 1) {
-        color = '#d80004';
+        color = '#E30613';
         weight = '800';
         icon = ' ⚠️';
       } else if (pct >= 0.9) {
-        color = '#ff6a1f';
+        color = '#FF1A2B';
         weight = '700';
       } else if (pct >= 0.7) {
         color = '#fbbf24';

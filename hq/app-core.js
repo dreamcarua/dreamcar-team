@@ -808,7 +808,7 @@ function attachPlatformFilterHandlers() {
 function avatarHtml(userId, size = 22) {
   const u = Store.user(userId);
   if (!u) return '';
-  return `<span class="avatar" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#cc0000,#ff6577);font-size:${Math.round(size*0.45)}px;font-weight:700;color:#fff">${u.initial}</span>`;
+  return `<span class="avatar" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#E30613,#ff6577);font-size:${Math.round(size*0.45)}px;font-weight:700;color:#fff">${u.initial}</span>`;
 }
 
 /* ============ CALENDAR ============ */

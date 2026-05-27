@@ -51,7 +51,7 @@
   function showFormModal(existing) {
     var isEdit = !!existing;
     var l = existing || {
-      id: null, name: '', color: '#cc0000',
+      id: null, name: '', color: '#E30613',
       from: new Date().toISOString().slice(0,10),
       to: new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10),
     };
@@ -69,7 +69,7 @@
             '<div><label>Дата старту</label><input id="lnf_from" type="date" value="' + escapeHtml(l.from || '') + '"/></div>' +
             '<div><label>Дата завершення</label><input id="lnf_to" type="date" value="' + escapeHtml(l.to || '') + '"/></div>' +
           '</div>' +
-          '<div><label>Колір (hex)</label><input id="lnf_color" type="color" value="' + escapeHtml(l.color || '#cc0000') + '" style="height:40px;cursor:pointer;"/></div>' +
+          '<div><label>Колір (hex)</label><input id="lnf_color" type="color" value="' + escapeHtml(l.color || '#E30613') + '" style="height:40px;cursor:pointer;"/></div>' +
         '</div>' +
         '<div class="actions">' +
           '<button class="btn" id="lnf_cancel">Скасувати</button>' +
@@ -89,7 +89,7 @@
       }
       var row = {
         name: name,
-        color: sc.querySelector('#lnf_color').value || '#cc0000',
+        color: sc.querySelector('#lnf_color').value || '#E30613',
         starts_on: sc.querySelector('#lnf_from').value || null,
         ends_on: sc.querySelector('#lnf_to').value || null,
         is_active: true,
@@ -213,7 +213,7 @@
         panel.style.cssText = 'padding: 18px 28px; max-width: 900px; margin: 0 auto;';
         panel.innerHTML = '<h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);margin-bottom:10px;font-weight:700;">⚙️ Управління запусками (admin)</h3>' +
           launches.map(function (l) {
-            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid ' + escapeHtml(l.color || '#cc0000') + ';border-radius:6px;margin-bottom:6px;">' +
+            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid ' + escapeHtml(l.color || '#E30613') + ';border-radius:6px;margin-bottom:6px;">' +
               '<span style="font-weight:700;color:#fff;flex:1;">' + escapeHtml(l.name || '') + '</span>' +
               '<span style="font-size:11px;color:var(--grey);">' + escapeHtml(l.from || '') + ' → ' + escapeHtml(l.to || '') + '</span>' +
               '<button class="btn btn-sm" data-edit-launch="' + escapeHtml(l.id) + '">✎ Редагувати</button>' +

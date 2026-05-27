@@ -82,7 +82,7 @@
         'z-index: 1;' +
       '}' +
       '.cal-day:hover::after {' +
-        'background: linear-gradient(135deg, #d80004, #b8050f);' +
+        'background: linear-gradient(135deg, #E30613, #b8050f);' +
         'color: #fff;' +
         'box-shadow: 0 2px 8px rgba(216, 0, 4, 0.4);' +
       '}' +
@@ -217,13 +217,13 @@
         ? 'background:url("' + thumb + '") center/cover no-repeat;'
         : 'background:linear-gradient(135deg,var(--bg-3),var(--bg-2));';
       var borderStyle = isCurrent
-        ? 'box-shadow:inset 0 0 0 3px #d80004;'
+        ? 'box-shadow:inset 0 0 0 3px #E30613;'
         : '';
       var icon = (p.contentType === 'Reels' ? '▶️' : p.contentType === 'Сторис' ? '🎬' : '');
       return '<div class="hq-feed-cell" style="' + bgStyle + borderStyle + 'position:relative;aspect-ratio:1;cursor:pointer;" ' +
         'data-pub="' + p.id + '" title="' + (p.title || '').replace(/"/g, '&quot;') + '">' +
         (icon ? '<span style="position:absolute;top:4px;right:4px;font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,0.6);">' + icon + '</span>' : '') +
-        (isCurrent ? '<span style="position:absolute;bottom:4px;left:4px;background:#d80004;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;font-family:\'JetBrains Mono\',monospace;letter-spacing:1px;font-weight:700;">NEW</span>' : '') +
+        (isCurrent ? '<span style="position:absolute;bottom:4px;left:4px;background:#E30613;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;font-family:\'JetBrains Mono\',monospace;letter-spacing:1px;font-weight:700;">NEW</span>' : '') +
         '</div>';
     }).join('');
 
@@ -232,7 +232,7 @@
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);border:1px solid var(--border);">' +
       cells +
       '</div>' +
-      '<div style="font-size:11px;color:var(--grey);margin-top:8px;line-height:1.5;">Новий пост (з міткою <strong style="color:#d80004;">NEW</strong>) — як він стане у верхній лівий кут @dreamcar.ua. ' +
+      '<div style="font-size:11px;color:var(--grey);margin-top:8px;line-height:1.5;">Новий пост (з міткою <strong style="color:#E30613;">NEW</strong>) — як він стане у верхній лівий кут @dreamcar.ua. ' +
       'Реальний порядок залежить від часу публікації.</div>' +
       '</div>';
   }

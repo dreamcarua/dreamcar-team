@@ -458,7 +458,7 @@ function renderCardBody(p) {
 function renderPreviewSection(p) {
   const cr = (p.creatives || []).map(id => Store.creative(id)).filter(Boolean);
   const firstMedia = cr[0]?.preview || '🚗';
-  const firstColor = cr[0]?.color || '#cc0000';
+  const firstColor = cr[0]?.color || '#E30613';
   const txt = escapeHtml(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
   const hashLine = (p.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');
   const hashHtml = hashLine ? `<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">${escapeHtml(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>')}</div>` : '';
@@ -1059,7 +1059,7 @@ window.HQ = {
   signOut: () => Auth.signOut(),
 };
 
-console.log('%cDreamCar HQ %cv0.2 (Supabase-aware)', 'color:#cc0000;font-weight:800;font-size:14px;', 'color:#888;');
+console.log('%cDreamCar HQ %cv0.2 (Supabase-aware)', 'color:#E30613;font-weight:800;font-size:14px;', 'color:#888;');
 console.log('Команди: HQ.reset() — скинути demo дані. HQ.signOut() — вийти. HQ.store — інспектор.');
 
 boot();

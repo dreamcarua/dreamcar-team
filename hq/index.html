@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>DreamCar HQ · Стіл SMM</title>
+<!-- BRAND-SYNC: Google Fonts (brand-book v3.9.2 typography) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Archivo+Black&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config
@@ -23,40 +27,67 @@
   window.dispatchEvent(new Event('hq-loader-ready'));
 </script>
 <style>
+  /* === BRAND-SYNC v1: токени з brand.dreamcar.ua === */
   :root {
-    --bg: #0a0a12;
-    --bg-2: #11111a;
-    --bg-3: #161624;
-    --bg-4: #1c1c2e;
-    --bg-hover: #1f1f33;
-    --border: #232338;
-    --border-2: #2e2e48;
-    --red: #cc0000;
-    --red-soft: #ff6577;
-    --red-2: #ff9999;
-    --red-dim: rgba(204,0,0,0.15);
-    --gold: #fbbf24;
-    --green: #4ade80;
-    --green-soft: #6ee7b7;
-    --green-dim: rgba(74,222,128,0.15);
-    --blue: #93c5fd;
-    --blue-soft: #7ab0ff;
-    --orange: #fb923c;
-    --purple: #c89af0;
-    --grey: #8a8a99;
-    --grey-2: #5a5a6a;
-    --white: #fff;
-    --shadow: 0 8px 24px rgba(0,0,0,0.4);
+    /* base */
+    --bg: #0A0A0A;          /* black */
+    --bg-2: #141414;        /* coal */
+    --bg-3: #1F1F1F;        /* graphite */
+    --bg-4: #2A2A2A;        /* steel */
+    --bg-hover: #2A2A2A;
+    --border: #2A2A2A;
+    --border-2: #3A3A3A;
+    /* brand red */
+    --red: #E30613;         /* BRAND red — Pantone-style */
+    --red-soft: #FF1A2B;    /* red-glow */
+    --red-2: #FF6A7A;
+    --red-dim: rgba(227,6,19,0.15);
+    --red-deep: #B8050F;
+    /* status palette (brand-book) */
+    --gold: #F59E0B;        /* warning */
+    --green: #10B981;       /* success */
+    --green-soft: #34D399;
+    --green-dim: rgba(16,185,129,0.15);
+    --blue: #3B82F6;        /* info */
+    --blue-soft: #60A5FA;   /* link */
+    --orange: #F59E0B;
+    --purple: #A78BFA;
+    /* neutrals */
+    --grey: #888;           /* ash */
+    --grey-2: #555;
+    --bone: #DDDDDD;
+    --white: #FFFFFF;
+    /* shadow */
+    --shadow: 0 8px 24px rgba(0,0,0,0.5);
+    /* spacing scale (brand-book) */
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px;
+    --s-6: 32px; --s-7: 48px; --s-8: 64px;
+    /* radius */
+    --r-sm: 4px; --r-md: 8px; --r-lg: 16px; --r-pill: 999px;
+    /* fonts (brand-book) */
+    --font-body: 'Manrope', sans-serif;
+    --font-display: 'Oswald', 'Bebas Neue', sans-serif;
+    --font-accent: 'Archivo Black', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; overflow: hidden; }
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
-    color: #e8e8f0;
+    color: var(--white);
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .h-display, .nav-section, .breadcrumb b {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+    font-weight: 600;
+  }
+  .logo-text { font-family: var(--font-accent) !important; }
+  code, pre, kbd, .mono, .filter-label, .count, .scale-name, .badge {
+    font-family: var(--font-mono);
   }
   button { font-family: inherit; cursor: pointer; }
   input, textarea, select { font-family: inherit; }

@@ -172,7 +172,7 @@
     in_work: '#5a8fb8',
     review: '#fbbf24',
     approved: '#22c55e',
-    rework: '#d80004',
+    rework: '#E30613',
   };
 
   var STATUS_LABELS = {
@@ -211,7 +211,7 @@
       : data.top.map(function(x){
           return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
             '<span style="color:var(--bone,#ccc);font-size:13px;">' + escHtml(x.title) + '</span>' +
-            '<span style="color:#d80004;font-weight:700;font-family:JetBrains Mono,monospace;font-size:13px;">' + x.rejects + '×</span>' +
+            '<span style="color:#E30613;font-weight:700;font-family:JetBrains Mono,monospace;font-size:13px;">' + x.rejects + '×</span>' +
           '</div>';
         }).join('');
 
@@ -239,7 +239,7 @@
       return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">' +
         '<div style="display:flex;align-items:end;gap:2px;height:140px;">' +
           '<div title="approved" style="width:14px;height:' + pctApr + '%;background:#22c55e;border-radius:2px 2px 0 0;"></div>' +
-          '<div title="published" style="width:14px;height:' + pctPub + '%;background:#d80004;border-radius:2px 2px 0 0;"></div>' +
+          '<div title="published" style="width:14px;height:' + pctPub + '%;background:#E30613;border-radius:2px 2px 0 0;"></div>' +
         '</div>' +
         '<div style="font-size:10px;color:var(--grey,#888);font-family:JetBrains Mono,monospace;">' + w.label + '</div>' +
         '<div style="font-size:10px;color:#22c55e;">' + w.approved + '/' + w.published + '</div>' +
@@ -271,8 +271,8 @@
     var v = computeVelocity();
 
     container.innerHTML =
-      '<div style="margin-bottom:16px;padding:12px 16px;background:linear-gradient(90deg,rgba(216,0,4,0.15),rgba(216,0,4,0));border-left:3px solid #d80004;border-radius:0 8px 8px 0;">' +
-        '<div style="font-family:JetBrains Mono,monospace;font-size:11px;color:#d80004;letter-spacing:1.5px;text-transform:uppercase;">/// ANALYTICS V2 · #126</div>' +
+      '<div style="margin-bottom:16px;padding:12px 16px;background:linear-gradient(90deg,rgba(216,0,4,0.15),rgba(216,0,4,0));border-left:3px solid #E30613;border-radius:0 8px 8px 0;">' +
+        '<div style="font-family:JetBrains Mono,monospace;font-size:11px;color:#E30613;letter-spacing:1.5px;text-transform:uppercase;">/// ANALYTICS V2 · #126</div>' +
         '<div style="font-size:14px;color:#fff;margin-top:4px;">Time-in-status · Rework cycles · Pipeline velocity</div>' +
       '</div>' +
       renderTimeInStatus(t) +

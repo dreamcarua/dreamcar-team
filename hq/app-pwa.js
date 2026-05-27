@@ -94,7 +94,7 @@
       'position:relative;';
     btn.onmouseenter = function () {
       btn.style.background = 'var(--bg-hover)';
-      btn.style.borderColor = 'var(--red, #d80004)';
+      btn.style.borderColor = 'var(--red, #E30613)';
     };
     btn.onmouseleave = function () {
       btn.style.background = 'var(--bg-3)';
@@ -122,7 +122,7 @@
       var pulse = document.createElement('span');
       pulse.style.cssText =
         'position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;' +
-        'background:#d80004;box-shadow:0 0 0 0 rgba(216,0,4,0.6);' +
+        'background:#E30613;box-shadow:0 0 0 0 rgba(216,0,4,0.6);' +
         'animation:hq-pwa-pulse 2s infinite;';
       btn.appendChild(pulse);
       // Прибираємо pulse після першого натискання

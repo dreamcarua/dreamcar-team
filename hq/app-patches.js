@@ -230,7 +230,7 @@
   function previewMediaBg(first) {
     var hasRealMedia = first && (first.url || first.thumbnail_url) && (first.type === 'photo' || first.type === 'video');
     if (hasRealMedia) return 'background:#000;';
-    var color = (first && first.color) || '#cc0000';
+    var color = (first && first.color) || '#E30613';
     return 'background: linear-gradient(135deg, ' + color + '33, var(--bg-2));';
   }
   function previewText(p) {
