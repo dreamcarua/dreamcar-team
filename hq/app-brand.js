@@ -153,25 +153,18 @@
     document.head.appendChild(s);
   })();
 
-  // ---- 3. Replace topbar logo ----
+  // ---- 3. Sidebar logo: ХОВАЄМО plate (вже є у global-header згори),
+  //         залишаємо тільки текст «HQ КОМАНДНИЙ ШТАБ».
   function applyTopbarLogo() {
     var logoMark = document.querySelector('.logo .logo-mark');
-    if (!logoMark) return;
-    if (logoMark.dataset.brandApplied) return;
-    logoMark.dataset.brandApplied = '1';
-
-    var img = document.createElement('img');
-    img.src = LOGO_PLATE_URL;
-    img.alt = 'DreamCar';
-    img.loading = 'eager';
-    img.onerror = function () {
-      logoMark.innerHTML = '<span class="dc-fallback" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-weight:800;color:#fff;">DC</span>';
-    };
-    logoMark.innerHTML = '';
-    logoMark.appendChild(img);
-
+    if (logoMark) {
+      logoMark.style.display = 'none'; // не дублюємо лого з global-header
+      logoMark.dataset.brandApplied = '1';
+    }
     var logoText = document.querySelector('.logo .logo-text');
-    if (logoText) {
+    if (logoText && !logoText.dataset.brandApplied) {
+      logoText.dataset.brandApplied = '1';
+      logoText.style.marginLeft = '0';
       logoText.innerHTML = '<span style="font-weight:800;color:#fff;letter-spacing:0.5px;">HQ</span> <span class="small">КОМАНДНИЙ ШТАБ</span>';
     }
   }
