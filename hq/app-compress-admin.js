@@ -130,13 +130,13 @@
     const thumb = c.thumbnail_url
       ? `<img src="${c.thumbnail_url}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;background:#000;" loading="lazy">`
       : '<div style="width:48px;height:48px;background:#e5e7eb;border-radius:4px;"></div>';
-    const reCompBtn = `<button onclick="window.HQ_compressAdmin.reCompress('${c.id}')" style="padding:4px 10px;font-size:11px;border:1px solid #d1d5db;background:#fff;border-radius:4px;cursor:pointer;">↻ Re-compress</button>`;
+    const reCompBtn = `<button onclick="window.HQ_compressAdmin.reCompress('${c.id}')" style="padding:4px 10px;font-size:11px;border:1px solid #d1d5db;background:#fff;border-radius:4px;cursor:pointer;">↻ Перестиснути</button>`;
     return `
       <tr style="border-bottom:1px solid #e5e7eb;">
         <td style="padding:8px;">${thumb}</td>
         <td style="padding:8px;">
           <div style="font-weight:600;font-size:13px;">${c.name || '—'}</div>
-          <div style="font-size:11px;color:#6b7280;">${c.id.slice(0,8)}… · ${fmtAgo(c.uploaded_at)} ago</div>
+          <div style="font-size:11px;color:#6b7280;">${c.id.slice(0,8)}… · ${fmtAgo(c.uploaded_at)} тому</div>
           ${error}
         </td>
         <td style="padding:8px;text-align:center;">${statusBadge(c.compressed_status)}</td>
@@ -159,24 +159,24 @@
       <div style="display:flex;gap:12px;margin-bottom:16px;">
         <div style="flex:1;background:#fef3c7;padding:12px;border-radius:8px;">
           <div style="font-size:24px;font-weight:700;color:#92400e;">${counts.pending}</div>
-          <div style="font-size:12px;color:#92400e;">⏳ Pending</div>
+          <div style="font-size:12px;color:#92400e;">⏳ Очікують</div>
         </div>
         <div style="flex:1;background:#dbeafe;padding:12px;border-radius:8px;">
           <div style="font-size:24px;font-weight:700;color:#1e40af;">${counts.processing}</div>
-          <div style="font-size:12px;color:#1e40af;">⚙ Processing</div>
+          <div style="font-size:12px;color:#1e40af;">⚙ Обробка</div>
         </div>
         <div style="flex:1;background:#d1fae5;padding:12px;border-radius:8px;">
           <div style="font-size:24px;font-weight:700;color:#065f46;">${counts.ready}</div>
-          <div style="font-size:12px;color:#065f46;">✓ Ready</div>
+          <div style="font-size:12px;color:#065f46;">✓ Готово</div>
         </div>
         <div style="flex:1;background:#fee2e2;padding:12px;border-radius:8px;cursor:${counts.failed>0?'pointer':'default'};"
              ${counts.failed>0?'onclick="window.HQ_compressAdmin.recompressAll(\'failed\')"':''}>
           <div style="font-size:24px;font-weight:700;color:#991b1b;">${counts.failed}</div>
-          <div style="font-size:12px;color:#991b1b;">✕ Failed ${counts.failed>0?'(click to retry all)':''}</div>
+          <div style="font-size:12px;color:#991b1b;">✕ Помилка ${counts.failed>0?'(натисніть щоб повторити все)':''}</div>
         </div>
         <div style="flex:1;background:#f3f4f6;padding:12px;border-radius:8px;">
           <div style="font-size:24px;font-weight:700;color:#374151;">${total}</div>
-          <div style="font-size:12px;color:#374151;">Total videos</div>
+          <div style="font-size:12px;color:#374151;">Усього відео</div>
         </div>
       </div>
     `;
@@ -193,12 +193,12 @@
         <table style="width:100%;border-collapse:collapse;">
           <thead style="background:#f9fafb;font-size:11px;text-transform:uppercase;color:#6b7280;">
             <tr>
-              <th style="padding:8px;text-align:left;">Thumb</th>
-              <th style="padding:8px;text-align:left;">Name / ID</th>
-              <th style="padding:8px;text-align:center;">Status</th>
-              <th style="padding:8px;text-align:center;">Attempts</th>
-              <th style="padding:8px;text-align:left;">Sizes</th>
-              <th style="padding:8px;text-align:right;">Action</th>
+              <th style="padding:8px;text-align:left;">Прев'ю</th>
+              <th style="padding:8px;text-align:left;">Назва / ID</th>
+              <th style="padding:8px;text-align:center;">Статус</th>
+              <th style="padding:8px;text-align:center;">Спроби</th>
+              <th style="padding:8px;text-align:left;">Розміри</th>
+              <th style="padding:8px;text-align:right;">Дія</th>
             </tr>
           </thead>
           <tbody>
@@ -210,7 +210,7 @@
         </table>
       </div>
       <div style="text-align:right;margin-top:8px;font-size:11px;color:#9ca3af;">
-        Auto-refresh кожні 15s. Cron compress runs кожні 3 хв. Останнє оновлення: ${new Date().toLocaleTimeString()}
+        Авто-оновлення кожні 15с. Стиснення запускається кожні 3 хв. Останнє оновлення: ${new Date().toLocaleTimeString()}
       </div>
     `;
   }
@@ -220,7 +220,7 @@
     if (typeof window.HQ_addMenuItem === 'function' && isAdminRole()) {
       window.HQ_addMenuItem({
         id: 'compress-queue',
-        label: '🎬 Compress Queue',
+        label: '🎬 Черга стиснення',
         section: 'admin',
         onClick: openSection,
       });
@@ -233,7 +233,7 @@
       section.style.display = 'none';
       section.style.padding = '20px';
       section.innerHTML = `
-        <h2 style="margin:0 0 16px 0;font-size:20px;">🎬 Compress Queue</h2>
+        <h2 style="margin:0 0 16px 0;font-size:20px;">🎬 Черга стиснення</h2>
         <div id="hq-compress-queue"></div>
       `;
       document.body.appendChild(section);

@@ -1,0 +1,47 @@
+{
+  "name": "DreamCar Team Hub",
+  "short_name": "DreamCar Team",
+  "description": "Внутрішня система команди DreamCar — HQ публікацій, Tasks, аналітика, онбординг.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "lang": "uk",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "https://brand.dreamcar.ua/assets/logo/dreamcar-avatar-mark.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://brand.dreamcar.ua/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "HQ Календар",
+      "short_name": "HQ",
+      "description": "Календар публікацій DreamCar SMM",
+      "url": "/hq/",
+      "icons": [{ "src": "https://brand.dreamcar.ua/assets/logo/dreamcar-avatar-mark.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Tasks",
+      "short_name": "Tasks",
+      "description": "Задачі команди",
+      "url": "/tasks/"
+    },
+    {
+      "name": "Онбординг",
+      "short_name": "Онбординг",
+      "description": "Гайд для нових членів команди",
+      "url": "/onboarding.html"
+    }
+  ]
+}
