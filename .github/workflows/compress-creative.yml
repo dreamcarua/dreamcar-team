@@ -18,10 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ffmpeg + jq + python3
+      - name: Install ffmpeg + jq + python3 + ImageMagick + HEIC support
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg jq python3
+          sudo apt-get install -y -qq ffmpeg jq python3 imagemagick libheif-examples libheif1
+          # Дозволити ImageMagick читати HEIC/HEIF
+          sudo sed -i 's@<policy domain="coder" rights="none" pattern="HEIC" />@<policy domain="coder" rights="read|write" pattern="HEIC" />@g' /etc/ImageMagick-6/policy.xml || true
+          sudo sed -i 's@<policy domain="coder" rights="none" pattern="HEIF" />@<policy domain="coder" rights="read|write" pattern="HEIF" />@g' /etc/ImageMagick-6/policy.xml || true
 
       - name: Run compress worker
         env:
