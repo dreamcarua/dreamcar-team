@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compress Queue — Онбординг · DreamCar</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<link rel="stylesheet" href="_template.css">
+</head>
+<body>
+<div class="container">
+  <div class="topbar"><a href="index.html" class="back">← Онбординг</a><span class="crumbs">ONBOARDING / <span>COMPRESS QUEUE</span></span></div>
+  <header class="hero">
+    <div class="kicker">/// 03 · COMPRESS</div>
+    <h1>COMPRESS <span>QUEUE</span></h1>
+    <p class="lead">Background стискання відео та фото для автопостингу. Цільова якість — максимальна, обмеження — 49.5MB через ліміти Telegram inline media.</p>
+    <span class="status">● LIVE</span>
+  </header>
+  <nav class="toc"><span class="toc-label">Швидко:</span><a href="#concept">Концепція</a><a href="#arch">Архітектура</a><a href="#flow">Flow</a><a href="#cases">Use cases</a><a href="#tuning">Tuning</a><a href="#trouble">Troubleshooting</a></nav>
+
+  <section class="block" id="concept">
+    <h2><span class="icon">📐</span> Що це і навіщо</h2>
+    <div class="concept-box">
+      <p>Сирі відео з телефонів — 100-500MB. Telegram sendVideo (inline preview) має ліміт 50MB. Якщо більше — або не запоститься, або стане у sendDocument (без прев'юшки).</p>
+      <p>Compress Queue вирішує: SMM завантажує оригінал → система async стискає до ≤49.5MB → autopost іде з compressed_url.</p>
+      <div class="why-grid">
+        <div class="why-card"><h4>Чому 49.5MB</h4><p>TG ліміт = 50MB. Ставимо 49.5 щоб був buffer на metadata.</p></div>
+        <div class="why-card"><h4>Як працює</h4><p>2-pass H.264 high profile, preset veryslow, target 99% бюджету. Adaptive resolution. ImageMagick для фото — 2560×2560 q90.</p></div>
+        <div class="why-card"><h4>Ключове</h4><p>Не блокує UX. Approver побачить final якість. Worker працює у фоні через GH Actions cron */3min.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="arch">
+    <h2><span class="icon">🏗</span> Архітектура</h2>
+    <div class="arch">
+<span class="node">SMM uploads</span> → <span class="node">R2</span> (signed URL via r2-sign-upload)
+       │
+<span class="node">creatives</span> row: compressed_status='pending'
+       │
+       <span class="conn">↓ GH cron */3min OR dispatch-workflow</span>
+<span class="node">compress-creative.yml</span> → <span class="node">worker.sh</span>
+   ├─ Download from R2
+   ├─ <span class="node">photo:</span> ImageMagick → 2560x2560 q90 JPEG → R2
+   ├─ <span class="node">video:</span> ffmpeg 2-pass H.264 → R2
+   ├─ <span class="node">complete_compress_job(url, size)</span>
+   └─ Trigger autopost dispatch
+    </div>
+  </section>
+
+  <section class="block" id="flow">
+    <h2><span class="icon">🔄</span> Flow станів</h2>
+    <pre>n/a (не потребує)  →  pending  →  processing  →  ready
+                        ↓                ↓
+                      failed         (worker err)
+                        ↓
+                   retry_compress(id) → pending</pre>
+  </section>
+
+  <section class="block" id="cases">
+    <h2><span class="icon">🎯</span> Use cases</h2>
+    <div class="use-case" id="upload">
+      <div class="who">SMM</div>
+      <h3>Завантажити креатив</h3>
+      <ol class="steps">
+        <li>HQ → Бібліотека → «+ Завантажити» (drag-drop)</li>
+        <li>Файл йде direct у Cloudflare R2 (минує 50MB ліміт)</li>
+        <li>Запис у creatives з compressed_status='pending'</li>
+        <li>Через ~3 хв (cron) — опрацюється</li>
+      </ol>
+      <div class="tip">💡 Bulk drag-drop приймає декілька файлів одразу.</div>
+    </div>
+    <div class="use-case">
+      <div class="who">Admin</div>
+      <h3>Compress Queue Dashboard</h3>
+      <ol class="steps">
+        <li>HQ → Admin → Compress Queue</li>
+        <li>Бачиш pending / processing / ready / failed</li>
+        <li>Failed → «Retry» → reset у pending</li>
+        <li>«Retry all failed» — bulk operation</li>
+      </ol>
+    </div>
+    <div class="use-case">
+      <div class="who">Admin (SQL)</div>
+      <h3>Тригернути compress негайно</h3>
+      <pre>SELECT net.http_post(
+  url := 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/dispatch-workflow',
+  headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer dummy'),
+  body := jsonb_build_object('workflow', 'compress')
+);</pre>
+    </div>
+  </section>
+
+  <section class="block" id="tuning">
+    <h2><span class="icon">🎛</span> Tuning параметри</h2>
+    <ul>
+      <li><b>Target budget:</b> 49.5MB (TG sendVideo ліміт)</li>
+      <li><b>Fill percent:</b> 99% (target bitrate)</li>
+      <li><b>X264 preset:</b> veryslow (max якість)</li>
+      <li><b>bframes:</b> 12, ref: 8, subme: 10, aq-mode: 3</li>
+      <li><b>Audio:</b> 96-128 kbps AAC</li>
+      <li><b>Resolution:</b> 1920/1280/854/640px adaptive</li>
+      <li><b>HEIC:</b> libheif + ImageMagick policy unlock</li>
+      <li><b>Photo:</b> 2560×2560 q90 ≤9.5MB</li>
+      <li><b>Retry:</b> overshoot → retry @ 93% bitrate</li>
+    </ul>
+  </section>
+
+  <section class="block" id="trouble">
+    <h2><span class="icon">🚨</span> Troubleshooting</h2>
+    <table class="trouble-table">
+      <thead><tr><th>Проблема</th><th>Чому</th><th>Що робити</th></tr></thead>
+      <tbody>
+        <tr><td class="problem">Pending >10 хв</td><td class="cause">GH Action не запустився</td><td class="fix">GH UI → Actions → Compress Creative → Run workflow</td></tr>
+        <tr><td class="problem">Failed «worker line 143»</td><td class="cause">ImageMagick впав (HEIC)</td><td class="fix">SELECT retry_compress(id) — оновлений з libheif</td></tr>
+        <tr><td class="problem">Overshoot >49.5MB</td><td class="cause">Відео занадто довге</td><td class="fix">Fallback на sendDocument. Або вкоротити відео.</td></tr>
+        <tr><td class="problem">HEIC не у preview</td><td class="cause">Браузер не вміє декодувати</td><td class="fix">Compress конвертує у JPEG → preview бере compressed_url</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+</body>
+</html>
