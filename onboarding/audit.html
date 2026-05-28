@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Audit + TG Бот — Онбординг · DreamCar</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<link rel="stylesheet" href="_template.css">
+</head>
+<body>
+<div class="container">
+  <div class="topbar"><a href="index.html" class="back">← Онбординг</a><span class="crumbs">ONBOARDING / <span>DAILY AUDIT + TG BOT</span></span></div>
+  <header class="hero">
+    <div class="kicker">/// 05 · HEALTH + BOT</div>
+    <h1>HEALTH <span>AUDIT</span> + TG БОТ</h1>
+    <p class="lead">Щоденний автоматичний звіт о 7:00 CEST на email + TG. Команди /audit, /today, /approve, /reject, /tasks у боті @dreamcar_team_bot.</p>
+    <span class="status">● LIVE · cron 7:00 CEST</span>
+  </header>
+  <nav class="toc"><span class="toc-label">Швидко:</span><a href="#concept">Концепція</a><a href="#daily-report">Daily Report</a><a href="#commands">Команди бота</a><a href="#cases">Use cases</a><a href="#trouble">Troubleshooting</a></nav>
+
+  <section class="block" id="concept">
+    <h2><span class="icon">📐</span> Що це і навіщо</h2>
+    <div class="concept-box">
+      <p>CEO не має «лізти у HQ» щоб дізнатися чи всі живі. Тепер — приходить summary щоранку + у будь-який момент /audit у боті.</p>
+      <p>Бот = «командна лінія» через TG. Все що часто потрібно — інлайн-командою.</p>
+      <div class="why-grid">
+        <div class="why-card"><h4>Чому ранок 7:00</h4><p>CET робочий день. CEO бачить health score + критичні issues до того як відкрив laptop.</p></div>
+        <div class="why-card"><h4>Як працює</h4><p>pg_cron 5:00 UTC (=7:00 CEST) → daily-health-audit Edge Function → метрики з 6 таблиць → email через Resend + TG DM.</p></div>
+        <div class="why-card"><h4>Health score</h4><p>0-100. Алгоритм: 100 − (red×10 + yellow×3). 🟢90+ ОК, 🟡70-89, 🔴&lt;70.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="daily-report">
+    <h2><span class="icon">🩺</span> Щоденний health-report</h2>
+    <h3>Що включає</h3>
+    <ul>
+      <li><b>📊 Score:</b> 0-100 з кольоровим індикатором</li>
+      <li><b>✍️ Публікації:</b> усього, створено 24h, опубліковано 24h, по статусах</li>
+      <li><b>✅ Задачі:</b> активних, P1+P2, закрито 24h, прострочених</li>
+      <li><b>🖼 Креативи:</b> photo/video, pending/processing/ready/failed</li>
+      <li><b>🚀 Автопостинг:</b> pending/processing/done 24h/failed 24h</li>
+      <li><b>👥 Команда:</b> active, з auth, з TG (з іменами без)</li>
+      <li><b>🔔 Нотифікації:</b> створено / TG / Email доставлено</li>
+      <li><b>⚠️ Issues:</b> red + yellow з action hints</li>
+    </ul>
+    <h3>Доставка</h3>
+    <p><b>Email:</b> AUDIT_RECIPIENT через Resend з DreamCar brand HTML.<br><b>TG DM:</b> на TG_CHAT_ID CEO через @dreamcar_team_bot. Скорочена версія.</p>
+  </section>
+
+  <section class="block" id="commands">
+    <h2><span class="icon">💬</span> Команди бота @dreamcar_team_bot</h2>
+    <h3 id="audit-cmd">/audit</h3>
+    <p>Тригерить health-audit вручну. Звіт за ~3-5 сек.</p>
+    <h3 id="today-cmd">/today</h3>
+    <p>Що заплановано публікувати сьогодні.</p>
+    <h3 id="late-cmd">/late</h3>
+    <p>Прострочені публікації + задачі.</p>
+    <h3 id="my-cmd">/my</h3>
+    <p>Що чекає від мене: pubs на approval + tasks мені.</p>
+    <h3 id="queue-cmd">/queue</h3>
+    <p>Черга всіх постів у review.</p>
+    <h3 id="approve-cmd">/approve</h3>
+    <p>Інтерактивна черга. Бот показує по 1 публікації з inline ✅ / ↩.</p>
+    <h3 id="reject-cmd">/reject</h3>
+    <p>Аналогічно, двокроковий: причина → confirm.</p>
+    <h3 id="tasks-cmd">/tasks</h3>
+    <p>Твої active задачі з inline «Done», «Snooze», «Comment».</p>
+  </section>
+
+  <section class="block" id="cases">
+    <h2><span class="icon">🎯</span> Use cases</h2>
+    <div class="use-case">
+      <div class="who">CEO</div>
+      <h3>Перевірити стан системи без HQ</h3>
+      <ol class="steps">
+        <li>У TG → @dreamcar_team_bot</li>
+        <li>/audit</li>
+        <li>За 3-5 сек — health-report</li>
+      </ol>
+      <div class="tip">💡 Якщо score &lt; 70 — у звіті action hints.</div>
+    </div>
+    <div class="use-case">
+      <div class="who">CEO у поїздці</div>
+      <h3>Погодити пости через бот</h3>
+      <ol class="steps">
+        <li>/approve у боті</li>
+        <li>Бот показує публікацію (текст + creative preview)</li>
+        <li>✅ Погодити або ↩ Повернути</li>
+        <li>Наступна автоматично</li>
+        <li>«Все! Чисто.» коли черга порожня</li>
+      </ol>
+    </div>
+    <div class="use-case">
+      <div class="who">Member</div>
+      <h3>Закрити задачу не відкриваючи Tasks</h3>
+      <ol class="steps">
+        <li>TG нотифікація → під нею inline кнопки</li>
+        <li>«✅ Виконано» → status: done</li>
+        <li>«💬 Коментар» → у відповідь → коментар</li>
+        <li>«⏰ +1d» → due posuwa</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="block" id="trouble">
+    <h2><span class="icon">🚨</span> Troubleshooting</h2>
+    <table class="trouble-table">
+      <thead><tr><th>Проблема</th><th>Чому</th><th>Що робити</th></tr></thead>
+      <tbody>
+        <tr><td class="problem">Не отримав ранкового звіту</td><td class="cause">Cron не пройшов / fail доставки</td><td class="fix">/audit у боті — буде з останніми даними</td></tr>
+        <tr><td class="problem">Inline ✅ не реагує</td><td class="cause">tg-webhook впав / TG_bind злетів</td><td class="fix">/start у боті</td></tr>
+        <tr><td class="problem">Score 95 → 50 раптово</td><td class="cause">Накопичилися overdue / failed</td><td class="fix">Прочитай Issues block. Action hints там же.</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+</body>
+</html>
