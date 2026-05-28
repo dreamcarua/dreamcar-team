@@ -42,10 +42,139 @@ post_ig_photo() {
   local cid
   cid=$(echo "$res" | jq -r '.id // empty')
   [ -z "$cid" ] && { echo "::error::IG container failed: $res"; return 1; }
-  # status — IG обробляє container 5-30 сек
   sleep 5
   curl -sS -X POST "https://graph.facebook.com/v20.0/$META_IG_USER_ID/media_publish" \
     -d "creation_id=$cid" -d "access_token=$META_FB_PAGE_TOKEN"
+}
+
+# Phase 2: IG Carousel (2-10 photo/video items)
+post_ig_carousel() {
+  local caption="$1"; shift
+  local urls=("$@")
+  echo "→ IG sendCarousel ${#urls[@]} items"
+  local children=()
+  for u in "${urls[@]}"; do
+    local is_video="false"
+    [[ "$u" =~ \.(mp4|mov)$ ]] && is_video="true"
+    local field_url="image_url"
+    [ "$is_video" = "true" ] && field_url="video_url"
+    local r
+    r=$(curl -sS -X POST "https://graph.facebook.com/v20.0/$META_IG_USER_ID/media" \
+      -d "is_carousel_item=true" \
+      -d "$field_url=$u" \
+      $([ "$is_video" = "true" ] && echo "-d media_type=VIDEO") \
+      -d "access_token=$META_FB_PAGE_TOKEN")
+    local cid
+    cid=$(echo "$r" | jq -r '.id // empty')
+    [ -z "$cid" ] && { echo "::warning::Carousel child failed: $r"; continue; }
+    children+=("$cid")
+  done
+  [ ${#children[@]} -lt 2 ] && { echo "::error::Carousel <2 children — abort"; return 1; }
+  # Чекаємо обробку всіх (video особливо)
+  sleep 8
+  local children_csv
+  children_csv=$(IFS=,; echo "${children[*]}")
+  local parent
+  parent=$(curl -sS -X POST "https://graph.facebook.com/v20.0/$META_IG_USER_ID/media" \
+    -d "media_type=CAROUSEL" \
+    -d "children=$children_csv" \
+    --data-urlencode "caption=$caption" \
+    -d "access_token=$META_FB_PAGE_TOKEN")
+  local pid
+  pid=$(echo "$parent" | jq -r '.id // empty')
+  [ -z "$pid" ] && { echo "::error::Carousel parent failed: $parent"; return 1; }
+  sleep 5
+  curl -sS -X POST "https://graph.facebook.com/v20.0/$META_IG_USER_ID/media_publish" \
+    -d "creation_id=$pid" -d "access_token=$META_FB_PAGE_TOKEN"
+}
+
+# IG Reels (vertical video)
+post_ig_reel() {
+  local video_url="$1"; local caption="$2"
+  echo "→ IG sendReel: $video_url"
+  local res
+  res=$(curl -sS -X POST "https://graph.facebook.com/v20.0/$META_IG_USER_ID/media" \
+    -d "media_type=REELS" \
+    -d "video_url=$video_url" \
+    --data-urlencode "caption=$caption" \
+    -d "share_to_feed=true" \
+    -d "access_token=$META_FB_PAGE_TOKEN")
+  local cid
+  cid=$(echo "$res" | jq -r '.id // empty')
+  [ -z "$cid" ] && { echo "::error::IG Reel container failed: $res"; return 1; }
+  # Reels потребує більше часу на обробку
+  sleep 15
+  curl -sS -X POST "https://graph.facebook.com/v20.0/$META_IG_USER_ID/media_publish" \
+    -d "creation_id=$cid" -d "access_token=$META_FB_PAGE_TOKEN"
+}
+
+# FB Album (multiple photos в одному пості)
+post_fb_album() {
+  local caption="$1"; shift
+  local urls=("$@")
+  echo "→ FB sendAlbum ${#urls[@]} photos"
+  # Upload кожне фото як unpublished
+  local attached=()
+  for u in "${urls[@]}"; do
+    local r
+    r=$(curl -sS -X POST "https://graph.facebook.com/v20.0/$META_FB_PAGE_ID/photos" \
+      -d "url=$u" -d "published=false" -d "access_token=$META_FB_PAGE_TOKEN")
+    local pid
+    pid=$(echo "$r" | jq -r '.id // empty')
+    [ -n "$pid" ] && attached+=("media_fbid=$pid")
+  done
+  [ ${#attached[@]} -lt 2 ] && { echo "::error::Album <2 photos — abort"; return 1; }
+  # Збираємо у feed-post
+  local form_args=()
+  for i in "${!attached[@]}"; do
+    form_args+=("-d" "attached_media[$i]={\"${attached[$i]}\"}")
+  done
+  curl -sS -X POST "https://graph.facebook.com/v20.0/$META_FB_PAGE_ID/feed" \
+    --data-urlencode "message=$caption" \
+    "${form_args[@]}" \
+    -d "access_token=$META_FB_PAGE_TOKEN"
+}
+
+# Threads Carousel (2-10 items)
+post_threads_carousel() {
+  local caption="$1"; shift
+  local urls=("$@")
+  echo "→ Threads sendCarousel ${#urls[@]} items"
+  : "${META_THREADS_USER_ID:?}"; : "${META_THREADS_TOKEN:?}"
+  local children=()
+  for u in "${urls[@]}"; do
+    local is_video="false"
+    [[ "$u" =~ \.(mp4|mov)$ ]] && is_video="true"
+    local mt="IMAGE"
+    [ "$is_video" = "true" ] && mt="VIDEO"
+    local field="image_url"
+    [ "$is_video" = "true" ] && field="video_url"
+    local r
+    r=$(curl -sS -X POST "https://graph.threads.net/v1.0/$META_THREADS_USER_ID/threads" \
+      -d "is_carousel_item=true" \
+      -d "media_type=$mt" \
+      -d "$field=$u" \
+      -d "access_token=$META_THREADS_TOKEN")
+    local cid
+    cid=$(echo "$r" | jq -r '.id // empty')
+    [ -n "$cid" ] && children+=("$cid")
+  done
+  [ ${#children[@]} -lt 2 ] && return 1
+  sleep 5
+  local children_csv
+  children_csv=$(IFS=,; echo "${children[*]}")
+  local parent
+  parent=$(curl -sS -X POST "https://graph.threads.net/v1.0/$META_THREADS_USER_ID/threads" \
+    -d "media_type=CAROUSEL" \
+    -d "children=$children_csv" \
+    --data-urlencode "text=$caption" \
+    -d "access_token=$META_THREADS_TOKEN")
+  local pid
+  pid=$(echo "$parent" | jq -r '.id // empty')
+  [ -z "$pid" ] && return 1
+  sleep 3
+  curl -sS -X POST "https://graph.threads.net/v1.0/$META_THREADS_USER_ID/threads_publish" \
+    -d "creation_id=$pid" -d "access_token=$META_THREADS_TOKEN"
 }
 
 post_fb_text() {
@@ -108,28 +237,47 @@ ${TEXT}
 
 ${HASHTAGS}"
 
-  # Перший creative (для photo/video — стиснутий URL)
-  FIRST_CREATIVE=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&limit=1&select=creatives(type,thumbnail_url,compressed_url)" \
-    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" | jq -c '.[0].creatives')
-  CRE_TYPE=$(echo "$FIRST_CREATIVE" | jq -r '.type // ""')
-  CRE_URL=$(echo "$FIRST_CREATIVE" | jq -r '.compressed_url // .thumbnail_url // ""')
+  # ВСІ creatives (для media group / carousel)
+  ALL_CREATIVES=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&select=creatives(type,thumbnail_url,compressed_url)" \
+    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" | jq -c '[.[] | .creatives]')
+  CRE_COUNT=$(echo "$ALL_CREATIVES" | jq 'length')
+  CRE_URLS=()
+  TYPES=()
+  while IFS= read -r CR; do
+    URL=$(echo "$CR" | jq -r '.compressed_url // .thumbnail_url // ""')
+    TYPE=$(echo "$CR" | jq -r '.type // ""')
+    [ -n "$URL" ] && CRE_URLS+=("$URL") && TYPES+=("$TYPE")
+  done < <(echo "$ALL_CREATIVES" | jq -c '.[]')
+  FIRST_TYPE="${TYPES[0]:-}"
+  FIRST_URL="${CRE_URLS[0]:-}"
+  echo "Platform=$PLATFORM | $CRE_COUNT creatives | first=$FIRST_TYPE"
 
   set +e
   HTTP_OK=0
   if [ "$PLATFORM" = "ig" ]; then
-    if [ "$CRE_TYPE" = "photo" ] && [ -n "$CRE_URL" ]; then
-      post_ig_photo "$CRE_URL" "$CAPTION" && HTTP_OK=1
+    if [ ${#CRE_URLS[@]} -ge 2 ]; then
+      post_ig_carousel "$CAPTION" "${CRE_URLS[@]}" && HTTP_OK=1
+    elif [ "$FIRST_TYPE" = "video" ] && [ -n "$FIRST_URL" ]; then
+      post_ig_reel "$FIRST_URL" "$CAPTION" && HTTP_OK=1
+    elif [ "$FIRST_TYPE" = "photo" ] && [ -n "$FIRST_URL" ]; then
+      post_ig_photo "$FIRST_URL" "$CAPTION" && HTTP_OK=1
     else
-      echo "::warning::IG потребує photo creative — пропускаю"
+      echo "::warning::IG потребує photo/video creative — пропускаю"
     fi
   elif [ "$PLATFORM" = "fb" ]; then
-    if [ "$CRE_TYPE" = "photo" ] && [ -n "$CRE_URL" ]; then
-      post_fb_photo "$CRE_URL" "$CAPTION" && HTTP_OK=1
+    if [ ${#CRE_URLS[@]} -ge 2 ] && [ "$FIRST_TYPE" = "photo" ]; then
+      post_fb_album "$CAPTION" "${CRE_URLS[@]}" && HTTP_OK=1
+    elif [ "$FIRST_TYPE" = "photo" ] && [ -n "$FIRST_URL" ]; then
+      post_fb_photo "$FIRST_URL" "$CAPTION" && HTTP_OK=1
     else
       post_fb_text "$CAPTION" && HTTP_OK=1
     fi
   elif [ "$PLATFORM" = "threads" ]; then
-    post_threads_text "$CAPTION" && HTTP_OK=1
+    if [ ${#CRE_URLS[@]} -ge 2 ]; then
+      post_threads_carousel "$CAPTION" "${CRE_URLS[@]}" && HTTP_OK=1
+    else
+      post_threads_text "$CAPTION" && HTTP_OK=1
+    fi
   fi
   set -e
 
