@@ -28,25 +28,12 @@
   .layout { display: none; }
   .layout.active { display: flex; min-height: 100vh; }
   aside.sidebar { width: 260px; background: #0a0a0a; border-right: 1px solid #1a1a1a; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; padding: 24px 0; }
-  .sb-logo { padding: 0 22px 18px; border-bottom: 1px solid #1a1a1a; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
-  .sb-logo .logo-mark { width: 36px; height: 36px; background: linear-gradient(135deg, #E30613, #ff4858); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: 'Oswald', sans-serif; font-weight: 800; font-size: 13px; color: #fff; box-shadow: 0 4px 12px -3px rgba(227, 6, 19, 0.5); letter-spacing: 0.5px; }
-  .sb-logo .logo-text { display: flex; flex-direction: column; line-height: 1.2; }
-  .sb-logo .brand { font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; color: #fff; }
-  .sb-logo .brand span { color: #E30613; }
-  .sb-logo .sub { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #555; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 2px; }
-  /* Global topbar (брендова шапка зверху, як у інших системах) */
-  .gt-row { position: fixed; top: 0; left: 0; right: 0; height: 44px; background: #0A0A0A; border-bottom: 1px solid #1a1a1a; z-index: 100; display: flex; align-items: center; padding: 0 18px; gap: 16px; }
-  .gt-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
-  .gt-logo .gt-mark { width: 28px; height: 28px; background: linear-gradient(135deg, #E30613, #ff4858); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 800; font-size: 11px; color: #fff; letter-spacing: 0.5px; box-shadow: 0 3px 10px -3px rgba(227, 6, 19, 0.5); }
-  .gt-logo .gt-name { font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 700; color: #fff; letter-spacing: 0.5px; text-transform: uppercase; }
-  .gt-logo .gt-name span { color: #E30613; }
-  .gt-links { display: flex; gap: 4px; margin-left: auto; align-items: center; }
-  .gt-links a { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #888; text-decoration: none; padding: 6px 10px; border-radius: 5px; letter-spacing: 0.1em; text-transform: uppercase; transition: all 0.15s; }
-  .gt-links a:hover { background: rgba(227, 6, 19, 0.1); color: #fff; }
-  .gt-links a.active { background: rgba(227, 6, 19, 0.12); color: #fff; }
-  .gt-links a.ext::after { content: ' ↗'; opacity: 0.5; }
-  body.has-topbar aside.sidebar { top: 44px; height: calc(100vh - 44px); }
-  body.has-topbar .main { padding-top: 76px; }
+  .sb-logo { padding: 0 22px 14px; display: block; text-decoration: none; }
+  .sb-logo .logo-img { width: 140px; height: auto; display: block; }
+  .sb-sub { padding: 0 22px 16px; border-bottom: 1px solid #1a1a1a; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #555; letter-spacing: 0.2em; text-transform: uppercase; }
+  /* global-header.js додає <dc-header> зверху висотою ~52px — зрушую layout */
+  body.has-topbar aside.sidebar { top: 52px; height: calc(100vh - 52px); }
+  body.has-topbar .main { padding-top: 80px; }
   body.has-topbar .layout.active { padding-top: 0; }
   .sb-role { padding: 8px 22px 18px; border-bottom: 1px solid #1a1a1a; margin-bottom: 8px; }
   .sb-role .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #555; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
@@ -94,25 +81,13 @@
     .main { margin-left: 0; padding: 24px 18px 60px; width: 100%; }
     .layout.active { flex-direction: column; }
     .page-header h1 { font-size: 26px; }
-    .gt-links a { padding: 6px 8px; font-size: 9px; }
   }
 </style>
 </head>
 <body data-active-role="all" class="has-topbar">
 
-<header class="gt-row">
-  <a href="/" class="gt-logo" title="DreamCar Team Hub">
-    <div class="gt-mark">DC</div>
-    <span class="gt-name">DREAM<span>CAR</span></span>
-  </a>
-  <nav class="gt-links">
-    <a href="/" title="Головна">Hub</a>
-    <a href="/hq/">HQ</a>
-    <a href="/tasks/">Tasks</a>
-    <a href="/onboarding.html" class="active">Онбординг</a>
-    <a href="https://brand.dreamcar.ua" class="ext" target="_blank" rel="noopener">Brand</a>
-  </nav>
-</header>
+<!-- Global header автоматично додається з brand.dreamcar.ua — справжній DreamCar логотип -->
+<script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
 
 <div id="role-picker">
 <div class="picker-wrap">
@@ -133,13 +108,10 @@
 
 <div class="layout" id="layout">
 <aside class="sidebar">
-<a href="/" class="sb-logo" style="text-decoration:none;color:inherit;">
-  <div class="logo-mark">DC</div>
-  <div class="logo-text">
-    <div class="brand">DREAM<span>CAR</span></div>
-    <div class="sub">Team Hub · Онбординг</div>
-  </div>
+<a href="/" class="sb-logo" title="DreamCar Team Hub">
+  <img src="https://brand.dreamcar.ua/assets/logo/dreamcar-racing-plate.svg" alt="DreamCar" class="logo-img">
 </a>
+<div class="sb-sub">Team Hub · Онбординг</div>
 <div class="sb-role"><div class="lbl">Твоя роль</div><div class="val"><span id="role-label">Усі</span><span class="change" id="change-role">змінити</span></div></div>
 <div class="sb-section">Старт</div>
 <a class="sb-link active" data-page="welcome">👋 Ласкаво просимо</a>
