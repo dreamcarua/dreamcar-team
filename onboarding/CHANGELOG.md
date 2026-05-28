@@ -10,6 +10,12 @@
 
 ## 2026-05-28
 
+### Уніфікований mobile UX скрізь — Tasks + HQ + Onboarding
+- 🆕 `tasks/index.html` — повний mobile rebuild: прибрав '← HUB', Analytics/Bell/Settings/Help/Exit перенесено у slide-in drawer (як у брендбуці). Topbar тільки 'DREAMCAR · TASKS + МЕНЮ'. FAB '+' bottom-right для швидкого створення задачі. MutationObserver синхронізує bell badge + user name з main у drawer. Commit `ef356a9`.
+- 🔧 `hq/index.html` — замінив fixed ☰ hamburger зліва на 'МЕНЮ' текст-кнопку inline у topbar справа (стиль брендбука: JetBrains Mono 11px, letter-spacing 0.2em, border-radius 0). Topbar padding-left 60→12px. Commit `307894d`.
+- 🔧 `onboarding.html` — локальний topbar 'DREAMCAR · ОНБОРДИНГ' (Archivo Black) + 'МЕНЮ' 1:1 з брендбука. Commit `8260ea7`.
+- 🎨 **Єдина візуальна логіка** скрізь: brand-book / HQ / Tasks / Onboarding / Orgchart / Survey — той самий патерн drawer + topbar + FAB.
+
 ### Global search + brand-book sidebar pattern (Vadym critical v3)
 - 🆕 `brand-book/assets/global-header.js` — **глобальний пошук** `⌕ Пошук` (⌘K shortcut) у вільному місці справа від лого. Overlay з 3 секціями: Системи (Brand/HQ/Tasks/Onboarding/Org/Survey) + Локальна сторінка (через `window.DC_PAGE_NAV`) + Brand Book search-index.json (29 розділів, full-text). Sticky разом з header. Працює в усіх системах де підключений global-header. Commit `c6f5ac0`.
 - 🔧 `onboarding.html` — sidebar тепер як в брендбуку (brand-book pattern):
