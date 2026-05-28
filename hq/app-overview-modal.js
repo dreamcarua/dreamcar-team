@@ -344,9 +344,16 @@
       }
       const p = Store && Store.pub ? Store.pub(id) : null;
       if (!p) return window._origOpenCard(id);
+      // FIX (28.05.2026): свіжо створена «порожня» публікація — одразу edit,
+      // НЕ overview. Інакше користувач не міг наповнити нову пуб контентом.
+      const isEmpty = !p.title
+        && (!p.text || !p.text.trim())
+        && (!p.platforms || !p.platforms.length)
+        && (!p.creatives || !p.creatives.length);
+      if (isEmpty) return window._origOpenCard(id);
       return showOverview(id);
     };
-    console.log('[hq] overview-modal v4 installed');
+    console.log('[hq] overview-modal v4.1 installed (empty-pub direct-edit)');
   }
   installPatch();
 })();
