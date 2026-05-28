@@ -82,8 +82,10 @@
   @media (max-width: 900px) {
     /* Override has-topbar для mobile — sidebar НЕ fixed */
     body.has-topbar aside.sidebar { position: relative !important; top: auto !important; left: auto !important; width: 100% !important; height: auto !important; max-height: none !important; padding: 14px 0; border-right: none; border-bottom: 1px solid #1a1a1a; }
-    body.has-topbar .main { padding-top: 60px !important; padding-left: 14px !important; padding-right: 14px !important; }
-    body.has-topbar .layout.active { flex-direction: column; padding-top: 0 !important; }
+    body.has-topbar .main, .main { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding: 60px 14px 60px 14px !important; box-sizing: border-box !important; }
+    body.has-topbar .layout.active, .layout { flex-direction: column !important; padding-top: 0 !important; }
+    .container { max-width: 100% !important; width: 100% !important; padding: 0 !important; box-sizing: border-box !important; overflow-x: hidden; }
+    html, body { overflow-x: hidden !important; max-width: 100vw !important; }
 
     /* Hamburger toggle */
     .mobile-menu-btn {
