@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HQ Публікації — Онбординг · DreamCar</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<link rel="stylesheet" href="_template.css">
+</head>
+<body>
+<div class="container">
+
+  <div class="topbar">
+    <a href="index.html" class="back">← Онбординг</a>
+    <span class="crumbs">ONBOARDING / <span>HQ ПУБЛІКАЦІЇ</span></span>
+  </div>
+
+  <header class="hero">
+    <div class="kicker">/// 01 · HQ PUBLICATIONS</div>
+    <h1>HQ — <span>центр</span> контенту</h1>
+    <p class="lead">Усі публікації проходять тут: створення → погодження → планування → автопостинг. Multi-platform календар, multi-approver workflow, AI Copy, шаблони, real-time стани.</p>
+    <span class="status">● LIVE · вер. 2026.05</span>
+  </header>
+
+  <nav class="toc">
+    <span class="toc-label">Швидко:</span>
+    <a href="#concept">Концепція</a>
+    <a href="#arch">Архітектура</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#cases">Use cases</a>
+    <a href="#features">Ключові фічі</a>
+    <a href="#trouble">Troubleshooting</a>
+  </nav>
+
+  <section class="block" id="concept">
+    <h2><span class="icon">📐</span> Що це і навіщо</h2>
+    <div class="concept-box">
+      <p>HQ — це <b>єдине джерело правди</b> про все що публікується від імені DreamCar. До HQ було: пости планувалися у Excel, копірайт писався у Google Docs, креативи кидалися у Telegram-чат, рев'ю — у Slack, фінал — ручний постинг.</p>
+      <p>HQ замінив 5 інструментів на одну сторінку. Усе в одному місці, з історією, ролями і автоматизацією.</p>
+      <div class="why-grid">
+        <div class="why-card"><h4>Чому так</h4><p>Multi-platform контент (TG/IG/FB/TikTok/YT) потребує різного часу публікації і різного формату, але одного джерела. Дерев'яні таблиці не масштабуються.</p></div>
+        <div class="why-card"><h4>Як працює</h4><p>SPA на ванільному JS + Supabase для даних і Realtime для синхронізації. Кожна дія тригерить наступну: rework → задача автоматично; approved → автопост у TG.</p></div>
+        <div class="why-card"><h4>Ключове</h4><p>Multi-approver AND-логіка — поки ВСІ approvers не погодили, статус не змінюється. Жоден один не може "обійти" процес.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="arch">
+    <h2><span class="icon">🏗</span> Архітектура (як працює)</h2>
+    <div class="arch">
+<span class="node">Frontend (HQ SPA)</span>  <span class="conn">→</span>  <span class="node">Supabase</span>
+       │                              │
+       │ Realtime subscribe          │ PostgREST + RLS
+       │                              │
+       ↓                              ↓
+<span class="node">UI updates без F5</span>           <span class="node">publications, approvers, creatives</span>
+                                       │
+                       <span class="conn">trigger</span>      │
+                                       ↓
+                              <span class="node">team_tasks</span> (auto-task on rework)
+                                       ↓
+                              <span class="node">notify-tg</span> Edge Function
+                                       ↓
+                              <span class="node">Telegram DM/group</span>
+    </div>
+    <h3>Стек:</h3>
+    <ul>
+      <li><b>Frontend:</b> <code>hq/index.html</code> SPA, modular JS</li>
+      <li><b>Дані:</b> Supabase Postgres (publications, creatives, approvers, history, comments)</li>
+      <li><b>Логіка:</b> SQL RPC (<code>register_approval</code>, <code>publication_to_task_on_rework</code> trigger)</li>
+      <li><b>Доставка:</b> Edge Functions <code>notify-tg</code>, <code>cron-reminders</code>, <code>autopost-tg-enqueue</code></li>
+    </ul>
+  </section>
+
+  <section class="block" id="workflow">
+    <h2><span class="icon">🔄</span> Workflow публікації</h2>
+    <pre>draft  →  review  →  approved  →  published
+  ↑          ↓          ↓             ↓
+  (creator) (approver) (system)    (TG auto)
+            │
+            └─ rework? → auto-task у Tasks → SMM править → review</pre>
+    <ul>
+      <li><b>draft</b> — SMM пише, прикріплює креативи, ставить дату, обирає approvers. Авто-сейв.</li>
+      <li><b>review</b> — натиснув «На погодження». Approvers отримують TG inline (✅ Погодити / ↩ Повернути).</li>
+      <li><b>rework</b> — повернуто → SQL trigger створює задачу у Tasks автоматично.</li>
+      <li><b>approved</b> — ВСІ approvers погодили (AND) → автопостинг enqueued.</li>
+      <li><b>published</b> — після успішного посту у канал.</li>
+    </ul>
+  </section>
+
+  <section class="block" id="cases">
+    <h2><span class="icon">🎯</span> Use cases</h2>
+
+    <div class="use-case" id="create-pub">
+      <div class="who">SMM (Олександр)</div>
+      <h3>Створити нову публікацію</h3>
+      <ol class="steps">
+        <li>HQ → «+ Створити публікацію» (або клік у клітинці календаря)</li>
+        <li>Заголовок, текст (AI Copy кнопка ⚡), платформи, час публікації</li>
+        <li>Drag-drop креатив із Бібліотеки або завантажити</li>
+        <li>Обрати approvers (Вадим + Артем)</li>
+        <li>«На погодження» → approvers отримають TG inline</li>
+      </ol>
+      <div class="tip">💡 Auto-save кожні 3 сек — нічого не загубиться.</div>
+    </div>
+
+    <div class="use-case" id="approval">
+      <div class="who">Approver (Вадим, Артем)</div>
+      <h3>Погодити публікацію (3 способи)</h3>
+      <ol class="steps">
+        <li><b>TG inline:</b> натискай ✅ під повідомленням @dreamcar_team_bot</li>
+        <li><b>HQ UI:</b> Дошка погоджень → колонка «На погодженні»</li>
+        <li><b>/approve у боті:</b> черга всіх постів що чекають голосу</li>
+      </ol>
+      <div class="tip">💡 Multi-approver AND: статус стане «approved» тільки коли ВСІ погодили.</div>
+    </div>
+
+    <div class="use-case" id="rework">
+      <div class="who">Approver</div>
+      <h3>Повернути на доопрацювання</h3>
+      <ol class="steps">
+        <li>↩ у TG inline (двокроковий: причина → confirm)</li>
+        <li>Або у HQ «Повернути» → структурована модалка (текст/креатив/дата/інше)</li>
+        <li>Автоматично створюється задача у Tasks з due date = +1 день</li>
+      </ol>
+      <div class="tip">💡 Якщо approved-пост змінили >10 символів — авто-revert у review.</div>
+    </div>
+
+    <div class="use-case" id="ai-copy">
+      <div class="who">SMM</div>
+      <h3>AI Copy Assistant</h3>
+      <ol class="steps">
+        <li>У картці — кнопка ⚡ «AI Copy»</li>
+        <li>Опиши brief 1-2 реченнями</li>
+        <li>Claude API повертає 3 варіанти у нашому brand voice</li>
+        <li>Вибираєш + редагуєш</li>
+      </ol>
+      <div class="tip">💡 Voice захардкожений — не сипле NASA / квитками / розіграшами.</div>
+    </div>
+
+    <div class="use-case">
+      <div class="who">CEO</div>
+      <h3>Аналітика пайплайну</h3>
+      <ol class="steps">
+        <li>HQ → Аналітика V3</li>
+        <li>Funnel (draft → review → approved → published)</li>
+        <li>Per-platform breakdown</li>
+        <li>Rework cycles (індикатор якості SMM)</li>
+        <li>Velocity — середній час від draft до published</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="block" id="features">
+    <h2><span class="icon">⚙️</span> Ключові фічі</h2>
+    <ul>
+      <li><b>Календар:</b> Місяць/Тиждень/День/Список + drag-drop + фільтр платформ</li>
+      <li><b>Картка публікації:</b> char counter, per-platform preview, кольорові точки</li>
+      <li><b>Approvers:</b> AND-логіка, @mention picker, chain прогрес у TG</li>
+      <li><b>Soft-lock:</b> хто редагує — інші бачать</li>
+      <li><b>FTS пошук:</b> tsvector full-text (Cmd+K глобал)</li>
+      <li><b>Шаблони:</b> admin може редагувати/додавати</li>
+      <li><b>Bulk delete + Undo (5 сек)</b></li>
+      <li><b>ICS export:</b> Google/Apple Calendar</li>
+      <li><b>SLA reminders:</b> -10 хв + перевірка +10 хв</li>
+      <li><b>Theme + PWA + звуки</b></li>
+    </ul>
+  </section>
+
+  <section class="block" id="trouble">
+    <h2><span class="icon">🚨</span> Troubleshooting</h2>
+    <table class="trouble-table">
+      <thead><tr><th>Проблема</th><th>Чому</th><th>Що робити</th></tr></thead>
+      <tbody>
+        <tr><td class="problem">«Перевіряю сесію…» висить</td><td class="cause">Supabase auth не відповів за 8 сек</td><td class="fix">F5. Якщо повториться — Cmd+Shift+R</td></tr>
+        <tr><td class="problem">Креатив не з'являється після upload</td><td class="cause">Compress queue ще не опрацював</td><td class="fix">Зачекай ~3 хв. Або глянь <a href="compress.html">Compress</a></td></tr>
+        <tr><td class="problem">«Approve» у TG не реагує</td><td class="cause">Бот рестартувався або TG_bind злетів</td><td class="fix">/start у боті. Перевір TG-bind індикатор у HQ</td></tr>
+        <tr><td class="problem">Approved пост не запостився</td><td class="cause">Autopost worker або compress не закінчили</td><td class="fix"><a href="autopost.html#trouble">Autopost troubleshooting</a></td></tr>
+        <tr><td class="problem">«Немає доступу»</td><td class="cause">Юзер без auth_id</td><td class="fix">CEO дає доступ через UI Команда</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+</body>
+</html>
