@@ -58,6 +58,47 @@
   .task-drawer .dr-user{padding:14px 22px;margin-top:8px;border-top:1px solid var(--line);}
   .task-drawer .dr-user .dr-uname{font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
 
+  /* ── COMPACT FILTER RAD (chip-style horizontal scroll) ── */
+  .filter-rad{
+    display:flex; gap:6px;
+    padding:10px 16px;
+    background:#0a0a0a;
+    border-bottom:1px solid var(--line);
+    overflow-x:auto; overflow-y:hidden;
+    scroll-snap-type:x proximity;
+    -webkit-overflow-scrolling:touch;
+    position:sticky; top:54px; z-index:40;
+  }
+  .filter-rad::-webkit-scrollbar{display:none;}
+  .filter-rad .chip{
+    flex:0 0 auto; scroll-snap-align:start;
+    padding:6px 12px;
+    background:transparent;
+    border:1px solid #2a2a2a;
+    color:#bbb;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; letter-spacing:0.06em;
+    text-transform:uppercase;
+    cursor:pointer; border-radius:0;
+    transition:all 0.15s;
+    display:inline-flex; align-items:center; gap:5px;
+    white-space:nowrap;
+    min-height:30px;
+  }
+  .filter-rad .chip:hover{ color:#fff; border-color:#3a3a3a; }
+  .filter-rad .chip.active{
+    background:var(--red); border-color:var(--red); color:#fff;
+    box-shadow:0 2px 6px rgba(227,6,19,0.3);
+  }
+  .filter-rad .chip .dot{
+    width:6px; height:6px; border-radius:50%; display:inline-block;
+  }
+  .filter-rad .chip .dot-red{ background:var(--red); }
+  @media (min-width:901px){
+    .filter-rad{ padding:12px 24px; gap:8px; top:0; }
+    .filter-rad .chip{ font-size:11px; padding:7px 14px; }
+  }
+
   /* ── FAB (+ ЗАВДАННЯ) як в HQ ── */
   .task-fab{display:none;}
   @media (max-width:900px){
@@ -333,6 +374,7 @@
   <div class="dr-section">Перехід</div>
   <a class="dr-item" href="/tasks/analytics.html"><span class="ico">📊</span>Analytics</a>
   <div class="dr-section">Дії</div>
+  <button class="dr-item" id="drTemplates" type="button"><span class="ico">📋</span>Шаблони задач</button>
   <button class="dr-item" id="drBell" type="button"><span class="ico">🔔</span>Сповіщення<span class="badge" id="drBellBadge" style="display:none">0</span></button>
   <button class="dr-item" id="drPrefs" type="button"><span class="ico">⚙</span>Налаштування</button>
   <button class="dr-item" id="drHelp" type="button"><span class="ico">❓</span>Гарячі клавіші</button>
@@ -368,20 +410,20 @@
 
 <!-- APP VIEW -->
 <div id="appView" style="display:none;">
-  <div class="topbar" style="position:static;padding:10px 24px;background:var(--coal);border-top:none;border-bottom:1px solid var(--line);justify-content:flex-end;">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="filter-btn" data-filter="all">ВСІ</button>
-      <button class="filter-btn" data-filter="me">МОЇ</button>
-      <button class="filter-btn" data-filter="watching">СТЕЖУ</button>
-      <button class="filter-btn" data-filter="created">Я СТВОРИВ</button>
-      <button class="filter-btn" data-filter="hipri">🔴 P1+P2</button>
-      <button class="filter-btn" data-filter="today">СЬОГОДНІ</button>
-      <button class="filter-btn" data-filter="overdue">ПРОТЕРМ.</button>
-      <button class="filter-btn" data-filter="mentions">@МЕНЕ</button>
-      <button class="add-btn" id="addTaskBtn">+ ЗАВДАННЯ (N)</button>
-      <button class="filter-btn" id="templatesBtn" title="Шаблони задач">📋 ШАБЛОНИ</button>
-    </div>
-  </div>
+  <!-- Filter chip rad — horizontal scroll-snap, compact як в iOS sigmented control -->
+  <nav class="filter-rad" aria-label="Фільтри задач">
+    <button class="chip" data-filter="all">Всі</button>
+    <button class="chip" data-filter="me">Мої</button>
+    <button class="chip" data-filter="hipri"><span class="dot dot-red"></span>P1+P2</button>
+    <button class="chip" data-filter="today">Сьогодні</button>
+    <button class="chip" data-filter="overdue">Прострочені</button>
+    <button class="chip" data-filter="mentions">@мене</button>
+    <button class="chip" data-filter="watching">Стежу</button>
+    <button class="chip" data-filter="created">Я створив</button>
+  </nav>
+  <!-- Прихована для compat (FAB і drawer тригерять цю кнопку): -->
+  <button class="add-btn" id="addTaskBtn" style="display:none;">+ ЗАВДАННЯ</button>
+  <button class="filter-btn" id="templatesBtn" style="display:none;" title="Шаблони задач">📋 ШАБЛОНИ</button>
 
   <div class="kanban">
     <div class="col" data-status="inbox"><div class="col-head"><span class="col-title">📥 INBOX</span><span class="col-count" id="count-inbox">0</span></div><div class="col-body" data-status="inbox" id="col-inbox"></div></div>
@@ -985,6 +1027,7 @@ modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('s
   document.addEventListener('keydown', e => { if(e.key==='Escape') closeDrawer(); });
   drawer?.querySelectorAll('a.dr-item').forEach(a => a.addEventListener('click', closeDrawer));
   // Проксі-кнопки у drawer → клік на оригінальні
+  document.getElementById('drTemplates')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('templatesBtn')?.click(); });
   document.getElementById('drBell')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('bellBtn')?.click(); });
   document.getElementById('drPrefs')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('prefsBtn')?.click(); });
   document.getElementById('drHelp')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('helpBtn')?.click(); });
