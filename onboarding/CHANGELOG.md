@@ -10,6 +10,10 @@
 
 ## 2026-05-28
 
+### Mobile UX rebuild HQ + onboarding (Артем feedback v3)
+- 🔧 `/onboarding.html` — **role-picker scroll fix**: `overflow-y:auto + -webkit-overflow-scrolling:touch`, на mobile `align-items:flex-start` + `env(safe-area-inset-*)`. Артем не міг доскролити 6 ролей бо 100vh контейнер мав `align-items:center` без скролу. Зараз — гладкий scroll.
+- 🆕 `/hq/index.html` — **повний mobile-first rebuild** (Артем feedback "коряво на mobile"): off-canvas sidebar (slide-in drawer + backdrop + ESC close), hamburger button (44×44), компактний 52px topbar з iOS safe-area-inset, sticky view-header вертикально, platform-filter horizontal scroll-snap, календар Month компактний (58px клітинки, без time inline), modals slide-up bottom-sheet near-fullscreen, list-table → cards, **FAB (+) bottom-right** для швидкого створення публікації, 38px+ tap-targets (Apple HIG 44×44). `dvh` замість `vh`. Hides global-header на mobile (уникнути дублю навігації). Commit `dac62cd`.
+
 ### Mobile UX v2 (Артем feedback)
 - 🔧 `/onboarding.html` — fix mobile layout: `.main` override `margin-left:0 + width:100% + max-width:100% + box-sizing:border-box` у `@media (max-width:900px)`. До цього desktop CSS (`margin-left:260px; width:calc(100% - 260px)`) залишався активний → контент тиснувся у вузьку колонку справа. Тепер на телефоні займає повну ширину viewport. Sidebar — overlay через hamburger. Commit `dea24c5`.
 
