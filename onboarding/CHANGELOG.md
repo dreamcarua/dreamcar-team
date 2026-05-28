@@ -10,6 +10,16 @@
 
 ## 2026-05-28
 
+### Universal page-nav dropdown у global-header (Vadym critical v2)
+- 🆕 `brand-book/assets/global-header.js` — додано **page-nav dropdown** як універсальний компонент усіх систем (sticky в header):
+  - Сторінка декларує `window.DC_PAGE_NAV = { current, pages:[{id,label,num}], onSelect }` ДО завантаження скрипта
+  - Header автоматично малює кнопку у `.dc-gh-right` (поряд з ≡): `[01] 👋 Старт ▼`
+  - Клік → красивий dropdown під header з усіма розділами, активний підсвічений
+  - Click outside / ESC закриває; `__dcUpdatePageNav(id)` для sync ззовні
+  - Sticky разом з header при scroll. Mobile: full-width менюшка під header
+- 🔧 `onboarding.html` — прибрав mobile-stepper що перекривав контент. Тепер встановлюємо `DC_PAGE_NAV` і експонуємо `__dcGoPage` для синхронізації з sidebar. Commit team: `6c43b89`, commit brand-book: `be94e44`
+- **Тепер можна швидко інтегрувати в HQ, Tasks, Brand Book** — просто встановити `window.DC_PAGE_NAV` у конкретній сторінці.
+
 ### Onboarding UX rebuild — stepper + no blocker (Vadym critical)
 - 🆕 `/onboarding.html` — повний рефакторінг flow:
   - **Прибрано auto-show role-picker** як блокер на старті. Тепер `setRole(stored || 'all')` — контент видно одразу. Picker відкривається через CTA «Знайти свою роль» у Welcome або «змінити» у sidebar.
