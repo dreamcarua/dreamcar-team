@@ -453,9 +453,9 @@
     }
     .logo { display: none !important; }
 
-    /* ── Topbar: compact, safe-area, icon-first ── */
+    /* ── Topbar: compact, safe-area ── */
     .topbar {
-      padding: env(safe-area-inset-top) 12px 0 60px !important;
+      padding: env(safe-area-inset-top) 12px 0 12px !important;
       gap: 8px !important;
       min-height: 52px;
       height: calc(52px + env(safe-area-inset-top));
@@ -480,26 +480,32 @@
       justify-content: center;
     }
 
-    /* ── Hamburger button (visible only on mobile) ── */
+    /* ── МЕНЮ кнопка (стиль як у брендбуці) — inline у topbar справа ── */
     .hamburger-btn {
-      display: flex !important;
-      position: fixed;
-      top: calc(env(safe-area-inset-top) + 6px);
-      left: 8px;
-      z-index: 90;
-      width: 40px;
-      height: 40px;
-      background: var(--bg-3);
-      border: 1px solid var(--border);
-      border-radius: 10px;
+      display: inline-flex !important;
+      align-items: center; justify-content: center;
+      background: transparent;
+      border: 1px solid var(--border) !important;
       color: #fff;
-      font-size: 18px;
-      align-items: center;
-      justify-content: center;
+      padding: 8px 14px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 11px !important;
+      letter-spacing: 0.2em !important;
+      text-transform: uppercase;
+      font-weight: 400;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      border-radius: 0 !important;
+      transition: border-color 120ms, background 120ms;
+      line-height: 1;
+      width: auto !important; height: auto !important;
+      position: static !important;
+      box-shadow: none !important;
+      margin-left: 6px;
     }
-    .hamburger-btn:active { transform: scale(0.94); background: var(--bg-hover); }
+    .hamburger-btn:hover,
+    .hamburger-btn:active { border-color: var(--red) !important; background: rgba(227,6,19,0.06) !important; }
+    /* Місце в topbar: padding-left не потрібний для absent hamburger */
+    .topbar { padding-left: 12px !important; }
 
     /* ── Sidebar: off-canvas drawer ── */
     .sidebar {
@@ -760,8 +766,7 @@
   <div class="dot"></div><span id="backendIndicatorLabel">Demo</span>
 </div>
 
-<!-- Mobile nav: hamburger + backdrop overlay -->
-<button class="hamburger-btn" id="hamburgerBtn" aria-label="Меню" aria-expanded="false" type="button">☰</button>
+<!-- Sidebar backdrop overlay -->
 <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
 
 <div class="app">
@@ -776,6 +781,7 @@
       <input type="text" id="globalSearch" placeholder="Шукати публікації, креативи, людей…" />
     </div>
     <div class="actions">
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Меню" aria-expanded="false" type="button">МЕНЮ</button>
       <div class="bell" id="bellBtn" title="Сповіщення">
         🔔<span class="badge" id="bellBadge">3</span>
       </div>
