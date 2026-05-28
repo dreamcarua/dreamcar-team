@@ -10,6 +10,10 @@
 
 ## 2026-05-28
 
+### 🤖 CRITICAL FIX: tg-ai-router Edge Function (DM AI асистент)
+- 🆕 `hq/supabase/functions/tg-ai-router/index.ts` — створено відсутню Edge Function. До цього tg-webhook v26 викликав `${SUPABASE_URL}/functions/v1/tg-ai-router` яка НЕ існувала → усі DM до @dreamcar_team_bot падали в 404 (тихо, бо try/catch). Тепер: приймає `{chat_id, user_db_id, user_name, user_role, text, voice_file_id, message_id}` → за наявності voice транскрибує через OpenAI Whisper (uk) → шле в Claude (sonnet) з system prompt про DreamCar контекст і ролі → відповідає в TG через TG_BOT_TOKEN з reply_to_message_id. ENV: ANTHROPIC_API_KEY, OPENAI_API_KEY (опціонально для voice), TG_BOT_TOKEN. CORS + try/catch навколо всього, завжди 200 щоб webhook не ретраїв.
+- 🚀 GH Action `deploy-edge-functions.yml` авто-деплоїть на push у `hq/supabase/functions/**`.
+
 ### Wave 4 — security + повне покриття mobile-стилю
 - 🛡 **Push guards у 7 dev pages** (`/onboarding/{index,audit,autopost,compress,hq,tasks,brand-book}.html`) — додано auth-guard.js + _dev-guard.js. Випадковий перехід → login overlay → дозволено лише ceo/coo/lead. Інших → /onboarding.html. Commit `fb3c241`.
 - 🎨 **HQ inner views** (Board / Library / Launches / Settings) — mobile chip-стиль як у Календарі. Board single column, library 3-col grid, всі без border-radius, JetBrains Mono для UI-тексту. Commit `3c8a2d8`.
