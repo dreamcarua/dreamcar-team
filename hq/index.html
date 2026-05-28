@@ -560,19 +560,70 @@
       gap: 8px !important;
       top: 0 !important;
     }
-    .view-header h1 { font-size: 18px !important; flex: 1 1 100%; }
-    .view-header .view-meta { font-size: 11px !important; flex: 0 0 auto; }
+    .view-header h1 {
+      font-size: 16px !important;
+      letter-spacing: 0.02em !important;
+      flex: 1 1 auto !important;
+      font-family: 'Oswald', sans-serif;
+      text-transform: uppercase;
+    }
+    .view-header .view-meta {
+      font-size: 10px !important;
+      letter-spacing: 0.1em;
+      flex: 0 0 auto;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--grey) !important;
+    }
     .view-header .actions {
       margin-left: 0 !important;
       flex: 1 1 100%;
       justify-content: flex-start;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 6px !important;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
-    .view-header .actions .btn {
-      padding: 8px 12px !important;
-      font-size: 12px !important;
-      min-height: 38px;
+    .view-header .actions::-webkit-scrollbar { display: none; }
+    /* Сегментовані кнопки Місяць/Тиждень/День/Список — chip-style як у Tasks */
+    .view-header .actions .btn,
+    .view-header .actions .btn-segmented {
+      padding: 7px 12px !important;
+      font-size: 11px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+      min-height: 32px !important;
+      border-radius: 0 !important;
+      flex: 0 0 auto !important;
+      white-space: nowrap !important;
+      color: #aaa !important;
+      border-color: #2A2A2A !important;
+      background: transparent !important;
     }
+    .view-header .actions .btn:hover,
+    .view-header .actions .btn-segmented:hover { border-color: #3a3a3a !important; color: #fff !important; }
+    .view-header .actions .btn.on,
+    .view-header .actions .btn.active,
+    .view-header .actions .btn-segmented.on,
+    .view-header .actions .btn-segmented.active,
+    .view-header .actions .btn-primary {
+      background: var(--red) !important;
+      border-color: var(--red) !important;
+      color: #fff !important;
+      box-shadow: 0 2px 6px rgba(227,6,19,0.3);
+    }
+    /* "+ Нова публікація" — приховати на mobile, є FAB */
+    #addPubBtn { display: none !important; }
+
+    /* ── Прибрати зайві emoji-кнопки з topbar (app-ui-extras.js): collapse, theme, sound ── */
+    #hq-sidebar-toggle, #hq-theme-toggle, #hq-sound-toggle {
+      display: none !important;
+    }
+
+    /* ── Cal navigation: компактна ── */
+    .cal-nav .month-label { font-size: 13px !important; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+    .cal-nav button { width: 36px !important; height: 36px !important; border-radius: 0 !important; }
 
     /* ── Wrappers ── */
     .calendar-wrap, .board-wrap, .library-wrap { padding: 12px 12px 24px !important; }
@@ -857,10 +908,10 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   // FAB → відкрити модалку створення публікації (як кнопка "+ Нова" у view-header)
   fab?.addEventListener('click', () => {
-    // Пробуємо різні селектори що могли б тригернути створення
-    const target = document.querySelector('[data-action="new-pub"]')
-                || document.querySelector('.view-header .actions .btn-primary')
-                || document.querySelector('button.btn-primary');
+    // Прямо тригеримо #addPubBtn (він прихований на mobile через CSS, але клік працює)
+    const target = document.getElementById('addPubBtn')
+                || document.querySelector('[data-action="new-pub"]')
+                || document.querySelector('.view-header .actions .btn-primary');
     if (target) { target.click(); return; }
     // Fallback на hash route
     if (typeof window.openNewPub === 'function') { window.openNewPub(); return; }
