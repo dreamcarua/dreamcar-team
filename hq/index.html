@@ -624,6 +624,62 @@
     /* ── Cal navigation: компактна ── */
     .cal-nav .month-label { font-size: 13px !important; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
     .cal-nav button { width: 36px !important; height: 36px !important; border-radius: 0 !important; }
+    /* "Сьогодні" — chip-стиль як решта на mobile */
+    #todayBtn {
+      width: auto !important; height: 36px !important;
+      padding: 0 14px !important;
+      margin-left: 8px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 11px !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      border: 1px solid var(--border) !important;
+      color: #ddd !important;
+    }
+    #todayBtn:hover, #todayBtn:active { border-color: var(--red) !important; background: rgba(227,6,19,0.06) !important; color: #fff !important; }
+
+    /* ── Bulk action bar: scroll-snap бо обрізає "Додати теги" ── */
+    .bulk-bar {
+      flex-wrap: nowrap !important;
+      gap: 8px !important;
+      padding: 10px 12px !important;
+      border-radius: 0 !important;
+      align-items: center;
+      bottom: calc(env(safe-area-inset-bottom) + 0px) !important;
+    }
+    .bulk-bar .bb-count {
+      font-size: 11px !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+    .bulk-bar .bb-actions {
+      margin-left: 0 !important;
+      flex: 1 1 auto !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      gap: 6px !important;
+      padding-bottom: 2px;
+      scroll-snap-type: x proximity;
+    }
+    .bulk-bar .bb-actions::-webkit-scrollbar { display: none; }
+    .bulk-bar .bb-actions .btn,
+    .bulk-bar .bb-actions button {
+      flex: 0 0 auto !important;
+      scroll-snap-align: start;
+      padding: 7px 10px !important;
+      font-size: 11px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      letter-spacing: 0.05em !important;
+      border-radius: 0 !important;
+      white-space: nowrap !important;
+      min-height: 32px !important;
+    }
 
     /* ── Wrappers ── */
     .calendar-wrap, .board-wrap, .library-wrap { padding: 12px 12px 24px !important; }
