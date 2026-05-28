@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autoposting — Онбординг · DreamCar</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<link rel="stylesheet" href="_template.css">
+</head>
+<body>
+<div class="container">
+  <div class="topbar"><a href="index.html" class="back">← Онбординг</a><span class="crumbs">ONBOARDING / <span>AUTOPOSTING</span></span></div>
+  <header class="hero">
+    <div class="kicker">/// 04 · AUTOPOSTING</div>
+    <h1>AUTO<span>POSTING</span> · TG + Meta</h1>
+    <p class="lead">Approved публікації автоматично йдуть у канали. TG — живий, event-driven. IG / FB / Threads — Phase 2, чекають Meta App credentials.</p>
+    <span class="status">● TG LIVE · IG/FB/TH waits secrets</span>
+  </header>
+  <nav class="toc"><span class="toc-label">Швидко:</span><a href="#concept">Концепція</a><a href="#arch">Архітектура</a><a href="#flow">Flow</a><a href="#meta">Meta Phase 2</a><a href="#cases">Use cases</a><a href="#trouble">Troubleshooting</a></nav>
+
+  <section class="block" id="concept">
+    <h2><span class="icon">📐</span> Що це і навіщо</h2>
+    <div class="concept-box">
+      <p>Колись постив руками: approve → копія тексту → завантажити креатив → опублікувати. 5-10 хв ручної роботи. Тепер: approve → автоматично через worker → потрібний час, канал, креатив. 0 хв ручки.</p>
+      <div class="why-grid">
+        <div class="why-card"><h4>Чому event-driven</h4><p>Класичний cron */5min — затримка до 5 хв. Event-driven через repository_dispatch — публікація через ~10-30 сек після approve.</p></div>
+        <div class="why-card"><h4>Як працює</h4><p>Approved → enqueue у tg_autopost_queue → GH Action worker через 30 сек → API call → Telegram</p></div>
+        <div class="why-card"><h4>Defer logic</h4><p>Якщо publish_at у майбутньому — worker НЕ постить зараз, чекає до часу. attempts не інкрементує.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="arch">
+    <h2><span class="icon">🏗</span> Архітектура</h2>
+    <div class="arch">
+<span class="node">publication.status='approved'</span>
+       │
+       <span class="conn">↓ enqueue_pending_autoposts() (per-platform)</span>
+<span class="node">tg_autopost_queue</span> + <span class="node">platform_autopost_status</span> JSONB
+       │
+       <span class="conn">↓ repository_dispatch OR cron */5min</span>
+<span class="node">tg-autopost.yml</span> → <span class="node">tg-autopost-worker.sh</span>
+   ├─ claim_autopost_jobs(1) — атомарний SKIP LOCKED
+   ├─ Якщо publish_at у майбутньому → defer
+   ├─ Якщо creative compress NOT ready → defer
+   ├─ Post via TG Bot API
+   ├─ complete_autopost_job() АБО fail_autopost_job()
+   └─ Для Meta: meta-autopost-worker.sh → IG/FB/Threads
+    </div>
+  </section>
+
+  <section class="block" id="flow">
+    <h2><span class="icon">🔄</span> Flow станів</h2>
+    <pre>pending  →  processing  →  done
+                  ↓
+               failed (retry, max 3 attempts)</pre>
+    <p>Кожна публікація має platform_autopost_status JSONB: {tg: 'done', ig: 'pending', fb: 'failed'}. mark_platform_autopost(pub_id, platform, status) атомарно мерджить.</p>
+  </section>
+
+  <section class="block" id="meta">
+    <h2><span class="icon">🌐</span> Meta Phase 2 (IG + FB + Threads)</h2>
+    <p>Код вже задеплоєний, чекає на 7 secrets у GH:</p>
+    <ul>
+      <li>META_APP_ID, META_APP_SECRET</li>
+      <li>IG_USER_ID, IG_ACCESS_TOKEN (60d)</li>
+      <li>FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN</li>
+      <li>THREADS_ACCESS_TOKEN</li>
+    </ul>
+    <p>Інструкція: <code>docs/META_AUTOPOST_SETUP.md</code></p>
+    <h3>Що готово у коді</h3>
+    <ul>
+      <li>IG single image + carousel + Reels</li>
+      <li>FB Page single + carousel + video</li>
+      <li>Threads single + reply chain</li>
+      <li>Auto-retry logic, status JSONB merge</li>
+    </ul>
+  </section>
+
+  <section class="block" id="cases">
+    <h2><span class="icon">🎯</span> Use cases</h2>
+    <div class="use-case">
+      <div class="who">SMM</div>
+      <h3>Запланувати TG пост на майбутнє</h3>
+      <ol class="steps">
+        <li>HQ → створи публікацію → publish_at = 2026-05-30 14:00 CEST</li>
+        <li>Approvers погодили → enqueued</li>
+        <li>Worker cron */5min бачить що ще НЕ час → defer</li>
+        <li>О 14:00 — worker візьме і опублікує</li>
+      </ol>
+      <div class="tip">💡 SLA timer тригерить нагадування -10 хв перед публікацією.</div>
+    </div>
+    <div class="use-case">
+      <div class="who">Admin (SQL)</div>
+      <h3>Тригернути autopost негайно</h3>
+      <pre>SELECT net.http_post(
+  url := 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/dispatch-workflow',
+  headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer dummy'),
+  body := jsonb_build_object('workflow','autopost')
+);</pre>
+    </div>
+  </section>
+
+  <section class="block" id="trouble">
+    <h2><span class="icon">🚨</span> Troubleshooting</h2>
+    <table class="trouble-table">
+      <thead><tr><th>Проблема</th><th>Чому</th><th>Що робити</th></tr></thead>
+      <tbody>
+        <tr><td class="problem">Approved не запостився</td><td class="cause">Compress not ready / publish_at у майбутньому / GH Action впав</td><td class="fix">Перевір compressed_status + publish_at + GH Actions runs</td></tr>
+        <tr><td class="problem">Пост у sendDocument (без preview)</td><td class="cause">Compressed >49.5MB</td><td class="fix">Норма — fallback. Або вкоротити відео + retry_compress</td></tr>
+        <tr><td class="problem">«retry_after» error</td><td class="cause">TG rate limit (20 msg/sec)</td><td class="fix">Cron підбере знову. Якщо повторюється — sleep у worker</td></tr>
+        <tr><td class="problem">Дублікати у каналі</td><td class="cause">Worker race</td><td class="fix">claim_autopost_jobs має SKIP LOCKED. Видали dublicate</td></tr>
+        <tr><td class="problem">IG/FB/TH не постять</td><td class="cause">Meta credentials не налаштовані</td><td class="fix">Phase 2 — налаштувати 7 secrets</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+</body>
+</html>
