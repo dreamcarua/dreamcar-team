@@ -6,6 +6,9 @@
 <title>HQ Публікації — Онбординг · DreamCar</title>
 <link rel="stylesheet" href="../assets/brand-tokens.css">
 <link rel="stylesheet" href="_template.css">
+<script src="/hq/config.js" defer></script>
+<script src="/assets/auth-guard.js" defer></script>
+<script src="/onboarding/_dev-guard.js" defer></script>
 </head>
 <body>
 <div class="container">
@@ -38,7 +41,7 @@
       <p>HQ — це <b>єдине джерело правди</b> про все що публікується від імені DreamCar. До HQ було: пости планувалися у Excel, копірайт писався у Google Docs, креативи кидалися у Telegram-чат, рев'ю — у Slack, фінал — ручний постинг.</p>
       <p>HQ замінив 5 інструментів на одну сторінку. Усе в одному місці, з історією, ролями і автоматизацією.</p>
       <div class="why-grid">
-        <div class="why-card"><h4>Чому так</h4><p>Multi-platform контент (TG/IG/FB/TikTok/YT) потребує різного часу публікації і різного формату, але одного джерела. Дерев'яні таблиці не масштабуються.</p></div>
+        <div class="why-card"><h4>Чому так</h4><p>Multi-platform контент (TG/IG/FB/TikTok/YT) потребує різного часу публікації і різного формату, але одного джерела.</p></div>
         <div class="why-card"><h4>Як працює</h4><p>SPA на ванільному JS + Supabase для даних і Realtime для синхронізації. Кожна дія тригерить наступну: rework → задача автоматично; approved → автопост у TG.</p></div>
         <div class="why-card"><h4>Ключове</h4><p>Multi-approver AND-логіка — поки ВСІ approvers не погодили, статус не змінюється. Жоден один не може "обійти" процес.</p></div>
       </div>
@@ -135,7 +138,7 @@
         <li>Claude API повертає 3 варіанти у нашому brand voice</li>
         <li>Вибираєш + редагуєш</li>
       </ol>
-      <div class="tip">💡 Voice захардкожений — не сипле NASA / квитками / розіграшами.</div>
+      <div class="tip">💡 Voice налаштований у системі — твоя тональність DreamCar, не загальна. Не сипле «квитками / розіграшами / лотереями» (юридичні ризики для DreamCar). NASA — це обмеження snEco/Barpi, до DreamCar не стосується.</div>
     </div>
 
     <div class="use-case">
