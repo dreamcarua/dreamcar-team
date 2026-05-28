@@ -134,17 +134,21 @@ ${HASHTAGS}"
   set -e
 
   if [ "$HTTP_OK" = "1" ]; then
-    # Mark posted у publications.platform_autopost_status
-    curl -sS -X PATCH "$SUPABASE_URL/rest/v1/publications?id=eq.$PUB_ID" \
+    # Atomic JSONB merge через RPC (зберігає інші платформи)
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/mark_platform_autopost" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
-      -H "Content-Type: application/json" -H "Prefer: return=minimal" \
-      -d "{\"platform_autopost_status\": $(echo "$PUB" | jq --arg p "$PLATFORM" '. + {platform_autopost_status:({} | .[$p]="posted")} | .platform_autopost_status')}"
+      -H "Content-Type: application/json" \
+      -d "{\"p_pub_id\":\"$PUB_ID\",\"p_platform\":\"$PLATFORM\",\"p_status\":\"posted\"}"
     curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_autopost_job" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
       -d "{\"job_id\":\"$JOB_ID\",\"pub_id\":\"$PUB_ID\",\"chat_id\":\"$PLATFORM\",\"msg_id\":0}"
     echo "✓ Posted to $PLATFORM"
   else
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/mark_platform_autopost" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{\"p_pub_id\":\"$PUB_ID\",\"p_platform\":\"$PLATFORM\",\"p_status\":\"failed\"}"
     curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_autopost_job" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
