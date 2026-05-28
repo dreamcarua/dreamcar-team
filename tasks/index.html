@@ -767,6 +767,11 @@ async function openOverview(task){
   if(task.description){
     body += `<div class="ov-section"><span class="ov-section-label">Опис</span><div class="ov-desc">${escapeHtml(task.description)}</div></div>`;
   }
+  // HQ↔Tasks linkage: показати linked publication
+  if(task.publication_id){
+    const pubUrl = `https://team.dreamcar.ua/hq/#publication/${task.publication_id}`;
+    body += `<div class="ov-section"><span class="ov-section-label">Звʼязана публікація</span><a href="${pubUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(227,6,19,0.08);border:1px solid rgba(227,6,19,0.3);border-radius:6px;color:#fff;text-decoration:none;font-size:13px;"><span style="font-size:16px;">✏</span>Відкрити у HQ →</a></div>`;
+  }
   // tags
   if((task.tags||[]).length){
     const tags = (task.tags||[]).map(t=>`<span class="ov-tag">${escapeHtml(t)}</span>`).join('');
