@@ -26,11 +26,44 @@
   ::selection{background:var(--red);color:var(--white);}
   button{font-family:inherit;}
 
-  .topbar{position:sticky;top:0;z-index:100;background:rgba(10,10,10,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--line);padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
-  .brand-mark{font-family:'Archivo Black',sans-serif;font-size:16px;color:var(--white);text-decoration:none;letter-spacing:0.05em;}
+  .topbar{position:sticky;top:0;z-index:100;background:rgba(10,10,10,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+  .brand-mark{font-family:'Archivo Black',sans-serif;font-size:16px;color:var(--white);text-decoration:none;letter-spacing:0.04em;}
   .brand-mark .red{color:var(--red);}
   .brand-mark .meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ash);letter-spacing:0.15em;margin-left:8px;}
   .topbar-actions{display:flex;gap:10px;align-items:center;}
+
+  /* ── МЕНЮ кнопка справа (як в брендбуці) ── */
+  .menu-toggle{display:none;background:transparent;border:1px solid var(--line);color:var(--white);padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;border-radius:0;transition:border-color 120ms,background 120ms;}
+  .menu-toggle:hover,.menu-toggle:active{border-color:var(--red);background:rgba(227,6,19,0.06);}
+  @media (max-width:900px){
+    .menu-toggle{display:inline-flex;}
+    .topbar-actions .desktop-only{display:none !important;}
+  }
+  /* На desktop ховаємо МЕНЮ */
+  @media (min-width:901px){ .menu-toggle{display:none !important;} }
+
+  /* ── Drawer (sidebar slide-in як в брендбуці) ── */
+  .task-drawer{position:fixed;top:0;left:0;width:84vw;max-width:320px;height:100vh;background:#0a0a0a;border-right:1px solid var(--line);padding:24px 0;z-index:200;transform:translateX(-105%);transition:transform 220ms cubic-bezier(0.2,0.9,0.3,1);box-shadow:8px 0 32px rgba(0,0,0,0.6);overflow-y:auto;}
+  body.drawer-open .task-drawer{transform:translateX(0);}
+  body.drawer-open::after{content:'';position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(2px);z-index:150;}
+  .task-drawer .dr-head{padding:0 22px 16px;border-bottom:1px solid var(--line);margin-bottom:8px;}
+  .task-drawer .dr-head .dr-logo{font-family:'Archivo Black',sans-serif;font-size:16px;letter-spacing:0.04em;color:var(--white);text-transform:uppercase;text-decoration:none;display:block;}
+  .task-drawer .dr-head .dr-logo .red{color:var(--red);}
+  .task-drawer .dr-head .dr-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ash);letter-spacing:0.2em;margin-top:6px;text-transform:uppercase;}
+  .task-drawer .dr-section{padding:14px 22px 6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--red);letter-spacing:0.22em;font-weight:700;text-transform:uppercase;}
+  .task-drawer .dr-item{display:flex;align-items:center;gap:12px;padding:11px 22px;color:#bbb;text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.1em;border-left:2px solid transparent;cursor:pointer;background:transparent;border-top:none;border-right:none;border-bottom:none;width:100%;text-align:left;transition:background 120ms,color 120ms,border-color 120ms;}
+  .task-drawer .dr-item:hover,.task-drawer .dr-item.active{color:#fff;background:rgba(227,6,19,0.08);border-left-color:var(--red);}
+  .task-drawer .dr-item .ico{font-size:16px;width:20px;text-align:center;}
+  .task-drawer .dr-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;font-family:inherit;}
+  .task-drawer .dr-user{padding:14px 22px;margin-top:8px;border-top:1px solid var(--line);}
+  .task-drawer .dr-user .dr-uname{font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+
+  /* ── FAB (+ ЗАВДАННЯ) як в HQ ── */
+  .task-fab{display:none;}
+  @media (max-width:900px){
+    .task-fab{display:flex;position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 18px);width:56px;height:56px;border-radius:28px;background:linear-gradient(135deg,var(--red),#ff1a1a);color:#fff;border:none;align-items:center;justify-content:center;font-size:30px;font-weight:300;box-shadow:0 6px 18px rgba(227,6,19,0.45);z-index:90;cursor:pointer;transition:transform 0.15s;line-height:1;}
+    .task-fab:active{transform:scale(0.92);}
+  }
   @keyframes tgPulse{0%,100%{box-shadow:0 0 6px rgba(245,158,11,0.6);}50%{box-shadow:0 0 14px rgba(245,158,11,1);}}
   .filter-btn,.add-btn,.icon-btn{padding:8px 14px;background:var(--coal);border:1px solid var(--line);color:var(--white);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.15em;cursor:pointer;transition:border-color 0.15s,background 0.15s;text-decoration:none;}
   .filter-btn:hover,.icon-btn:hover{border-color:var(--red);}
@@ -278,16 +311,40 @@
 <body>
 
 <header class="topbar">
-  <a href="/" class="brand-mark">DREAM<span class="red">CAR</span> · TASKS<span class="meta">/ TEAM HUB</span></a>
+  <a href="#" class="brand-mark">DREAM<span class="red">CAR</span> · TASKS</a>
   <div class="topbar-actions" id="topbarActions">
-    <a href="/" class="filter-btn">← HUB</a>
-    <a href="/tasks/analytics.html" class="filter-btn" title="Analytics dashboard">📊 ANALYTICS</a>
-    <button class="icon-btn" id="bellBtn" title="Сповіщення (B)" style="display:none;">🔔<span class="badge" id="bellBadge" style="display:none;">0</span></button>
-    <button class="icon-btn" id="prefsBtn" title="Налаштування" style="display:none;">⚙</button>
-    <button class="icon-btn" id="helpBtn" title="Гарячі клавіші (?)" style="display:none;">?</button>
-    <span id="authChip"></span>
+    <!-- Desktop кнопки: видно на широких екранах -->
+    <a href="/tasks/analytics.html" class="filter-btn desktop-only" title="Analytics dashboard">📊 ANALYTICS</a>
+    <button class="icon-btn desktop-only" id="bellBtn" title="Сповіщення (B)" style="display:none;">🔔<span class="badge" id="bellBadge" style="display:none;">0</span></button>
+    <button class="icon-btn desktop-only" id="prefsBtn" title="Налаштування" style="display:none;">⚙</button>
+    <button class="icon-btn desktop-only" id="helpBtn" title="Гарячі клавіші (?)" style="display:none;">?</button>
+    <span id="authChip" class="desktop-only"></span>
+    <!-- Mobile: єдина кнопка МЕНЮ — відкриває drawer -->
+    <button class="menu-toggle" id="menuToggleBtn" aria-label="Меню" aria-expanded="false">МЕНЮ</button>
   </div>
 </header>
+
+<!-- Mobile drawer — всі options тут (Analytics, Bell, Settings, Help, Exit) -->
+<aside class="task-drawer" id="taskDrawer" aria-label="Меню розділів">
+  <div class="dr-head">
+    <a href="#" class="dr-logo">DREAM<span class="red">CAR</span> · TASKS</a>
+    <div class="dr-sub">Team Hub · Задачі</div>
+  </div>
+  <div class="dr-section">Перехід</div>
+  <a class="dr-item" href="/tasks/analytics.html"><span class="ico">📊</span>Analytics</a>
+  <div class="dr-section">Дії</div>
+  <button class="dr-item" id="drBell" type="button"><span class="ico">🔔</span>Сповіщення<span class="badge" id="drBellBadge" style="display:none">0</span></button>
+  <button class="dr-item" id="drPrefs" type="button"><span class="ico">⚙</span>Налаштування</button>
+  <button class="dr-item" id="drHelp" type="button"><span class="ico">❓</span>Гарячі клавіші</button>
+  <div class="dr-section">Профіль</div>
+  <div class="dr-user">
+    <div class="dr-uname" id="drUserName">—</div>
+    <button class="dr-item" id="drSignOut" type="button"><span class="ico">🚪</span>Вийти</button>
+  </div>
+</aside>
+
+<!-- FAB: швидке створення завдання (mobile) -->
+<button class="task-fab" id="taskFab" aria-label="Нове завдання" type="button">+</button>
 
 <div id="notifDropdown" class="notif-dropdown">
   <div class="notif-head">
@@ -903,6 +960,56 @@ document.getElementById('cancelTaskBtn').onclick=()=>modal.classList.remove('sho
 document.getElementById('saveTaskBtn').onclick=saveTask;
 document.getElementById('deleteTaskBtn').onclick=deleteTask;
 modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show');});
+
+/* ─── Mobile drawer + FAB (Tasks v5 mobile UX) ─── */
+(function(){
+  const drawer = document.getElementById('taskDrawer');
+  const toggleBtn = document.getElementById('menuToggleBtn');
+  const fab = document.getElementById('taskFab');
+  function openDrawer(){
+    document.body.classList.add('drawer-open');
+    toggleBtn?.setAttribute('aria-expanded','true');
+    if(toggleBtn) toggleBtn.textContent = 'ЗАКРИТИ';
+  }
+  function closeDrawer(){
+    document.body.classList.remove('drawer-open');
+    toggleBtn?.setAttribute('aria-expanded','false');
+    if(toggleBtn) toggleBtn.textContent = 'МЕНЮ';
+  }
+  toggleBtn?.addEventListener('click', ()=> document.body.classList.contains('drawer-open') ? closeDrawer() : openDrawer());
+  document.addEventListener('click', e => {
+    if (!document.body.classList.contains('drawer-open')) return;
+    if (drawer.contains(e.target) || toggleBtn?.contains(e.target)) return;
+    closeDrawer();
+  });
+  document.addEventListener('keydown', e => { if(e.key==='Escape') closeDrawer(); });
+  drawer?.querySelectorAll('a.dr-item').forEach(a => a.addEventListener('click', closeDrawer));
+  // Проксі-кнопки у drawer → клік на оригінальні
+  document.getElementById('drBell')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('bellBtn')?.click(); });
+  document.getElementById('drPrefs')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('prefsBtn')?.click(); });
+  document.getElementById('drHelp')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('helpBtn')?.click(); });
+  document.getElementById('drSignOut')?.addEventListener('click', ()=>{ closeDrawer(); document.getElementById('signOutBtn')?.click(); });
+  // FAB → new task
+  fab?.addEventListener('click', ()=> openTaskModal(null));
+  // Sync drawer badge з основним bell badge
+  const obs = new MutationObserver(()=>{
+    const main = document.getElementById('bellBadge');
+    const drb = document.getElementById('drBellBadge');
+    if (!main || !drb) return;
+    const txt = main.textContent.trim();
+    const visible = main.style.display !== 'none' && txt && txt !== '0';
+    drb.style.display = visible ? 'inline-block' : 'none';
+    drb.textContent = txt;
+    // Sync also drawer user name
+    const uname = document.getElementById('drUserName');
+    const chip = document.querySelector('#authChip .user-chip');
+    if (uname && chip) uname.textContent = chip.textContent.trim();
+  });
+  const bellBadgeEl = document.getElementById('bellBadge');
+  if (bellBadgeEl) obs.observe(bellBadgeEl, { attributes:true, childList:true, characterData:true, subtree:true });
+  const authChipEl = document.getElementById('authChip');
+  if (authChipEl) obs.observe(authChipEl, { childList:true, subtree:true });
+})();
 
 function openEditModal(task){
   state.editingId=task?.id||null;
