@@ -1085,9 +1085,38 @@ async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
     `/my — мої заплановані\n\n` +
     `<b>Файли:</b>\nПросто перешли фото/відео/PDF — я додам у бібліотеку 📎\n\n` +
     `<b>Повернення з причинами:</b>\nКоли тиснеш ↩ — бот покаже 9 категорій причин, можна обрати декілька + додати коментар через ForceReply.\n\n` +
+    `<b>Адмін (CEO/COO/Lead):</b>\n` +
+    `/audit — health-report зараз\n\n` +
     `<b>Профіль:</b>\n` +
     `/whoami /unbind /diag /help`
   );
+}
+
+// On-demand health audit triggered via /audit command
+async function handleAudit(supabase: ReturnType<typeof createClient>, chatId: number, isGroup: boolean): Promise<void> {
+  if (isGroup) { await tgSend(chatId, "ℹ️ /audit працює тільки у DM"); return; }
+  // Дозволено тільки CEO/COO/Lead
+  const me = await findUserByChatId(supabase, chatId);
+  if (!me) { await tgSend(chatId, "Спочатку /start у DM"); return; }
+  if (!["ceo", "coo", "lead"].includes(me.role)) {
+    await tgSend(chatId, "⛔ /audit доступний тільки CEO/COO/Lead");
+    return;
+  }
+  await tgSend(chatId, "⏳ Запускаю аудит…");
+  try {
+    const url = (SUPABASE_URL || "https://wotghlaehnvxyeacznvv.supabase.co") + "/functions/v1/daily-health-audit";
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (!r.ok) { await tgSend(chatId, "❌ Audit error: HTTP " + r.status); return; }
+    const j = await r.json();
+    await tgSend(chatId, `✅ Audit запущено. Score: <b>${j.score}/100</b> · Issues: <b>${j.issues}</b>\n\nDM зі звітом має прийти через ~5 сек.`);
+  } catch (e) {
+    await tgSend(chatId, "❌ " + (e as Error).message);
+  }
+}
+
+async function findUserByChatId(supabase: ReturnType<typeof createClient>, chatId: number): Promise<{id: string; name: string; role: string} | null> {
+  const { data } = await supabase.from("users").select("id,name,role").eq("tg_chat_id", String(chatId)).maybeSingle();
+  return data as {id: string; name: string; role: string} | null;
 }
 
 async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgCallbackQuery): Promise<void> {
@@ -1265,6 +1294,7 @@ Deno.serve(async (req: Request) => {
     else if (cmd === "/late") await handleLate(supabase, chatId, isGroup);
     else if (cmd === "/my") await handleMy(supabase, chatId, isGroup);
     else if (cmd === "/approve") await handleApprove(supabase, chatId, isGroup);
+    else if (cmd === "/audit") await handleAudit(supabase, chatId, isGroup);
     else if (cmd && !isGroup) await tgSend(chatId, "ℹ️ Не зрозумів. /help");
 
   } catch (e) {
