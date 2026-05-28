@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tasks — Онбординг · DreamCar</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<link rel="stylesheet" href="_template.css">
+</head>
+<body>
+<div class="container">
+  <div class="topbar"><a href="index.html" class="back">← Онбординг</a><span class="crumbs">ONBOARDING / <span>TASKS</span></span></div>
+  <header class="hero">
+    <div class="kicker">/// 02 · TASKS</div>
+    <h1>TASKS — <span>задачі</span> команди</h1>
+    <p class="lead">Все що НЕ публікація: операційні задачі, бюджети, продакшн, переговори, баги. P1-P4 пріоритети, subtasks, recurring, watchers, аналітика.</p>
+    <span class="status">● LIVE · v3</span>
+  </header>
+  <nav class="toc"><span class="toc-label">Швидко:</span><a href="#concept">Концепція</a><a href="#arch">Архітектура</a><a href="#cases">Use cases</a><a href="#features">Фічі</a><a href="#analytics">Аналітика</a><a href="#trouble">Troubleshooting</a></nav>
+
+  <section class="block" id="concept">
+    <h2><span class="icon">📐</span> Що це і навіщо</h2>
+    <div class="concept-box">
+      <p>Tasks — це <b>персональний todo + командний пайплайн в одному</b>. Раніше задачі тонули у TG-чатах та email. Тепер кожна задача має одного власника, дедлайн, пріоритет, watchers і автоматичні TG/email-нагадування.</p>
+      <p>Інтегровано з HQ: коли пост повертають на доопрацювання — задача створюється автоматично.</p>
+      <div class="why-grid">
+        <div class="why-card"><h4>Чому так</h4><p>HQ — для контенту. Asana/Trello — overkill. Trello free не має SLA timer / повторюваних. Своя система ідеально лягає під DreamCar flow.</p></div>
+        <div class="why-card"><h4>Як працює</h4><p>Та сама Supabase. Таблиці team_tasks, team_task_comments, team_task_notifications. Edge Functions для cron і delivery.</p></div>
+        <div class="why-card"><h4>Ключове</h4><p>Pull-model. SLA timer + TG-нагадування -10 хв + escalation на overdue.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="arch">
+    <h2><span class="icon">🏗</span> Архітектура</h2>
+    <div class="arch">
+<span class="node">tasks/index.html</span> (Kanban + List + Analytics)
+       │
+       <span class="conn">↓ PostgREST</span>
+<span class="node">team_tasks</span> + <span class="node">team_task_comments</span> + <span class="node">team_task_notifications</span>
+       │
+       <span class="conn">↓ trigger enqueue</span>
+<span class="node">team-tasks-cron</span> → <span class="node">team-tasks-notify</span> Edge Fns
+       │
+       <span class="conn">↓ Resend SDK + TG Bot API</span>
+<span class="node">TG + Email</span>
+    </div>
+  </section>
+
+  <section class="block" id="cases">
+    <h2><span class="icon">🎯</span> Use cases</h2>
+    <div class="use-case" id="create">
+      <div class="who">Будь-хто</div>
+      <h3>Створити задачу</h3>
+      <ol class="steps">
+        <li>Tasks → «+ Нова задача»</li>
+        <li>Заголовок на дію («Зробити Х», «Спитати у Y»)</li>
+        <li>Assignee, watchers, priority, due_date</li>
+        <li>Опис, теги, subtasks (чек-боксики)</li>
+        <li>Save → assignee одразу отримає TG ping</li>
+      </ol>
+      <div class="tip">💡 Recurring: 'daily' | 'weekly' | 'monthly' — система авто-створить наступну.</div>
+    </div>
+    <div class="use-case" id="templates">
+      <div class="who">Lead / COO</div>
+      <h3>Templates повторюваних задач</h3>
+      <ol class="steps">
+        <li>Tasks → Templates → «+ Новий шаблон»</li>
+        <li>Опиши задачу що повторюється</li>
+        <li>Default: priority, assignee, due offset, watchers</li>
+        <li>«+ Нова з шаблону» — все заповнено</li>
+      </ol>
+    </div>
+    <div class="use-case">
+      <div class="who">Member</div>
+      <h3>Закрити задачу</h3>
+      <ol class="steps">
+        <li>Клік на задачу → Overview модал</li>
+        <li>«Розпочати» → status: doing (timer пішов)</li>
+        <li>Коментарі + субтаски</li>
+        <li>«Завершити» → status: done</li>
+        <li>Якщо recurring — наступна автоматично</li>
+      </ol>
+      <div class="tip">💡 TG inline: ✅ Виконано / 💬 Коментар / ⏰ +1d прямо з нотифікації.</div>
+    </div>
+    <div class="use-case" id="bulk">
+      <div class="who">Lead</div>
+      <h3>Bulk actions</h3>
+      <ol class="steps">
+        <li>Tasks → виділи кілька (checkbox)</li>
+        <li>Bulk toolbar знизу: Move / Assign / Priority / Tag / Delete</li>
+      </ol>
+    </div>
+    <div class="use-case">
+      <div class="who">CEO</div>
+      <h3>Saved filters (presets)</h3>
+      <ol class="steps">
+        <li>Налаштуй фільтр (P1+P2 active, не мої)</li>
+        <li>«Зберегти як preset» → ім'я</li>
+        <li>Наступного разу клік — той самий вигляд</li>
+      </ol>
+      <div class="tip">💡 Дефолтний preset «Що горить» = overdue + P1 + assigned to me.</div>
+    </div>
+  </section>
+
+  <section class="block" id="features">
+    <h2><span class="icon">⚙️</span> Ключові фічі</h2>
+    <ul>
+      <li><b>Status:</b> todo → doing → done (+ blocked / cancelled)</li>
+      <li><b>Priority:</b> P1 / P2 / P3 / P4 (кольорові точки)</li>
+      <li><b>Subtasks:</b> JSONB список чек-боксів</li>
+      <li><b>Recurrence:</b> daily / weekly / monthly auto-create</li>
+      <li><b>Dependencies:</b> depends_on задача-блокатор</li>
+      <li><b>Watchers:</b> отримують всі сповіщення</li>
+      <li><b>Comments:</b> @mention з TG-push</li>
+      <li><b>SLA timer:</b> -10 хв + overdue escalation</li>
+      <li><b>Email + TG:</b> подвійна доставка через Resend SDK</li>
+      <li><b>Bulk multi-select toolbar</b></li>
+      <li><b>Saved filter presets</b></li>
+      <li><b>Stuck-task detector:</b> алерт якщо doing >7 днів</li>
+      <li><b>Auto-task on HQ rework:</b> DB trigger</li>
+    </ul>
+  </section>
+
+  <section class="block" id="analytics">
+    <h2><span class="icon">📊</span> Аналітика</h2>
+    <p><code>/tasks/analytics.html</code> — окремий dashboard:</p>
+    <ul>
+      <li>KPI: усього / active / done за період / прострочених</li>
+      <li>Chart: задачі по днях (created vs completed)</li>
+      <li>P1/P2/P3/P4 distribution</li>
+      <li>Per-assignee load — хто чим зайнятий</li>
+      <li>Avg time-to-done</li>
+      <li>Bottleneck detection: задачі що довго сидять у doing</li>
+    </ul>
+  </section>
+
+  <section class="block" id="trouble">
+    <h2><span class="icon">🚨</span> Troubleshooting</h2>
+    <table class="trouble-table">
+      <thead><tr><th>Проблема</th><th>Чому</th><th>Що робити</th></tr></thead>
+      <tbody>
+        <tr><td class="problem">Не отримую TG-сповіщень</td><td class="cause">tg_chat_id не привʼязаний</td><td class="fix">/start у боті. Або Settings → My Profile → TG.</td></tr>
+        <tr><td class="problem">Recurring не створюється</td><td class="cause">team-tasks-cron не пройшов</td><td class="fix">Зачекай 5 хв. Якщо ні — Daily Health Audit.</td></tr>
+        <tr><td class="problem">Дублікати recurring</td><td class="cause">Cron впав і повторно прокачав</td><td class="fix">Видали один dublicate (bulk delete).</td></tr>
+        <tr><td class="problem">Прострочена не «переходить»</td><td class="cause">overdue — це фільтр, не статус</td><td class="fix">Workflow задумано так. Завершуй задачу.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+</body>
+</html>
