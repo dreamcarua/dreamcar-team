@@ -10,6 +10,18 @@
 
 ## 2026-05-28
 
+### Global search + brand-book sidebar pattern (Vadym critical v3)
+- 🆕 `brand-book/assets/global-header.js` — **глобальний пошук** `⌕ Пошук` (⌘K shortcut) у вільному місці справа від лого. Overlay з 3 секціями: Системи (Brand/HQ/Tasks/Onboarding/Org/Survey) + Локальна сторінка (через `window.DC_PAGE_NAV`) + Brand Book search-index.json (29 розділів, full-text). Sticky разом з header. Працює в усіх системах де підключений global-header. Commit `c6f5ac0`.
+- 🔧 `onboarding.html` — sidebar тепер як в брендбуку (brand-book pattern):
+  - `transform: translateX(-105%) → translateX(0)` slide-in
+  - `body.sidebar-open` toggle на body, `::after` backdrop overlay
+  - 84vw width / max 320px, box-shadow
+  - Click outside / ESC закриває
+  - **Sidebar search input** прямо в drawer для фільтру 12 розділів (з aliases)
+  - Hamburger «☰ Меню» з червоною рамкою — видно одразу
+- 🛑 Прибрав `DC_PAGE_NAV` dropdown з топбару — більше не використовуємо (замість нього глобальний пошук + повноцінний sidebar)
+- ⚠️ TG login Bot domain invalid — повідомлено Вадиму, потрібно `/setdomain team.dreamcar.ua` у BotFather
+
 ### Universal page-nav dropdown у global-header (Vadym critical v2)
 - 🆕 `brand-book/assets/global-header.js` — додано **page-nav dropdown** як універсальний компонент усіх систем (sticky в header):
   - Сторінка декларує `window.DC_PAGE_NAV = { current, pages:[{id,label,num}], onSelect }` ДО завантаження скрипта
