@@ -475,7 +475,7 @@
     </div>
     <div class="field"><label>МІТКИ (через кому)</label><input type="text" id="f-tags" placeholder="hq, dreamcar, x5, brand"></div>
     <div class="field">
-      <label>ЧЕК-ЛИСТ / SUBTASKS</label>
+      <label>ЧЕК-ЛИСТ</label>
       <div class="subtasks" id="subtasksBox"></div>
     </div>
 
@@ -486,7 +486,7 @@
       <div class="comment-form" style="position:relative;">
         <textarea class="comment-input" id="commentInput" placeholder="Напиши коментар. @ — щоб тегнути людину. ⌘+Enter — відправити."></textarea>
         <div class="comment-form-actions">
-          <span class="comment-form-hint">@ — згадки · ⌘+Enter — send</span>
+          <span class="comment-form-hint">@ — згадки · ⌘+Enter — надіслати</span>
           <button class="send-btn" id="postCommentBtn">ВІДПРАВИТИ</button>
         </div>
         <div class="mention-picker" id="mentionPicker"></div>
@@ -506,7 +506,7 @@
   <div class="modal" style="max-width:480px;">
     <h2>⚙ НАЛАШТУВАННЯ СПОВІЩЕНЬ</h2>
     <div class="pref-row"><label>Telegram DM<span class="hint">Сповіщення в @dreamcar_team_bot</span></label><div class="switch on" id="prefTg" data-key="tg_enabled"></div></div>
-    <div class="pref-row"><label>Email<span class="hint">Дублювати важливі сповіщення на пошту</span></label><div class="switch" id="prefEmail" data-key="email_enabled"></div></div>
+    <div class="pref-row"><label>Пошта<span class="hint">Дублювати важливі сповіщення на email</span></label><div class="switch" id="prefEmail" data-key="email_enabled"></div></div>
     <div class="pref-row"><label>Ранковий дайджест<span class="hint">Огляд твоїх задач на день</span></label><div class="switch on" id="prefDigest" data-key="digest_enabled"></div></div>
     <div class="pref-row"><label>Година дайджесту (CET)</label><select id="prefDigestHour" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:6px 10px;">${Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}:00</option>`).join('')}</select></div>
     <div class="pref-row"><label>Тиха година (без сповіщень)</label><div style="display:flex;gap:6px;align-items:center;color:var(--ash);font-size:12px;"><select id="prefQuietFrom" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:4px 8px;">${Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}</option>`).join('')}</select>—<select id="prefQuietTo" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:4px 8px;">${Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}</option>`).join('')}</select></div></div>

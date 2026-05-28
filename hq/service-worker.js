@@ -1,12 +1,14 @@
 /* ============================================================
-   DreamCar HQ — Service Worker v2 (force cache nuke)
+   DreamCar HQ — Service Worker v13 (audit nuke)
    ============================================================ */
-// v2: nuclear cache clear on activate (SW v1 тримав старий tg-login.js
-// без нових patches → юзери не бачили звуків, library delete, тощо).
+// v13 (2026-05-28 audit): bump після хвилі mobile UX rebuild +
+// drawer/FAB унифікації + chip-стиль скрізь + Tasks/Analytics/Survey
+// + security fixes (RLS approver bypass, cron-reminders actor_id/delegate_to).
+// Юзери досі тримали v2-20260514 (2 тижні застарілий код).
 // Network-first для HTML/JS, cache-first для статики.
 
-const CACHE_VERSION = 'hq-v2-' + '20260514a';  // bumped
-const RUNTIME_CACHE = 'hq-runtime-v2';
+const CACHE_VERSION = 'hq-v13-' + '20260528';
+const RUNTIME_CACHE = 'hq-runtime-v13';
 
 const PRECACHE = [
   '/dreamcar-team/hq/',

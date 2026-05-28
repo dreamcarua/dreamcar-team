@@ -80,13 +80,13 @@
     <div class="kpi-grid">
       <div class="kpi"><div class="kpi-label">Всього публікацій</div><div class="kpi-value" id="kpi-total">—</div></div>
       <div class="kpi"><div class="kpi-label">Опубліковано</div><div class="kpi-value" id="kpi-pub">—</div></div>
-      <div class="kpi"><div class="kpi-label">Approval rate</div><div class="kpi-value" id="kpi-approval">—</div><div class="kpi-sub">% від review→approved</div></div>
-      <div class="kpi"><div class="kpi-label">Avg time draft→pub</div><div class="kpi-value" id="kpi-cycle">—</div><div class="kpi-sub">днів</div></div>
-      <div class="kpi"><div class="kpi-label">Rework cycles</div><div class="kpi-value" id="kpi-rework">—</div><div class="kpi-sub">avg повернень</div></div>
+      <div class="kpi"><div class="kpi-label">Рівень погоджень</div><div class="kpi-value" id="kpi-approval">—</div><div class="kpi-sub">% від review → approved</div></div>
+      <div class="kpi"><div class="kpi-label">Сер. цикл чернетка→пост</div><div class="kpi-value" id="kpi-cycle">—</div><div class="kpi-sub">днів</div></div>
+      <div class="kpi"><div class="kpi-label">Цикли доопрацювання</div><div class="kpi-value" id="kpi-rework">—</div><div class="kpi-sub">сер. повернень</div></div>
     </div>
 
     <div class="funnel">
-      <h3>Funnel: draft → in_work → review → approved → published</h3>
+      <h3>Воронка: чернетка → в роботі → на погодженні → погоджено → опубліковано</h3>
       <div id="funnel-body"></div>
     </div>
 
@@ -96,15 +96,15 @@
         <canvas id="chart-platform"></canvas>
       </div>
       <div class="card">
-        <h3>Avg час у статусі (дн)</h3>
+        <h3>Сер. час у статусі (дн)</h3>
         <canvas id="chart-time-status"></canvas>
       </div>
       <div class="card">
-        <h3>Published / week (8 тижнів)</h3>
+        <h3>Опубліковано / тиждень (8 тижнів)</h3>
         <canvas id="chart-weekly"></canvas>
       </div>
       <div class="card">
-        <h3>Rework rate per platform</h3>
+        <h3>Доопрацювання за майданчиком</h3>
         <canvas id="chart-rework"></canvas>
       </div>
     </div>
@@ -112,7 +112,7 @@
     <div class="card" style="margin-bottom:24px">
       <h3>Топ-5 платформ за активністю</h3>
       <table id="t-platforms">
-        <thead><tr><th>Платформа</th><th>Усього</th><th>Опубліковано</th><th>Rework</th><th>Approval %</th><th>Avg cycle (дн)</th></tr></thead>
+        <thead><tr><th>Платформа</th><th>Усього</th><th>Опубліковано</th><th>Доопрацювань</th><th>% погоджено</th><th>Сер. цикл (дн)</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
