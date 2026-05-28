@@ -640,6 +640,99 @@
     }
     #todayBtn:hover, #todayBtn:active { border-color: var(--red) !important; background: rgba(227,6,19,0.06) !important; color: #fff !important; }
 
+    /* ── HQ inner views (Дошка / Бібліотека / Запуски / Налаштування) у єдиному стилі ── */
+
+    /* Board (Дошка погоджень) — single column на mobile, чіткі рамки */
+    .board-wrap { padding: 12px 12px 24px !important; }
+    .board-cols { grid-template-columns: 1fr !important; gap: 10px !important; }
+    .board-col {
+      max-height: none !important;
+      border-radius: 0 !important;
+    }
+    .board-col .col-head {
+      padding: 10px 14px !important;
+      gap: 8px;
+    }
+    .board-col .col-head h3 {
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 11px !important;
+      letter-spacing: 0.1em !important;
+      text-transform: uppercase !important;
+    }
+    .board-col .col-head .cnt {
+      font-size: 10px !important;
+      border-radius: 0 !important;
+      letter-spacing: 0.05em;
+    }
+    .board-col .col-body { padding: 8px !important; gap: 6px !important; }
+    .board-card {
+      padding: 10px 12px !important;
+      border-radius: 0 !important;
+    }
+    .board-card .bc-thumb { width: 40px !important; height: 40px !important; border-radius: 0 !important; }
+
+    /* Library (Бібліотека креативів) — 3 колонки на mobile, без round */
+    .library-wrap { padding: 12px 12px 24px !important; }
+    .library-grid,
+    .pub-grid,
+    .creative-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 4px !important;
+    }
+    .library-card,
+    .creative-item,
+    .creative-card {
+      border-radius: 0 !important;
+    }
+    .library-filters {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      gap: 6px !important;
+      padding: 10px 12px !important;
+      scrollbar-width: none;
+    }
+    .library-filters::-webkit-scrollbar { display: none; }
+    .library-filters .btn,
+    .library-filters button {
+      flex: 0 0 auto !important;
+      padding: 6px 12px !important;
+      font-size: 11px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+      border-radius: 0 !important;
+    }
+
+    /* Launches (Запуски) — список карток */
+    .launches-wrap, .launches-list { padding: 12px 12px 24px !important; }
+    .launch-card,
+    .launches-list > * {
+      padding: 14px !important;
+      border-radius: 0 !important;
+      margin-bottom: 8px !important;
+    }
+    .launch-card h3, .launch-card .title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 16px !important;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    /* Settings (Налаштування) */
+    .settings-wrap { padding: 12px 12px 24px !important; }
+    .settings-section {
+      padding: 14px !important;
+      border-radius: 0 !important;
+      margin-bottom: 10px !important;
+    }
+    .settings-section h3 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px !important;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
     /* ── Bulk action bar: scroll-snap бо обрізає "Додати теги" ── */
     .bulk-bar {
       flex-wrap: nowrap !important;
