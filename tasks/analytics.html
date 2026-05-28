@@ -37,6 +37,26 @@
   .badge.inbox{background:#3a3a3a}.badge.doing{background:#3B82F6}.badge.review{background:#F59E0B;color:#000}.badge.done{background:#10B981}.badge.blocked{background:#DC2626}
   .loading{text-align:center;padding:60px 20px;color:#888;font-size:14px}
   .empty{color:#888;font-style:italic;padding:20px;text-align:center}
+
+  @media (max-width: 900px) {
+    .container { padding: 16px 14px 60px !important; }
+    h1 { font-size: 24px !important; letter-spacing: 0.01em; }
+    .h1-tag { font-size: 10px !important; }
+    .h1-sub { font-size: 12px !important; }
+    .kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; margin-bottom: 16px !important; }
+    .kpi { padding: 12px !important; border-radius: 0 !important; }
+    .kpi-label { font-size: 9px !important; letter-spacing: 0.12em; }
+    .kpi-value { font-size: 24px !important; }
+    .kpi-sub { font-size: 10px !important; }
+    .chart-grid { grid-template-columns: 1fr !important; gap: 10px !important; margin-bottom: 16px !important; }
+    .chart-card { padding: 14px !important; border-radius: 0 !important; }
+    .chart-card h3 { font-size: 14px !important; margin-bottom: 10px !important; }
+    .chart-card canvas { max-height: 220px !important; }
+    .table-card { padding: 14px !important; border-radius: 0 !important; margin-bottom: 12px !important; }
+    table { font-size: 11px !important; }
+    th, td { padding: 8px 6px !important; }
+    .badge { font-size: 9px !important; padding: 1px 6px !important; }
+  }
   .back{display:inline-flex;align-items:center;gap:6px;color:#888;text-decoration:none;font-family:var(--dc-font-mono);font-size:12px;letter-spacing:0.1em;margin-bottom:24px}
   .back:hover{color:#E30613}
 </style>
