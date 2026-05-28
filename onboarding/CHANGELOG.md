@@ -10,6 +10,11 @@
 
 ## 2026-05-28
 
+### Wave 4 — security + повне покриття mobile-стилю
+- 🛡 **Push guards у 7 dev pages** (`/onboarding/{index,audit,autopost,compress,hq,tasks,brand-book}.html`) — додано auth-guard.js + _dev-guard.js. Випадковий перехід → login overlay → дозволено лише ceo/coo/lead. Інших → /onboarding.html. Commit `fb3c241`.
+- 🎨 **HQ inner views** (Board / Library / Launches / Settings) — mobile chip-стиль як у Календарі. Board single column, library 3-col grid, всі без border-radius, JetBrains Mono для UI-тексту. Commit `3c8a2d8`.
+- 📊 **Analytics dashboards** (`hq/analytics-v3.html` + `tasks/analytics.html`) — mobile fit: KPI 2×2 grid, chart-grid single column, padding 14, h1 24px, canvas 220px max. Усе компактно. Commit `8a0979e`.
+
 ### Уніфікований mobile UX скрізь — Tasks + HQ + Onboarding
 - 🆕 `tasks/index.html` — повний mobile rebuild: прибрав '← HUB', Analytics/Bell/Settings/Help/Exit перенесено у slide-in drawer (як у брендбуці). Topbar тільки 'DREAMCAR · TASKS + МЕНЮ'. FAB '+' bottom-right для швидкого створення задачі. MutationObserver синхронізує bell badge + user name з main у drawer. Commit `ef356a9`.
 - 🔧 `hq/index.html` — замінив fixed ☰ hamburger зліва на 'МЕНЮ' текст-кнопку inline у topbar справа (стиль брендбука: JetBrains Mono 11px, letter-spacing 0.2em, border-radius 0). Topbar padding-left 60→12px. Commit `307894d`.
