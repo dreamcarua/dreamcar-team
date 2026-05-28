@@ -80,9 +80,9 @@
   .mobile-menu-btn { display: none; }
 
   /* ════════════════════════════════════════════
-     Локальний topbar (як у брендбуці) — другий рядок під global-header.
-     Зліва: «DREAMCAR · ОНБОРДИНГ» (бренд-знак)
-     Справа: кнопка «МЕНЮ» (відкриває sidebar drawer)
+     Локальний topbar — ТОЧНО як у брендбуці.
+     Бенчмарк: dreamcar-brand-book/.topbar — padding 14px 20px,
+     brand-mark Archivo Black 16px / 0.04em, menu-toggle JetBrains Mono 11px / 0.2em.
   ═══════════════════════════════════════════════ */
   .ob-topbar { display: none; }
   @media (max-width: 900px) {
@@ -91,23 +91,23 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 14px 16px;
+      padding: 14px 20px;
       background: #0a0a0a;
       border-bottom: 1px solid #1a1a1a;
       position: sticky;
-      top: var(--dc-header-h-mobile, 54px);
+      top: 0;
       z-index: 50;
     }
     .ob-topbar .ob-brand {
-      font-family: 'Archivo Black', 'Oswald', sans-serif;
-      font-size: 16px; letter-spacing: 0.02em;
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 16px; letter-spacing: 0.04em;
       color: #fff; text-transform: uppercase;
       text-decoration: none;
-      flex: 1; min-width: 0;
+      flex: 0 1 auto; min-width: 0;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      line-height: 1.2;
     }
     .ob-topbar .ob-brand .red { color: #E30613; }
-    .ob-topbar .ob-brand .sep { color: #444; margin: 0 6px; font-weight: 400; }
     .ob-topbar .ob-menu-btn {
       flex-shrink: 0;
       background: transparent;
@@ -118,13 +118,18 @@
       font-size: 11px;
       letter-spacing: 0.2em;
       text-transform: uppercase;
-      font-weight: 700;
+      font-weight: 400;
       cursor: pointer;
-      border-radius: 3px;
+      border-radius: 0;
       transition: border-color 120ms, background 120ms;
+      line-height: 1;
     }
     .ob-topbar .ob-menu-btn:hover,
     .ob-topbar .ob-menu-btn:active { border-color: #E30613; background: rgba(227,6,19,0.06); }
+
+    /* Відступ у самому контенті, щоб sticky topbar не перекривав page-header при якоренні */
+    section.page { scroll-margin-top: 70px; }
+    .page-header { padding-top: 8px; }
   }
 
   /* ════════════════════════════════════════════
@@ -261,9 +266,9 @@
 </div>
 </div>
 
-<!-- Локальний topbar — другий рядок під global-header. Зліва: ONBOARDING бренд-знак. Справа: МЕНЮ. -->
+<!-- Локальний topbar — точно як у брендбуці (DREAMCAR · BRAND BOOK + МЕНЮ) -->
 <header class="ob-topbar">
-  <a href="#welcome" class="ob-brand">DREAM<span class="red">CAR</span> <span class="sep">·</span> ОНБОРДИНГ</a>
+  <a href="#welcome" class="ob-brand">DREAM<span class="red">CAR</span> · ОНБОРДИНГ</a>
   <button class="ob-menu-btn" id="mobileMenuBtn" aria-label="Меню розділів" aria-expanded="false">МЕНЮ</button>
 </header>
 
