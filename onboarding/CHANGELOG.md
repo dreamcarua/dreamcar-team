@@ -10,6 +10,14 @@
 
 ## 2026-05-28
 
+### Onboarding UX rebuild — stepper + no blocker (Vadym critical)
+- 🆕 `/onboarding.html` — повний рефакторінг flow:
+  - **Прибрано auto-show role-picker** як блокер на старті. Тепер `setRole(stored || 'all')` — контент видно одразу. Picker відкривається через CTA «Знайти свою роль» у Welcome або «змінити» у sidebar.
+  - **MOBILE STEPPER** — sticky horizontal chip-nav зверху під global-header (52px). 12 розділів з номерами 01-12, scroll-snap, активний chip auto-scroll у view. На desktop невидимий (sidebar лишається).
+  - **Welcome CTA** — нова `.role-cta` плашка з градієнтом і стрілкою для опційного вибору ролі.
+  - JS sync: `goPage()` оновлює і sidebar links, і stepper chips одночасно.
+  - Користувач тепер ОДРАЗУ бачить Welcome і ОДРАЗУ бачить меню етапів зверху на mobile — розуміє куди йти. Commit `f7098c2`.
+
 ### Mobile UX rebuild HQ + onboarding (Артем feedback v3)
 - 🔧 `/onboarding.html` — **role-picker scroll fix**: `overflow-y:auto + -webkit-overflow-scrolling:touch`, на mobile `align-items:flex-start` + `env(safe-area-inset-*)`. Артем не міг доскролити 6 ролей бо 100vh контейнер мав `align-items:center` без скролу. Зараз — гладкий scroll.
 - 🆕 `/hq/index.html` — **повний mobile-first rebuild** (Артем feedback "коряво на mobile"): off-canvas sidebar (slide-in drawer + backdrop + ESC close), hamburger button (44×44), компактний 52px topbar з iOS safe-area-inset, sticky view-header вертикально, platform-filter horizontal scroll-snap, календар Month компактний (58px клітинки, без time inline), modals slide-up bottom-sheet near-fullscreen, list-table → cards, **FAB (+) bottom-right** для швидкого створення публікації, 38px+ tap-targets (Apple HIG 44×44). `dvh` замість `vh`. Hides global-header на mobile (уникнути дублю навігації). Commit `dac62cd`.
