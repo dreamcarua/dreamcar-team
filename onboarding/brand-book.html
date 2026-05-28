@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brand Book — Онбординг · DreamCar</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<link rel="stylesheet" href="_template.css">
+</head>
+<body>
+<div class="container">
+  <div class="topbar"><a href="index.html" class="back">← Онбординг</a><span class="crumbs">ONBOARDING / <span>BRAND BOOK</span></span></div>
+  <header class="hero">
+    <div class="kicker">/// 06 · BRAND BOOK</div>
+    <h1>BRAND <span>BOOK</span></h1>
+    <p class="lead">Як виглядає DreamCar, як говорить, що пише. Voice linter, color checker, шаблони, фоту-бриф. Все під рукою — не треба думати «як це у нас».</p>
+    <span class="status">● LIVE · ~25 стр PWA</span>
+  </header>
+  <nav class="toc"><span class="toc-label">Швидко:</span><a href="#concept">Концепція</a><a href="#sections">Розділи</a><a href="#tools">Інструменти</a><a href="#cases">Use cases</a></nav>
+
+  <section class="block" id="concept">
+    <h2><span class="icon">📐</span> Що це і навіщо</h2>
+    <div class="concept-box">
+      <p>Brand Book — <b>не «що відомо», а «що використовується»</b>. Він живий, у репо, постійно оновлюється. Новий копірайтер відкриває одну URL і за 30 хв знає що робити.</p>
+      <p>Особливість: інтерактивні tools (Voice Linter, Color Checker, Brand Post Generator) — не просто читаєш правила, а тестуєш свій матеріал.</p>
+      <div class="why-grid">
+        <div class="why-card"><h4>Чому жива</h4><p>PDF брендбуки помирають за 2 місяці. Web — оновлюємо за 5 хв, нова версія у всіх одразу.</p></div>
+        <div class="why-card"><h4>Як використовується</h4><p>Перед публікацією — Voice Linter. Перед дизайном — Color Checker. Не зрозуміло — Storybook.</p></div>
+        <div class="why-card"><h4>Ключове</h4><p>Voice rules захардкожені у AI Copy. Брендбук — джерело для людей + для AI.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="sections">
+    <h2><span class="icon">📚</span> Ключові розділи</h2>
+    <ul>
+      <li><b>Quickstart</b> — 15 хв, що треба знати ASAP</li>
+      <li><b>Логотип</b> — варіанти, відступи, what NOT to do</li>
+      <li><b>Кольори</b> — DreamCar Red #E30613, Black #0A0A0A, etc, WCAG ratios</li>
+      <li><b>Типографіка</b> — Oswald (heading), Manrope (body), JetBrains Mono (tech)</li>
+      <li><b>Voice & Tone</b> — коротко, точно, без води, без NASA, без «квитків»</li>
+      <li><b>Examples</b> — добре/погано на реальних кейсах</li>
+      <li><b>Photography Brief</b> — ракурси, освітлення</li>
+      <li><b>Mobile/PWA</b> — оптимізація для маленьких екранів</li>
+      <li><b>Email шаблони</b> — promo/newsletter/transactional (eSputnik)</li>
+      <li><b>Onboarding</b> — як вводити нових</li>
+      <li><b>Регламент</b> — workflow для команди</li>
+    </ul>
+  </section>
+
+  <section class="block" id="tools">
+    <h2><span class="icon">🛠</span> Інтерактивні tools</h2>
+    <h3>Voice Linter</h3>
+    <p>Вставляєш свій текст → миттєвий аналіз: заборонені слова, тональність, рекомендації. Без AI, чистий JS.</p>
+    <h3>Color Checker</h3>
+    <p>Вставляєш палітр → WCAG AA/AAA contrast check + рекомендації.</p>
+    <h3>Brand Post Generator</h3>
+    <p>Вибираєш формат (IG/FB/TG/Email) → кістяк поста з шаблонами і CTA. Експортуєш у HQ як draft.</p>
+    <h3>Component Storybook</h3>
+    <p>Кнопки, картки, форми, статуси — все з CSS code. Копіюй у свій проект.</p>
+    <h3>PWA Install</h3>
+    <p>Брендбук як апка на телефоні — швидкий доступ.</p>
+  </section>
+
+  <section class="block" id="cases">
+    <h2><span class="icon">🎯</span> Use cases</h2>
+    <div class="use-case">
+      <div class="who">SMM / Copywriter</div>
+      <h3>Перевірити тон публікації</h3>
+      <ol class="steps">
+        <li>Brand Book → Voice Linter</li>
+        <li>Paste текст</li>
+        <li>Якщо флаги — править</li>
+        <li>Якщо ✅ — копіюй у HQ</li>
+      </ol>
+    </div>
+    <div class="use-case">
+      <div class="who">Дизайнер</div>
+      <h3>Створити асет на брендфоні</h3>
+      <ol class="steps">
+        <li>Brand Book → Логотип → SVG/PNG</li>
+        <li>Brand Book → Кольори → HEX</li>
+        <li>Brand Book → Типографіка → шрифти</li>
+        <li>Brand Book → Photography Brief → референси</li>
+      </ol>
+    </div>
+    <div class="use-case">
+      <div class="who">Новий копірайтер</div>
+      <h3>За 30 хв навчитися писати у нашому стилі</h3>
+      <ol class="steps">
+        <li>Quickstart (5 хв)</li>
+        <li>Voice & Tone (10 хв)</li>
+        <li>Examples (10 хв)</li>
+        <li>Voice Linter test (5 хв)</li>
+      </ol>
+    </div>
+  </section>
+</div>
+</body>
+</html>
