@@ -10,6 +10,9 @@
 
 ## 2026-05-28
 
+### Mobile UX v2 (Артем feedback)
+- 🔧 `/onboarding.html` — fix mobile layout: `.main` override `margin-left:0 + width:100% + max-width:100% + box-sizing:border-box` у `@media (max-width:900px)`. До цього desktop CSS (`margin-left:260px; width:calc(100% - 260px)`) залишався активний → контент тиснувся у вузьку колонку справа. Тепер на телефоні займає повну ширину viewport. Sidebar — overlay через hamburger. Commit `dea24c5`.
+
 ### Onboarding (РОЗДІЛЕНО!)
 - 🆕 **`/onboarding.html`** — user-facing онбординг для ВСІХ членів команди (SMM/Approver/Member/Designer/COO/CEO)
   - Role-picker на старті (CEO/COO/SMM/Approver/Member/Designer)
