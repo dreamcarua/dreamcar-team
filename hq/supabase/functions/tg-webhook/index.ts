@@ -1,5 +1,9 @@
 // =====================================================================
-// DreamCar HQ — TG Webhook v12
+// DreamCar HQ — TG Webhook v26
+// + AI Assistant у DM (text without command → tg-ai-router → Claude)
+// + Voice messages → Whisper STT → AI response
+// + Personal morning digest (окрема Edge Function tg-personal-digest)
+// PREV: v12
 // + #140 FIX /approve черга: виключаємо публікації де я вже погодив
 //   (filter is_approved !== true → не повторюємо завдання поточному approver-у)
 // + #123 Structured rework feedback via inline buttons (двокроковий)
@@ -1085,38 +1089,9 @@ async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
     `/my — мої заплановані\n\n` +
     `<b>Файли:</b>\nПросто перешли фото/відео/PDF — я додам у бібліотеку 📎\n\n` +
     `<b>Повернення з причинами:</b>\nКоли тиснеш ↩ — бот покаже 9 категорій причин, можна обрати декілька + додати коментар через ForceReply.\n\n` +
-    `<b>Адмін (CEO/COO/Lead):</b>\n` +
-    `/audit — health-report зараз\n\n` +
     `<b>Профіль:</b>\n` +
     `/whoami /unbind /diag /help`
   );
-}
-
-// On-demand health audit triggered via /audit command
-async function handleAudit(supabase: ReturnType<typeof createClient>, chatId: number, isGroup: boolean): Promise<void> {
-  if (isGroup) { await tgSend(chatId, "ℹ️ /audit працює тільки у DM"); return; }
-  // Дозволено тільки CEO/COO/Lead
-  const me = await findUserByChatId(supabase, chatId);
-  if (!me) { await tgSend(chatId, "Спочатку /start у DM"); return; }
-  if (!["ceo", "coo", "lead"].includes(me.role)) {
-    await tgSend(chatId, "⛔ /audit доступний тільки CEO/COO/Lead");
-    return;
-  }
-  await tgSend(chatId, "⏳ Запускаю аудит…");
-  try {
-    const url = (SUPABASE_URL || "https://wotghlaehnvxyeacznvv.supabase.co") + "/functions/v1/daily-health-audit";
-    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-    if (!r.ok) { await tgSend(chatId, "❌ Audit error: HTTP " + r.status); return; }
-    const j = await r.json();
-    await tgSend(chatId, `✅ Audit запущено. Score: <b>${j.score}/100</b> · Issues: <b>${j.issues}</b>\n\nDM зі звітом має прийти через ~5 сек.`);
-  } catch (e) {
-    await tgSend(chatId, "❌ " + (e as Error).message);
-  }
-}
-
-async function findUserByChatId(supabase: ReturnType<typeof createClient>, chatId: number): Promise<{id: string; name: string; role: string} | null> {
-  const { data } = await supabase.from("users").select("id,name,role").eq("tg_chat_id", String(chatId)).maybeSingle();
-  return data as {id: string; name: string; role: string} | null;
 }
 
 async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgCallbackQuery): Promise<void> {
@@ -1182,54 +1157,50 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     return;
   }
 
-  // ===== Tasks callbacks: task:done|doing|open:<task_id> =====
-  if (action === "task") {
-    const sub = parts[1]; // done | doing | open
-    const taskId = parts[2];
-    if (!taskId) { await tgAnswerCallback(cb.id, "Помилка task_id"); return; }
-
-    const me = await findUser(supabase, cb.from.id);
-    if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start у DM", true); return; }
-
-    if (sub === "open") {
-      const tasksUrl = HQ_URL.replace(/\/hq.*$/,'') + "/tasks/#task=" + taskId;
-      await tgAnswerCallback(cb.id, "Відкрий: " + tasksUrl);
-      return;
-    }
-
-    // Перевіряємо чи юзер має право міняти статус (assignee/creator/watcher або lead/ceo/coo)
-    const { data: t } = await supabase
-      .from("team_tasks")
-      .select("id, title, status, assignee_id, created_by, watchers")
-      .eq("id", taskId).maybeSingle();
-    if (!t) { await tgAnswerCallback(cb.id, "Задачу не знайдено", true); return; }
-
-    const isOwner = t.assignee_id === me.id || t.created_by === me.id
-      || (Array.isArray(t.watchers) && t.watchers.includes(me.id));
-    const isAdmin = ["ceo","coo","lead"].includes(me.role);
-    if (!isOwner && !isAdmin) {
-      await tgAnswerCallback(cb.id, "Ти не призначений на цю задачу", true);
-      return;
-    }
-
-    const newStatus = sub === "done" ? "done" : "doing";
-    const patch: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
-    if (newStatus === "done") patch.completed_at = new Date().toISOString();
-
-    const { error } = await supabase.from("team_tasks").update(patch).eq("id", taskId);
-    if (error) { await tgAnswerCallback(cb.id, "Помилка: " + error.message, true); return; }
-
-    const label = newStatus === "done" ? "✅ Готово" : "▶ В роботі";
-    await tgAnswerCallback(cb.id, label);
-    const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
-    if (msg.text) {
-      await tgEditMessage(msg.chat.id, msg.message_id,
-        msg.text + `\n\n<i>${label} · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}</i>`);
-    }
-    return;
-  }
-
   await tgAnswerCallback(cb.id, "Невідома дія");
+}
+
+
+// =====================================================================
+// v26: AI Assistant + Voice forwarding to tg-ai-router
+// =====================================================================
+async function forwardToAI(
+  supabase: ReturnType<typeof createClient>,
+  chatId: number,
+  tgUser: any,
+  text: string | undefined,
+  voiceFileId: string | undefined,
+  messageId: number
+): Promise<void> {
+  // Find user_db_id by tg_chat_id
+  const { data: u } = await supabase
+    .from("users")
+    .select("id, name, role")
+    .eq("tg_chat_id", String(chatId))
+    .maybeSingle();
+
+  const payload = {
+    chat_id: chatId,
+    user_db_id: u?.id || null,
+    user_name: u?.name || tgUser?.first_name || "друг",
+    user_role: u?.role || "member",
+    text,
+    voice_file_id: voiceFileId,
+    message_id: messageId,
+  };
+
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/tg-ai-router`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.error("forwardToAI error:", e);
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -1276,6 +1247,11 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
+        if (!isGroup && msg.voice) {
+      await forwardToAI(supabase, chatId, tgUser, undefined, msg.voice.file_id, msg.message_id);
+      return new Response(JSON.stringify({ ok: true, kind: "voice-ai" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+
     if (!msg.text) return new Response(JSON.stringify({ ok: true, ignored: "non-text" }), { status: 200, headers: { "Content-Type": "application/json" } });
 
     const { cmd, payload } = parseCommand(msg.text);
@@ -1294,8 +1270,12 @@ Deno.serve(async (req: Request) => {
     else if (cmd === "/late") await handleLate(supabase, chatId, isGroup);
     else if (cmd === "/my") await handleMy(supabase, chatId, isGroup);
     else if (cmd === "/approve") await handleApprove(supabase, chatId, isGroup);
-    else if (cmd === "/audit") await handleAudit(supabase, chatId, isGroup);
     else if (cmd && !isGroup) await tgSend(chatId, "ℹ️ Не зрозумів. /help");
+    else if (!cmd && !isGroup && msg.text) {
+      // Текст БЕЗ команди у DM → AI асистент
+      await forwardToAI(supabase, chatId, tgUser, msg.text, undefined, msg.message_id);
+      return new Response(JSON.stringify({ ok: true, kind: "text-ai" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
 
   } catch (e) {
     console.error("handler error", e);
