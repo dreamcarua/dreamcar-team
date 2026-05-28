@@ -149,62 +149,6 @@
     .role-btn { padding: 16px 12px; }
     .role-btn .role-icon { font-size: 24px; }
 
-    /* ── MOBILE STEPPER (sticky chip nav з розділами) ── */
-    .mobile-stepper {
-      display: flex !important;
-      position: sticky;
-      top: 52px;  /* під global-header */
-      left: 0; right: 0;
-      z-index: 80;
-      background: rgba(10, 10, 10, 0.96);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border-bottom: 1px solid #1a1a1a;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scroll-snap-type: x proximity;
-      -webkit-overflow-scrolling: touch;
-      padding: 10px 12px;
-      gap: 6px;
-      flex-wrap: nowrap;
-    }
-    .mobile-stepper::-webkit-scrollbar { display: none; }
-    .stepper-chip {
-      flex: 0 0 auto;
-      scroll-snap-align: start;
-      padding: 9px 13px;
-      background: #141414;
-      border: 1px solid #2A2A2A;
-      border-radius: 100px;
-      color: #aaa;
-      font-size: 12.5px;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s;
-      text-decoration: none;
-      min-height: 36px;
-    }
-    .stepper-chip:active { transform: scale(0.96); }
-    .stepper-chip.active {
-      background: #E30613;
-      border-color: #E30613;
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(227,6,19,0.4);
-    }
-    .stepper-chip .step-num {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      opacity: 0.6;
-    }
-    .stepper-chip.active .step-num { opacity: 1; }
-
-    /* На mobile прибрати padding-top з main бо stepper займає простір */
-    body.has-topbar .main { padding-top: 14px !important; }
-
     /* Welcome CTA компактніший */
     .role-cta { padding: 14px 16px; margin: 16px 0; gap: 10px; }
     .role-cta .role-cta-icon { font-size: 22px; }
@@ -237,21 +181,29 @@
 
 <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Меню">☰</button>
 
-<!-- MOBILE STEPPER: горизонтальний chip nav з етапами, sticky зверху на телефоні -->
-<nav class="mobile-stepper" id="mobileStepper" aria-label="Розділи онбордингу">
-  <a class="stepper-chip active" data-page="welcome"><span class="step-num">01</span>👋 Старт</a>
-  <a class="stepper-chip" data-page="quickstart"><span class="step-num">02</span>🚀 Quickstart</a>
-  <a class="stepper-chip" data-page="glossary"><span class="step-num">03</span>📖 Терміни</a>
-  <a class="stepper-chip" data-page="notifications"><span class="step-num">04</span>🔔 Сповіщення</a>
-  <a class="stepper-chip" data-page="hq"><span class="step-num">05</span>📝 HQ</a>
-  <a class="stepper-chip" data-page="tasks"><span class="step-num">06</span>✅ Tasks</a>
-  <a class="stepper-chip" data-page="compress"><span class="step-num">07</span>🎬 Креативи</a>
-  <a class="stepper-chip" data-page="autopost"><span class="step-num">08</span>🚀 Autopost</a>
-  <a class="stepper-chip" data-page="bot"><span class="step-num">09</span>🤖 TG бот</a>
-  <a class="stepper-chip" data-page="brand"><span class="step-num">10</span>🎨 Brand</a>
-  <a class="stepper-chip" data-page="faq"><span class="step-num">11</span>❓ FAQ</a>
-  <a class="stepper-chip" data-page="contacts"><span class="step-num">12</span>📧 Контакти</a>
-</nav>
+<!-- Page nav встановлюємо у window.DC_PAGE_NAV — global-header.js покаже dropdown у топбарі -->
+<script>
+  window.DC_PAGE_NAV = {
+    current: 'welcome',
+    pages: [
+      { id: 'welcome', label: '👋 Старт', num: '01' },
+      { id: 'quickstart', label: '🚀 Quickstart', num: '02' },
+      { id: 'glossary', label: '📖 Терміни', num: '03' },
+      { id: 'notifications', label: '🔔 Сповіщення', num: '04' },
+      { id: 'hq', label: '📝 HQ Публікації', num: '05' },
+      { id: 'tasks', label: '✅ Tasks', num: '06' },
+      { id: 'compress', label: '🎬 Креативи', num: '07' },
+      { id: 'autopost', label: '🚀 Автопостинг', num: '08' },
+      { id: 'bot', label: '🤖 TG бот', num: '09' },
+      { id: 'brand', label: '🎨 Brand Book', num: '10' },
+      { id: 'faq', label: '❓ FAQ', num: '11' },
+      { id: 'contacts', label: '📧 Контакти', num: '12' }
+    ],
+    onSelect: function(id) {
+      if (typeof window.__dcGoPage === 'function') window.__dcGoPage(id);
+    }
+  };
+</script>
 
 <div class="layout active" id="layout">
 <aside class="sidebar">
@@ -478,22 +430,19 @@
   function goPage(page) {
     document.querySelectorAll('section.page').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
-    document.querySelectorAll('.stepper-chip').forEach(l => l.classList.remove('active'));
     const target = document.querySelector(`section.page[data-page="${page}"]`);
     const link = document.querySelector(`.sb-link[data-page="${page}"]`);
-    const chip = document.querySelector(`.stepper-chip[data-page="${page}"]`);
     if (target) target.classList.add('active');
     if (link) link.classList.add('active');
-    if (chip) {
-      chip.classList.add('active');
-      // Авто-scroll активний chip у view
-      chip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
+    // Update global-header page dropdown
+    if (window.DC_PAGE_NAV) window.DC_PAGE_NAV.current = page;
+    if (typeof window.__dcUpdatePageNav === 'function') window.__dcUpdatePageNav(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     history.replaceState(null, '', '#' + page);
   }
+  // Експонуємо goPage для global-header.js (через DC_PAGE_NAV.onSelect)
+  window.__dcGoPage = goPage;
   document.querySelectorAll('.sb-link').forEach(l => l.addEventListener('click', (e) => { e.preventDefault(); goPage(l.dataset.page); }));
-  document.querySelectorAll('.stepper-chip').forEach(l => l.addEventListener('click', (e) => { e.preventDefault(); goPage(l.dataset.page); }));
   document.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); goPage(a.dataset.go); }));
   const hash = window.location.hash.replace('#', '');
   if (hash) goPage(hash);
