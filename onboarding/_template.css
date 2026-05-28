@@ -1,0 +1,59 @@
+/* Shared onboarding styles — load into every system page */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', -apple-system, sans-serif; background: #0A0A0A; color: #fff; line-height: 1.55; }
+.container { max-width: 980px; margin: 0 auto; padding: 30px 28px 80px; }
+.topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid #2A2A2A; }
+.topbar a.back { color: #888; text-decoration: none; font-size: 13px; }
+.topbar a.back:hover { color: #E30613; }
+.topbar .crumbs { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #666; letter-spacing: 0.1em; text-transform: uppercase; }
+.topbar .crumbs span { color: #fff; }
+header.hero { background: linear-gradient(135deg, #1a0000 0%, #0d0d1f 100%); border-left: 4px solid #E30613; border-radius: 10px; padding: 30px 36px; margin-bottom: 30px; }
+header.hero .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+header.hero h1 { font-family: 'Oswald', sans-serif; font-size: 36px; text-transform: uppercase; letter-spacing: -0.3px; line-height: 1.1; }
+header.hero h1 span { color: #E30613; }
+header.hero .lead { font-size: 15px; color: #ccc; margin-top: 14px; max-width: 700px; }
+header.hero .status { display: inline-block; margin-top: 14px; padding: 4px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10B981; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #10B981; letter-spacing: 0.12em; text-transform: uppercase; }
+header.hero .status.beta { background: rgba(245, 158, 11, 0.1); border-color: #F59E0B; color: #F59E0B; }
+.toc { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 14px 18px; margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 6px; }
+.toc-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #666; letter-spacing: 0.15em; text-transform: uppercase; margin-right: 8px; }
+.toc a { color: #bbb; font-size: 12px; padding: 4px 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 5px; text-decoration: none; transition: all 0.15s; }
+.toc a:hover { background: rgba(227, 6, 19, 0.1); border-color: #E30613; color: #fff; }
+section.block { margin-bottom: 36px; }
+section.block h2 { font-family: 'Oswald', sans-serif; font-size: 22px; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 16px; display: flex; align-items: baseline; gap: 10px; }
+section.block h2 .icon { font-size: 18px; }
+section.block h3 { font-family: 'Oswald', sans-serif; font-size: 16px; text-transform: uppercase; color: #E30613; margin: 20px 0 10px; }
+section.block p { font-size: 14px; color: #bbb; margin-bottom: 12px; }
+section.block ul, section.block ol { margin: 12px 0 12px 22px; }
+section.block li { font-size: 14px; color: #bbb; margin-bottom: 6px; }
+section.block code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #1a1a1a; padding: 2px 6px; border-radius: 3px; color: #E30613; }
+section.block pre { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 14px 16px; margin: 12px 0; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #ddd; line-height: 1.6; }
+.concept-box { background: #141414; border-left: 3px solid #E30613; padding: 20px 24px; border-radius: 6px; margin-bottom: 24px; }
+.concept-box h3 { color: #fff; margin-top: 0 !important; }
+.concept-box .why-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 14px; }
+.concept-box .why-card { background: #0A0A0A; border: 1px solid #2A2A2A; border-radius: 5px; padding: 12px 14px; }
+.concept-box .why-card h4 { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E30613; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+.concept-box .why-card p { font-size: 12px; color: #888; line-height: 1.6; margin: 0; }
+.use-case { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 18px 22px; margin-bottom: 14px; }
+.use-case .who { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E30613; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+.use-case h3 { font-family: 'Oswald', sans-serif; font-size: 17px; color: #fff !important; margin: 0 0 10px !important; text-transform: none !important; }
+.use-case .steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+.use-case .steps li { font-size: 13px; color: #ccc; padding: 6px 0 6px 30px; position: relative; margin: 0; }
+.use-case .steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 6px; width: 20px; height: 20px; border-radius: 50%; background: #E30613; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.use-case .tip { margin-top: 10px; padding: 8px 12px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10B981; border-radius: 0 4px 4px 0; font-size: 12px; color: #aaa; }
+.arch { background: #0A0A0A; border: 1px solid #2A2A2A; border-radius: 8px; padding: 20px; margin: 16px 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #aaa; line-height: 1.9; overflow-x: auto; }
+.arch .node { color: #E30613; font-weight: 700; }
+.arch .conn { color: #555; }
+.trouble-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.trouble-table th, .trouble-table td { padding: 10px 14px; border-bottom: 1px solid #2A2A2A; font-size: 13px; text-align: left; vertical-align: top; }
+.trouble-table th { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E30613; letter-spacing: 0.12em; text-transform: uppercase; background: #141414; }
+.trouble-table td.problem { color: #fff; font-weight: 600; width: 30%; }
+.trouble-table td.cause { color: #888; width: 30%; }
+.trouble-table td.fix { color: #ccc; }
+@media (max-width: 768px) {
+  .container { padding: 20px 14px 50px; }
+  header.hero { padding: 22px 20px; }
+  header.hero h1 { font-size: 26px; }
+  section.block h2 { font-size: 18px; }
+  .concept-box .why-grid { grid-template-columns: 1fr; }
+  .trouble-table { display: block; overflow-x: auto; }
+}
