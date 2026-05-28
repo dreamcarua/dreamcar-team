@@ -10,7 +10,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Manrope', -apple-system, sans-serif; background: #0A0A0A; color: #fff; line-height: 1.55; }
-  #role-picker { position: fixed; inset: 0; background: #0A0A0A; z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #role-picker { position: fixed; inset: 0; background: #0A0A0A; z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   #role-picker.hidden { display: none; }
   .picker-wrap { max-width: 720px; width: 100%; text-align: center; }
   .picker-wrap .kicker { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 14px; }
@@ -114,9 +114,16 @@
     .block li { font-size: 13px; }
 
     /* Role picker mobile */
-    .picker-wrap h1 { font-size: 30px; }
-    .picker-wrap p { font-size: 13px; }
-    .roles-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .picker-wrap h1 { font-size: 28px; }
+    .picker-wrap p { font-size: 13px; margin-bottom: 20px; }
+    .roles-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    #role-picker {
+      align-items: flex-start !important;
+      padding: max(16px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom)) 14px !important;
+      overflow-y: auto !important;
+    }
+    .picker-wrap { padding: 18px 0 28px; }
+    .picker-wrap .kicker { font-size: 11px; margin-bottom: 10px; }
     .role-btn { padding: 16px 12px; }
     .role-btn .role-icon { font-size: 24px; }
   }
