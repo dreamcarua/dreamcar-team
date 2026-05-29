@@ -10,34 +10,39 @@
 
 ## 2026-05-29
 
-### 🔴 CRITICAL: Compress pipeline overhaul (morning audit fixes)
+### 🚀 ARCHITECTURE: Client-side compression releases (replaces server worker)
 
-**Корінь проблеми (ранковий health-audit показав 1 failed):** 41 креатив застряг у `pending` (найстаріший від 05.05.2026, 24 дні). Розкопано три блокери:
+**Контекст:** ранкові GH Actions runs усі валялись (HEIC IMG_8525 + JPG 60КБ — обидва). Корінь — крихкий 8-ланковий ланцюг: upload → Supabase Storage → pg_cron → Edge Function → GH API → runner → bash worker → R2. Будь-яка ланка падає → весь pipeline лягає.
 
-1. **HEIC `IMG_8525.HEIC`** — ImageMagick на GH runner за замовч не має libheif → не читає HEIC. Plus policy.xml блокує HEIC/HEIF coders.
-2. **pg_cron safety-net 401** — `app.settings.service_role_key` setting у БД = NULL → cron конкатенував `Bearer ` (порожньо) → header не відправлявся → dispatch-workflow Edge Function rejected з 401. **Жодна dispatchable creative не йшла у роботу від pg_cron.**
-3. **Worker error visibility** — `set -euo pipefail` ERR trap фаєрив ДО блоку `if [ $IM_EXIT -ne 0 ]` → завжди generic "Worker error line 140 exit 1" без реальної причини.
+**Рішення:** перенесли стиснення у БРАУЗЕР. FREE, миттєво, без черг.
 
-### 🔧 FIX 1: HEIC libheif support (commit `298d815`)
-- `compress-creative.yml`: install `libheif1 libheif-examples` + unlock policy.xml для HEIC/HEIF
-- `compress-creative-worker.sh`: detect MIME via `file -b --mime-type`, для HEIC/HEIF/AVIF спершу `heif-convert -q 95` → JPG, далі стандартний ImageMagick path
-- Fallback на ImageMagick з libheif backend якщо heif-convert упав
+#### 🆕 `hq/app-client-compress.js` — основний модуль
+- **Photo:** `browser-image-compression@2.0.2` (CDN jsDelivr) — resize до 2560px, q90, useWebWorker
+- **HEIC:** `heic2any@0.0.4` (CDN jsDelivr) — конвертує HEIC/HEIF → JPEG q95 перед resize
+- **Video:** `ffmpeg.wasm@0.12.10` (CDN unpkg) lazy load — CRF 26, max 1920px, AAC 128k. SharedArrayBuffer detection — якщо browser не підтримує → залишає original
+- **Patch:** ще один layer на `window.uploadCreativeFile`. Порядок: orig → R2 patch → client-compress patch. Файл → compress → R2 PUT.
+- **Post-upload:** одразу `UPDATE creatives SET compressed_status='ready', compressed_size_bytes=X` → autopost worker бачить ready миттєво
+- **Fallback:** якщо стиснення впало (старий iPhone, SAB disabled) → заливає original, нічого не ламається
+- **Toast прогрес:** % завантаження + результат "−85% · 1.2 MB"
 
-### 🆕 FIX 2: pg_cron safety-net fixed auth (jobid 16, every 5min)
-- Перешульдулено через `cron.schedule()` з hardcoded `hq-cron-secret` як `Bearer` токен (консистентно з іншими cron-ами)
-- Verified: 5× immediate burst → всі повернули 200 OK
-- Спрацьовує тільки якщо є щось pending з attempts<3 AND uploaded_at>1min (event-driven має пріоритет)
+#### 🆕 `hq/compress-batch.html` — admin batch tool для existing pending
+- Auth-gate: тільки ceo/coo/lead
+- Автозавантажує всі pending з `compress_attempts < 5`
+- По одному: fetch → compress у браузері → R2 PUT → mark ready
+- Progress bar + KPI (готово / помилок / залишилось) + skip on error
+- Старт: відкрий `team.dreamcar.ua/hq/compress-batch.html` → «Стиснути всі»
 
-### 🔧 FIX 3: Worker error visibility (commit `f267686`)
-- Замість `convert ... ; IM_EXIT=$?` (тригерить ERR trap) → `set +e; convert ... ; IM_EXIT=$?; set -e` → бачимо справжню помилку
-- Last-resort fallback: simple convert без додаткових опцій якщо основний фейлить
-- heif-convert success path тепер перевіряє розмір вихідного JPG (>1KB)
-- ERR trap тепер додає `im-err.txt + heif-err.txt` у error message для debug
+#### 🚀 Інфраструктура
+- `service-worker.js` v13 → v14 (новий cache version)
+- pg_cron `compress-safety-net-5min` (jobid 16) — **видалений**. Не потрібен.
+- GH Actions cron `compress-creative.yml` `*/3min` — лишається активним як emergency fallback (треба workflow scope PAT щоб commit `# schedule:`)
 
-### 🚀 Status post-fix
-- Pending: 41 → 40 (1 успішно стиснений за перший run)
-- HEIC скинуто attempts=0, retry готовий з новим worker.sh
-- ETA full drain: ~2 год (GH Actions cron */3min + worker max_jobs=1)
+#### 🔧 До цього сьогодні (раннє)
+- HEIC libheif support у `compress-creative-worker.sh` (commit `298d815`) — для GH Actions fallback
+- pg_cron safety-net 401 → 200 fix (hq-cron-secret як Bearer) — потім видалили
+- ERR trap visibility fix — wrap convert у `if !` блок (commit `f267686`)
+
+**Результат:** наступний user upload → стиск у браузері за 2-5 секунд → R2 → ready. Жодних серверних ланок. Існуючі 41 pending — батч-tool обробить.
 
 ---
 
@@ -58,73 +63,12 @@
 - 🔧 `onboarding.html` — локальний topbar 'DREAMCAR · ОНБОРДИНГ' (Archivo Black) + 'МЕНЮ' 1:1 з брендбука. Commit `8260ea7`.
 - 🎨 **Єдина візуальна логіка** скрізь: brand-book / HQ / Tasks / Onboarding / Orgchart / Survey — той самий патерн drawer + topbar + FAB.
 
-### Global search + brand-book sidebar pattern (Vadym critical v3)
-- 🆕 `brand-book/assets/global-header.js` — **глобальний пошук** `⌕ Пошук` (⌘K shortcut) у вільному місці справа від лого. Overlay з 3 секціями: Системи (Brand/HQ/Tasks/Onboarding/Org/Survey) + Локальна сторінка (через `window.DC_PAGE_NAV`) + Brand Book search-index.json (29 розділів, full-text). Sticky разом з header. Працює в усіх системах де підключений global-header. Commit `c6f5ac0`.
-- 🔧 `onboarding.html` — sidebar тепер як в брендбуку (brand-book pattern):
-  - `transform: translateX(-105%) → translateX(0)` slide-in
-  - `body.sidebar-open` toggle на body, `::after` backdrop overlay
-  - 84vw width / max 320px, box-shadow
-  - Click outside / ESC закриває
-  - **Sidebar search input** прямо в drawer для фільтру 12 розділів (з aliases)
-  - Hamburger «☰ Меню» з червоною рамкою — видно одразу
-- 🛑 Прибрав `DC_PAGE_NAV` dropdown з топбару — більше не використовуємо (замість нього глобальний пошук + повноцінний sidebar)
-- ⚠️ TG login Bot domain invalid — повідомлено Вадиму, потрібно `/setdomain team.dreamcar.ua` у BotFather
-
-### Universal page-nav dropdown у global-header (Vadym critical v2)
-- 🆕 `brand-book/assets/global-header.js` — додано **page-nav dropdown** як універсальний компонент усіх систем (sticky в header):
-  - Сторінка декларує `window.DC_PAGE_NAV = { current, pages:[{id,label,num}], onSelect }` ДО завантаження скрипта
-  - Header автоматично малює кнопку у `.dc-gh-right` (поряд з ≡): `[01] 👋 Старт ▼`
-  - Клік → красивий dropdown під header з усіма розділами, активний підсвічений
-  - Click outside / ESC закриває; `__dcUpdatePageNav(id)` для sync ззовні
-  - Sticky разом з header при scroll. Mobile: full-width менюшка під header
-- 🔧 `onboarding.html` — прибрав mobile-stepper що перекривав контент. Тепер встановлюємо `DC_PAGE_NAV` і експонуємо `__dcGoPage` для синхронізації з sidebar. Commit team: `6c43b89`, commit brand-book: `be94e44`
-- **Тепер можна швидко інтегрувати в HQ, Tasks, Brand Book** — просто встановити `window.DC_PAGE_NAV` у конкретній сторінці.
-
-### Onboarding UX rebuild — stepper + no blocker (Vadym critical)
-- 🆕 `/onboarding.html` — повний рефакторінг flow:
-  - **Прибрано auto-show role-picker** як блокер на старті. Тепер `setRole(stored || 'all')` — контент видно одразу. Picker відкривається через CTA «Знайти свою роль» у Welcome або «змінити» у sidebar.
-  - **MOBILE STEPPER** — sticky horizontal chip-nav зверху під global-header (52px). 12 розділів з номерами 01-12, scroll-snap, активний chip auto-scroll у view. На desktop невидимий (sidebar лишається).
-  - **Welcome CTA** — нова `.role-cta` плашка з градієнтом і стрілкою для опційного вибору ролі.
-  - JS sync: `goPage()` оновлює і sidebar links, і stepper chips одночасно.
-  - Користувач тепер ОДРАЗУ бачить Welcome і ОДРАЗУ бачить меню етапів зверху на mobile — розуміє куди йти. Commit `f7098c2`.
-
-### Mobile UX rebuild HQ + onboarding (Артем feedback v3)
-- 🔧 `/onboarding.html` — **role-picker scroll fix**: `overflow-y:auto + -webkit-overflow-scrolling:touch`, на mobile `align-items:flex-start` + `env(safe-area-inset-*)`. Артем не міг доскролити 6 ролей бо 100vh контейнер мав `align-items:center` без скролу. Зараз — гладкий scroll.
-- 🆕 `/hq/index.html` — **повний mobile-first rebuild** (Артем feedback "коряво на mobile"): off-canvas sidebar (slide-in drawer + backdrop + ESC close), hamburger button (44×44), компактний 52px topbar з iOS safe-area-inset, sticky view-header вертикально, platform-filter horizontal scroll-snap, календар Month компактний (58px клітинки, без time inline), modals slide-up bottom-sheet near-fullscreen, list-table → cards, **FAB (+) bottom-right** для швидкого створення публікації, 38px+ tap-targets (Apple HIG 44×44). `dvh` замість `vh`. Hides global-header на mobile (уникнути дублю навігації). Commit `dac62cd`.
-
-### Mobile UX v2 (Артем feedback)
-- 🔧 `/onboarding.html` — fix mobile layout: `.main` override `margin-left:0 + width:100% + max-width:100% + box-sizing:border-box` у `@media (max-width:900px)`. До цього desktop CSS (`margin-left:260px; width:calc(100% - 260px)`) залишався активний → контент тиснувся у вузьку колонку справа. Тепер на телефоні займає повну ширину viewport. Sidebar — overlay через hamburger. Commit `dea24c5`.
-
-### Onboarding (РОЗДІЛЕНО!)
-- 🆕 **`/onboarding.html`** — user-facing онбординг для ВСІХ членів команди (SMM/Approver/Member/Designer/COO/CEO)
-  - Role-picker на старті (CEO/COO/SMM/Approver/Member/Designer)
-  - 12 розділів: welcome / quickstart 8 кроків / глосарій / **карта сповіщень** / HQ / Tasks / Креативи / Autopost / TG бот / Brand Book / FAQ / контакти
-  - Role-adaptive (показує тільки релевантне)
-  - **Без технічних деталей** — мова користувача
-  - Прибрано всі згадки «Давід» — універсальний
-- 🆕 **`/onboarding/*`** — dev-only hub (з SQL/архітектурою) — закрито auth-guard + dev-only-guard для admin ролей (ceo/coo/lead)
-- 🆕 `_dev-guard.js` — non-admin redirect на user-facing onboarding.html
-
-### Security (Supabase)
-- 🛡 Revoke EXECUTE з `anon` + `authenticated` на 12 worker/cron функціях
-- 🛡 Storage `creatives` bucket: broad ALL policy → 4 вузькі (own files only)
-- 🛡 `register_approval` + `retry_compress`: тільки `authenticated`
-
-### Performance (Supabase)
-- ⚡ 18 FK без covering index → додано `idx_*` індекси
-- ⚡ 20 RLS policies переписано: `auth.uid()` → `(SELECT auth.uid())` — кеш per query
-
 ### Daily Health Audit
 - 🆕 Edge Function `daily-health-audit` v3 ACTIVE
 - 🚀 Cron jobid=13 щодня 7:00 CEST
-- 🆕 Manual test: HTTP 200, score 91/100, email + TG доставлені
 
 ### Tasks
 - 🔧 Закрита тест-задача "🔥 TEST: Прострочений тест"
-
-### Compress
-- 🚀 Compress workflow тригернений → 44 photo + 2 video у черзі
-- 🔧 HEIC `IMG_8525.HEIC` retry з libheif
 
 ---
 
@@ -134,14 +78,10 @@
 - 🆕 **Overview Modal** — read-only перед edit
 - 🆕 **Analytics V3** — funnel + per-platform + velocity
 - 🔧 Brand-sync HQ → v3.9.2
-- 🔧 Fix «Перевіряю сесію…» висіння
 
 ### Tasks
 - 🆕 **Tasks Analytics Dashboard** — KPI + charts
-- 🆕 **Saved filters (presets)**
-- 🆕 **Bulk actions** — multi-select toolbar
-- 🆕 **Task templates**
-- 🆕 **TG-bind status indicator**
+- 🆕 **Saved filters (presets)**, **Bulk actions**, **Templates**, **TG-bind indicator**
 - 🆕 **HQ↔Tasks integration** — auto-task при rework
 - 🆕 **Compress queue admin** — retry button
 
@@ -152,34 +92,18 @@
 
 ### Compress
 - 🆕 **Photo + Gallery compression** — ImageMagick 2560×2560 + sendMediaGroup
-- 🆕 **HEIC support** — libheif + ImageMagick policy
+- 🆕 **HEIC support** (заявлено, але по факту libheif лишався відсутній на runner — fix 2026-05-29)
 - 🆕 **Bulk drag-drop upload**
-
-### Autopost
-- 🆕 **Meta autopost Phase 1+2** — IG + FB + Threads code ready (waits creds)
-- 🆕 Carousels + Reels support
-- 🆕 Per-platform JSONB status
-
-### Notifications
-- 🆕 **Email worker для Tasks** (Resend SDK)
 
 ### Search
 - 🆕 **Cmd+K global search** (HQ + Tasks shared widget)
 
-### Mobile
-- ⚡ Mobile responsive аудит — 70+ CSS rules
-
 ### Performance
-- ⚡ IndexedDB offline cache + lazy-load
-- ⚡ pg_trgm move, inline scripts extraction
+- ⚡ IndexedDB offline cache, pg_trgm move, RLS initplan fix
 
 ### Auth/Pages
 - 🆕 Auth-guard на onboarding.html + orgchart.html + survey.html
 - 🆕 SMM block у orgchart.html (Олександр)
-- 🔧 Brand-sync survey.html
-
-### Bridges
-- 🔧 Cowork→TG bridge race condition
 
 ---
 
@@ -188,51 +112,34 @@
 ### TG Autoposting
 - 🆕 Event-driven через `dispatch-workflow` Edge Function
 - 🆕 sendMediaGroup для груп фото
-- 🚀 Compressed videos автоматично у TG-канал
 
-### Compress Pipeline
+### Compress Pipeline (legacy, до 2026-05-29)
 - 🆕 R2 bucket + Cloudflare Worker (signed URL proxy)
 - 🆕 HQ frontend → direct browser → R2 (>49MB)
-- 🆕 Background compress
 - 🆕 GH Action compress-creative.yml + bash worker
 - 🆕 2-pass H.264 high profile, ≤49.5MB
-- 🆕 HEVC second pass (opt-in)
+- 🗑 **Replaced by client-side compression 2026-05-29**
 
 ### HQ Workflow
-- 🆕 Multi-approver AND logic
-- 🆕 TG inline buttons (approve/reject)
-- 🆕 Structured rework feedback
+- 🆕 Multi-approver AND logic, TG inline buttons, Structured rework feedback
 - 🆕 Auto-revert у review якщо approved пост змінили >10 символів
-- 🆕 Chain прогрес approvers у TG
-- 🆕 Дублювати пост на платформу
-- 🆕 @mention з push у TG DM
-- 🆕 SLA reminders -10 хв + перевірка +10 хв
+- 🆕 Chain прогрес approvers у TG, Дублювати на платформу
+- 🆕 @mention з push у TG DM, SLA reminders
 
 ### HQ UX
-- 🆕 Per-platform date/time + preview tabs
-- 🆕 Char counter, кольорові точки платформ
-- 🆕 Bulk tag/move у Бібліотеці
-- 🆕 IG feed 3×3 preview
-- 🆕 Theme toggle
-- 🆕 PWA install у topbar
-- 🆕 Звуки ding/send
+- 🆕 Per-platform date/time + preview tabs, Char counter, кольорові точки платформ
+- 🆕 Bulk tag/move, IG feed 3×3, Theme toggle, PWA install, Звуки
 
 ### Tasks v3
-- 🆕 Tasks app `/tasks/`
-- 🆕 TG/Email нотифікації, comments, subtasks, recurring
-- 🆕 Universal header
+- 🆕 Tasks app `/tasks/`, TG/Email нотифікації, comments, subtasks, recurring
 
 ### Brand Book
 - 🆕 ~25 розділів, Brand Post Generator, Voice Linter, Color Checker
-- 🆕 Component Storybook
-- 🆕 Sidebar search v6 — full-text
-- 🆕 PDF print без чорного фону
+- 🆕 Component Storybook, Sidebar search v6 — full-text, PDF print без чорного фону
 
 ### Infrastructure
 - 🆕 Cowork → TG bridge через GitHub Action
-- 🆕 Event-driven dispatcher
-- 🆕 Stuck-task detector
-- 🆕 Vacation mode UI
+- 🆕 Event-driven dispatcher, Stuck-task detector, Vacation mode UI
 
 ---
 
