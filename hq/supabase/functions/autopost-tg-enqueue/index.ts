@@ -10,7 +10,7 @@
 //
 // Authentication:
 //   ?secret=<HQ_CRON_SECRET> у URL АБО header x-hq-cron-secret.
-//   Default: "dc-autopost-2026" (можна перекрити env-var HQ_CRON_SECRET).
+//   HQ_CRON_SECRET — REQUIRED env-var (handler fail-fast 500 якщо порожній).
 //   Edge Function має бути deploy-нута з --no-verify-jwt АБО з вимкненим
 //   "Verify JWT with legacy secret" у Settings, інакше anon-auth блок.
 // =====================================================================
@@ -19,8 +19,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")  ?? Deno.env.get("HQ_DB_URL") ?? "";
 const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
-// #143 FIX: Supabase не дозволяє alter database set — захардкодимо default secret.
-const CRON_SECRET   = Deno.env.get("HQ_CRON_SECRET") || "dc-autopost-2026";
+// SECURITY: НЕ використовуємо hardcoded fallback. Edge падає 500 якщо secret порожній.
+const CRON_SECRET   = Deno.env.get("HQ_CRON_SECRET") ?? "";
 
 const TARGET_TG_CHAT_ID = Deno.env.get("DCSMM_TG_CHANNEL") || "-1003933841573";
 
@@ -101,6 +101,12 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method !== "POST" && req.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
 
+  // SECURITY: fail-fast якщо secret env-var не виставлено (no fallback).
+  if (!CRON_SECRET) {
+    console.error("HQ_CRON_SECRET not configured");
+    return new Response("Server misconfiguration", { status: 500 });
+  }
+
   // Auth check — header або query string
   const got = req.headers.get("x-hq-cron-secret");
   const urlSec = new URL(req.url).searchParams.get("secret");
@@ -113,7 +119,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const result = await run(supabase);
-    return new Response(JSON.stringify({ ...result, version: "v1.1-#143" }), {
+    return new Response(JSON.stringify({ ...result, version: "v1.2-#274-fixed" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
