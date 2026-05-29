@@ -129,14 +129,44 @@ mkdir -p /tmp/cw
 # ============================================================
 if [ "$CRE_TYPE" = "photo" ]; then
   if ! command -v convert >/dev/null 2>&1; then
-    echo "Installing ImageMagick..."
-    sudo apt-get install -y -qq imagemagick
+    echo "Installing ImageMagick + libheif + libheif-tools (HEIC support)..."
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq imagemagick libheif1 libheif-examples
+  fi
+  # FIX (#283 — IMG_8525.HEIC failed 13.05): ImageMagick policy.xml блокує HEIC за замовч.
+  # У GH Actions Ubuntu runner: розблокувати coder rights для HEIC/HEIF
+  IM_POLICY=$(find /etc -name 'policy.xml' -path '*ImageMagick*' 2>/dev/null | head -1)
+  if [ -n "$IM_POLICY" ]; then
+    echo "Unlocking ImageMagick policy для HEIC: $IM_POLICY"
+    sudo sed -i 's|<policy domain="coder" rights="none" pattern="HEIC"|<policy domain="coder" rights="read\|write" pattern="HEIC"|g' "$IM_POLICY" || true
+    sudo sed -i 's|<policy domain="coder" rights="none" pattern="HEIF"|<policy domain="coder" rights="read\|write" pattern="HEIF"|g' "$IM_POLICY" || true
+    sudo sed -i 's|<policy domain="coder" rights="none" pattern="PDF"|<policy domain="coder" rights="read\|write" pattern="PDF"|g' "$IM_POLICY" || true
   fi
   PHOTO_IN=/tmp/cw/photo_in
   PHOTO_OUT=/tmp/cw/photo_out.jpg
   curl -fSL --connect-timeout 60 --max-time 600 -o "$PHOTO_IN" "$CRE_URL"
   PHOTO_IN_SIZE=$(stat -c%s "$PHOTO_IN" 2>/dev/null || echo 0)
   echo "Photo downloaded: $PHOTO_IN_SIZE bytes"
+
+  # Detect file type from binary signature (HEIC має 'ftypheic'/'ftypheix'/'ftyphevc' у byte 4-12)
+  FILE_TYPE=$(file -b --mime-type "$PHOTO_IN" 2>/dev/null || echo "unknown")
+  echo "Detected MIME type: $FILE_TYPE"
+  # HEIC: спершу конвертуємо через heif-convert якщо є; інакше прямо ImageMagick з libheif
+  case "$FILE_TYPE" in
+    image/heic|image/heif|image/avif)
+      echo "HEIC/HEIF input detected — try heif-convert first (more reliable than ImageMagick)"
+      if command -v heif-convert >/dev/null 2>&1; then
+        PHOTO_HEIC_JPG=/tmp/cw/photo_heic.jpg
+        heif-convert -q 95 "$PHOTO_IN" "$PHOTO_HEIC_JPG" 2>/tmp/cw/heif-err.txt && {
+          mv "$PHOTO_HEIC_JPG" "$PHOTO_IN"
+          echo "heif-convert OK: $(stat -c%s "$PHOTO_IN") bytes"
+        } || {
+          echo "heif-convert failed: $(cat /tmp/cw/heif-err.txt)"
+          echo "Will fall through to ImageMagick with libheif backend"
+        }
+      fi
+      ;;
+  esac
 
   # Resize to fit 2560×2560 (тільки якщо більше), JPEG quality 90, strip metadata,
   # progressive (вантажиться поступово), interlace plane
