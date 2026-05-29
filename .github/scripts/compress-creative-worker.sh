@@ -48,6 +48,8 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 echo "Claiming compress jobs as ${WORKER_ID:-unknown}..."
+# Worker обробляє 1 креатив за run (видно нижче — JOB=.[0]). max_jobs=1 щоб не залишати претензії у processing.
+# Для pile-up — рішення на стороні pg_cron compress-safety-net (jobid 15, */5min).
 CLAIMED=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/claim_compress_jobs" \
   -H "apikey: $SERVICE_KEY" \
   -H "Authorization: Bearer $SERVICE_KEY" \
