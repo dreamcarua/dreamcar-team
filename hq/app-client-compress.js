@@ -1,7 +1,7 @@
 /* ============================================================
    DreamCar HQ — Client-side Compression
    ============================================================
-   Стискає файли у БРАУЗЕРІ перед R2 upload. Замість GH Actions worker.
+   Стискає файли у БРАУЗЕРІ перед upload. Замість GH Actions worker.
    FREE, миттєво, без черг, без апт-гет, без HEIC проблем.
 
    PHOTO:
@@ -12,13 +12,11 @@
    VIDEO:
    - ffmpeg.wasm 0.12 (lazy load on first video upload)
    - CRF 26, max 1920px longest side, AAC 128k stereo
-   - Якщо browser не підтримує SharedArrayBuffer — fallback на original (
-     і server worker все одно стисне коли налагодимо)
+   - Якщо browser не підтримує SharedArrayBuffer — fallback на original
 
    POST-UPLOAD:
-   - Одразу після INSERT creative: PATCH compressed_status='ready',
-     compressed_url=thumbnail_url, compressed_size_bytes=file.size
-   - autopost-worker побачить ready і відразу постить
+   - app-drive.js v2 (refactor R2 → Supabase Storage) уже ставить
+     compressed_url + status='ready' у INSERT. Тут більше нічого додавати.
    ============================================================ */
 (function(){
   if (window.__hqClientCompressLoaded) return;
@@ -69,7 +67,6 @@
 
   function loadScript(src){
     return new Promise(function(resolve, reject){
-      // Already loaded?
       var existing = document.querySelector('script[data-cc-src="' + src + '"]');
       if (existing) {
         if (existing.dataset.ccLoaded === '1') return resolve();
@@ -122,7 +119,6 @@
   function ensureBic(){
     if (bicReady) return bicReady;
     bicReady = loadScript(CDN_BIC).then(function(){
-      // UMD exposes imageCompression as default
       var fn = window.imageCompression;
       if (typeof fn !== 'function' && fn && typeof fn.default === 'function') fn = fn.default;
       if (typeof fn !== 'function') throw new Error('browser-image-compression not exposed');
@@ -142,18 +138,13 @@
   }
 
   async function compressPhoto(file, toast){
-    if (isGif(file)) {
-      // Animated GIF — пропускаємо
-      return file;
-    }
+    if (isGif(file)) return file;
     var input = file;
-    // Step 1: HEIC → JPEG via heic2any
     if (isHeic(file)) {
       toast.update(10, 'Конвертую HEIC → JPEG…');
       var heic = await ensureHeic();
       try {
         var blob = await heic({ blob: file, toType: 'image/jpeg', quality: 0.95 });
-        // heic2any може повернути array of blobs якщо multi-image
         if (Array.isArray(blob)) blob = blob[0];
         var newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
         input = new File([blob], newName, { type: 'image/jpeg' });
@@ -163,7 +154,6 @@
         return file;
       }
     }
-    // Step 2: resize + quality
     toast.update(40, 'Стискаю фото…');
     var bic = await ensureBic();
     var opts = {
@@ -178,17 +168,15 @@
     };
     try {
       var compressed = await bic(input, opts);
-      // ensure compressed is File з валідним name
       if (!(compressed instanceof File)) {
         compressed = new File([compressed], input.name, { type: compressed.type || 'image/jpeg' });
       }
       toast.update(95, 'Готово: ' + humanSize(file.size) + ' → ' + humanSize(compressed.size));
-      // якщо after compression БІЛЬШЕ оригіналу (рідко) — повертаємо оригінал
       if (compressed.size >= input.size && !isHeic(file)) return input;
       return compressed;
     } catch(e){
       console.warn('[CC] photo compression failed:', e);
-      return input; // принаймні після HEIC→JPEG
+      return input;
     }
   }
 
@@ -196,9 +184,8 @@
   var ffmpegReady = null;
   function ensureFfmpeg(){
     if (ffmpegReady) return ffmpegReady;
-    // SharedArrayBuffer / cross-origin isolated check
     if (typeof SharedArrayBuffer === 'undefined') {
-      ffmpegReady = Promise.reject(new Error('SharedArrayBuffer not supported — server worker буде fallback'));
+      ffmpegReady = Promise.reject(new Error('SharedArrayBuffer not supported'));
       return ffmpegReady;
     }
     ffmpegReady = Promise.all([
@@ -209,14 +196,11 @@
       if (!FFmpegCtor) throw new Error('FFmpegWASM.FFmpeg not found');
       var util = window.FFmpegUtil || {};
       var ffmpeg = new FFmpegCtor();
-      await ffmpeg.load({
-        coreURL: CDN_FFMPEG_CORE,
-        // workerURL omitted = single-thread (works without cross-origin isolation)
-      });
+      await ffmpeg.load({ coreURL: CDN_FFMPEG_CORE });
       return { ffmpeg: ffmpeg, util: util };
     }).catch(function(e){
       console.warn('[CC] ffmpeg.wasm load failed:', e);
-      ffmpegReady = null; // reset to allow retry next time
+      ffmpegReady = null;
       throw e;
     });
     return ffmpegReady;
@@ -224,11 +208,10 @@
 
   async function compressVideo(file, toast){
     var inst;
-    try {
-      inst = await ensureFfmpeg();
-    } catch(e){
+    try { inst = await ensureFfmpeg(); }
+    catch(e){
       console.warn('[CC] video compression skipped, leaving as-is');
-      return file; // server worker / direct upload fallback
+      return file;
     }
     var ffmpeg = inst.ffmpeg;
     var util = inst.util;
@@ -242,64 +225,32 @@
     try {
       toast.update(10, 'Завантажую в worker…');
       await ffmpeg.writeFile(inputName, await fetchFile(file));
-      // progress reporter
       ffmpeg.on('progress', function(ev){
         var pct = 10 + (ev.progress * 80);
         toast.update(pct, 'Кодую відео: ' + Math.round(ev.progress * 100) + '%');
       });
       toast.update(15, 'Стискаю відео…');
-      // CRF 26 + max 1920px + AAC 128k. veryfast щоб не вбити браузер.
       var args = [
         '-i', inputName,
-        '-c:v', 'libx264',
-        '-preset', 'veryfast',
-        '-crf', '26',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
         '-vf', "scale='if(gt(iw,ih),min(" + VIDEO_MAX_SIDE + ",iw),-2)':'if(gt(ih,iw),min(" + VIDEO_MAX_SIDE + ",ih),-2)':flags=lanczos",
-        '-pix_fmt', 'yuv420p',
-        '-movflags', '+faststart',
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-ac', '2',
-        '-y',
-        outputName,
+        '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+        '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+        '-y', outputName,
       ];
       await ffmpeg.exec(args);
       var data = await ffmpeg.readFile(outputName);
-      // cleanup virtual fs
       try { await ffmpeg.deleteFile(inputName); } catch(_){}
       try { await ffmpeg.deleteFile(outputName); } catch(_){}
       var blob = new Blob([data.buffer], { type: 'video/mp4' });
       var newName = file.name.replace(/\.[^.]+$/, '') + '.mp4';
       var out = new File([blob], newName, { type: 'video/mp4' });
       toast.update(95, humanSize(file.size) + ' → ' + humanSize(out.size));
-      if (out.size >= file.size) return file; // не вийшло — повертаємо як було
+      if (out.size >= file.size) return file;
       return out;
     } catch(e){
       console.warn('[CC] video compression failed:', e);
       return file;
-    }
-  }
-
-  // ---------------------- post-upload mark-ready ----------------------
-  // Якщо файл стиснутий клієнтом — одразу проставити compressed_status='ready'
-  // у БД щоб не чекати на (нещасний) server worker.
-  async function markCompressedReady(creativeId, size){
-    if (!window.HQ_BACKEND || !window.supabase || !creativeId) return;
-    try {
-      var { data: { session } } = await window.supabase.auth.getSession();
-      var jwt = session && session.access_token;
-      if (!jwt) return;
-      // RPC або direct PATCH
-      await window.supabase.from('creatives').update({
-        compressed_status: 'ready',
-        // Не виставляємо compressed_url щоб autopost-worker побачив client-side прапор
-        // і скористався thumbnail_url як final-quality (бо вже стиснутий клієнтом).
-        compressed_at: new Date().toISOString(),
-        compressed_size_bytes: size,
-      }).eq('id', creativeId);
-      console.log('[CC] marked', creativeId, 'as ready (client-compressed)');
-    } catch(e){
-      console.warn('[CC] markCompressedReady failed:', e);
     }
   }
 
@@ -312,7 +263,6 @@
       if (isPhoto(file) && !isGif(file)) {
         out = await compressPhoto(file, toast);
       } else if (isVideo(file)) {
-        // skip if already small
         if (file.size < VIDEO_MAX_MB * 1024 * 1024 * 0.9) {
           toast.close(true, 'Вже компактне відео, не чіпаю');
           return file;
@@ -340,20 +290,17 @@
     window.uploadCreativeFile = async function(file, pub){
       if (!file) return;
       var compressed = await compressFileIfPossible(file);
-      var result = await _orig.call(this, compressed, pub);
-      // result може бути local creative object — поставимо його як ready
-      if (result && result.id) {
-        markCompressedReady(result.id, compressed.size);
-      }
-      return result;
+      // app-drive.js v2 (Supabase Storage) сам встановить compressed_url
+      // + compressed_status='ready' у INSERT. Нічого більше робити не треба.
+      return await _orig.call(this, compressed, pub);
     };
     window.uploadCreativeFile.__clientCompressPatched = true;
     console.log('%cDreamCar HQ Client-Compress %c· photo (BIC + heic2any) + video (ffmpeg.wasm) · FREE, no server worker', 'color:#10b981;font-weight:700;', 'color:#888;');
     return true;
   }
 
-  // Чекаємо коли app-drive.js перепатчить uploadCreativeFile (там R2 layer)
-  // А потім ми поверх. Порядок: orig → R2-patch → client-compress-patch.
+  // Чекаємо коли app-drive.js перепатчить uploadCreativeFile (там Storage layer)
+  // А потім ми поверх. Порядок: orig → drive-patch → client-compress-patch.
   if (!patchUpload()) {
     var retries = 0;
     var iv = setInterval(function(){
@@ -362,11 +309,10 @@
     }, 250);
   }
 
-  // Експортуємо для batch tool (Task #291)
+  // Експортуємо для batch tool
   window.HQ_CLIENT_COMPRESS = {
     compressPhoto: compressPhoto,
     compressVideo: compressVideo,
     compressFileIfPossible: compressFileIfPossible,
-    markCompressedReady: markCompressedReady,
   };
 })();
