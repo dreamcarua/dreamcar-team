@@ -1,14 +1,15 @@
 /* ============================================================
-   DreamCar HQ — Service Worker v13 (audit nuke)
+   DreamCar HQ — Service Worker v14 (client-side compression)
    ============================================================ */
-// v13 (2026-05-28 audit): bump після хвилі mobile UX rebuild +
-// drawer/FAB унифікації + chip-стиль скрізь + Tasks/Analytics/Survey
-// + security fixes (RLS approver bypass, cron-reminders actor_id/delegate_to).
-// Юзери досі тримали v2-20260514 (2 тижні застарілий код).
+// v14 (2026-05-29): bump після релізу client-side compression
+// (app-client-compress.js) — замінює зламаний GH Actions worker.
+// Photo: browser-image-compression + heic2any. Video: ffmpeg.wasm.
+// FREE, миттєво, без черг, без HEIC проблем.
+// v13 (2026-05-28 audit): mobile UX rebuild + security fixes.
 // Network-first для HTML/JS, cache-first для статики.
 
-const CACHE_VERSION = 'hq-v13-' + '20260528';
-const RUNTIME_CACHE = 'hq-runtime-v13';
+const CACHE_VERSION = 'hq-v14-' + '20260529';
+const RUNTIME_CACHE = 'hq-runtime-v14';
 
 const PRECACHE = [
   '/dreamcar-team/hq/',
@@ -43,6 +44,8 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('supabase.co') ||
     url.hostname.includes('telegram.org') ||
     url.hostname.includes('anthropic.com') ||
+    url.hostname.includes('jsdelivr.net') ||
+    url.hostname.includes('unpkg.com') ||
     req.method !== 'GET'
   ) {
     return;
