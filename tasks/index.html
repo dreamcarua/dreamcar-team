@@ -454,7 +454,7 @@
 <div class="modal-backdrop" id="taskModal">
   <div class="modal">
     <h2 id="modalTitle">+ НОВЕ ЗАВДАННЯ</h2>
-    <div class="field"><label>НАЗВА</label><input type="text" id="f-title" placeholder="Що треба зробити?"></div>
+    <div class="field"><label for="f-title">НАЗВА</label><input type="text" id="f-title" placeholder="Що треба зробити?" aria-label="Назва задачі"></div>
     <div class="field"><label>ОПИС</label><textarea id="f-description" placeholder="Деталі, контекст, лінки..."></textarea></div>
     <div class="grid2">
       <div class="field"><label>СТАТУС</label><select id="f-status"><option value="inbox">📥 Inbox</option><option value="doing">⚙ Doing</option><option value="review">👀 Review</option><option value="done">✅ Done</option></select></div>
@@ -462,18 +462,18 @@
     </div>
     <div class="grid2">
       <div class="field"><label>ВИКОНАВЕЦЬ</label><select id="f-assignee"><option value="">— не призначено —</option></select></div>
-      <div class="field"><label>ДЕДЛАЙН</label><input type="date" id="f-due"></div>
+      <div class="field"><label for="f-due">ДЕДЛАЙН</label><input type="date" id="f-due" aria-label="Дедлайн задачі"></div>
     </div>
     <div class="grid2">
       <div class="field"><label>ПОВТОР</label><select id="f-recurrence"><option value="">— разово —</option><option value="daily">щодня</option><option value="workdays">по буднях</option><option value="weekly">щотижня</option><option value="monthly">щомісяця</option></select></div>
-      <div class="field"><label>ОЦІНКА (год)</label><input type="number" id="f-estimated" min="0" step="0.5" placeholder="2.5"></div>
+      <div class="field"><label for="f-estimated">ОЦІНКА (год)</label><input type="number" id="f-estimated" min="0" step="0.5" placeholder="2.5" aria-label="Оцінка трудовитрат у годинах"></div>
     </div>
     <div class="field" style="position:relative;">
       <label>СПОСТЕРІГАЧІ (отримують усі нотифікації)</label>
-      <div class="multiselect" id="watchersMS"><input class="ms-input" id="watchersInput" placeholder="Додай людину…"></div>
+      <div class="multiselect" id="watchersMS"><input class="ms-input" id="watchersInput" placeholder="Додай людину…" aria-label="Додати спостерігача до задачі"></div>
       <div class="ms-list" id="watchersList"></div>
     </div>
-    <div class="field"><label>МІТКИ (через кому)</label><input type="text" id="f-tags" placeholder="hq, dreamcar, x5, brand"></div>
+    <div class="field"><label for="f-tags">МІТКИ (через кому)</label><input type="text" id="f-tags" placeholder="hq, dreamcar, x5, brand" aria-label="Мітки задачі через кому"></div>
     <div class="field">
       <label>ЧЕК-ЛИСТ</label>
       <div class="subtasks" id="subtasksBox"></div>
@@ -1132,13 +1132,13 @@ function renderSubtasks(){
   const box=document.getElementById('subtasksBox');
   box.innerHTML=state.subtasks.map((s,i)=>`
     <div class="subtask-row ${s.done?'done':''}">
-      <input type="checkbox" ${s.done?'checked':''} data-idx="${i}" class="st-check">
-      <input type="text" value="${escapeHtml(s.text||'')}" data-idx="${i}" class="st-text">
+      <input type="checkbox" ${s.done?'checked':''} data-idx="${i}" class="st-check" aria-label="Виконано: ${escapeHtml(s.text||'крок чек-листу')}">
+      <input type="text" value="${escapeHtml(s.text||'')}" data-idx="${i}" class="st-text" aria-label="Текст кроку чек-листу">
       <button class="rm" data-idx="${i}" title="Видалити">✕</button>
     </div>
   `).join('')+`
     <div class="subtask-add">
-      <input type="text" id="st-new" placeholder="+ Додай крок (Enter)">
+      <input type="text" id="st-new" placeholder="+ Додай крок (Enter)" aria-label="Додати новий крок до чек-листу">
       <button id="st-add-btn">+</button>
     </div>`;
   box.querySelectorAll('.st-check').forEach(el=>el.onchange=e=>{state.subtasks[+e.target.dataset.idx].done=e.target.checked;renderSubtasks();});
@@ -1154,7 +1154,7 @@ function renderSubtasks(){
 function renderWatchers(){
   const ms=document.getElementById('watchersMS');
   const chips=state.watchers.map(uid=>{const u=state.users.find(x=>x.id===uid);if(!u)return '';return `<span class="ms-chip">${escapeHtml(u.name||u.email)}<span class="rm" data-uid="${uid}">✕</span></span>`;}).join('');
-  ms.innerHTML=chips+`<input class="ms-input" id="watchersInput" placeholder="Додай людину…">`;
+  ms.innerHTML=chips+`<input class="ms-input" id="watchersInput" placeholder="Додай людину…" aria-label="Додати спостерігача до задачі">`;
   ms.querySelectorAll('.ms-chip .rm').forEach(el=>el.onclick=e=>{const uid=e.target.dataset.uid;state.watchers=state.watchers.filter(x=>x!==uid);renderWatchers();});
   const inp=document.getElementById('watchersInput');
   const list=document.getElementById('watchersList');
