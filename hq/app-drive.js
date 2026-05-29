@@ -1,27 +1,27 @@
 /* ============================================================
-   DreamCar HQ — R2 direct upload (>49MB) + Supabase Storage (≤49MB)
+   DreamCar HQ — Upload (Supabase Storage only, no R2)
    ============================================================
-   Логіка:
-   - Файли ≤ 49MB        → стандартний Supabase Storage upload (legacy)
-   - Файли > 49MB         → R2 path:
-       1. POST /functions/v1/r2-sign-upload → отримуємо presigned PUT URL
-       2. Direct PUT файлу в R2 (XHR з прогресом)
-       3. INSERT creative з R2 publicUrl
-   Бо Supabase Free має 50MB platform cap. R2 — необмежений.
-   tg-autopost-worker.sh без змін: завантажує з будь-якого URL.
+   2026-05-29: повний refactor. R2 CORS не дозволяє team.dreamcar.ua origin →
+   preflight 403 у браузері. Перенесли на Supabase Storage через SDK upload
+   (та сама архітектура що пройшла батч-tool 39/39).
+
+   Flow:
+   1. uploadCreativeFile(file, pub) — entry point
+   2. Client-side compress (через app-client-compress patch) — зменшує розмір
+   3. Supabase SDK .upload(creatives/{filename}) — public bucket
+   4. INSERT creative з thumbnail_url == compressed_url
+   5. Mark compressed_status='ready' одразу
+
+   Якщо файл після compress > 50MB → toast про Supabase Free ліміт.
    ============================================================ */
 
 (function () {
   if (window.__hqDriveLoaded) return;
   window.__hqDriveLoaded = true;
 
-  var R2_THRESHOLD_BYTES = 49 * 1024 * 1024;
+  var MAX_BYTES = 49 * 1024 * 1024; // Supabase Free hard limit
+  var BUCKET = 'creatives';
 
-  async function getAccessJwt() {
-    if (!window.supabase) return null;
-    var { data } = await window.supabase.auth.getSession();
-    return data && data.session && data.session.access_token || null;
-  }
   function humanSize(b) {
     if (b < 1024) return b + ' B';
     if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
@@ -53,6 +53,7 @@
     return 'doc';
   }
 
+  // Override createCreativeRecord — той самий код що був раніше + compressed_status='ready'
   function overrideCreateCreativeRecord() {
     if (typeof window.createCreativeRecord !== 'function' && typeof createCreativeRecord !== 'function') return false;
     if (window.createCreativeRecord && window.createCreativeRecord.__uuidPatched) return true;
@@ -89,6 +90,7 @@
       var sb = window.supabase;
       if (!sb) return local;
       try {
+        // Файл вже стиснутий клієнтом — позначаємо ready одразу
         var { error } = await sb.from('creatives').insert({
           id: id,
           desk_id: '11111111-1111-1111-1111-111111111111',
@@ -99,6 +101,11 @@
           thumbnail_url: meta.url,
           tags: [],
           uploaded_by: meId,
+          // Client-compressed → ready з тим самим URL
+          compressed_url: meta.url,
+          compressed_status: 'ready',
+          compressed_size_bytes: meta.size_bytes,
+          compressed_at: new Date().toISOString(),
         });
         if (error) {
           console.error('creatives insert (patched):', error);
@@ -153,79 +160,54 @@
     };
   }
 
-  async function uploadViaR2(file, pub) {
+  // Upload через Supabase Storage SDK — без R2, без CORS issues
+  async function uploadViaSupabaseStorage(file, pub) {
     if (!window.HQ_BACKEND || !window.supabase) {
       if (typeof toast === 'function') toast('Upload потребує авторизації', 'error');
       throw new Error('Not authenticated');
     }
-    var jwt = await getAccessJwt();
-    if (!jwt) throw new Error('No auth session');
-
-    var anonKey = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_ANON_KEY) || '';
-    var supaUrl = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_URL) || '';
-    var signUrl = supaUrl.replace(/\/$/, '') + '/functions/v1/r2-sign-upload';
-
+    var sb = window.supabase;
     var ext = fileExt(file.name);
     var type = detectType(file.type, ext);
 
     var prog = makeProgressToast(file.name + ' (' + humanSize(file.size) + ')');
 
     try {
-      prog.update(1, 'Створюю Cloudflare R2 сесію…');
-
-      console.log('[R2] POST', signUrl, { name: file.name, size: file.size, mime: file.type, type: type });
-      var signResp = await fetch(signUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + jwt,
-          'apikey': anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: file.name,
-          size: file.size,
-          mime: file.type || 'application/octet-stream',
-          type: type,
-        }),
-      });
-      if (!signResp.ok) {
-        var errText = await signResp.text();
-        console.error('[R2] sign failed', signResp.status, errText);
-        throw new Error('sign ' + signResp.status + ' ' + errText.slice(0, 300));
+      // Check size
+      if (file.size > MAX_BYTES) {
+        var msg = 'Файл ' + humanSize(file.size) + ' > 49MB ліміту. Спробуй стиснути локально перед upload.';
+        prog.close(false, msg);
+        throw new Error('File too large for Supabase Free');
       }
-      var signData = await signResp.json();
-      console.log('[R2] sign OK', { hasUploadUrl: !!signData.uploadUrl, publicUrl: signData.publicUrl, objectKey: signData.objectKey });
-      var uploadUrl = signData.uploadUrl;
-      var publicUrl = signData.publicUrl;
-      if (!uploadUrl || !publicUrl) throw new Error('sign returned no urls');
 
-      prog.update(2, 'Завантажую в Cloudflare R2…');
-      await new Promise(function (resolve, reject) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl, true);
-        xhr.upload.onprogress = function (e) {
-          if (e.lengthComputable) {
-            var pct = 2 + (e.loaded / e.total) * 93;
-            prog.update(pct, 'Завантажую ' + humanSize(e.loaded) + ' / ' + humanSize(e.total));
-          }
-        };
-        xhr.onload = function () {
-          console.log('[R2] PUT status', xhr.status);
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error('R2 PUT ' + xhr.status + ': ' + xhr.responseText.slice(0, 200)));
-        };
-        xhr.onerror = function () { reject(new Error('R2 PUT network error (CORS?)')); };
-        xhr.ontimeout = function () { reject(new Error('R2 PUT timeout')); };
-        xhr.send(file);
-      });
+      prog.update(5, 'Створюю запис…');
 
-      prog.update(96, 'Реєструю файл…');
+      // Унікальний шлях у bucket
+      var storageFilename = Date.now() + '-' + Math.random().toString(36).slice(2, 10) + '.' + ext;
+
+      prog.update(15, 'Заливаю в Supabase Storage…');
+
+      var { data: upData, error: upError } = await sb.storage
+        .from(BUCKET)
+        .upload(storageFilename, file, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: false,
+          cacheControl: '31536000',
+        });
+      if (upError) throw upError;
+
+      prog.update(90, 'Реєструю файл…');
+
+      // Public URL
+      var { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(storageFilename);
+      var publicUrl = urlData.publicUrl;
+
       var meta = {
         name: file.name,
         type: type,
         size_bytes: file.size,
         url: publicUrl,
-        storage_path: 'r2:' + (signData.bucket || 'dreamcar-creatives') + '/' + signData.objectKey,
+        storage_path: storageFilename,
       };
       var local = await window.createCreativeRecord(meta);
 
@@ -259,10 +241,10 @@
       } catch (_) {}
 
       prog.update(100, 'Готово · ' + humanSize(file.size));
-      prog.close(true, file.name + ' · ' + humanSize(file.size) + ' (R2)');
+      prog.close(true, file.name + ' · ' + humanSize(file.size) + ' (Storage)');
       return local;
     } catch (e) {
-      console.error('[R2] uploadViaR2 failed', e);
+      console.error('[Storage] upload failed', e);
       var msg = (e && e.message) || String(e);
       prog.close(false, msg.slice(0, 250));
       throw e;
@@ -270,26 +252,29 @@
   }
 
   function patchUpload() {
-    if (typeof window.uploadCreativeFile !== 'function' || window.uploadCreativeFile.__r2Patched) return;
+    if (typeof window.uploadCreativeFile !== 'function' || window.uploadCreativeFile.__storagePatched) return;
     var _orig = window.uploadCreativeFile;
     window.uploadCreativeFile = async function (file, pub) {
       if (!file) return;
-      if (file.size > R2_THRESHOLD_BYTES && window.HQ_BACKEND) {
-        return await uploadViaR2(file, pub);
+      // Завжди йдемо через Supabase Storage (нема R2 CORS issues).
+      // Client-compress layer (app-client-compress.js) стискає файл перед цією функцією.
+      if (window.HQ_BACKEND) {
+        return await uploadViaSupabaseStorage(file, pub);
       }
       return _orig.call(this, file, pub);
     };
-    window.uploadCreativeFile.__r2Patched = true;
+    window.uploadCreativeFile.__storagePatched = true;
   }
   patchUpload();
   setTimeout(patchUpload, 300);
   setTimeout(patchUpload, 1500);
 
   window.HQ_DRIVE = {
-    uploadViaR2: uploadViaR2,
-    threshold: R2_THRESHOLD_BYTES,
+    uploadViaStorage: uploadViaSupabaseStorage,
+    maxBytes: MAX_BYTES,
+    bucket: BUCKET,
   };
-  console.log('%cDreamCar HQ Upload %c· R2 direct for >49MB · Supabase Storage for ≤49MB · UUID creative-id fix active', 'color:#f6821f;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Upload %c· Supabase Storage only (R2 deprecated) · client-compress active', 'color:#f6821f;font-weight:700;', 'color:#888;');
 
   if (!document.querySelector('script[src*="app-context-menu.js"]')) {
     var sCtx = document.createElement('script');
