@@ -145,7 +145,7 @@
 
   <div id="batchUI" style="display:none">
     <div class="hint-box">
-      📡 Завантажуємо файли через Supabase SDK (обходить CORS). Не закривай вкладку поки йде стиснення.
+      📡 Файли йдуть через Supabase SDK (download) + R2 XHR (upload) — обходять CORS. Не закривай вкладку поки йде стиснення.
     </div>
 
     <div class="summary">
@@ -171,7 +171,7 @@
 </div>
 
 <!-- Підвантажуємо app-client-compress (BIC + heic2any + ffmpeg.wasm) -->
-<script src="app-client-compress.js?v=20260529b"></script>
+<script src="app-client-compress.js?v=20260529c"></script>
 
 <script>
 (async function(){
@@ -309,13 +309,22 @@
     return await resp.json();
   }
 
-  async function r2Put(uploadUrl, file){
-    var resp = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      body: file,
+  // R2 PUT через XHR щоб НЕ додавати Content-Type у preflight (як у app-drive.js).
+  // Sign URL включає тільки SignedHeaders=host — додатковий Content-Type ламає signature → 403.
+  function r2Put(uploadUrl, file){
+    return new Promise(function(resolve, reject){
+      var xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl, true);
+      xhr.onload = function(){
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error('R2 PUT ' + xhr.status + ': ' + (xhr.responseText || '').slice(0, 200)));
+      };
+      xhr.onerror = function(){ reject(new Error('R2 PUT network error (CORS?)')); };
+      xhr.ontimeout = function(){ reject(new Error('R2 PUT timeout')); };
+      xhr.timeout = 1800000; // 30 min
+      // НЕ setRequestHeader('Content-Type') — XHR не додасть header якщо ми не задали
+      xhr.send(file);
     });
-    if (!resp.ok) throw new Error('R2 PUT ' + resp.status);
   }
 
   async function markCompressedReady(creId, url, size){
@@ -351,7 +360,7 @@
       setBusy(it, 'Стискаю…');
       // 2. Стискаємо через нашу лібру
       var compressed = await window.HQ_CLIENT_COMPRESS.compressFileIfPossible(file);
-      // 3. Заливаємо у R2
+      // 3. Заливаємо у R2 через XHR (без Content-Type → без preflight issues)
       setBusy(it, 'Заливаю в R2…');
       var sign = await r2SignUpload(compressed.name, compressed.size, compressed.type, it.type);
       await r2Put(sign.uploadUrl, compressed);
