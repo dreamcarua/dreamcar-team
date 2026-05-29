@@ -1,6 +1,11 @@
 #!/bin/bash
 # Compress Creative Worker — TARGET-BITRATE 2-pass H.264 high, MAX quality ≤49.5MB.
 #
+# v3 — HEIC error visibility fix:
+#   • convert обгорнуто у if-block — не фаєрить ERR trap, видно реальну помилку
+#   • heif-convert верифікує розмір вихідного JPG (>1KB)
+#   • Логування convert stderr навіть на success
+#
 # v2 — MAX quality tuning:
 #   • preset veryslow (was slower) — найповільніший аналіз, краще стиснення
 #   • bframes=12, ref=8, subme=10, aq-mode=3, merange=32, qcomp=0.7
@@ -35,10 +40,18 @@ on_error() {
   local line_no=$1
   if [ -n "$CRE_ID" ]; then
     echo "::error::Worker died on line $line_no (exit=$exit_code). Marking creative $CRE_ID as failed."
+    # Якщо є im-err.txt — додамо у error message для debug
+    local extra_err=""
+    if [ -f /tmp/cw/im-err.txt ]; then
+      extra_err=" | im-err: $(head -c 150 /tmp/cw/im-err.txt | tr '\n' ' ')"
+    fi
+    if [ -f /tmp/cw/heif-err.txt ]; then
+      extra_err="$extra_err | heif-err: $(head -c 150 /tmp/cw/heif-err.txt | tr '\n' ' ')"
+    fi
     curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_compress_job" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
-      -d "$(jq -nc --arg id "$CRE_ID" --arg err "Worker error line $line_no exit $exit_code" '{cre_id:$id, err:$err}')" || true
+      -d "$(jq -nc --arg id "$CRE_ID" --arg err "Worker line $line_no exit $exit_code$extra_err" '{cre_id:$id, err:$err}')" || true
   else
     echo "::error::Worker died on line $line_no (exit=$exit_code) BEFORE claiming any job."
   fi
@@ -49,7 +62,7 @@ trap 'on_error $LINENO' ERR
 
 echo "Claiming compress jobs as ${WORKER_ID:-unknown}..."
 # Worker обробляє 1 креатив за run (видно нижче — JOB=.[0]). max_jobs=1 щоб не залишати претензії у processing.
-# Для pile-up — рішення на стороні pg_cron compress-safety-net (jobid 15, */5min).
+# Для pile-up — рішення на стороні pg_cron compress-safety-net (jobid 16, */5min).
 CLAIMED=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/claim_compress_jobs" \
   -H "apikey: $SERVICE_KEY" \
   -H "Authorization: Bearer $SERVICE_KEY" \
@@ -150,7 +163,7 @@ if [ "$CRE_TYPE" = "photo" ]; then
   PHOTO_IN_SIZE=$(stat -c%s "$PHOTO_IN" 2>/dev/null || echo 0)
   echo "Photo downloaded: $PHOTO_IN_SIZE bytes"
 
-  # Detect file type from binary signature (HEIC має 'ftypheic'/'ftypheix'/'ftyphevc' у byte 4-12)
+  # Detect file type from binary signature
   FILE_TYPE=$(file -b --mime-type "$PHOTO_IN" 2>/dev/null || echo "unknown")
   echo "Detected MIME type: $FILE_TYPE"
   # HEIC: спершу конвертуємо через heif-convert якщо є; інакше прямо ImageMagick з libheif
@@ -159,19 +172,31 @@ if [ "$CRE_TYPE" = "photo" ]; then
       echo "HEIC/HEIF input detected — try heif-convert first (more reliable than ImageMagick)"
       if command -v heif-convert >/dev/null 2>&1; then
         PHOTO_HEIC_JPG=/tmp/cw/photo_heic.jpg
-        heif-convert -q 95 "$PHOTO_IN" "$PHOTO_HEIC_JPG" 2>/tmp/cw/heif-err.txt && {
-          mv "$PHOTO_HEIC_JPG" "$PHOTO_IN"
-          echo "heif-convert OK: $(stat -c%s "$PHOTO_IN") bytes"
-        } || {
-          echo "heif-convert failed: $(cat /tmp/cw/heif-err.txt)"
+        # Не використовуємо && || щоб уникнути set -e issues
+        set +e
+        heif-convert -q 95 "$PHOTO_IN" "$PHOTO_HEIC_JPG" 2>/tmp/cw/heif-err.txt
+        HEIF_EXIT=$?
+        set -e
+        if [ $HEIF_EXIT -eq 0 ] && [ -f "$PHOTO_HEIC_JPG" ]; then
+          HEIF_OUT_SIZE=$(stat -c%s "$PHOTO_HEIC_JPG" 2>/dev/null || echo 0)
+          if [ "$HEIF_OUT_SIZE" -gt 1024 ]; then
+            mv "$PHOTO_HEIC_JPG" "$PHOTO_IN"
+            echo "heif-convert OK: $HEIF_OUT_SIZE bytes"
+          else
+            echo "::warning::heif-convert produced too-small file ($HEIF_OUT_SIZE bytes) — fall back to ImageMagick"
+          fi
+        else
+          echo "::warning::heif-convert exit=$HEIF_EXIT: $(cat /tmp/cw/heif-err.txt 2>/dev/null | head -c 300)"
           echo "Will fall through to ImageMagick with libheif backend"
-        }
+        fi
+      else
+        echo "::warning::heif-convert not installed — using ImageMagick with libheif"
       fi
       ;;
   esac
 
-  # Resize to fit 2560×2560 (тільки якщо більше), JPEG quality 90, strip metadata,
-  # progressive (вантажиться поступово), interlace plane
+  # Resize. Wrap у if-block щоб уникнути ERR trap і побачити справжню помилку.
+  set +e
   convert "$PHOTO_IN" \
     -auto-orient \
     -resize '2560x2560>' \
@@ -182,14 +207,25 @@ if [ "$CRE_TYPE" = "photo" ]; then
     -define jpeg:fancy-upsampling=false \
     "$PHOTO_OUT" 2>/tmp/cw/im-err.txt
   IM_EXIT=$?
+  set -e
   if [ $IM_EXIT -ne 0 ]; then
-    ERR_MSG=$(head -c 200 /tmp/cw/im-err.txt)
-    echo "::error::ImageMagick failed: $ERR_MSG"
-    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_compress_job" \
-      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
-      -H "Content-Type: application/json" \
-      -d "{\"cre_id\":\"$CRE_ID\",\"err\":\"imagemagick: $ERR_MSG\"}"
-    exit 1
+    ERR_MSG=$(head -c 300 /tmp/cw/im-err.txt | tr '\n' ' ')
+    echo "::error::ImageMagick failed (exit=$IM_EXIT): $ERR_MSG"
+    # Last-resort: спробувати без додаткових опцій
+    set +e
+    convert "$PHOTO_IN" -auto-orient -strip -quality 90 "$PHOTO_OUT" 2>/tmp/cw/im-err2.txt
+    IM_EXIT2=$?
+    set -e
+    if [ $IM_EXIT2 -ne 0 ]; then
+      ERR_MSG2=$(head -c 300 /tmp/cw/im-err2.txt | tr '\n' ' ')
+      echo "::error::Last-resort convert also failed (exit=$IM_EXIT2): $ERR_MSG2"
+      curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_compress_job" \
+        -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -nc --arg id "$CRE_ID" --arg err "IM failed: $ERR_MSG2" '{cre_id:$id, err:$err}')"
+      exit 1
+    fi
+    echo "Last-resort convert succeeded"
   fi
 
   PHOTO_OUT_SIZE=$(stat -c%s "$PHOTO_OUT")
