@@ -8,6 +8,39 @@
 
 ---
 
+## 2026-05-29
+
+### 🔴 CRITICAL: Compress pipeline overhaul (morning audit fixes)
+
+**Корінь проблеми (ранковий health-audit показав 1 failed):** 41 креатив застряг у `pending` (найстаріший від 05.05.2026, 24 дні). Розкопано три блокери:
+
+1. **HEIC `IMG_8525.HEIC`** — ImageMagick на GH runner за замовч не має libheif → не читає HEIC. Plus policy.xml блокує HEIC/HEIF coders.
+2. **pg_cron safety-net 401** — `app.settings.service_role_key` setting у БД = NULL → cron конкатенував `Bearer ` (порожньо) → header не відправлявся → dispatch-workflow Edge Function rejected з 401. **Жодна dispatchable creative не йшла у роботу від pg_cron.**
+3. **Worker error visibility** — `set -euo pipefail` ERR trap фаєрив ДО блоку `if [ $IM_EXIT -ne 0 ]` → завжди generic "Worker error line 140 exit 1" без реальної причини.
+
+### 🔧 FIX 1: HEIC libheif support (commit `298d815`)
+- `compress-creative.yml`: install `libheif1 libheif-examples` + unlock policy.xml для HEIC/HEIF
+- `compress-creative-worker.sh`: detect MIME via `file -b --mime-type`, для HEIC/HEIF/AVIF спершу `heif-convert -q 95` → JPG, далі стандартний ImageMagick path
+- Fallback на ImageMagick з libheif backend якщо heif-convert упав
+
+### 🆕 FIX 2: pg_cron safety-net fixed auth (jobid 16, every 5min)
+- Перешульдулено через `cron.schedule()` з hardcoded `hq-cron-secret` як `Bearer` токен (консистентно з іншими cron-ами)
+- Verified: 5× immediate burst → всі повернули 200 OK
+- Спрацьовує тільки якщо є щось pending з attempts<3 AND uploaded_at>1min (event-driven має пріоритет)
+
+### 🔧 FIX 3: Worker error visibility (commit `f267686`)
+- Замість `convert ... ; IM_EXIT=$?` (тригерить ERR trap) → `set +e; convert ... ; IM_EXIT=$?; set -e` → бачимо справжню помилку
+- Last-resort fallback: simple convert без додаткових опцій якщо основний фейлить
+- heif-convert success path тепер перевіряє розмір вихідного JPG (>1KB)
+- ERR trap тепер додає `im-err.txt + heif-err.txt` у error message для debug
+
+### 🚀 Status post-fix
+- Pending: 41 → 40 (1 успішно стиснений за перший run)
+- HEIC скинуто attempts=0, retry готовий з новим worker.sh
+- ETA full drain: ~2 год (GH Actions cron */3min + worker max_jobs=1)
+
+---
+
 ## 2026-05-28
 
 ### 🤖 CRITICAL FIX: tg-ai-router Edge Function (DM AI асистент)
