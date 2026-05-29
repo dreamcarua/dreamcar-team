@@ -1,15 +1,14 @@
 /* ============================================================
-   DreamCar HQ — Service Worker v14 (client-side compression)
+   DreamCar HQ — Service Worker v15 (Supabase Storage only)
    ============================================================ */
-// v14 (2026-05-29): bump після релізу client-side compression
-// (app-client-compress.js) — замінює зламаний GH Actions worker.
-// Photo: browser-image-compression + heic2any. Video: ffmpeg.wasm.
-// FREE, миттєво, без черг, без HEIC проблем.
-// v13 (2026-05-28 audit): mobile UX rebuild + security fixes.
-// Network-first для HTML/JS, cache-first для статики.
+// v15 (2026-05-29 12:55): bump після refactor app-drive.js → Supabase Storage.
+// R2 більше не використовується для нових uploads (CORS team.dreamcar.ua).
+// Все через Supabase SDK upload + client-compress перед.
+// v14 (2026-05-29): client-side compression release.
+// v13 (2026-05-28): mobile UX rebuild + security fixes.
 
-const CACHE_VERSION = 'hq-v14-' + '20260529';
-const RUNTIME_CACHE = 'hq-runtime-v14';
+const CACHE_VERSION = 'hq-v15-' + '20260529b';
+const RUNTIME_CACHE = 'hq-runtime-v15';
 
 const PRECACHE = [
   '/dreamcar-team/hq/',
@@ -25,7 +24,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // NUCLEAR: delete ВСІ старі кеші (hq-v1, hq-runtime — все)
+  // NUCLEAR: delete ВСІ старі кеші
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
       keys.filter((k) => k !== CACHE_VERSION && k !== RUNTIME_CACHE).map((k) => {
@@ -56,7 +55,6 @@ self.addEventListener('fetch', (event) => {
                  url.pathname.endsWith('.html') ||
                  url.pathname.endsWith('.js');
   if (isCode) {
-    // Network-first для JS — завжди свіже
     event.respondWith(
       fetch(req).then((resp) => {
         const copy = resp.clone();
