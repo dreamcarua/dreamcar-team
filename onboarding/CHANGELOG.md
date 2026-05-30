@@ -8,6 +8,40 @@
 
 ---
 
+## 2026-05-30
+
+### 📞 SendPulse phone export — повна історія бази
+
+**Завдання:** витягнути ВСІ номери телефонів з усієї SendPulse системи DreamCar (mailing lists, CRM contacts, chatbot subscribers) за весь час, нормалізувати, дедуплікувати, виправити помилки формату.
+
+**Результат:**
+- 🆕 **50 358 унікальних UA** номерів `+380XXXXXXXXX` → `~/DreamCar.AI/phones_ua.txt`
+- 🆕 **932 міжнародних** у E.164 → `~/DreamCar.AI/phones_intl.txt` (PL, US, DE, UK, RU, CZ, SK, +інші)
+- 🆕 **201 invalid** з причиною → `~/DreamCar.AI/phones_invalid.csv` (короткі, неіснуючі префікси, мусор)
+- 🆕 **51 296 unique with context** → `~/DreamCar.AI/phones_all.csv` (phone, country, name, email, sources_count, sources_sample)
+
+**Джерела (592k raw записів):**
+- 63 mailing lists → 408 713 рядків
+- CRM contacts (POST /crm/v1/contacts/get-list, 153k offsets) → 153 567 phone rows (контакти мають масив phones[])
+- Chatbot subscribers (TG/IG/FB) → 30 156 (TG variables.Phone — найцінніше)
+
+**Нормалізація fix-up:**
+- `+3800XXXXXXXXX` (13 з зайвим 0 після 380) → `+380XXXXXXXXX`
+- `38XXXXXXXXX` (11 без 0 між кодом і номером) → `+380XXXXXXXXX`
+- `0XXXXXXXXX` (10 з 0 спереду) → `+380XXXXXXXXX`
+- `XXXXXXXXX` (9 digits з валідним UA prefix) → `+380XXXXXXXXX`
+- `00CC...` (intl prefix) → `+CC...`
+- Validation UA mobile/landline prefixes; intl 30+ кодів країн
+
+### 🆕 SendPulse MCP підключено
+- 🆕 Офіційний SendPulse MCP server `https://mcp.sendpulse.com/mcp` додано у `~/.claude.json` (scope=user)
+- 🆕 Auth через custom headers `X-SP-ID`/`X-SP-SECRET`
+- 🆕 Покриває CRM (deals/contacts/companies/tasks), Email lists, Chatbots, SMTP
+- 🛡 **READ-ONLY rule** записано у memory — жодних DELETE/PUT/PATCH/create-POST у production CRM
+- 📖 Memory: `reference_sendpulse_mcp.md` + `feedback_sendpulse_readonly.md`
+
+---
+
 ## 2026-05-29
 
 ### 🎉 BATCH COMPRESS DONE — 39/39 stuck pending очищено (фінальна архітектура)
