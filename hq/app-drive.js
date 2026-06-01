@@ -173,11 +173,25 @@
     var prog = makeProgressToast(file.name + ' (' + humanSize(file.size) + ')');
 
     try {
-      // Check size
+      // Size check — якщо >49MB, спробуємо власне стиснути ПЕРЕД tobail
       if (file.size > MAX_BYTES) {
-        var msg = 'Файл ' + humanSize(file.size) + ' > 49MB ліміту. Спробуй стиснути локально перед upload.';
-        prog.close(false, msg);
-        throw new Error('File too large for Supabase Free');
+        prog.update(2, 'Файл великий — стискаю…');
+        // Inline compression fallback (якщо client-compress patch не накладений)
+        if (window.HQ_CLIENT_COMPRESS && typeof window.HQ_CLIENT_COMPRESS.compressPhoto === 'function' && /^image\//.test(file.type) && !/gif/i.test(file.type)) {
+          try {
+            var compressed = await window.HQ_CLIENT_COMPRESS.compressPhoto(file, { update: function(){}, close: function(){} });
+            if (compressed && compressed.size < file.size) {
+              file = compressed;
+              prog.update(8, 'Стиснуто до ' + humanSize(file.size));
+            }
+          } catch (cErr) { console.warn('[drive] inline compress failed:', cErr); }
+        }
+        // Final hard check
+        if (file.size > MAX_BYTES) {
+          var msg = 'Файл ' + humanSize(file.size) + ' > 49MB ліміту. Спробуй стиснути локально перед upload.';
+          prog.close(false, msg);
+          throw new Error('File too large for Supabase Free');
+        }
       }
 
       prog.update(5, 'Створюю запис…');
