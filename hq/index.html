@@ -5,6 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>DreamCar HQ · Стіл SMM</title>
+<!-- ============================================================
+     EMERGENCY SW KILLER v20260601-emergency
+     Unregister-ить старий Service Worker + чистить ВСІ caches.
+     Видалити після перевірки що SW більше не повертається (через 1-2 дні).
+     ============================================================ -->
+<script>
+(function(){
+  if (sessionStorage.getItem('__sw_killed_20260601')) return; // run once per session
+  if (!('serviceWorker' in navigator)) return;
+  var done = false;
+  var nuke = async function(){
+    if (done) return; done = true;
+    try {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(function(r){ return r.unregister(); }));
+      if (window.caches && caches.keys) {
+        var keys = await caches.keys();
+        await Promise.all(keys.map(function(k){ return caches.delete(k); }));
+      }
+      sessionStorage.setItem('__sw_killed_20260601', '1');
+      console.log('[SW killer] ' + regs.length + ' SW unregistered + ' + (window.caches ? 'caches cleared' : 'no caches API') + '. Reloading...');
+      location.reload();
+    } catch(e){ console.warn('[SW killer] failed:', e); }
+  };
+  // Run async — не блокуємо boot, але reload-имо як тільки готово
+  navigator.serviceWorker.getRegistrations().then(function(regs){
+    if (regs && regs.length > 0) nuke();
+    else sessionStorage.setItem('__sw_killed_20260601', '1');
+  });
+})();
+</script>
 <!-- BRAND-SYNC: Google Fonts (brand-book v3.9.2 typography) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
