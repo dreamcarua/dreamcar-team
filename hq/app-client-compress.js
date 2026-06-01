@@ -184,9 +184,10 @@
   var ffmpegReady = null;
   function ensureFfmpeg(){
     if (ffmpegReady) return ffmpegReady;
+    // Single-threaded ffmpeg працює БЕЗ SharedArrayBuffer (повільніше, але всюди).
+    // Якщо SharedArrayBuffer є — буде multi-threaded auto.
     if (typeof SharedArrayBuffer === 'undefined') {
-      ffmpegReady = Promise.reject(new Error('SharedArrayBuffer not supported'));
-      return ffmpegReady;
+      console.warn('[CC] SharedArrayBuffer недоступний — використовую single-threaded ffmpeg (повільніше)');
     }
     ffmpegReady = Promise.all([
       loadScript(CDN_FFMPEG_UMD),
