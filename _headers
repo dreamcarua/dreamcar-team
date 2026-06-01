@@ -1,0 +1,16 @@
+# Cloudflare Pages _headers
+# Cross-Origin Isolation для SharedArrayBuffer → ffmpeg.wasm (відео-compression)
+# credentialless = дозволяє external resources БЕЗ Cross-Origin-Resource-Policy
+# (наш fallback для Supabase, esm.sh, brand.dreamcar.ua, etc — вони не мають CORP)
+
+/hq/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
+
+/tasks/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
+
+/brand-book/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
