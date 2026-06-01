@@ -178,7 +178,24 @@ function renderLibrary(root) {
       <div class="library-grid" id="libGrid"></div>
     </div>
   `;
-  document.getElementById('libUpload').onclick = () => toast('Заглушка', 'info', 'У повноцінній версії — Drive Resumable Upload (див. ТЗ § 9)');
+  document.getElementById('libUpload').onclick = () => {
+    if (typeof window.uploadCreativeFile !== 'function') {
+      toast('Upload не готовий', 'warn', 'app-drive.js не завантажився. Спробуй F5');
+      return;
+    }
+    var fi = document.createElement('input');
+    fi.type = 'file';
+    fi.multiple = true;
+    fi.accept = 'image/*,video/*,application/pdf';
+    fi.onchange = async function(){
+      var files = Array.from(fi.files || []);
+      for (var f of files) {
+        try { await window.uploadCreativeFile(f, null); } catch(e){ console.warn('[lib upload]', f.name, e); }
+      }
+      if (typeof renderLibrary === 'function') renderLibrary(document.getElementById('main'));
+    };
+    fi.click();
+  };
   document.querySelectorAll('#libType .btn-segmented').forEach(b => {
     b.onclick = () => {
       document.querySelectorAll('#libType .btn-segmented').forEach(x => x.classList.remove('on'));
@@ -256,7 +273,7 @@ function openCreative(id) {
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn" onclick="toast('Заглушка', 'info', 'У повній версії — пряме посилання з Google Drive');">⬇ Завантажити оригінал</button>
+      <button class="btn" onclick="(function(){ var url=document.querySelector('#__crModalUrl')?.value; if(url){ var a=document.createElement('a'); a.href=url; a.download=''; a.click(); } else { toast('Завантаження', 'warn', 'URL креативу недоступний'); } })()">⬇ Завантажити оригінал</button>
       <button class="btn btn-danger" onclick="Modal.close()">Закрити</button>
     </div>
   `);
