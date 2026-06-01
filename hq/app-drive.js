@@ -1,27 +1,30 @@
 /* ============================================================
-   DreamCar HQ — Upload (Supabase Storage only, no R2)
+   DreamCar HQ — R2 direct upload (>49MB) + Supabase Storage (≤49MB)
    ============================================================
-   2026-05-29: повний refactor. R2 CORS не дозволяє team.dreamcar.ua origin →
-   preflight 403 у браузері. Перенесли на Supabase Storage через SDK upload
-   (та сама архітектура що пройшла батч-tool 39/39).
-
-   Flow:
-   1. uploadCreativeFile(file, pub) — entry point
-   2. Client-side compress (через app-client-compress patch) — зменшує розмір
-   3. Supabase SDK .upload(creatives/{filename}) — public bucket
-   4. INSERT creative з thumbnail_url == compressed_url
-   5. Mark compressed_status='ready' одразу
-
-   Якщо файл після compress > 50MB → toast про Supabase Free ліміт.
+   Логіка:
+   - Файли ≤ 49MB        → стандартний Supabase Storage upload (legacy)
+   - Файли > 49MB         → R2 path:
+       1. POST /functions/v1/r2-sign-upload → отримуємо presigned PUT URL
+       2. Direct PUT файлу в R2 (XHR з прогресом)
+       3. INSERT creative з R2 publicUrl
+   Бо Supabase Free має 50MB platform cap. R2 — необмежений.
+   tg-autopost-worker.sh без змін: завантажує з будь-якого URL.
    ============================================================ */
 
 (function () {
   if (window.__hqDriveLoaded) return;
   window.__hqDriveLoaded = true;
 
-  var MAX_BYTES = 49 * 1024 * 1024; // Supabase Free hard limit
-  var BUCKET = 'creatives';
+  // Поріг — файли більші за нього йдуть через R2.
+  // Залишаємо 49MB запас перед Supabase Free 50MB cap.
+  var R2_THRESHOLD_BYTES = 49 * 1024 * 1024;
 
+  // ---- Helpers ----
+  async function getAccessJwt() {
+    if (!window.supabase) return null;
+    var { data } = await window.supabase.auth.getSession();
+    return data && data.session && data.session.access_token || null;
+  }
   function humanSize(b) {
     if (b < 1024) return b + ' B';
     if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
@@ -53,7 +56,9 @@
     return 'doc';
   }
 
-  // Override createCreativeRecord — той самий код що був раніше + compressed_status='ready'
+  // ============================================================
+  // FIX: createCreativeRecord — id має бути UUID
+  // ============================================================
   function overrideCreateCreativeRecord() {
     if (typeof window.createCreativeRecord !== 'function' && typeof createCreativeRecord !== 'function') return false;
     if (window.createCreativeRecord && window.createCreativeRecord.__uuidPatched) return true;
@@ -90,7 +95,6 @@
       var sb = window.supabase;
       if (!sb) return local;
       try {
-        // Файл вже стиснутий клієнтом — позначаємо ready одразу
         var { error } = await sb.from('creatives').insert({
           id: id,
           desk_id: '11111111-1111-1111-1111-111111111111',
@@ -101,11 +105,6 @@
           thumbnail_url: meta.url,
           tags: [],
           uploaded_by: meId,
-          // Client-compressed → ready з тим самим URL
-          compressed_url: meta.url,
-          compressed_status: 'ready',
-          compressed_size_bytes: meta.size_bytes,
-          compressed_at: new Date().toISOString(),
         });
         if (error) {
           console.error('creatives insert (patched):', error);
@@ -130,6 +129,9 @@
     setTimeout(overrideCreateCreativeRecord, 2500);
   }
 
+  // ============================================================
+  // Прогрес-toast
+  // ============================================================
   function makeProgressToast(initMsg) {
     var stack = document.getElementById('toastStack');
     if (!stack) return { update: function(){}, close: function(){} };
@@ -154,70 +156,88 @@
         else { el.classList.remove('info'); el.classList.add('error'); }
         var bd = el.querySelector('.toast-body');
         if (bd && finalBody) bd.textContent = finalBody;
-        setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 0.3s'; }, 6000);
-        setTimeout(function () { el.remove(); }, 6400);
+        setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 0.3s'; }, 2000);
+        setTimeout(function () { el.remove(); }, 2400);
       }
     };
   }
 
-  // Upload через Supabase Storage SDK — без R2, без CORS issues
-  async function uploadViaSupabaseStorage(file, pub) {
+  // ============================================================
+  // R2 Direct Upload (browser → presigned URL → R2)
+  // ============================================================
+  async function uploadViaR2(file, pub) {
     if (!window.HQ_BACKEND || !window.supabase) {
       if (typeof toast === 'function') toast('Upload потребує авторизації', 'error');
       throw new Error('Not authenticated');
     }
-    var sb = window.supabase;
+    var jwt = await getAccessJwt();
+    if (!jwt) throw new Error('No auth session');
+
+    var anonKey = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_ANON_KEY) || '';
+    var supaUrl = (window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_URL) || '';
+    var signUrl = supaUrl.replace(/\/$/, '') + '/functions/v1/r2-sign-upload';
+
     var ext = fileExt(file.name);
     var type = detectType(file.type, ext);
 
     var prog = makeProgressToast(file.name + ' (' + humanSize(file.size) + ')');
 
     try {
-      // Size warning (НЕ hard fail) — дозволяємо Supabase Storage сам відповісти.
-      // Supabase Free допускає 50MB/file на upload. Файли >50MB будуть rejected на server side.
-      if (file.size > MAX_BYTES) {
-        console.warn('[drive] file > 49MB:', humanSize(file.size), '— attempting upload anyway');
-        // Спроба inline compression (якщо HQ_CLIENT_COMPRESS доступний)
-        if (window.HQ_CLIENT_COMPRESS && typeof window.HQ_CLIENT_COMPRESS.compressPhoto === 'function' && /^image\//.test(file.type) && !/gif/i.test(file.type)) {
-          prog.update(2, 'Стискаю фото...');
-          try {
-            var compressed = await window.HQ_CLIENT_COMPRESS.compressPhoto(file, { update: function(){}, close: function(){} });
-            if (compressed && compressed.size < file.size) {
-              file = compressed;
-              prog.update(8, 'Стиснуто до ' + humanSize(file.size));
-            }
-          } catch (cErr) { console.warn('[drive] inline compress failed:', cErr); }
-        }
+      prog.update(1, 'Створюю Cloudflare R2 сесію…');
+
+      // Step 1: ask edge function for presigned PUT URL
+      var signResp = await fetch(signUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + jwt,
+          'apikey': anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          mime: file.type || 'application/octet-stream',
+          type: type,
+        }),
+      });
+      if (!signResp.ok) {
+        var errText = await signResp.text();
+        throw new Error('sign fail ' + signResp.status + ': ' + errText);
       }
+      var signData = await signResp.json();
+      var uploadUrl = signData.uploadUrl;
+      var publicUrl = signData.publicUrl;
+      if (!uploadUrl || !publicUrl) throw new Error('sign returned no urls');
 
-      prog.update(5, 'Створюю запис…');
+      // Step 2: PUT file directly to R2 with progress
+      prog.update(2, 'Завантажую в Cloudflare R2…');
+      await new Promise(function (resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        // Don't set Content-Type header - presigned URL doesn't include it in canonical (we used UNSIGNED-PAYLOAD)
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) {
+            var pct = 2 + (e.loaded / e.total) * 93;
+            prog.update(pct, 'Завантажую ' + humanSize(e.loaded) + ' / ' + humanSize(e.total));
+          }
+        };
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error('R2 PUT failed ' + xhr.status + ': ' + xhr.responseText.slice(0, 200)));
+        };
+        xhr.onerror = function () { reject(new Error('R2 PUT network error')); };
+        xhr.ontimeout = function () { reject(new Error('R2 PUT timeout')); };
+        xhr.send(file);
+      });
 
-      // Унікальний шлях у bucket
-      var storageFilename = Date.now() + '-' + Math.random().toString(36).slice(2, 10) + '.' + ext;
-
-      prog.update(15, 'Заливаю в Supabase Storage…');
-
-      var { data: upData, error: upError } = await sb.storage
-        .from(BUCKET)
-        .upload(storageFilename, file, {
-          contentType: file.type || 'application/octet-stream',
-          upsert: false,
-          cacheControl: '31536000',
-        });
-      if (upError) throw upError;
-
-      prog.update(90, 'Реєструю файл…');
-
-      // Public URL
-      var { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(storageFilename);
-      var publicUrl = urlData.publicUrl;
-
+      // Step 3: register creative in DB
+      prog.update(96, 'Реєструю файл…');
       var meta = {
         name: file.name,
         type: type,
         size_bytes: file.size,
         url: publicUrl,
-        storage_path: storageFilename,
+        storage_path: 'r2:' + (signData.bucket || 'dreamcar-creatives') + '/' + signData.objectKey,
       };
       var local = await window.createCreativeRecord(meta);
 
@@ -250,42 +270,48 @@
         }
       } catch (_) {}
 
-      prog.update(100, 'Готово · ' + humanSize(file.size));
-      prog.close(true, file.name + ' · ' + humanSize(file.size) + ' (Storage)');
+      prog.update(100, '✓ R2 · ' + humanSize(file.size));
+      prog.close(true, file.name + ' · ' + humanSize(file.size) + ' (R2)');
       return local;
     } catch (e) {
-      console.error('[Storage] upload failed', e);
-      var msg = (e && e.message) || String(e);
-      prog.close(false, msg.slice(0, 250));
+      console.error('uploadViaR2 failed', e);
+      prog.close(false, 'Помилка: ' + (e.message || e));
       throw e;
     }
   }
 
+  // ---- Patch window.uploadCreativeFile ----
   function patchUpload() {
-    if (typeof window.uploadCreativeFile !== 'function' || window.uploadCreativeFile.__storagePatched) return;
+    if (typeof window.uploadCreativeFile !== 'function' || window.uploadCreativeFile.__r2Patched) return;
     var _orig = window.uploadCreativeFile;
     window.uploadCreativeFile = async function (file, pub) {
       if (!file) return;
-      // Завжди йдемо через Supabase Storage (нема R2 CORS issues).
-      // Client-compress layer (app-client-compress.js) стискає файл перед цією функцією.
-      if (window.HQ_BACKEND) {
-        return await uploadViaSupabaseStorage(file, pub);
+      if (file.size > R2_THRESHOLD_BYTES && window.HQ_BACKEND) {
+        try {
+          return await uploadViaR2(file, pub);
+        } catch (e) {
+          console.error('R2 path failed:', e);
+          if (typeof toast === 'function') toast('R2 не вдалося. Спробуй меньший файл або повтори.', 'error');
+          throw e;
+        }
       }
       return _orig.call(this, file, pub);
     };
-    window.uploadCreativeFile.__storagePatched = true;
+    window.uploadCreativeFile.__r2Patched = true;
   }
   patchUpload();
   setTimeout(patchUpload, 300);
   setTimeout(patchUpload, 1500);
 
   window.HQ_DRIVE = {
-    uploadViaStorage: uploadViaSupabaseStorage,
-    maxBytes: MAX_BYTES,
-    bucket: BUCKET,
+    uploadViaR2: uploadViaR2,
+    threshold: R2_THRESHOLD_BYTES,
   };
-  console.log('%cDreamCar HQ Upload %c· Supabase Storage only (R2 deprecated) · client-compress active', 'color:#f6821f;font-weight:700;', 'color:#888;');
+  console.log('%cDreamCar HQ Upload %c· R2 direct for >49MB · Supabase Storage for ≤49MB · UUID creative-id fix active', 'color:#f6821f;font-weight:700;', 'color:#888;');
 
+  // ============================================================
+  // LOADER CHAIN — підвантажуємо app-context-menu.js
+  // ============================================================
   if (!document.querySelector('script[src*="app-context-menu.js"]')) {
     var sCtx = document.createElement('script');
     sCtx.src = 'app-context-menu.js?v=' + Date.now();
