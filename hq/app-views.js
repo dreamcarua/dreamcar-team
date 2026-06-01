@@ -1009,12 +1009,23 @@ async function boot() {
   if (window.HQ_BACKEND) {
     showAuthScreen({ loading: true });
     try {
-      // SAFETY: timeout 6s — щоб getSession() не висів вічно (CDN/network glitch)
-      const sessionPromise = Auth.checkSession();
-      const session = await Promise.race([
-        sessionPromise,
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Session check timeout')), 6000))
-      ]);
+      // SAFETY: timeout 12s + auto-recover з stale tokens (Invalid Refresh Token etc)
+      let session = null;
+      try {
+        const sessionPromise = Auth.checkSession();
+        session = await Promise.race([
+          sessionPromise,
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Session check timeout')), 12000))
+        ]);
+      } catch (toErr) {
+        console.warn('[boot] session check failed — clearing stale auth state:', toErr.message);
+        // Stale token (Invalid Refresh Token / expired) — clean localStorage + show login
+        try {
+          Object.keys(localStorage).filter(k => k.startsWith('sb-') || k.includes('supabase')).forEach(k => localStorage.removeItem(k));
+          if (window.supabase?.auth) { await window.supabase.auth.signOut().catch(()=>{}); }
+        } catch(_) {}
+        session = null;
+      }
       if (!session) {
         showAuthScreen({ loading: false });
         ind.className = 'backend-indicator demo';
