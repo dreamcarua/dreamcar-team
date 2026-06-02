@@ -94,6 +94,14 @@
       }
       var sb = window.supabase;
       if (!sb) return local;
+      // FIX 02.06.2026: explicit compressed_status (раніше default 'n/a' → worker не стартував для великих відео).
+      // photo / video < 49MB → 'ready' (вже компактне, compressed_url = original)
+      // video >= 49MB → 'pending' (GH Actions worker compress-creative.yml через */3 хв стисне до CRF18 H.264)
+      var COMPRESS_THRESHOLD_BYTES = 49 * 1024 * 1024;
+      var needsServerCompress = (meta.type === 'video' && Number(meta.size_bytes || 0) >= COMPRESS_THRESHOLD_BYTES);
+      var compressedStatus = needsServerCompress ? 'pending' : 'ready';
+      var compressedUrlVal = needsServerCompress ? null : meta.url;
+      var compressedSizeVal = needsServerCompress ? null : meta.size_bytes;
       try {
         var { error } = await sb.from('creatives').insert({
           id: id,
@@ -105,6 +113,9 @@
           thumbnail_url: meta.url,
           tags: [],
           uploaded_by: meId,
+          compressed_status: compressedStatus,
+          compressed_url: compressedUrlVal,
+          compressed_size_bytes: compressedSizeVal,
         });
         if (error) {
           console.error('creatives insert (patched):', error);
