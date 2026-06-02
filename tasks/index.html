@@ -521,7 +521,7 @@
     <h2>⌨ ГАРЯЧІ КЛАВІШІ</h2>
     <div class="help-row"><div class="key"><span class="kbd">N</span></div><span class="desc">Нове завдання</span></div>
     <div class="help-row"><div class="key"><span class="kbd">B</span></div><span class="desc">Відкрити сповіщення</span></div>
-    <div class="help-row"><div class="key"><span class="kbd">/</span></div><span class="desc">Фокус на пошуку (TODO)</span></div>
+    <div class="help-row"><div class="key"><span class="kbd">/</span></div><span class="desc">Фокус на пошуку</span></div>
     <div class="help-row"><div class="key"><span class="kbd">⌘</span><span class="kbd">Enter</span></div><span class="desc">Відправити коментар</span></div>
     <div class="help-row"><div class="key"><span class="kbd">⌘</span><span class="kbd">S</span></div><span class="desc">Зберегти завдання</span></div>
     <div class="help-row"><div class="key"><span class="kbd">Esc</span></div><span class="desc">Закрити модалку</span></div>
@@ -1424,6 +1424,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='n'||e.key==='т'){e.preventDefault();openTaskModal(null);}
   if(e.key==='b'||e.key==='и'){e.preventDefault();document.getElementById('notifDropdown').classList.toggle('show');}
   if(e.key==='?'){e.preventDefault();document.getElementById('helpModal').classList.add('show');}
+  if(e.key==='/'){e.preventDefault();var s=document.getElementById('searchInp')||document.querySelector('input[placeholder*="Пошук"]');if(s){s.focus();s.select&&s.select();}}
 });
 
 // ========== OPEN TASK FROM URL HASH (e.g. #task=uuid) ==========
