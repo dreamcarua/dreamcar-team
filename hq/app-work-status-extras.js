@@ -1,5 +1,6 @@
 /* ============================================================
    DreamCar HQ — Work Status: calendar chips + sidebar filter + board sort
+   v2: integrates with filteredPubs() + matches sidebar filter-chip style
    ============================================================ */
 (function () {
   if (window.__hqWorkStatusExtras) return;
@@ -7,29 +8,103 @@
 
   var WS_EMOJI = { script:'✍️', design:'🎨', editing:'🎬', done:'✅' };
   var WS_LABEL = {
-    script:'Пишу сценарій', design:'Роблю дизайн',
-    editing:'Роблю монтаж', done:'Зробив'
+    script:'Пишу сценарій',
+    design:'Роблю дизайн',
+    editing:'Роблю монтаж',
+    done:'Зробив'
   };
-  var WS_ORDER = { script:1, design:2, editing:3, done:4, '':5, null:5, undefined:5 };
+  var WS_COLOR = { script:'#f59e0b', design:'#ec4899', editing:'#8b5cf6', done:'#22c55e' };
+  var WS_KEYS = ['script','design','editing','done'];
 
-  // Filter state (persisted у localStorage)
-  try { App._workStatusFilter = localStorage.getItem('hq-ws-filter') || ''; }
-  catch (_) { App._workStatusFilter = ''; }
+  // Single-select filter — persisted у localStorage
+  try { window.App = window.App || {}; App._wsFilter = localStorage.getItem('hq-ws-filter') || ''; }
+  catch (_) { App._wsFilter = ''; }
 
   function getStore() { try { return (typeof Store !== 'undefined' ? Store : window.Store); } catch (_) { return null; } }
 
-  /* ============== 1. CALENDAR CHIPS ============== */
+  /* ============== 1. Inject у filteredPubs() pipeline ============== */
+  function patchFilteredPubs() {
+    if (window.__wsFpPatched) return;
+    if (typeof window.filteredPubs !== 'function') return;
+    var orig = window.filteredPubs;
+    window.filteredPubs = function () {
+      var pubs = orig.apply(this, arguments);
+      if (App._wsFilter) {
+        pubs = pubs.filter(function (p) { return (p.workStatus || '') === App._wsFilter; });
+      }
+      return pubs;
+    };
+    window.__wsFpPatched = true;
+  }
+
+  /* ============== 2. Sidebar filter — стиль як інші filter-chip ============== */
+  function renderWorkStatusFilter() {
+    var host = document.getElementById('sidebarFilters');
+    if (!host) return;
+    var group = document.getElementById('ws-filter-group');
+    if (!group) {
+      group = document.createElement('div');
+      group.className = 'filter-group';
+      group.id = 'ws-filter-group';
+      group.innerHTML =
+        '<div class="filter-label">Статус виконання</div>' +
+        '<div id="filterWorkStatus"></div>';
+      host.appendChild(group);
+    }
+    var box = document.getElementById('filterWorkStatus');
+    if (!box) return;
+    var S = getStore();
+    var all = S ? S.pubs() : [];
+    var counts = { '':all.length };
+    WS_KEYS.forEach(function (k) {
+      counts[k] = all.filter(function (p) { return (p.workStatus || '') === k; }).length;
+    });
+    var items = [{ k:'', label:'Усі', color:'#888', emoji:'•' }];
+    WS_KEYS.forEach(function (k) {
+      items.push({ k:k, label:WS_LABEL[k], color:WS_COLOR[k], emoji:WS_EMOJI[k] });
+    });
+    box.innerHTML = items.map(function (it) {
+      var on = (App._wsFilter || '') === it.k;
+      return '<div class="filter-chip ' + (on ? 'on' : '') + '" data-ws="' + it.k + '">' +
+        '<span class="swatch" style="background:' + it.color + '"></span>' +
+        '<span>' + (it.emoji && it.k ? it.emoji + ' ' : '') + it.label + '</span>' +
+        '<span class="cnt">' + counts[it.k] + '</span>' +
+        '</div>';
+    }).join('');
+    box.querySelectorAll('.filter-chip').forEach(function (el) {
+      el.onclick = function () {
+        var v = el.dataset.ws || '';
+        App._wsFilter = (App._wsFilter === v) ? '' : v;
+        try { localStorage.setItem('hq-ws-filter', App._wsFilter); } catch (_) {}
+        renderWorkStatusFilter();
+        if (typeof navigate === 'function') navigate();
+      };
+    });
+  }
+
+  /* ============== 3. Patch renderSidebarFilters() — щоб наш filter оновлювався разом ============== */
+  function patchRenderSidebarFilters() {
+    if (window.__wsRsfPatched) return;
+    if (typeof window.renderSidebarFilters !== 'function') return;
+    var orig = window.renderSidebarFilters;
+    window.renderSidebarFilters = function () {
+      orig.apply(this, arguments);
+      renderWorkStatusFilter();
+    };
+    window.__wsRsfPatched = true;
+  }
+
+  /* ============== 4. Calendar/Board card emoji decoration ============== */
   function decorateCard(card) {
-    if (card.__hqWsApplied) return;
+    if (card.__wsApplied) return;
     var pid = card.dataset.id; if (!pid) return;
     var S = getStore(); if (!S) return;
     var p = null; try { p = S.pub(pid); } catch (_) {}
     if (!p) return;
-    card.__hqWsApplied = true;
+    card.__wsApplied = true;
     var ws = p.workStatus;
     if (!ws || !WS_EMOJI[ws]) return;
-    // Append emoji chip to .title
-    var titleEl = card.querySelector('.title') || card.querySelector('.bc-title') || card.querySelector('.cell-title');
+    var titleEl = card.querySelector('.title') || card.querySelector('.bc-title');
     if (!titleEl) return;
     if (titleEl.querySelector('.ws-chip')) return;
     var chip = document.createElement('span');
@@ -40,113 +115,48 @@
     titleEl.appendChild(chip);
   }
 
-  function applyFilter() {
-    var f = App._workStatusFilter;
-    document.querySelectorAll('[data-id]').forEach(function (card) {
-      var pid = card.dataset.id; if (!pid) return;
-      var S = getStore(); if (!S) return;
-      var p = null; try { p = S.pub(pid); } catch (_) {}
-      if (!p) return;
-      // Only hide cards on calendar / board (skip if it's a different DOM)
-      var inCalendar = !!card.closest('.month-grid, .week-grid, .day-view, .list-view, .board');
-      if (!inCalendar) return;
-      var ws = p.workStatus || '';
-      card.style.display = (!f || ws === f) ? '' : 'none';
-    });
-  }
-
-  function processAll() {
+  function decorateAll() {
     document.querySelectorAll('[data-id]').forEach(decorateCard);
-    applyFilter();
-  }
-
-  /* ============== 2. SIDEBAR FILTER ============== */
-  function injectSidebarFilter() {
-    if (document.getElementById('ws-filter-group')) return;
-    // Find sidebar filter container — most likely #sidebar or .sidebar
-    var sb = document.querySelector('#sidebar, aside.sidebar, .sidebar');
-    if (!sb) return;
-    var div = document.createElement('div');
-    div.id = 'ws-filter-group';
-    div.style.cssText = 'padding:10px 14px;border-top:1px solid var(--border, #2a2a2a);margin-top:8px;';
-    div.innerHTML =
-      '<div style="font-size:10px;letter-spacing:.1em;color:var(--grey,#888);text-transform:uppercase;margin-bottom:6px;">Статус виконання</div>' +
-      '<div id="ws-filter-chips" style="display:flex;flex-wrap:wrap;gap:4px;">' +
-        '<span class="ws-fl-chip" data-ws="">Усі</span>' +
-        '<span class="ws-fl-chip" data-ws="script">✍️</span>' +
-        '<span class="ws-fl-chip" data-ws="design">🎨</span>' +
-        '<span class="ws-fl-chip" data-ws="editing">🎬</span>' +
-        '<span class="ws-fl-chip" data-ws="done">✅</span>' +
-      '</div>';
-    sb.appendChild(div);
-    // Style for chips
-    if (!document.getElementById('ws-chip-style')) {
-      var st = document.createElement('style');
-      st.id = 'ws-chip-style';
-      st.textContent =
-        '.ws-fl-chip{cursor:pointer;padding:4px 8px;border:1px solid var(--border,#2a2a2a);border-radius:14px;font-size:12px;background:var(--bg,#0a0a0a);color:var(--ash,#bbb);transition:all .15s;}' +
-        '.ws-fl-chip:hover{border-color:var(--red,#E30613);}' +
-        '.ws-fl-chip.on{background:var(--red,#E30613);color:#fff;border-color:var(--red,#E30613);}';
-      document.head.appendChild(st);
-    }
-    div.addEventListener('click', function (e) {
-      var t = e.target.closest('.ws-fl-chip'); if (!t) return;
-      App._workStatusFilter = t.dataset.ws || '';
-      try { localStorage.setItem('hq-ws-filter', App._workStatusFilter); } catch (_) {}
-      refreshChipsActive();
-      applyFilter();
-      // Board view має пересортувати — викликаємо renderBoard через hashchange
-      if (location.hash === '#board' && typeof renderBoard === 'function') {
-        var main = document.getElementById('main'); if (main) renderBoard(main);
-      }
-    });
-    refreshChipsActive();
-  }
-  function refreshChipsActive() {
-    document.querySelectorAll('.ws-fl-chip').forEach(function (el) {
-      el.classList.toggle('on', (el.dataset.ws || '') === (App._workStatusFilter || ''));
-    });
-  }
-
-  /* ============== 3. BOARD SORT ============== */
-  function sortBoardCards() {
-    document.querySelectorAll('.board .col').forEach(function (col) {
-      var cards = Array.from(col.querySelectorAll('[data-id]'));
-      if (cards.length < 2) return;
-      var S = getStore(); if (!S) return;
-      cards.sort(function (a, b) {
-        var pa = null, pb = null;
-        try { pa = S.pub(a.dataset.id); pb = S.pub(b.dataset.id); } catch (_) {}
-        var oa = WS_ORDER[(pa && pa.workStatus) || ''] || 5;
-        var ob = WS_ORDER[(pb && pb.workStatus) || ''] || 5;
-        return oa - ob;
-      });
-      cards.forEach(function (c) { col.appendChild(c); });
-    });
   }
 
   /* ============== Observers ============== */
   var mo = new MutationObserver(function (muts) {
-    var any = false;
+    var needDecorate = false;
+    var needFilter = false;
     muts.forEach(function (m) {
       m.addedNodes.forEach(function (n) {
-        if (n.nodeType === 1) {
-          if (n.matches && n.matches('[data-id]')) { decorateCard(n); any = true; }
-          else n.querySelectorAll && n.querySelectorAll('[data-id]').forEach(function (c) { decorateCard(c); any = true; });
+        if (n.nodeType !== 1) return;
+        if (n.id === 'sidebarFilters' || (n.querySelector && n.querySelector('#sidebarFilters'))) {
+          needFilter = true;
         }
+        if (n.matches && n.matches('[data-id]')) needDecorate = true;
+        else if (n.querySelectorAll && n.querySelectorAll('[data-id]').length) needDecorate = true;
       });
     });
-    if (any) {
-      applyFilter();
-      if (location.hash === '#board') sortBoardCards();
+    if (needDecorate) decorateAll();
+    if (needFilter) {
+      patchRenderSidebarFilters();
+      renderWorkStatusFilter();
     }
   });
 
   function init() {
-    injectSidebarFilter();
-    processAll();
-    if (location.hash === '#board') sortBoardCards();
+    patchFilteredPubs();
+    patchRenderSidebarFilters();
+    renderWorkStatusFilter();
+    decorateAll();
     mo.observe(document.body, { childList: true, subtree: true });
+
+    // Retry attaches кілька разів — на випадок якщо app-core завантажується після цього скрипту
+    var tries = 0;
+    var iv = setInterval(function () {
+      tries++;
+      patchFilteredPubs();
+      patchRenderSidebarFilters();
+      if (document.getElementById('sidebarFilters')) renderWorkStatusFilter();
+      if (window.__wsFpPatched && window.__wsRsfPatched && document.getElementById('ws-filter-group')) clearInterval(iv);
+      if (tries > 30) clearInterval(iv);
+    }, 500);
   }
 
   if (document.readyState === 'loading') {
@@ -155,8 +165,8 @@
     setTimeout(init, 100);
   }
 
-  // Re-process після route change
+  // Re-decorate після route change
   window.addEventListener('hashchange', function () {
-    setTimeout(function () { processAll(); if (location.hash === '#board') sortBoardCards(); }, 100);
+    setTimeout(decorateAll, 150);
   });
 })();
