@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar Dashboard — Онбординг</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<script src="/hq/config.js" defer></script>
+<script src="/assets/auth-guard.js" defer></script>
+<script src="/onboarding/_dev-guard.js" defer></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Manrope', -apple-system, sans-serif; background: #0A0A0A; color: #fff; min-height: 100vh; line-height: 1.55; }
+  .container { max-width: 1180px; margin: 0 auto; padding: 36px 28px 80px; }
+  .hero { background: linear-gradient(135deg, #1a0000 0%, #0d0d1f 100%); border-left: 4px solid #E30613; border-radius: 10px; padding: 32px 36px; margin-bottom: 32px; }
+  .hero .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  .hero h1 { font-family: 'Oswald', sans-serif; font-size: 38px; font-weight: 700; letter-spacing: -0.5px; text-transform: uppercase; line-height: 1.05; margin-bottom: 14px; }
+  .hero h1 span { color: #E30613; }
+  .hero .lede { font-size: 15px; color: #ccc; max-width: 760px; }
+  .hero .meta { display: flex; gap: 14px; margin-top: 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #888; }
+  .hero .meta span { padding: 4px 10px; background: #0A0A0A; border-radius: 6px; }
+  .toc { background: #141414; border: 1px solid #2A2A2A; border-radius: 10px; padding: 16px 20px; margin-bottom: 32px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .toc-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #666; letter-spacing: 0.15em; text-transform: uppercase; margin-right: 10px; }
+  .toc a { color: #ccc; font-size: 12px; padding: 5px 12px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; text-decoration: none; transition: all 0.15s; }
+  .toc a:hover { background: rgba(227, 6, 19, 0.1); border-color: #E30613; color: #fff; }
+
+  .section { margin-bottom: 44px; }
+  .section h2 { font-family: 'Oswald', sans-serif; font-size: 26px; text-transform: uppercase; margin-bottom: 16px; letter-spacing: 0.5px; display: flex; align-items: baseline; gap: 12px; }
+  .section h2 .num { font-family: 'JetBrains Mono', monospace; color: #E30613; font-size: 18px; }
+  .section h3 { font-family: 'Oswald', sans-serif; font-size: 18px; text-transform: uppercase; margin: 22px 0 12px; color: #fff; }
+  .section p { color: #ccc; font-size: 14px; margin-bottom: 14px; }
+  .section p b { color: #fff; }
+  .section ul { margin-left: 20px; color: #ccc; font-size: 14px; margin-bottom: 14px; }
+  .section li { margin-bottom: 6px; }
+  .section code { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E30613; }
+
+  .arch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 16px; }
+  .arch-card { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 18px 20px; }
+  .arch-card h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+  .arch-card p { font-size: 13px; color: #aaa; line-height: 1.65; margin: 0; }
+  .arch-card .meta { margin-top: 10px; font-size: 10px; color: #555; font-family: 'JetBrains Mono', monospace; }
+
+  .pipe { background: #141414; border: 1px solid #2A2A2A; border-radius: 10px; padding: 20px 22px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #ccc; line-height: 1.9; overflow-x: auto; }
+  .pipe .step { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; }
+  .pipe .step .arr { color: #E30613; font-weight: 700; min-width: 24px; }
+  .pipe .step .key { color: #10B981; min-width: 130px; }
+
+  .projects-table { width: 100%; background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; border-collapse: collapse; font-size: 13px; overflow: hidden; }
+  .projects-table th { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E30613; padding: 10px 14px; text-align: left; letter-spacing: 0.1em; text-transform: uppercase; background: #0A0A0A; border-bottom: 1px solid #2A2A2A; }
+  .projects-table td { padding: 11px 14px; color: #ccc; border-bottom: 1px solid #1a1a1a; }
+  .projects-table tr:last-child td { border-bottom: none; }
+  .projects-table .status-active { color: #10B981; font-weight: 600; }
+  .projects-table .status-archived { color: #888; }
+
+  .case-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; margin-top: 16px; }
+  .case-card { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 18px 20px; }
+  .case-card h4 { font-family: 'Oswald', sans-serif; font-size: 15px; text-transform: uppercase; margin-bottom: 8px; color: #fff; }
+  .case-card p { font-size: 12px; color: #aaa; line-height: 1.7; margin: 0; }
+
+  .tbl { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 16px 20px; }
+  .tbl-row { padding: 10px 0; border-bottom: 1px solid #1a1a1a; display: grid; grid-template-columns: 200px 1fr; gap: 16px; align-items: baseline; }
+  .tbl-row:last-child { border-bottom: none; }
+  .tbl-row .lbl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; text-transform: uppercase; letter-spacing: 0.1em; }
+  .tbl-row .val { font-size: 13px; color: #ccc; }
+
+  .trouble { background: linear-gradient(135deg, #1a0000 0%, #0a0a0a 100%); border-left: 3px solid #F59E0B; border-radius: 6px; padding: 14px 18px; margin-bottom: 10px; }
+  .trouble h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #F59E0B; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.1em; }
+  .trouble p { font-size: 13px; color: #ccc; margin: 0; line-height: 1.65; }
+
+  footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid #2A2A2A; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #555; line-height: 1.7; }
+  footer a { color: #888; text-decoration: none; }
+  footer a:hover { color: #E30613; }
+  @media (max-width: 768px) {
+    .container { padding: 22px 16px 50px; }
+    .hero { padding: 22px 22px; }
+    .hero h1 { font-size: 28px; }
+    .arch-grid, .case-grid { grid-template-columns: 1fr; }
+    .tbl-row { grid-template-columns: 1fr; gap: 4px; }
+    .projects-table { font-size: 11px; }
+    .projects-table th, .projects-table td { padding: 8px 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="hero">
+    <div class="kicker">/// SYSTEM · DASHBOARD</div>
+    <h1>DREAM<span>CAR</span> DASHBOARD</h1>
+    <p class="lede">Аналітика продажів і реклами у real-time: KPI з delta vs попередній період, 7 проектів з історією, FB Ads ETL замість Make.com, paid/organic класифікація через mv_paid_signatures, materialized views з pg_cron refresh для швидкості.</p>
+    <div class="meta">
+      <span>URL: dashboard.dreamcar.ua</span>
+      <span>версія: 02.06.2026</span>
+      <span>статус: ● LIVE</span>
+    </div>
+  </div>
+
+  <nav class="toc">
+    <span class="toc-label">Швидко:</span>
+    <a href="#concept">Концепція</a>
+    <a href="#arch">Архітектура</a>
+    <a href="#projects">7 проектів</a>
+    <a href="#fb-ads">FB Ads ETL</a>
+    <a href="#paid-organic">Paid/Organic</a>
+    <a href="#pages">Сторінки</a>
+    <a href="#cases">Use cases</a>
+    <a href="#trouble">Troubleshooting</a>
+    <a href="index.html">← Hub</a>
+  </nav>
+
+  <div class="section" id="concept">
+    <h2><span class="num">01</span> Концепція</h2>
+    <p>Dashboard — це <b>єдина точка істини</b> для всіх продажів і реклами DreamCar. Замість того щоб лазити по SendPulse CRM, Facebook Ads Manager і Google Sheets — все агреговано в одну SPA з фільтрами по проектах, періодах, тарифах, traffic types.</p>
+    <p><b>Раніше:</b> Make.com → Google Sheets → ручні зведення раз на тиждень. Затримка 1-2 години на синхронізацію. <br><b>Тепер:</b> SendPulse webhook → Supabase webhook-dashboard-sendpulse Edge Function → dashboard_deals → Realtime push у браузер (< 30 секунд). FB Ads тягне Python ETL кожні 15 хвилин у GH Actions.</p>
+    <div class="arch-grid" style="margin-top:20px;">
+      <div class="arch-card"><h4>Чому так</h4><p>Make.com з 1-годинним cron не годився для daily reporting на основі real-time. Тепер Вадим відкриває Dashboard о 9 ранку — і бачить що сталося за останні 5 хвилин.</p></div>
+      <div class="arch-card"><h4>Як працює</h4><p>SendPulse → Edge Function → dashboard_deals + Realtime publication. Дані летять у клієнт через WebSocket. Materialized views із pg_cron — для важких агрегатів (3ms vs 19000ms direct LATERAL JOIN).</p></div>
+      <div class="arch-card"><h4>Ключовий принцип</h4><p>RPC-перш за все. Будь-яка важка агрегація — у Postgres функції з RLS-aware. Клієнт не крутить 30k рядків у браузері — отримує готові агрегати за <100ms.</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="arch">
+    <h2><span class="num">02</span> Архітектура</h2>
+    <h3>Data flow</h3>
+    <div class="pipe">
+      <div class="step"><span class="arr">→</span><span class="key">SendPulse CRM</span> → webhook (pipeline_changed/deal_paid)</div>
+      <div class="step"><span class="arr">→</span><span class="key">Edge Function</span> webhook-dashboard-sendpulse (verify + transform UTM)</div>
+      <div class="step"><span class="arr">→</span><span class="key">dashboard_deals</span> INSERT row (Postgres + Realtime publication)</div>
+      <div class="step"><span class="arr">→</span><span class="key">Realtime</span> WebSocket push → клієнти що відкрили dashboard</div>
+      <div class="step"><span class="arr">→</span><span class="key">debouncedReload</span> (3s) → renderRoute() з новими даними</div>
+    </div>
+    <p style="margin-top:18px;">Окремо FB Ads — щоб не зависіти від Make.com:</p>
+    <div class="pipe">
+      <div class="step"><span class="arr">→</span><span class="key">GH Actions cron</span> <code>*/15 * * * *</code> запускає <code>etl/sync_fb_ads.py</code></div>
+      <div class="step"><span class="arr">→</span><span class="key">FB Marketing API</span> v21.0 (System User Volvo_Dashboard_API, non-expiring token)</div>
+      <div class="step"><span class="arr">→</span><span class="key">3 Ad Accounts</span> UAH (act_4234947706797466), CLUB USD, CLUB UAH</div>
+      <div class="step"><span class="arr">→</span><span class="key">Time-increment=1</span> day, останні 90 днів, auto-chunk &gt;80 днів</div>
+      <div class="step"><span class="arr">→</span><span class="key">UTM extraction</span> з 3 creative URL strategies (object_story_spec.link_data → url_tags → tracking_specs)</div>
+      <div class="step"><span class="arr">→</span><span class="key">dashboard_ads_data</span> UPSERT (date_start, ad_account_id, campaign_id, ad_id, ...)</div>
+    </div>
+
+    <h3>Performance layer (02.06.2026)</h3>
+    <div class="arch-grid">
+      <div class="arch-card"><h4>RPC дзвінки</h4><p><code>dashboard_kpi_summary</code>, <code>dashboard_hourly_series</code>, <code>dashboard_agg_deals</code>, <code>dashboard_agg_deals_with_traffic</code>, <code>dashboard_traffic_type_summary</code>, <code>dashboard_kpi_with_delta</code>. Усі параметризовані: from/to (kyiv-tz), project_values, customer_type, tariff, pay_provider, traffic_type.</p></div>
+      <div class="arch-card"><h4>Materialized views</h4><p><code>mv_dashboard_projects_stats</code> (агрегати по 7 проектах: deals, paid_count, revenue, conv_rate). Refresh: <code>pg_cron</code> кожні 5 хвилин. 3ms read vs 19000ms direct.</p><div class="meta">⚠ revoked from anon/auth 02.06 — доступ тільки через RPC.</div></div>
+      <div class="arch-card"><h4>mv_paid_signatures</h4><p>Materialized view з реальними FB Ads campaign UTM signatures (matched з dashboard_ads_data). Для класифікації paid/organic. Refresh: pg_cron <code>*/15</code> хвилин.</p></div>
+      <div class="arch-card"><h4>Webhooks cleanup</h4><p>pg_cron <code>0 3 * * *</code> daily DELETE WHERE received_at &lt; NOW() - 14 days. Запобігає 701MB IO storm.</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="projects">
+    <h2><span class="num">03</span> 7 проектів з історією</h2>
+    <p>Спочатку <code>dashboard_deals.project</code> був вільним текстом ("OLD", "VOLVO", "DreamCar AI", "BMW", ...). Тепер є <code>dashboard_projects</code> з explicit mapping і date ranges:</p>
+    <table class="projects-table">
+      <thead><tr><th>Код</th><th>Назва</th><th>Період</th><th>deal.project значення</th><th>Статус</th></tr></thead>
+      <tbody>
+        <tr><td>OLD</td><td>Архів (до VOLVO)</td><td>2019 → 22.10.2024</td><td>OLD</td><td class="status-archived">archived</td></tr>
+        <tr><td>VOLVO</td><td>DreamCar #11 — Volvo XC60</td><td>23.10.2024 → 30.11.2024</td><td>VOLVO</td><td class="status-archived">closed</td></tr>
+        <tr><td>Q7</td><td>DreamCar #12 — AUDI Q7</td><td>01.12.2024 → 31.01.2025</td><td>Q7</td><td class="status-archived">closed</td></tr>
+        <tr><td>MERCEDES</td><td>DreamCar #13 — Mercedes</td><td>01.02.2025 → 14.03.2025</td><td>Mercedes</td><td class="status-archived">closed</td></tr>
+        <tr><td>DREAMCAR_AI</td><td>DreamCar AI Platform</td><td>15.03.2025 → 29.04.2025</td><td>DreamCar AI</td><td class="status-archived">closed</td></tr>
+        <tr><td>AUDI_ETRON</td><td>DreamCar #15 — Audi e-tron</td><td>30.04.2025 → 31.05.2025</td><td>AUDI E-TRON</td><td class="status-archived">closed</td></tr>
+        <tr><td>BMW</td><td>DreamCar #14 — BMW 330e</td><td>05.06.2025 → 04.04.2026</td><td>BMW</td><td class="status-archived">closed</td></tr>
+        <tr><td>BMW_X5</td><td>DreamCar #17 — BMW X5 Hybrid</td><td>05.04.2026 → 19.04.2026</td><td>BMW X5 HYBRID</td><td class="status-active">● active</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:14px;">Коли користувач обирає проект у <code>#f-project</code> dropdown — Dashboard <b>автоматично</b> підставляє date_start..date_end як період і фільтрує deals через <code>deal_project_values IN</code> array. Перетин з користувацьким періодом (якщо вказано) — застосовується.</p>
+  </div>
+
+  <div class="section" id="fb-ads">
+    <h2><span class="num">04</span> FB Ads ETL (замість Make.com)</h2>
+    <div class="tbl">
+      <div class="tbl-row"><div class="lbl">repo</div><div class="val"><code>dreamcarua/dreamcar-dashboard</code></div></div>
+      <div class="tbl-row"><div class="lbl">ETL скрипт</div><div class="val"><code>etl/sync_fb_ads.py</code> (12.7 KB)</div></div>
+      <div class="tbl-row"><div class="lbl">cron</div><div class="val"><code>*/15 * * * *</code> у GH Actions workflow <code>fb-ads-sync.yml</code></div></div>
+      <div class="tbl-row"><div class="lbl">режими</div><div class="val">incremental (last 24h) · initial (last 90d) · range (custom)</div></div>
+      <div class="tbl-row"><div class="lbl">System User</div><div class="val">Volvo_Dashboard_API (id 61584044034889) — non-expiring token у GH Actions secrets</div></div>
+      <div class="tbl-row"><div class="lbl">ad accounts</div><div class="val">3: UAH (act_4234947706797466) · CLUB USD · CLUB UAH</div></div>
+      <div class="tbl-row"><div class="lbl">auto-chunk</div><div class="val">FB API ліміт 90 днів → автоматично розбивається на 80-day chunks для >80d періодів</div></div>
+      <div class="tbl-row"><div class="lbl">UTM extraction</div><div class="val">3 стратегії: object_story_spec.link_data.url → url_tags → tracking_specs. Перша що повертає utm_source — win.</div></div>
+      <div class="tbl-row"><div class="lbl">данні в</div><div class="val">dashboard_ads_data (UPSERT по composite key date_start + ad_id)</div></div>
+      <div class="tbl-row"><div class="lbl">що тягне</div><div class="val">spend, impressions, clicks, reach, ctr, cpm, cpc + ad_set_name, campaign_name, creative + UTM (source/medium/campaign/term/content)</div></div>
+    </div>
+    <p style="margin-top:14px;"><b>Чому Python а не Make:</b> 1) кожні 15 хв не 1 год; 2) ми контролюємо UTM extraction (Make не вмів парсити tracking_specs); 3) GH Actions безкоштовно; 4) ETL код у git, version control.</p>
+  </div>
+
+  <div class="section" id="paid-organic">
+    <h2><span class="num">05</span> Paid vs Organic logic</h2>
+    <p>Раніше Dashboard міг класифікувати трафік як "paid" якщо <code>utm_source IN ('facebook','instagram','google','tiktok')</code> — статичний список. Проблема: частина трафіку з Instagram — <b>органічна</b> (stories, посилання у bio).</p>
+    <p>Тепер є <code>mv_paid_signatures</code> — materialized view що матчить <code>dashboard_deals.utm_campaign</code> із <b>реальними</b> FB Ads campaigns у <code>dashboard_ads_data</code>. Якщо UTM_campaign є у paid_signatures → paid. Інакше → organic.</p>
+    <div class="pipe">
+      <div class="step"><span class="arr">→</span><span class="key">RPC is_paid_source</span>(p_utm_source, p_utm_campaign) → boolean</div>
+      <div class="step"><span class="arr">→</span><span class="key">RPC is_paid_deal</span>(p_deal_row) → boolean</div>
+      <div class="step"><span class="arr">→</span><span class="key">dashboard_traffic_type_summary</span> RPC повертає paid/organic split</div>
+    </div>
+    <p style="margin-top:14px;">Результат на 02.06.2026 на тестових даних: 17-32% paid (правильно з real campaigns) vs попередньо 50/50 (статичний список).</p>
+  </div>
+
+  <div class="section" id="pages">
+    <h2><span class="num">06</span> Сторінки Dashboard</h2>
+    <div class="case-grid">
+      <div class="case-card"><h4>#overview</h4><p>14 KPI карток (Конверсія + Економіка), timeline графік deals/revenue, top-7 проектів, last-20 угод.</p></div>
+      <div class="case-card"><h4>#projects</h4><p>Lifetime KPI всіх проектів, bar charts deals/revenue, повна таблиця з search/sort/CSV-export.</p></div>
+      <div class="case-card"><h4>#analytics</h4><p>KPI з delta vs попередній період, hourly trend якщо today, mediums/campaigns/sources breakdown.</p></div>
+      <div class="case-card"><h4>#combos</h4><p>UTM-комбінації джерело+medium+campaign — куди йдуть гроші, з яких лідів ROI</p></div>
+      <div class="case-card"><h4>#sources / #medium / #campaigns / #terms / #content</h4><p>Топи по кожному UTM-полю окремо.</p></div>
+      <div class="case-card"><h4>#deals</h4><p>Сирий список 20k угод, фільтри, search, CSV export.</p></div>
+      <div class="case-card"><h4>#webhooks</h4><p>Останні 500 webhook events від SendPulse — для debug.</p></div>
+      <div class="case-card"><h4>#mapping</h4><p>CRUD правил UTM-маппінгу — як автоматично класифікувати UTM.</p></div>
+      <div class="case-card"><h4>#costs</h4><p>Ручні витрати (за межами FB Ads) — наприклад банер на стадіоні.</p></div>
+      <div class="case-card"><h4>#ads-overview / #ads-campaigns</h4><p>FB Ads stats: spend, impressions, CTR per campaign/ad.</p></div>
+      <div class="case-card"><h4>#settings</h4><p>Профіль, команда, проекти CRUD, dashboard_projects edit.</p></div>
+      <div class="case-card"><h4>#help</h4><p>Загальна довідка, FAQ.</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="cases">
+    <h2><span class="num">07</span> Use cases</h2>
+    <div class="case-grid">
+      <div class="case-card"><h4>🌅 Ранок CEO (Вадим)</h4><p>9:00 — відкриває dashboard.dreamcar.ua → бачить #overview за вчора. Конверсія, revenue, top-проект. За 30 секунд знає чи вечір був прибутковим.</p></div>
+      <div class="case-card"><h4>📈 Понеділок маркетинг</h4><p>#analytics за last 7d → mediums break-down. cpc → cpa per source. Рішення: куди підкрутити бюджет.</p></div>
+      <div class="case-card"><h4>🎯 Запуск нового проекту</h4><p>#settings → dashboard_projects → New project. date_start=сьогодні, code=BMW_X6, deal_project_values=["BMW X6"]. Готово — дашборд автоматично почне фільтрувати.</p></div>
+      <div class="case-card"><h4>🔍 Виявити проблему</h4><p>#analytics → delta vs попередній період червоніє → drill-down у #campaigns → знайти проблемну кампанію → паузити у FB Ads Manager.</p></div>
+      <div class="case-card"><h4>💰 Тиждень фіналу</h4><p>#projects → вибрати поточний → бачити nightly як ростуть deals у останній тиждень.</p></div>
+      <div class="case-card"><h4>📊 Звіт раді</h4><p>#projects → CSV export → у Google Sheets → таблиця за весь рік. CFO або інвестор.</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="trouble">
+    <h2><span class="num">08</span> Troubleshooting</h2>
+    <div class="trouble"><h4>Live badge не оновлюється "30s тому"</h4><p>Перевір що в HTML <code>&lt;div class="live-badge" id="live-badge"&gt;</code> — id має бути. Якщо тільки клас → setupAutoRefreshIndicator мовчки виходить.</p></div>
+    <div class="trouble"><h4>"Сьогодні" показує дані за вчора</h4><p>Перевір kyivIsoStart/kyivIsoEnd helpers — мають додавати <code>+03:00</code> (CEST літо) або <code>+02:00</code> (CET зима). Якщо хтось знову поставив <code>'T00:00:00Z'</code> — `today` рахується від UTC 00:00 = Київ 03:00.</p></div>
+    <div class="trouble"><h4>FB Ads дані застаріли</h4><p>1) Глянь GH Actions runs у dreamcar-dashboard repo — чи cron <code>*/15</code> працює; 2) FB token не expired (System User non-expiring); 3) Якщо потрібен force resync — workflow_dispatch з mode=range, дати on demand.</p></div>
+    <div class="trouble"><h4>Materialized view стара</h4><p><code>SELECT cron.schedule FROM cron.job WHERE jobname ILIKE '%mv%';</code> — глянь чи cron активний. Force refresh: <code>REFRESH MATERIALIZED VIEW CONCURRENTLY mv_paid_signatures;</code></p></div>
+    <div class="trouble"><h4>"Permission denied for materialized view"</h4><p>02.06.2026 anon/authenticated були revoked з MV. Доступ ТІЛЬКИ через RPC (<code>dashboard_projects_with_stats()</code>, <code>is_paid_source()</code>). Не намагайся в клієнті робити <code>sb.from('mv_dashboard_projects_stats')</code>.</p></div>
+    <div class="trouble"><h4>RPC timeout / 504</h4><p>statement_timeout: anon=120s, authenticated=180s. Якщо RPC валиться по timeout — додай більше індексів або переключи на MV.</p></div>
+    <div class="trouble"><h4>Фільтр не оновлює дані</h4><p>З 02.06.2026 всі фільтри тригерять renderRoute() на change. Якщо не оновлює — перевір що ELEMENT id співпадає з addEventListener селектором.</p></div>
+    <div class="trouble"><h4>IO storm у Supabase</h4><p>Перевір розмір dashboard_webhooks (`pg_size_pretty(pg_total_relation_size('dashboard_webhooks'))`). Якщо > 100MB — webhooks_auto_cleanup_cron вимкнений. Запусти DELETE … WHERE received_at &lt; NOW() - 14d.</p></div>
+  </div>
+
+  <footer>DreamCar Dashboard · Онбординг · <a href="../">team.dreamcar.ua</a> · <a href="https://github.com/dreamcarua/dreamcar-dashboard">repo</a> · <a href="index.html">← Hub</a></footer>
+</div>
+</body>
+</html>
