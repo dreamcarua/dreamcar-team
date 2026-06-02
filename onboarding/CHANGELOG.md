@@ -8,6 +8,107 @@
 
 ---
 
+## 2026-06-02
+
+### 📊 Dashboard real-time + повна перебудова (dashboard.dreamcar.ua)
+
+**Завдання:** перевести dashboard з годинного ETL на real-time, виправити проекти, додати best-in-class Analytics, інтегрувати Facebook Ads замість Make.com.
+
+#### ⚡ Real-time data flow
+- 🆕 **ETL cron 1 год → 5 хв** (`.github/workflows/etl-mysql-sync.yml`)
+- 🆕 **Supabase Realtime увімкнено** на `dashboard_deals`, `dashboard_webhooks`, `dashboard_ads_data` (WebSocket push на frontend)
+- 🆕 **Composite indexes** `(status,created_at DESC)`, `(project,created_at DESC)`, `(utm_source,created_at DESC)` для швидших агрегацій
+- 🆕 **Frontend WebSocket subscription** з debounced auto-reload (3 сек після нової угоди)
+- 🆕 **LIVE badge** у топбарі з seconds-ago counter
+- 📖 `docs/REALTIME_AUDIT.md` — повна архітектура + Plan B (webhook dual-write для миттєвого <200мс lag)
+
+#### 🚀 FB Ads ETL замість Make.com
+- 🆕 `etl/sync_fb_ads.py` — Facebook Marketing API v21.0 клієнт (Python)
+  - Spend, impressions, clicks, conversions (lead/registration/purchase)
+  - UTM extraction з ad creative link URLs (3 стратегії)
+  - Auto-chunk періодів >80 днів (FB API 90-day limit з time_increment=1)
+  - Exponential backoff на rate limit (5/10/20/40 сек)
+- 🆕 `.github/workflows/fb-ads-sync.yml` — cron `*/15 * * * *`
+- 🆕 GH Secrets: `FB_ACCESS_TOKEN` (System User non-expiring), `FB_AD_ACCOUNT_IDS` (4 accounts)
+- 🆕 System User `Volvo_Dashboard_API` (id `61584044034889`) з scope `ads_read`/`business_management`/`read_insights`
+- 🆕 Backfill 02.04.2025 → 02.06.2026: 7,131 ad rows, 3.46M UAH spend, 25M impressions, 387K clicks, 78K conversions
+- 📖 `docs/FB_TOKEN_SETUP.md` — інструкція Business Manager System User setup
+- 💰 **Економія:** $9-29/міс на Make.com Pro tier
+
+#### 🏎️ Projects з legacy (7 проектів)
+- 🆕 SQL: таблиця `public.dashboard_projects` з полями `code/name/car_model/date_start/date_end/deal_project_values text[]/status/color/sort_order` + RLS + Realtime
+- 🆕 7 проектів засіджено: Архів-до-VOLVO / VOLVO XC90 / AUDI Q7 / BMW 330E HYBRID / MERCEDES GLE COUPE / BMW X5 HYBRID / AUDI E-TRON
+- 🆕 RPC `dashboard_projects_with_stats()` — full-lifetime stats всіх 7 проектів (200K deals, 153K paid, 64M UAH revenue lifetime)
+- 🆕 Materialized view `mv_dashboard_projects_stats` + cron refresh — **3 мс замість 19,000 мс** (6,000× прискорення)
+- 🆕 Frontend `loadProjects()` тягне з БД, при виборі auto-fill date range
+- 🆕 Sidebar `f-model` синхронізований з dashboard_projects (всі 7 видно у дропдауні Активний розіграш)
+
+#### ⚡ Performance RPC layer (50-100× speedup)
+- 🆕 `dashboard_kpi_summary(p_from,p_to,p_project_values,p_customer_type,p_tariff,p_pay_provider)` — KPI cards
+- 🆕 `dashboard_kpi_with_delta(...)` — KPI з ▲/▼% vs попередній період
+- 🆕 `dashboard_agg_deals(p_field,...)` — universal aggregation
+- 🆕 `dashboard_agg_deals_with_traffic(...)` — з paid/organic classification
+- 🆕 `dashboard_traffic_type_summary(...)` — donut paid vs organic
+- 🆕 `dashboard_daily_series(...)` / `dashboard_hourly_series(...)` — time-series
+- 🆕 Frontend `aggViaRPC()`, `trafficTypeRPC()`, `kpiSummaryRPC()`, `dailySeriesRPC()` — замінили `fetchAllDealsBatched`
+- ⚡ Mercedes GLE Тип трафіка: 30-60 сек → **<500 мс** (60× швидше)
+
+#### 🎯 Data-driven paid/organic classification
+- 🆕 `mv_paid_signatures` MV — унікальні UTM-signatures з FB Ads (utm_campaign/content/term/ad_name)
+- 🆕 Cron refresh кожні 15 хв (синхронно з FB Ads ETL)
+- 🆕 `is_paid_deal(utm_campaign, utm_content, utm_term)` — точна класифікація через match з реальними FB Ads campaigns
+- 🔧 **Виправлено помилку:** раніше `utm_source=instagram` вважався платним, тепер тільки якщо match з реальною FB Ads campaign
+- 📊 Реальна частка платних: 17-32% (раніше було хибне 50/50)
+
+#### 📈 Аналітика повністю перебудована (best-in-class)
+- 🆕 KPI cards з delta vs попередній період (Ліди / Оплати+конв% / Виручка / AOV)
+- 🆕 Погодинний trend для "Сьогодні" / щоденний для періоду
+- 🆕 Воронка Ліди→Оплачені
+- 🆕 💸 Платний vs 🌱 Органічний doughnut
+- 🆕 🏆 Топ-5 каналів utm_medium bar
+- 🆕 🎯 Топ-10 кампаній table
+- 🆕 📍 Топ-10 джерел table з paid/organic badge
+
+#### 🏎️ Нова сторінка "Проекти"
+- 🆕 Sidebar route `🏎️ Проекти` (під "Огляд")
+- 🆕 7 KPI cards (всього лідів/оплат/revenue/AOV/buyers/top-revenue/top-conv)
+- 🆕 Bar charts: Revenue по проектах (кольори брендів) + Conv %
+- 🆕 Full-table 7 проектів з lifetime stats (ігнорує current period filter)
+
+#### 🔧 Інші покращення dashboard
+- 🆕 Default state: проект=усі, період=сьогодні (раніше було 30d)
+- 🆕 Maintenance/Finance collapsible групи у sidebar
+- 🔧 Filter bar overflow fix (no longer sticky)
+- 🔧 Дубль лого внизу sidebar прибрано
+- 🔧 RPC filter params: `customer_type`, `tariff`, `pay_provider`, `traffic_type` тепер працюють на всіх агрегаційних сторінках (раніше ігнорувались на Тип трафіка/Джерела/Кампанії)
+
+### 🛡 Supabase IO storm — emergency cleanup
+- 🆕 **TRUNCATE `dashboard_webhooks`** — 701 MB → 40 kB (логи останніх 14 днів треба, історичні видалені)
+- 🆕 Auto-cleanup cron щодня `0 3 * * *` — DELETE webhooks >14 днів
+- 🔧 Cron частоти знижено: `refresh_dashboard_projects_stats` 1хв → 5хв, `hq-cleanup-editing-sessions` 1хв → 10хв
+- 🛡 Postgres `statement_timeout`: anon 8s → 120s, authenticated → 180s
+- 📖 **Email "Disk IO Budget depleting"** від Supabase — критичний sign для upgrade на Pro tier ($25/міс)
+
+### 🔧 HQ session bleed fix
+- 🔧 SW killer key `__sw_killed_20260601` → `__sw_killed_20260602_v2` — Олександр бачив Вадима як CEO через старий cached state, тепер SW unregister + cache clear на наступному load
+
+### 🆕 HQ work_status (статус виконання)
+- 🆕 SQL: `publications.work_status` text (script/design/editing/done/NULL)
+- 🆕 Dropdown у правій колонці картки публікації під "Звʼязаний із запуском": ✍️ Сценарій / 🎨 Дизайн / 🎬 Монтаж / ✅ Зробив
+- 🆕 Calendar chips: emoji ✍️🎨🎬✅ біля назви публікації у місяць/тиждень/день/список
+- 🆕 Sidebar filter "СТАТУС ВИКОНАННЯ" (Усі/✍️/🎨/🎬/✅), persists у localStorage
+- 🆕 Board view sort: script→design→editing→done→unset (priority sort)
+- 📁 `hq/app-work-status-extras.js` — decorator pattern як `app-calendar-dots.js`
+
+### 🗑 Cleanup
+- 🗑 Видалено Supabase проект `dreamcar-finance` (INACTIVE з 27.03.2026, не використовувався)
+- 🗑 Видалено локальні папки `/Users/vadimgrishin/DreamCar.AI/dreamcar-finance/` + `dreamcar-finance-supabase/` (звільнено 81 MB)
+
+### 📋 Активні Supabase проєкти на DreamCar org (станом на 02.06.2026):
+- ✅ **dreamcar-hq** (`wotghlaehnvxyeacznvv`) — main production, 342 MB, чекає Pro upgrade
+- ✅ **barpi-hq** (`zrcqmwlpsggiqgipvxhv`) — Barpi МойСклад, ~30 MB, мігрує на Cloudflare D1
+
+---
 ## 2026-05-30
 
 ### 📞 SendPulse phone export — повна історія бази
