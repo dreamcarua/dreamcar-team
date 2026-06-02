@@ -6,6 +6,12 @@
 // до публічних даних, RLS-захищений). Service-role key зберігається
 // ТІЛЬКИ в env-змінних Edge Functions, не тут.
 //
+// 🔴 SECURITY:
+//   - TG_BOT_TOKEN видалено з клієнта 02.06.2026 (audit fix).
+//     Тепер живе тільки у Edge Functions: Deno.env.get("TG_BOT_TOKEN").
+//     Якщо токен опубліковано раніше — РОТУВАТИ через @BotFather!
+//   - HQ_AI_SECRET — публічний (антифрод), повна авторизація через JWT юзера.
+//
 // Як отримати:
 //   1. https://supabase.com → твій проєкт → Settings → API
 //   2. Project URL: https://xxxxx.supabase.co
@@ -24,10 +30,6 @@ window.HQ_CONFIG = {
   //   - Login Widget (потребує /setdomain dreamcarua.github.io у @BotFather)
   TG_BOT_USERNAME: 'dreamcar_team_bot',
   TG_LOGIN_BOT:    '',  // залиш порожнім поки не зробиш /setdomain
-
-  // ---- TG bot токен (для сповіщень) ----
-  TG_BOT_TOKEN:  '8461032235:AAE70f7xmBIrGW7-dC5GfcYvQjjRYUk6IEg',
-  TG_GROUP_CHAT: '-5205303628',
 
   // ---- AI Copy Assistant ----
   // HQ_AI_SECRET — це shared token що відсікає випадкових сканерів URL
