@@ -2,13 +2,51 @@
 
 > **🔴 ОБОВ'ЯЗКОВЕ ПРАВИЛО:** Кожна нова фіча / зміна архітектури / новий cron / нова Edge Function / нова сторінка — фіксується тут разом з датою. Без винятків.
 >
-> Формат: `## YYYY-MM-DD` → `### Система` → `- 🆕 / 🔧 / 🛡 / ⚡ / 🚀 опис + посилання`
+> Формат: `## DD.MM.YYYY` → `### Система` → `- 🆕 / 🔧 / 🛡 / ⚡ / 🚀 опис + посилання`
 >
 > Емодзі: 🆕 нова фіча · 🔧 fix/refactor · 🛡 security · ⚡ performance · 🚀 deploy · 📖 docs · 🗑 deprecated
 
 ---
 
-## 2026-06-02
+## 02.06.2026 — вечір (audit fixes)
+
+### 🛡 SECURITY + INFRA
+- 🛡 **TG_BOT_TOKEN видалено з hq/config.js** — токен жив тільки у клієнтському JS public-faced. Тепер тільки Edge Functions через `Deno.env.get("TG_BOT_TOKEN")`. Старий токен ротувати у @BotFather.
+- 🛡 **REVOKE SELECT на MVs** — `mv_dashboard_projects_stats` + `mv_paid_signatures` більше не доступні anon/authenticated через REST. Доступ тільки через RPC `dashboard_projects_with_stats()`.
+- 🛡 **dashboard_webhooks видалено з Realtime publication** — WAL спам на write-heavy таблиці.
+- 🔧 **webhooks_auto_cleanup_cron зареєстровано** — щодня 03:00 DELETE WHERE received_at < NOW() - 14 days. Запобігає 701MB IO storm.
+
+### 🔧 HQ FIXES
+- 🔧 **SW killer видалено** з index.html (жив 2+ тижні замість планованих 1-2 днів).
+- 🗑 **app-analytics-v2.js видалено** з index.html (dead code: викликає не-існуючі Store.allPubs/allHistory).
+- ⚡ **app-no-hashtags.js**: `setInterval(800ms)` forever → `MutationObserver` (тригериться тільки на DOM mutation).
+- 🔧 **z-index fix**: modal-backdrop 100 → 150. Mobile sidebar drawer (110) більше не перекриває модалки.
+
+### 🔧 DASHBOARD FIXES
+- 🔧 **Kyiv timezone**: `kyivIsoStart/kyivIsoEnd` helpers замість `'T00:00:00Z'`. Враховує CET (+2) / CEST (+3) DST переходи. «Сьогодні» більше не зрізає 03:00 ранку Києва.
+- 🔧 **renderAnalytics CSS**: додано `.kpi-card`, `.kpi-meta` стилі (раніше класи referenced, не визначені).
+- 🔧 **live-badge id**: додано `id="live-badge"` у HTML. `setupAutoRefreshIndicator` тепер реально оновлює timestamp.
+- 🔧 **Filter selects auto-rerender**: status / customer_type / tariff / pay_provider / funnel_type / traffic_type / source_filter — тепер тригерять renderRoute() на change (раніше чекали Apply).
+- 🔧 **fetchDealsRange secondary order**: `.order('id', desc)` після `created_at` — запобігає pagination duplicates при одночасних ETL insertах.
+
+### 🔧 TASKS FIXES
+- 🔧 **Prefs hour-selects fix**: `${Array.from(...)}` template literals у статичному HTML не виконувалися → селекти годин в Налаштуваннях були **порожні**. Перенесено у JS `fillHourSelects()` IIFE.
+- 🆕 **status='blocked' enum**: додано в `task_status`. UI: `f-status`, `bulkStatusSelect`, `STATUS_LBL` оновлено. Overdue filter ігнорує blocked (як і done).
+
+### 🎨 BRAND BOOK FIXES (legal)
+- 🛡 **NEVER-слова прибрано** з власних розділів (раніше документ порушував власні правила):
+  - `touchpoints.html`: «Ефір розіграшу» → «Прямий ефір фіналу»; «Більшість не виграли» → «не отримали авто»; «переможці, наступні розіграші» → «нові власники, наступні фінали»
+  - `merch.html`: «БЕРИ. ДІЙ. ВИГРАЙ.» (футболка) → «БЕРИ. ДІЙ. ВОЛОДІЙ.»; «Номер розіграшу = номер серії» → «Номер фіналу = номер серії»
+  - `audio.html`: «прямого ефіру розіграшу» → «прямого ефіру фіналу»
+- 🛡 **PII redaction**: видалено точне ПІБ ФОП + ІПН з публічної `legal-safe-lexicon.html`.
+
+### 📖 ONBOARDING
+- 🆕 **[dashboard.html](dashboard.html)** — НОВА сторінка онбордингу для Dashboard (8 секцій: концепція, архітектура, 7 проектів, FB Ads ETL, paid/organic logic, всі сторінки, use cases, troubleshooting).
+- 📖 **CHANGELOG формат**: ISO `YYYY-MM-DD` → `DD.MM.YYYY` у заголовках днів (HARD RULE Вадима).
+
+---
+
+## 02.06.2026
 
 ### 📊 Dashboard real-time + повна перебудова (dashboard.dreamcar.ua)
 
@@ -109,7 +147,7 @@
 - ✅ **barpi-hq** (`zrcqmwlpsggiqgipvxhv`) — Barpi МойСклад, ~30 MB, мігрує на Cloudflare D1
 
 ---
-## 2026-05-30
+## 30.05.2026
 
 ### 📞 SendPulse phone export — повна історія бази
 
@@ -143,7 +181,7 @@
 
 ---
 
-## 2026-05-29
+## 29.05.2026
 
 ### 🎉 BATCH COMPRESS DONE — 39/39 stuck pending очищено (фінальна архітектура)
 
@@ -184,7 +222,7 @@
 
 ---
 
-## 2026-05-28
+## 28.05.2026
 
 ### 🤖 CRITICAL FIX: tg-ai-router Edge Function (DM AI асистент)
 - 🆕 `hq/supabase/functions/tg-ai-router/index.ts` — створено відсутню Edge Function. До цього tg-webhook v26 викликав `${SUPABASE_URL}/functions/v1/tg-ai-router` яка НЕ існувала → усі DM до @dreamcar_team_bot падали в 404 (тихо, бо try/catch). Тепер: приймає `{chat_id, user_db_id, user_name, user_role, text, voice_file_id, message_id}` → за наявності voice транскрибує через OpenAI Whisper (uk) → шле в Claude (sonnet) з system prompt про DreamCar контекст і ролі → відповідає в TG через TG_BOT_TOKEN з reply_to_message_id.
@@ -208,7 +246,7 @@
 
 ---
 
-## 2026-05-27
+## 27.05.2026
 
 ### HQ + Tasks
 - 🆕 **Overview Modal**, **Analytics V3** (funnel + per-platform + velocity)
@@ -232,7 +270,7 @@
 
 ---
 
-## 2026-05-25 і раніше
+## 25.05.2026 і раніше
 
 ### Compress Pipeline (legacy, до 2026-05-29)
 - 🗑 R2 + GH Actions worker — **замінено client-side compression 2026-05-29**
