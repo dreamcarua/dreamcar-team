@@ -12,7 +12,7 @@
      ============================================================ -->
 <script>
 (function(){
-  if (sessionStorage.getItem('__sw_killed_20260601')) return; // run once per session
+  if (sessionStorage.getItem('__sw_killed_20260602_v2')) return; // run once per session
   if (!('serviceWorker' in navigator)) return;
   var done = false;
   var nuke = async function(){
@@ -24,7 +24,7 @@
         var keys = await caches.keys();
         await Promise.all(keys.map(function(k){ return caches.delete(k); }));
       }
-      sessionStorage.setItem('__sw_killed_20260601', '1');
+      sessionStorage.setItem('__sw_killed_20260602_v2', '1');
       console.log('[SW killer] ' + regs.length + ' SW unregistered + ' + (window.caches ? 'caches cleared' : 'no caches API') + '. Reloading...');
       location.reload();
     } catch(e){ console.warn('[SW killer] failed:', e); }
@@ -32,7 +32,7 @@
   // Run async — не блокуємо boot, але reload-имо як тільки готово
   navigator.serviceWorker.getRegistrations().then(function(regs){
     if (regs && regs.length > 0) nuke();
-    else sessionStorage.setItem('__sw_killed_20260601', '1');
+    else sessionStorage.setItem('__sw_killed_20260602_v2', '1');
   });
 })();
 </script>
