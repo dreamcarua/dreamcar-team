@@ -22,7 +22,8 @@
     var css = document.createElement('style');
     css.id = 'hq-onb-css';
     css.textContent =
-      '.hq-onb-banner { background: linear-gradient(90deg, rgba(216,0,4,0.15), rgba(255,106,31,0.05)); border-bottom: 1px solid var(--red); padding: 10px 28px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: #fff; }' +
+      '.hq-onb-banner { background: linear-gradient(90deg, rgba(216,0,4,0.15), rgba(255,106,31,0.05)); border-bottom: 1px solid var(--red); padding: 10px 28px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: #fff; grid-column: 1 / -1; position: relative; z-index: 5; }' +
+      '@media (max-width: 900px) { .hq-onb-banner { display: none !important; } }' +
       '.hq-onb-banner .hob-icon { font-size: 18px; }' +
       '.hq-onb-banner .hob-progress { flex: 1; background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; max-width: 220px; margin-left: auto; }' +
       '.hq-onb-banner .hob-progress-fill { height: 100%; background: var(--brand-grad); border-radius: 4px; transition: width 0.3s; }' +
