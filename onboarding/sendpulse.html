@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SendPulse інтеграція — Онбординг</title>
+<link rel="stylesheet" href="../assets/brand-tokens.css">
+<script src="/hq/config.js" defer></script>
+<script src="/assets/auth-guard.js" defer></script>
+<script src="/onboarding/_dev-guard.js" defer></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Manrope', -apple-system, sans-serif; background: #0A0A0A; color: #fff; min-height: 100vh; line-height: 1.55; }
+  .container { max-width: 1080px; margin: 0 auto; padding: 36px 28px 80px; }
+  .hero { background: linear-gradient(135deg, #1a0000 0%, #0d0d1f 100%); border-left: 4px solid #E30613; border-radius: 10px; padding: 28px 32px; margin-bottom: 28px; }
+  .hero .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  .hero h1 { font-family: 'Oswald', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -0.5px; text-transform: uppercase; margin-bottom: 10px; }
+  .hero h1 span { color: #E30613; }
+  .hero .lede { color: #ccc; font-size: 14px; max-width: 720px; }
+  .danger-banner { background: linear-gradient(135deg, #3a0000 0%, #1a0000 100%); border: 1px solid #E30613; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; display: flex; gap: 12px; align-items: flex-start; }
+  .danger-banner .ic { font-size: 22px; flex-shrink: 0; }
+  .danger-banner .txt { font-size: 13px; color: #fff; line-height: 1.65; }
+  .danger-banner .txt b { color: #FF6577; }
+  .section { margin-bottom: 36px; }
+  .section h2 { font-family: 'Oswald', sans-serif; font-size: 22px; text-transform: uppercase; margin-bottom: 12px; display: flex; gap: 10px; align-items: baseline; }
+  .section h2 .num { font-family: 'JetBrains Mono', monospace; color: #E30613; font-size: 15px; }
+  .section p { color: #ccc; font-size: 13px; margin-bottom: 10px; }
+  .section ul { margin-left: 20px; color: #ccc; font-size: 13px; margin-bottom: 10px; }
+  .section li { margin-bottom: 5px; }
+  .section code { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E30613; }
+  .tbl { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 14px 18px; }
+  .tbl-row { padding: 9px 0; border-bottom: 1px solid #1a1a1a; display: grid; grid-template-columns: 180px 1fr; gap: 14px; }
+  .tbl-row:last-child { border-bottom: none; }
+  .tbl-row .lbl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; text-transform: uppercase; letter-spacing: 0.1em; }
+  .tbl-row .val { font-size: 13px; color: #ccc; }
+  footer { margin-top: 50px; padding-top: 18px; border-top: 1px solid #2A2A2A; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #555; }
+  footer a { color: #888; text-decoration: none; }
+  footer a:hover { color: #E30613; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="hero">
+    <div class="kicker">/// SYSTEM · CRM</div>
+    <h1>SEND<span>PULSE</span> ІНТЕГРАЦІЯ</h1>
+    <p class="lede">CRM для управління клієнтською базою DreamCar. Усі ліди з webhook'ів SendPulse летять у dashboard_deals (Supabase). SendPulse MCP офіційно підключений як data source для Claude — READ-ONLY.</p>
+  </div>
+
+  <div class="danger-banner">
+    <div class="ic">🔴</div>
+    <div class="txt"><b>HARD RULE — SendPulse READ-ONLY.</b> Жодних змін через API/MCP — тільки GET/list. Заборонено DELETE, PUT, PATCH, POST-create. SendPulse — це жива продакшн-CRM, помилка може зруйнувати клієнтську базу 30-40K людей.</div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">01</span> Що в SendPulse</h2>
+    <p>SendPulse — центральна CRM DreamCar для:</p>
+    <ul>
+      <li>Лідів і угод (CRM Deals)</li>
+      <li>Email-розсилок (transactional + promo)</li>
+      <li>Chatbots (Telegram + Web)</li>
+      <li>SMS / Viber кампаній</li>
+      <li>Phone бази (50 358 UA номерів станом на 30.05.2026)</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">02</span> Інтеграції</h2>
+    <div class="tbl">
+      <div class="tbl-row"><div class="lbl">Webhook → Dashboard</div><div class="val">Edge Function <code>webhook-dashboard-sendpulse</code> → INSERT у <code>dashboard_deals</code>. Triggered on pipeline change / deal paid.</div></div>
+      <div class="tbl-row"><div class="lbl">MCP for Claude</div><div class="val">URL: <code>https://mcp.sendpulse.com/mcp</code>. Auth: headers <code>X-SP-ID</code> / <code>X-SP-SECRET</code> (з https://login.sendpulse.com/settings/#api).</div></div>
+      <div class="tbl-row"><div class="lbl">MCP scope</div><div class="val">CRM / Email / Chatbots / SMTP. Усе read-only.</div></div>
+      <div class="tbl-row"><div class="lbl">Dashboard data</div><div class="val">dashboard_deals (201k+ rows) — single source of truth для аналітики. Realtime push через WebSocket subscription.</div></div>
+      <div class="tbl-row"><div class="lbl">UTM mapping</div><div class="val">Створюємо <code>dashboard_utm_mapping</code> rules для класифікації трафіку. matching по utm_source/utm_campaign.</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">03</span> Phone export 50K (30.05.2026)</h2>
+    <p>Експорт 50 358 українських номерів виконано 30.05 з SendPulse Address Book. Дані використовуються для:</p>
+    <ul>
+      <li>Custom Audience у Meta Ads (для lookalike)</li>
+      <li>Viber кампаній (з власного провайдера)</li>
+      <li>Re-engagement campaigns</li>
+    </ul>
+    <p><b>Особисті дані</b>: тримати у secure storage, НЕ публікувати у репо. Доступ лише у Вадима, Артема, маркетологів.</p>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">04</span> Use cases для Claude (MCP)</h2>
+    <div class="tbl">
+      <div class="tbl-row"><div class="lbl">«Скільки лідів вчора?»</div><div class="val">MCP → CRM API list deals (filter created_at) → count</div></div>
+      <div class="tbl-row"><div class="lbl">«Топ email-кампанії»</div><div class="val">MCP → Email stats list → sort by opens/clicks</div></div>
+      <div class="tbl-row"><div class="lbl">«Chatbot conversion»</div><div class="val">MCP → Chatbots flows analytics</div></div>
+      <div class="tbl-row"><div class="lbl">«Хто з клієнтів повторні?»</div><div class="val">Замість MCP — Dashboard <code>dashboard_extended_kpi()</code> RPC (швидше, бо МV)</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">05</span> Troubleshooting</h2>
+    <div class="tbl">
+      <div class="tbl-row"><div class="lbl">Webhook не приходить</div><div class="val">Перевірити SendPulse Settings → Webhooks: чи URL = <code>https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/webhook-dashboard-sendpulse</code></div></div>
+      <div class="tbl-row"><div class="lbl">MCP не авторизується</div><div class="val">Перевірити X-SP-ID / X-SP-SECRET у Claude settings. Регенерувати у SendPulse → Settings → API</div></div>
+      <div class="tbl-row"><div class="lbl">Pipeline event не парситься</div><div class="val">Перевірити Edge Function logs (<code>supabase functions logs webhook-dashboard-sendpulse</code>)</div></div>
+      <div class="tbl-row"><div class="lbl">Хочеться оновити запис</div><div class="val">🛑 СТОП. SendPulse READ-ONLY. Якщо треба змінити стан у Dashboard — оновлювати <code>dashboard_deals</code> напряму у Supabase з audit log.</div></div>
+    </div>
+  </div>
+
+  <footer>DreamCar SendPulse інтеграція · <a href="../">team.dreamcar.ua</a> · <a href="index.html">← Hub</a></footer>
+</div>
+</body>
+</html>
