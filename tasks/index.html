@@ -457,7 +457,7 @@
     <div class="field"><label for="f-title">НАЗВА</label><input type="text" id="f-title" placeholder="Що треба зробити?" aria-label="Назва задачі"></div>
     <div class="field"><label>ОПИС</label><textarea id="f-description" placeholder="Деталі, контекст, лінки..."></textarea></div>
     <div class="grid2">
-      <div class="field"><label>СТАТУС</label><select id="f-status"><option value="inbox">📥 Inbox</option><option value="doing">⚙ Doing</option><option value="review">👀 Review</option><option value="done">✅ Done</option></select></div>
+      <div class="field"><label>СТАТУС</label><select id="f-status"><option value="inbox">📥 Inbox</option><option value="doing">⚙ Doing</option><option value="review">👀 Review</option><option value="blocked">🚧 Blocked</option><option value="done">✅ Done</option></select></div>
       <div class="field"><label>ПРІОРИТЕТ</label><select id="f-priority"><option value="p1">🔴 P1 — критично</option><option value="p2">🟡 P2 — важливо</option><option value="p3" selected>🔵 P3 — звичайно</option><option value="p4">⚪ P4 — низько</option></select></div>
     </div>
     <div class="grid2">
@@ -508,8 +508,8 @@
     <div class="pref-row"><label>Telegram DM<span class="hint">Сповіщення в @dreamcar_team_bot</span></label><div class="switch on" id="prefTg" data-key="tg_enabled"></div></div>
     <div class="pref-row"><label>Пошта<span class="hint">Дублювати важливі сповіщення на email</span></label><div class="switch" id="prefEmail" data-key="email_enabled"></div></div>
     <div class="pref-row"><label>Ранковий дайджест<span class="hint">Огляд твоїх задач на день</span></label><div class="switch on" id="prefDigest" data-key="digest_enabled"></div></div>
-    <div class="pref-row"><label>Година дайджесту (CET)</label><select id="prefDigestHour" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:6px 10px;">${Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}:00</option>`).join('')}</select></div>
-    <div class="pref-row"><label>Тиха година (без сповіщень)</label><div style="display:flex;gap:6px;align-items:center;color:var(--ash);font-size:12px;"><select id="prefQuietFrom" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:4px 8px;">${Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}</option>`).join('')}</select>—<select id="prefQuietTo" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:4px 8px;">${Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}</option>`).join('')}</select></div></div>
+    <div class="pref-row"><label>Година дайджесту (CET)</label><select id="prefDigestHour" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:6px 10px;"></select></div>
+    <div class="pref-row"><label>Тиха година (без сповіщень)</label><div style="display:flex;gap:6px;align-items:center;color:var(--ash);font-size:12px;"><select id="prefQuietFrom" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:4px 8px;"></select>—<select id="prefQuietTo" style="background:var(--black);border:1px solid var(--steel);color:#fff;padding:4px 8px;"></select></div></div>
     <div class="modal-actions"><button class="modal-btn ghost" onclick="document.getElementById('prefsModal').classList.remove('show')">Закрити</button><button class="modal-btn primary" id="savePrefsBtn">Зберегти</button></div>
   </div>
 </div>
@@ -534,7 +534,7 @@
 <!-- BULK ACTION BAR -->
 <div class="bulk-bar" id="bulkBar">
   <span class="bulk-count" id="bulkCount">0 виділено</span>
-  <select id="bulkStatusSelect"><option value="">→ Перенести у…</option><option value="inbox">📥 Inbox</option><option value="doing">⚙ Doing</option><option value="review">👀 Review</option><option value="done">✅ Done</option></select>
+  <select id="bulkStatusSelect"><option value="">→ Перенести у…</option><option value="inbox">📥 Inbox</option><option value="doing">⚙ Doing</option><option value="review">👀 Review</option><option value="blocked">🚧 Blocked</option><option value="done">✅ Done</option></select>
   <button id="bulkAssign">Призначити…</button>
   <button id="bulkDelete" class="danger">Видалити</button>
   <button id="bulkCancel">✕ Скасувати</button>
@@ -713,7 +713,7 @@ function filterTasks(tasks){
   if(state.filter==='created')return tasks.filter(t=>t.created_by===me);
   if(state.filter==='hipri')return tasks.filter(t=>t.priority==='p1'||t.priority==='p2');
   if(state.filter==='today')return tasks.filter(t=>{if(!t.due_date)return false;const d=new Date(t.due_date);d.setHours(0,0,0,0);return d.getTime()===today.getTime();});
-  if(state.filter==='overdue')return tasks.filter(t=>{if(!t.due_date||t.status==='done')return false;return new Date(t.due_date)<today;});
+  if(state.filter==='overdue')return tasks.filter(t=>{if(!t.due_date||t.status==='done'||t.status==='blocked')return false;return new Date(t.due_date)<today;});
   if(state.filter==='mentions')return tasks.filter(t=>state.mentionAuthors.has(t.id));
   return tasks;
 }
@@ -832,7 +832,7 @@ async function openOverview(task){
   document.getElementById('ov-title').textContent = task.title || '—';
   // badges
   const badges = document.getElementById('ov-badges');
-  const STATUS_LBL = { inbox:'📥 Inbox', doing:'⚙ Doing', review:'👀 Review', done:'✅ Done' };
+  const STATUS_LBL = { inbox:'📥 Inbox', doing:'⚙ Doing', review:'👀 Review', blocked:'🚧 Blocked', done:'✅ Done' };
   const PR_LBL = { p1:'🔴 P1 критично', p2:'🟡 P2', p3:'🔵 P3', p4:'⚪ P4' };
   const due = fmtDueLabel(task);
   let bhtml = `<span class="ov-badge status-${task.status||'inbox'}">${STATUS_LBL[task.status]||task.status}</span>`;
@@ -1315,6 +1315,14 @@ document.getElementById('markAllRead').onclick=async()=>{
 
 // ========== PREFS ==========
 const prefsModal=document.getElementById('prefsModal');
+// Fill hour selects (static HTML had ${} template literals that don't execute — fixed 02.06.2026 audit)
+(function fillHourSelects(){
+  const hoursFull = Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}:00</option>`).join('');
+  const hoursShort = Array.from({length:24},(_,i)=>i).map(h=>`<option value="${h}">${String(h).padStart(2,'0')}</option>`).join('');
+  const d=document.getElementById('prefDigestHour'); if(d&&!d.options.length) d.innerHTML=hoursFull;
+  const qf=document.getElementById('prefQuietFrom'); if(qf&&!qf.options.length) qf.innerHTML=hoursShort;
+  const qt=document.getElementById('prefQuietTo'); if(qt&&!qt.options.length) qt.innerHTML=hoursShort;
+})();
 document.getElementById('prefsBtn').onclick=()=>{
   const p=state.prefs||{};
   document.getElementById('prefTg').classList.toggle('on',p.tg_enabled!==false);
