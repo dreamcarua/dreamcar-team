@@ -31,13 +31,18 @@
   })();
 
   // Додатковий JS-rescue для браузерів без :has — заховати batьківський .field
+  // (audit 02.06.2026: setInterval forever замінений на MutationObserver — CSS :has всюди підтримується крім старого Firefox, observer спрацьовує тільки на mutation)
   function hideHashtagsField() {
     var inp = document.getElementById('f_hashtags');
     if (!inp) return;
     var field = inp.closest('.field');
-    if (field) field.style.display = 'none';
+    if (field && field.style.display !== 'none') field.style.display = 'none';
   }
-  setInterval(hideHashtagsField, 800);
+  hideHashtagsField();
+  if (!window.__hqNoHashtagsObserver) {
+    window.__hqNoHashtagsObserver = new MutationObserver(hideHashtagsField);
+    window.__hqNoHashtagsObserver.observe(document.body, { childList: true, subtree: true });
+  }
 
   // 3+4: AI fetch interception
   function patchFetch() {

@@ -5,37 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>DreamCar HQ · Стіл SMM</title>
-<!-- ============================================================
-     EMERGENCY SW KILLER v20260601-emergency
-     Unregister-ить старий Service Worker + чистить ВСІ caches.
-     Видалити після перевірки що SW більше не повертається (через 1-2 дні).
-     ============================================================ -->
-<script>
-(function(){
-  if (sessionStorage.getItem('__sw_killed_20260602_v2')) return; // run once per session
-  if (!('serviceWorker' in navigator)) return;
-  var done = false;
-  var nuke = async function(){
-    if (done) return; done = true;
-    try {
-      var regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(function(r){ return r.unregister(); }));
-      if (window.caches && caches.keys) {
-        var keys = await caches.keys();
-        await Promise.all(keys.map(function(k){ return caches.delete(k); }));
-      }
-      sessionStorage.setItem('__sw_killed_20260602_v2', '1');
-      console.log('[SW killer] ' + regs.length + ' SW unregistered + ' + (window.caches ? 'caches cleared' : 'no caches API') + '. Reloading...');
-      location.reload();
-    } catch(e){ console.warn('[SW killer] failed:', e); }
-  };
-  // Run async — не блокуємо boot, але reload-имо як тільки готово
-  navigator.serviceWorker.getRegistrations().then(function(regs){
-    if (regs && regs.length > 0) nuke();
-    else sessionStorage.setItem('__sw_killed_20260602_v2', '1');
-  });
-})();
-</script>
 <!-- BRAND-SYNC: Google Fonts (brand-book v3.9.2 typography) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -226,7 +195,7 @@
   .toast b { display: block; margin-bottom: 2px; }
   .toast .toast-body { color: var(--grey); font-size: 12px; line-height: 1.5; }
   @keyframes toastIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 150; display: none; align-items: center; justify-content: center; padding: 20px; }
   .modal-backdrop.open { display: flex; animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .modal { background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); max-width: 1360px; width: 100%; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -1119,7 +1088,7 @@
 <script data-cfasync="false" src="app-tg-login.js?v=20260601b" defer></script>
 <script data-cfasync="false" src="app-drive.js?v=20260601h" defer></script>
 <script data-cfasync="false" src="app-client-compress.js?v=20260601g" defer></script>
-<script data-cfasync="false" src="app-analytics-v2.js?v=20260601b" defer></script>
+<!-- app-analytics-v2.js removed 02.06.2026 audit: was dead code calling non-existent Store.allPubs/Store.allHistory -->
 <script data-cfasync="false" src="app-analytics.js?v=20260601b" defer></script>
 <script data-cfasync="false" src="app-ai-copy.js?v=20260601b" defer></script>
 <script data-cfasync="false" src="app-onboarding.js?v=20260601b" defer></script>
