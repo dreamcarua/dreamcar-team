@@ -467,6 +467,16 @@ function renderCardBody(p) {
               ${Store.launches().map(l => `<option value="${l.id}" ${p.launch===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
             </select>
           </div>
+          <div class="meta-item">
+            <span class="ml-label">Статус виконання</span>
+            <select id="f_workStatus" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px;">
+              <option value="" ${!p.workStatus?'selected':''}>— Не вказано —</option>
+              <option value="script"  ${p.workStatus==='script'?'selected':''}>✍️ Пишу сценарій</option>
+              <option value="design"  ${p.workStatus==='design'?'selected':''}>🎨 Роблю дизайн</option>
+              <option value="editing" ${p.workStatus==='editing'?'selected':''}>🎬 Роблю монтаж</option>
+              <option value="done"    ${p.workStatus==='done'?'selected':''}>✅ Зробив</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -590,6 +600,7 @@ function attachCardHandlers(p) {
     ['f_title','title','text'],['f_text','text','text'],['f_rubric','rubric','select'],
     ['f_contentType','contentType','select'],['f_deadline','deadline','date'],
     ['f_launch','launch','select'],
+    ['f_workStatus','workStatus','select'],
   ];
   fields.forEach(([fid, key]) => {
     const el = document.getElementById(fid);
