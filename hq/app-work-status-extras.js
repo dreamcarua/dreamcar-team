@@ -94,6 +94,22 @@
     window.__wsRsfPatched = true;
   }
 
+  /* ============== 3b. Patch Store._loadFromBackend → counts get fresh data ============== */
+  function patchStoreLoadFromBackend() {
+    if (window.__wsLoadPatched) return;
+    var S = getStore();
+    if (!S || typeof S._loadFromBackend !== 'function') return;
+    var orig = S._loadFromBackend.bind(S);
+    S._loadFromBackend = async function () {
+      var r = await orig();
+      // Невеликий defer, щоб renderRoute() / renderSidebarFilters встигли спрацювати
+      setTimeout(renderWorkStatusFilter, 60);
+      setTimeout(decorateAll, 80);
+      return r;
+    };
+    window.__wsLoadPatched = true;
+  }
+
   /* ============== 4. Calendar/Board card emoji decoration ============== */
   function decorateCard(card) {
     if (card.__wsApplied) return;
@@ -143,6 +159,7 @@
   function init() {
     patchFilteredPubs();
     patchRenderSidebarFilters();
+    patchStoreLoadFromBackend();
     renderWorkStatusFilter();
     decorateAll();
     mo.observe(document.body, { childList: true, subtree: true });
@@ -153,10 +170,16 @@
       tries++;
       patchFilteredPubs();
       patchRenderSidebarFilters();
+      patchStoreLoadFromBackend();
       if (document.getElementById('sidebarFilters')) renderWorkStatusFilter();
-      if (window.__wsFpPatched && window.__wsRsfPatched && document.getElementById('ws-filter-group')) clearInterval(iv);
+      if (window.__wsFpPatched && window.__wsRsfPatched && window.__wsLoadPatched && document.getElementById('ws-filter-group')) clearInterval(iv);
       if (tries > 30) clearInterval(iv);
     }, 500);
+
+    // Fallback recounts — на випадок якщо все patch failed і Store.pubs() оновиться пізніше
+    setTimeout(renderWorkStatusFilter, 2000);
+    setTimeout(renderWorkStatusFilter, 5000);
+    setTimeout(renderWorkStatusFilter, 10000);
   }
 
   if (document.readyState === 'loading') {
