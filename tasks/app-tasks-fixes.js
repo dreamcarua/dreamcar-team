@@ -217,6 +217,26 @@
     if (btn) btn.onclick = window.saveTask;
   }
 
+  /* ===== 7b. Same wrap для postComment — Daniel "коментарі не відправляються" ===== */
+  function wrapPostCommentErrors() {
+    if (typeof window.postComment !== 'function') { setTimeout(wrapPostCommentErrors, 500); return; }
+    if (window.postComment.__wrappedForErr) return;
+    var orig = window.postComment;
+    window.postComment = async function () {
+      try {
+        var r = await orig.apply(this, arguments);
+        return r;
+      } catch (e) {
+        console.error('[postComment error]', e);
+        window.toast && toast('Не вдалось відправити коментар: ' + (e && e.message || 'unknown'), 'error');
+        throw e;
+      }
+    };
+    window.postComment.__wrappedForErr = true;
+    var btn = document.getElementById('postCommentBtn');
+    if (btn) btn.onclick = window.postComment;
+  }
+
   /* ===== Initialization ===== */
   function init() {
     injectPriorityHint();
@@ -224,6 +244,7 @@
     bindBackdropGuard();
     injectOverviewWorkflow();
     wrapSaveTaskErrors();
+    wrapPostCommentErrors();
   }
 
   if (document.readyState === 'loading') {
