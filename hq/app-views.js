@@ -1063,12 +1063,40 @@ async function boot() {
       }
       const me = await Auth.loadCurrentUser(session);
       SUPABASE_USER_ID = session.user.id;
+      // 🛡 SESSION BLEED FIX 03.06.2026: якщо localStorage містить ДАНІ ІНШОГО юзера —
+      // повністю його скидаємо ПЕРЕД Store.init() щоб не показати previous user state.
+      try {
+        var rawCached = localStorage.getItem(STORE_KEY);
+        if (rawCached) {
+          var parsed = JSON.parse(rawCached);
+          if (parsed && parsed.currentUserId && parsed.currentUserId !== me.id) {
+            console.warn('[session-bleed-guard] localStorage user mismatch (' + parsed.currentUserId + ' → ' + me.id + ') → drop cached state');
+            localStorage.removeItem(STORE_KEY);
+            // Also wipe SW caches — щоб старі responses від попередньої сесії не повернулись
+            if (window.caches && caches.keys) {
+              caches.keys().then(function (keys) { keys.forEach(function (k) { caches.delete(k); }); });
+            }
+          }
+        }
+      } catch (_) {}
       await Store.init();
       Store._data.currentUserId = me.id;
+      // Перезаписуємо localStorage із правильним currentUserId
+      try { if (typeof Store._saveLocal === 'function') Store._saveLocal(); } catch (_) {}
       hideAuthScreen();
       ind.className = 'backend-indicator live';
       document.getElementById('backendIndicatorLabel').textContent = 'Live · ' + me.name;
       ind.style.display = 'flex';
+      // Підпис на auth change — щоб коли юзер вийде з іншої вкладки, ця теж очистилась
+      try {
+        window.supabase.auth.onAuthStateChange(function (evt, sess) {
+          if (evt === 'SIGNED_OUT' || (sess && sess.user && sess.user.id !== SUPABASE_USER_ID)) {
+            console.warn('[session-bleed-guard] auth state change (' + evt + ') → reload');
+            try { localStorage.removeItem(STORE_KEY); } catch (_) {}
+            location.reload();
+          }
+        });
+      } catch (_) {}
     } catch (e) {
       console.error('Boot error:', e);
       showAuthError(e.message || 'Помилка завантаження');
