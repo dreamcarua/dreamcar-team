@@ -205,20 +205,18 @@
    */
   function wrapSaveTaskErrors() { /* no-op */ }
 
-  /* ===== 7d. + Нова задача button — лише ensure existing #addTaskBtn видимий ===== */
-  /* Стара ін'єкція ламала верстку (новий рядок з .filter-bar wrap) і onclick не працював
-   * (openTaskModal — локальна функція HTML scope, не на window).
-   * Тепер просто переконуємось що нативна #addTaskBtn видима — її onclick вже правильно
-   * прив'язаний у HTML рядок 1005: btn.onclick=()=>openTaskModal(null); */
+  /* ===== 7d. + Нова задача button — DISABLED повністю ===== */
+  /* HTML коментар біля #addTaskBtn у tasks/index.html line 427:
+   *   "Прихована для compat (FAB і drawer тригерять цю кнопку)"
+   * Тобто кнопка ЗАВЕДОМО display:none — FAB її тригерить програмно через .click().
+   * Моя попередня версія (showing її inline-flex) ламала верстку — вона великого
+   * розміру і wraps на новий рядок під filter-bar.
+   * Тепер: тільки очистка застарілої .new-task-cta з кешу попередніх render. */
   function injectNewTaskButton() {
-    var addBtn = document.getElementById('addTaskBtn');
-    if (addBtn) {
-      addBtn.style.display = 'inline-flex';
-      addBtn.style.visibility = 'visible';
-      addBtn.style.opacity = '1';
-    }
-    // Прибрати застарілу .new-task-cta якщо ще десь сидить з кеш-render
     document.querySelectorAll('.new-task-cta').forEach(function(el){ el.remove(); });
+    // Переконатись що #addTaskBtn НЕ показується (якщо хтось її випадково показав)
+    var addBtn = document.getElementById('addTaskBtn');
+    if (addBtn) addBtn.style.display = 'none';
   }
 
   /* ===== 7b. Same wrap для postComment — Daniel "коментарі не відправляються" ===== */
