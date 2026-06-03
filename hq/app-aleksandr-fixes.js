@@ -160,6 +160,44 @@
     }, 200);
   });
 
+  /* ===== 0. FIX HASH STUCK (03.06.2026 Олександр: open-close-open не реагує) =====
+   * HQ core: cal-card.onclick робить location.hash = '#publication/' + id.
+   * При закритті modal hash НЕ скидається. Той самий click ставить той самий hash
+   * → hashchange НЕ fires → нічого не відкривається.
+   * Patch: monkey-patch Modal.close щоб resetув hash; + capture-phase guard на cal-card. */
+  function patchModalCloseHashReset() {
+    if (!window.Modal || typeof Modal.close !== 'function') { setTimeout(patchModalCloseHashReset, 300); return; }
+    if (Modal.close.__hashFixed) return;
+    var orig = Modal.close.bind(Modal);
+    Modal.close = function () {
+      var res = orig.apply(this, arguments);
+      try {
+        if (location.hash.startsWith('#publication/')) {
+          // reset на #calendar — без trigger зайвої навігації
+          history.replaceState(null, '', '#calendar');
+        }
+      } catch (_) {}
+      return res;
+    };
+    Modal.close.__hashFixed = true;
+  }
+
+  /* Додатковий guard: clicking на pub-card СПЕРШУ resetує hash якщо той самий */
+  document.addEventListener('click', function (e) {
+    var card = e.target.closest && e.target.closest('.cal-card[data-id]');
+    if (!card) return;
+    // skip креативи (мають свій handler нижче)
+    if (e.target.closest('.cs-item') || e.target.closest('.ov-cr-thumb')) return;
+    var targetHash = '#publication/' + card.dataset.id;
+    if (location.hash === targetHash) {
+      // primер клік на ту ж pub яка вже у hash → re-trigger
+      history.replaceState(null, '', '#calendar');
+      setTimeout(function () { location.hash = targetHash; }, 0);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
   /* ===== 5. CREATIVE TILE CLICK → preview modal (03.06.2026 Вадим: video без preview) ===== */
   document.addEventListener('click', function (e) {
     // Strip у формі редагування (.cs-item) АБО overview thumbs (.ov-cr-thumb)
@@ -180,12 +218,16 @@
     e.preventDefault();
     e.stopPropagation();
     try {
-      if (typeof window.openCreative === 'function') {
-        window.openCreative(creativeId);
-      } else {
-        // fallback inline preview overlay
-        var c = window.Store && Store.creative && Store.creative(creativeId);
-        if (c) showCreativePreview(c);
+      // ВАЖЛИВО: НЕ викликаємо window.openCreative() — вона робить Modal.open()
+      // що ЗАМІНЮЄ pub-edit modal у тому ж DOM slot. Користувач втрачає context.
+      // Використовуємо власний fullscreen overlay що НЕ зачіпає Modal API.
+      var c = window.Store && Store.creative && Store.creative(creativeId);
+      if (c) showCreativePreview(c);
+      else if (typeof window.openCreative === 'function') {
+        // fallback: лише якщо НЕ у відкритому pub-edit modal (інакше втратимо контекст)
+        var inPubEdit = location.hash.startsWith('#publication/');
+        if (!inPubEdit) window.openCreative(creativeId);
+        else console.warn('[creative-preview] не маємо Store.creative для', creativeId);
       }
     } catch (err) {
       console.error('[creative-preview]', err);
@@ -227,6 +269,7 @@
   }
 
   function init() {
+    patchModalCloseHashReset();
     patchUpsertPubReRender();
     injectCellAddButtons(); // тепер тільки cleanup .cal-add-btn
     markDcLifeCards();
