@@ -29,11 +29,17 @@
     Store.upsertPub.__orphanGuard = true;
   }
 
-  /* ===== 2. Default route reset на сторінці завантаження ===== */
-  // ВАЖЛИВО: робимо ДО hash listener'ів — щоб app-core знав calendar.
+  /* ===== 2. Default route reset ТІЛЬКИ при reload (не при external link) ===== */
+  // 🛡 FIX 03.06.2026 (Daniel login loop): раніше reset'или ЗАВЖДИ → клік з TG/закладки на #publication/uuid
+  // перекидало на #calendar, а потім /tasks login → Google → SMM → знову #publication → loop.
+  // Тепер: reset тільки якщо це reload (F5) і документ.referrer пустий.
   (function () {
-    if (location.hash && location.hash.startsWith('#publication/')) {
-      // Reset на reload — не залишатися на старій pub
+    if (!location.hash || !location.hash.startsWith('#publication/')) return;
+    var navEntry = (performance.getEntriesByType && performance.getEntriesByType('navigation') || [])[0];
+    var isReload = navEntry && navEntry.type === 'reload';
+    // Якщо це reload АБО навігація з історії (back/forward) — reset; інакше зовнішній клік → лишаємо
+    if (isReload) {
+      console.log('[orphan-drafts] reload detected on #publication — reset to #calendar');
       history.replaceState(null, '', location.pathname + location.search + '#calendar');
     }
   })();
