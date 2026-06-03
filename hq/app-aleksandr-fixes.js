@@ -23,21 +23,25 @@
     /* "+N ще" (синій pill) — щоб не плутати з нативним "+" (червоний) */
     '.cal-day .more { background: rgba(59,130,246,0.85) !important; color: #fff !important; padding: 2px 8px !important; border-radius: 100px !important; font-size: 10px !important; font-weight: 600; cursor: pointer; }',
     '.cal-day .more:hover { background: #3b82f6 !important; }',
-    /* 3: DreamCar Life — білий фон, чорний текст */
+    /* 3: DreamCar Life — білий фон cards + ВЕСЬ ДЕНЬ у календарі (Олександр request 03.06) */
     '.cal-card[data-launch-dc-life="1"], .week-card[data-launch-dc-life="1"], .list-row[data-launch-dc-life="1"] { background: #FFFFFF !important; color: #0a0a0a !important; border-color: #FFFFFF !important; }',
     '.cal-card[data-launch-dc-life="1"] .title, .week-card[data-launch-dc-life="1"] .title, .cal-card[data-launch-dc-life="1"] .time, .week-card[data-launch-dc-life="1"] .time { color: #0a0a0a !important; }',
     '.cal-card[data-launch-dc-life="1"]::before { content: "DC LIFE"; position: absolute; top: 2px; right: 4px; font-family: "JetBrains Mono",monospace; font-size: 8px; color: #888; letter-spacing: .08em; }',
+    /* Cell-level DC Life: коли весь день DC Life — світла заливка з опаційним label */
+    '.cal-day[data-day-dc-life="1"] { background: #FAFAFA !important; }',
+    '.cal-day[data-day-dc-life="1"] .day-num, .cal-day[data-day-dc-life="1"] .cal-day-num, .cal-day[data-day-dc-life="1"] > span:first-child { color: #0a0a0a !important; }',
+    '.cal-day[data-day-dc-life="1"]::after { content: "DC LIFE"; position: absolute; bottom: 4px; left: 4px; font-family: "JetBrains Mono",monospace; font-size: 8px; color: #999; letter-spacing: .12em; pointer-events: none; }',
     /* 1: SAVE FAB ВИМКНЕНО 03.06.2026 — Олександр скаржиться що перекриває native footer save. Native save кнопки у footer достатньо. */
     '.card-save-fab { display: none !important; }',
     /* 5: креативи у формі редагування — клікабельні + ▶ for video */
     '.cs-item { cursor: pointer; position: relative; }',
     '.cs-item:hover { outline: 2px solid var(--red, #E30613); }',
-    '.cs-item video { background: #0a0a0a; }',
-    '.cs-item::after { content: ""; }',
-    '.cs-item[data-type="video"]::before { content: "▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; z-index: 2; }',
-    '.ov-cr-thumb { cursor: pointer; }',
+    '.cs-item video { background: #0a0a0a; pointer-events: none; }',
+    /* ▶ overlay для video — circular з backdrop, видимий поверх чорного */
+    '.cs-video-play, .ov-video-play { position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.7); color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }',
+    '.cs-video-play::before, .ov-video-play::before { content: "▶"; margin-left: 2px; }',
+    '.ov-cr-thumb { cursor: pointer; position: relative; }',
     '.ov-cr-thumb:hover { outline: 2px solid var(--red, #E30613); }',
-    '.ov-cr-thumb[data-type="video"]::before { content: "▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; z-index: 2; }',
   ].join('\n');
   document.head.appendChild(css);
 
@@ -65,7 +69,7 @@
     document.querySelectorAll('.cal-add-btn').forEach(function(el){ el.remove(); });
   }
 
-  /* ===== 3. DreamCar Life launch styling ===== */
+  /* ===== 3. DreamCar Life launch styling — cards + cells ===== */
   function markDcLifeCards() {
     if (!window.Store) return;
     document.querySelectorAll('[data-id]').forEach(function (el) {
@@ -75,6 +79,17 @@
       var isDcLife = p.launch === DREAMCAR_LIFE_ID;
       if (isDcLife) el.setAttribute('data-launch-dc-life', '1');
       else el.removeAttribute('data-launch-dc-life');
+    });
+    // Cell-level mark: cal-day стає DC Life якщо ВСІ pubs у ньому DC Life (мінімум 1)
+    document.querySelectorAll('.cal-day').forEach(function (cell) {
+      var cards = cell.querySelectorAll('.cal-card[data-id]');
+      if (!cards.length) { cell.removeAttribute('data-day-dc-life'); return; }
+      var allDcLife = true;
+      cards.forEach(function (card) {
+        if (card.getAttribute('data-launch-dc-life') !== '1') allDcLife = false;
+      });
+      if (allDcLife) cell.setAttribute('data-day-dc-life', '1');
+      else cell.removeAttribute('data-day-dc-life');
     });
   }
 
@@ -191,15 +206,22 @@
     document.body.appendChild(ov);
   }
 
-  /* Mark creative tiles with data-type for CSS ::before ▶ */
+  /* Mark creative tiles with data-type + inject ▶ overlay div for video tiles */
   function markCreativeTileTypes() {
     if (!window.Store || !Store.creative) return;
     document.querySelectorAll('.cs-item[data-id], .ov-cr-thumb[data-id]').forEach(function (el) {
       var id = el.dataset.id;
-      if (!id || el.hasAttribute('data-type')) return;
+      if (!id) return;
       try {
         var c = Store.creative(id);
-        if (c && c.type) el.setAttribute('data-type', c.type);
+        if (!c || !c.type) return;
+        el.setAttribute('data-type', c.type);
+        // Для video — додати ▶ overlay (CSS ::before не працює на video element)
+        if (c.type === 'video' && !el.querySelector('.cs-video-play')) {
+          var play = document.createElement('div');
+          play.className = el.classList.contains('ov-cr-thumb') ? 'ov-video-play' : 'cs-video-play';
+          el.appendChild(play);
+        }
       } catch (_) {}
     });
   }

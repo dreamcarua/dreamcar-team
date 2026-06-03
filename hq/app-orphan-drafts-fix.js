@@ -129,16 +129,12 @@
         var arr = raw ? JSON.parse(raw) : [];
         arr.push(tpl);
         localStorage.setItem('hq-templates', JSON.stringify(arr));
-        // Якщо є supabase templates table — теж insert
+        // pub_templates table (схема: id/name/data jsonb/desk_id/created_by)
         if (window.supabase && window.HQ_BACKEND) {
           try {
-            await window.supabase.from('publication_templates').insert({
+            await window.supabase.from('pub_templates').insert({
               name: tpl.name,
-              title: tpl.title,
-              text_body: tpl.text,
-              content_type: tpl.contentType,
-              platforms: tpl.platforms,
-              rubric_id: tpl.rubric,
+              data: { title: tpl.title, text: tpl.text, contentType: tpl.contentType, platforms: tpl.platforms, rubric: tpl.rubric },
               created_by: Store._data.currentUserId
             });
           } catch (e) { console.warn('[template-save backend skipped]', e.message); }
