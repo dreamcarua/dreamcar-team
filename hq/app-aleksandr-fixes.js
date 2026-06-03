@@ -21,6 +21,9 @@
     '.cal-day:hover .cal-add-btn { display: flex; }',
     '.cal-day .cal-add-btn:hover { background: #ff1a2b; transform: scale(1.15); }',
     '.cal-card { cursor: pointer !important; }',
+    /* розрізняємо мій '+' (червоний — створити pub) і "+N ще" (синій — показати решту публікацій) */
+    '.cal-day .more { background: rgba(59,130,246,0.85) !important; color: #fff !important; padding: 2px 8px !important; border-radius: 100px !important; font-size: 10px !important; font-weight: 600; cursor: pointer; }',
+    '.cal-day .more:hover { background: #3b82f6 !important; }',
     /* 3: DreamCar Life — білий фон, чорний текст */
     '.cal-card[data-launch-dc-life="1"], .week-card[data-launch-dc-life="1"], .list-row[data-launch-dc-life="1"] { background: #FFFFFF !important; color: #0a0a0a !important; border-color: #FFFFFF !important; }',
     '.cal-card[data-launch-dc-life="1"] .title, .week-card[data-launch-dc-life="1"] .title, .cal-card[data-launch-dc-life="1"] .time, .week-card[data-launch-dc-life="1"] .time { color: #0a0a0a !important; }',
