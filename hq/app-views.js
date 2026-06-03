@@ -852,9 +852,14 @@ async function transitionStatus(p, to, sourceBtn) {
 }
 
 function createPub(date) {
+  // 🛡 ORPHAN DRAFT FIX 03.06.2026: НЕ персистимо у БД доки юзер не введе title.
+  // Раніше: відкриття модалки = Untitled draft у DB. Закрив без вводу → orphan.
+  // Тепер: тримаємо у memory (Store._data.publications) тільки. Persist при першому save (handleSavePub).
   const p = newPubObject(date || new Date());
-  Store.upsertPub(p);
-  delete p._isNew;
+  // Локальний optimistic insert без _persistPub
+  const ix = Store._data.publications.findIndex(x => x.id === p.id);
+  if (ix >= 0) Store._data.publications[ix] = p; else Store._data.publications.push(p);
+  // _isNew залишаємо — при close без save видалимо локально
   location.hash = '#publication/' + p.id;
 }
 
