@@ -237,6 +237,76 @@
     if (btn) btn.onclick = window.postComment;
   }
 
+  /* ===== 8. Flatpickr — кращий календар для f-due ===== */
+  var FP_CSS_URL = 'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css';
+  var FP_DARK_URL = 'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css';
+  var FP_JS_URL = 'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js';
+  var FP_UK_URL = 'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/uk.js';
+  function ensureFlatpickr(cb) {
+    if (window.flatpickr) return cb();
+    // CSS
+    ['flatpickr-css', FP_CSS_URL, 'flatpickr-css-dark', FP_DARK_URL].forEach(function (_, i) {
+      if (i % 2) return;
+      var id = arguments[0]; // not really; ignore
+    });
+    if (!document.getElementById('flatpickr-css')) {
+      var l = document.createElement('link'); l.id = 'flatpickr-css'; l.rel = 'stylesheet'; l.href = FP_CSS_URL; document.head.appendChild(l);
+      var l2 = document.createElement('link'); l2.id = 'flatpickr-css-dark'; l2.rel = 'stylesheet'; l2.href = FP_DARK_URL; document.head.appendChild(l2);
+    }
+    var s = document.createElement('script'); s.src = FP_JS_URL; s.onload = function () {
+      var s2 = document.createElement('script'); s2.src = FP_UK_URL; s2.onload = cb; document.head.appendChild(s2);
+    }; document.head.appendChild(s);
+  }
+  function bindDuePicker() {
+    var inp = document.getElementById('f-due');
+    if (!inp || inp.__fpBound) return;
+    ensureFlatpickr(function () {
+      try {
+        inp.type = 'text'; // flatpickr працює з text input
+        inp.placeholder = 'дд.мм.рррр';
+        inp._fp = window.flatpickr(inp, {
+          dateFormat: 'Y-m-d',
+          altInput: true,
+          altFormat: 'd.m.Y',
+          locale: window.flatpickr.l10ns && window.flatpickr.l10ns.uk,
+          allowInput: true,
+          minDate: '2026-01-01',
+          disableMobile: false
+        });
+        inp.__fpBound = true;
+      } catch (e) { console.warn('[flatpickr bind] ', e); }
+    });
+  }
+
+  /* ===== 9. Watchers dropdown — show ALL available users on focus (без введення) ===== */
+  function patchWatchersFocus() {
+    var inp = document.getElementById('watchersInput');
+    var list = document.getElementById('watchersList');
+    if (!inp || !list) { return; }
+    if (inp.__focusPatched) return;
+    inp.__focusPatched = true;
+    inp.addEventListener('focus', function () {
+      if (!window.state || !state.users) return;
+      var matches = state.users.filter(function (u) { return !(state.watchers || []).includes(u.id); }).slice(0, 12);
+      if (!matches.length) return;
+      list.innerHTML = matches.map(function (u) {
+        return '<div class="ms-list-item" data-uid="' + u.id + '">' + (u.name || u.email).replace(/</g, '&lt;') + '</div>';
+      }).join('');
+      list.querySelectorAll('.ms-list-item').forEach(function (el) {
+        el.onclick = function () {
+          state.watchers.push(el.dataset.uid);
+          try { window.renderWatchers && renderWatchers(); } catch (_) {}
+          list.classList.remove('show');
+        };
+      });
+      list.classList.add('show');
+      var r = inp.getBoundingClientRect();
+      list.style.left = r.left + 'px';
+      list.style.top = (r.bottom + window.scrollY) + 'px';
+      list.style.width = r.width + 'px';
+    });
+  }
+
   /* ===== Initialization ===== */
   function init() {
     injectPriorityHint();
@@ -245,6 +315,8 @@
     injectOverviewWorkflow();
     wrapSaveTaskErrors();
     wrapPostCommentErrors();
+    bindDuePicker();
+    patchWatchersFocus();
   }
 
   if (document.readyState === 'loading') {
@@ -265,6 +337,8 @@
         if (t.id === 'taskModal' && t.classList && t.classList.contains('show')) {
           injectPriorityHint();
           injectTagsAutocomplete();
+          bindDuePicker();
+          patchWatchersFocus();
         }
       }
     });
