@@ -141,6 +141,66 @@
   }
 
   // ============================================================
+  // AUDIO FEEDBACK — Web Audio API beep
+  // ============================================================
+  var _audioCtx = null;
+  function getAudioCtx() {
+    if (_audioCtx) return _audioCtx;
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(_){}
+    return _audioCtx;
+  }
+  function playBeep(freq, duration, type) {
+    var ctx = getAudioCtx(); if (!ctx) return;
+    try {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain); gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+      osc.start(); osc.stop(ctx.currentTime + duration);
+    } catch(e) { console.warn('[audio]', e); }
+  }
+  function playSuccessSound() {
+    // Два бипа висхідних — C5 → E5
+    playBeep(523.25, 0.12, 'sine');
+    setTimeout(function(){ playBeep(659.25, 0.18, 'sine'); }, 130);
+  }
+  function playErrorSound() {
+    // Низький бжжж з fall pitch
+    playBeep(220, 0.15, 'sawtooth');
+    setTimeout(function(){ playBeep(165, 0.25, 'sawtooth'); }, 160);
+  }
+
+  // ============================================================
+  // VISIBLE UPLOAD ALERT (great big banner)
+  // ============================================================
+  function showUploadAlert(success, msg) {
+    var existing = document.getElementById('upload-alert-overlay');
+    if (existing) existing.remove();
+    var el = document.createElement('div');
+    el.id = 'upload-alert-overlay';
+    var bg = success ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #DC2626, #991B1B)';
+    var icon = success ? '✅' : '❌';
+    var title = success ? 'ГОТОВО' : 'ПОМИЛКА';
+    el.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:' + bg + '; color:#fff; padding:32px 48px; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,0.6); z-index:999999; font-family:Manrope,sans-serif; text-align:center; min-width:340px; max-width:520px; pointer-events:none; opacity:0; transition:opacity .25s, transform .35s; animation:upalert-in .35s ease-out;';
+    el.innerHTML = '<div style=\"font-size:56px; line-height:1;\">' + icon + '</div>' +
+      '<div style=\"font-family:Oswald,sans-serif; font-size:24px; letter-spacing:.08em; margin-top:12px; font-weight:700;\">' + title + '</div>' +
+      '<div style=\"font-size:14px; margin-top:8px; opacity:.92; line-height:1.45;\">' + (msg || '').replace(/</g,'&lt;') + '</div>';
+    document.body.appendChild(el);
+    requestAnimationFrame(function(){ el.style.opacity = '1'; });
+    setTimeout(function(){ 
+      el.style.opacity = '0'; 
+      el.style.transform = 'translate(-50%, -50%) scale(0.92)';
+    }, success ? 2800 : 4500);
+    setTimeout(function(){ el.remove(); }, success ? 3200 : 4900);
+  }
+
+  // Керовані прилади для інших модулів\n  window.HQ_FEEDBACK = { playSuccess: playSuccessSound, playError: playErrorSound, alert: showUploadAlert };
+
+  // ============================================================
   // Прогрес-toast
   // ============================================================
   function makeProgressToast(initMsg) {
@@ -167,6 +227,9 @@
         else { el.classList.remove('info'); el.classList.add('error'); }
         var bd = el.querySelector('.toast-body');
         if (bd && finalBody) bd.textContent = finalBody;
+        // 🎵 Audio + 📢 visible alert — 03.06.2026 Vadym/Oleksandr feedback
+        try { if (success) playSuccessSound(); else playErrorSound(); } catch(_){}
+        try { showUploadAlert(success, finalBody || (success ? 'Файл успішно завантажено' : 'Не вдалося завантажити')); } catch(_){}
         setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 0.3s'; }, 2000);
         setTimeout(function () { el.remove(); }, 2400);
       }
