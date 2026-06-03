@@ -11,6 +11,41 @@
   if (window.__tasksFixesLoaded) return;
   window.__tasksFixesLoaded = true;
 
+  /* ===== 0. ESCAPE DIRTY-STATE GUARD (capture-phase, перший у chain) =====
+   * Це HARD-блокування Esc якщо taskModal відкрита і має введені дані.
+   * capture:true + stopImmediatePropagation гарантує що ми ловимо ПЕРЕД
+   * native handler у HTML (рядок 1444) і ПЕРЕД drawer handler (рядок 1032).
+   * Якщо confirm = OK → ми СКАСОВУЄМО handler і відсилаємо click на cancelBtn (модалка закриється).
+   * Якщо confirm = Cancel → залишаємо модалку відкритою. */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.keyCode !== 27) return;
+    var modal = document.getElementById('taskModal');
+    if (!modal || !modal.classList.contains('show')) return;
+
+    // Швидка перевірка чи є введені дані
+    var t = '', d = '';
+    try {
+      t = (document.getElementById('f-title') || {}).value || '';
+      d = (document.getElementById('f-description') || {}).value || '';
+    } catch (_) {}
+    var subN = (window.state && state.subtasks && state.subtasks.length) || 0;
+    var watN = (window.state && state.watchers && state.watchers.length) || 0;
+    var hasContent = !!(t.trim() || d.trim() || subN || watN);
+
+    if (!hasContent) return; // нічого не введено — нехай native handler закриє
+
+    // ЛОВИМО ESCAPE - блокуємо всіх інших і питаємо
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+
+    var ok = confirm('⚠ Закрити без збереження?\n\nВведені дані втратяться:\n• назва: "' + t.substring(0, 40) + (t.length > 40 ? '…' : '') + '"\n• опис: ' + d.length + ' симв.\n• чек-лист: ' + subN + ' позицій\n• спостерігачів: ' + watN);
+    if (ok) {
+      modal.classList.remove('show');
+    }
+    // якщо not ok — нічого не робимо, модалка лишається
+  }, true); // capture:true — спрацьовує ПЕРШИМ у DOM tree
+
   /* ===== 1. CSS injections ===== */
   var css = document.createElement('style');
   css.id = 'tasks-fixes-css';

@@ -1450,19 +1450,10 @@ document.addEventListener('keydown',e=>{
   const tag=document.activeElement.tagName;
   const inField=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
   if(e.key==='Escape'){
-    // Dirty-state guard для taskModal — не давай випадково втратити правки
-    if(modal.classList.contains('show')){
-      var dirty = false;
-      try {
-        var t = (document.getElementById('f-title')||{}).value || '';
-        var d = (document.getElementById('f-description')||{}).value || '';
-        var hasContent = (t.trim() || d.trim() || (state.subtasks && state.subtasks.length) || (state.watchers && state.watchers.length));
-        dirty = hasContent && !confirm('Закрити без збереження? Введені дані втратяться.');
-      } catch(_){}
-      if(!dirty) modal.classList.remove('show');
-      return;
-    }
-    if(prefsModal.classList.contains('show'))prefsModal.classList.remove('show');
+    // taskModal dirty-state guard винесений у app-tasks-fixes.js (capture:true handler)
+    // Тут лишаємо ТІЛЬКИ closing інших оверлеїв.
+    if(modal.classList.contains('show')) modal.classList.remove('show');
+    else if(prefsModal.classList.contains('show'))prefsModal.classList.remove('show');
     else if(state.selected.size>0){state.selected.clear();renderBoard();}
     else document.getElementById('notifDropdown').classList.remove('show');
     return;
@@ -1559,6 +1550,6 @@ document.getElementById('templatesBtn').onclick = openTemplatesModal;
 
 <script src="/assets/global-search.js" defer></script>
 <script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
-<script src="app-tasks-fixes.js?v=20260603i" defer></script>
+<script src="app-tasks-fixes.js?v=20260603j" defer></script>
 </body>
 </html>
