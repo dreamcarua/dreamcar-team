@@ -315,34 +315,75 @@
     });
   }
 
-  /* ===== 9. Watchers dropdown — show ALL available users on focus (без введення) ===== */
-  function patchWatchersFocus() {
-    var inp = document.getElementById('watchersInput');
-    var list = document.getElementById('watchersList');
-    if (!inp || !list) { return; }
-    if (inp.__focusPatched) return;
-    inp.__focusPatched = true;
-    inp.addEventListener('focus', function () {
-      if (!window.state || !state.users) return;
-      var matches = state.users.filter(function (u) { return !(state.watchers || []).includes(u.id); }).slice(0, 12);
-      if (!matches.length) return;
-      list.innerHTML = matches.map(function (u) {
-        return '<div class="ms-list-item" data-uid="' + u.id + '">' + (u.name || u.email).replace(/</g, '&lt;') + '</div>';
-      }).join('');
-      list.querySelectorAll('.ms-list-item').forEach(function (el) {
-        el.onclick = function () {
-          state.watchers.push(el.dataset.uid);
-          try { window.renderWatchers && renderWatchers(); } catch (_) {}
-          list.classList.remove('show');
-        };
-      });
-      list.classList.add('show');
-      var r = inp.getBoundingClientRect();
-      list.style.left = r.left + 'px';
-      list.style.top = (r.bottom + window.scrollY) + 'px';
-      list.style.width = r.width + 'px';
-    });
+  /* ===== 9. Watchers dropdown — robust handler через event delegation =====
+   * Native renderWatchers() переписує innerHTML #watchersMS при кожній зміні,
+   * через що inp.oninput може загубитись. Робимо delegation на document — handlers
+   * виживають перерендер. Плюс показуємо ВСІХ юзерів на focus (без вводу). */
+  function renderWatchersListAt(inp, list, query) {
+    if (!window.state || !Array.isArray(state.users) || !state.users.length) return;
+    var q = (query || '').toLowerCase().trim();
+    var sel = state.watchers || [];
+    var matches = state.users.filter(function (u) {
+      if (sel.indexOf(u.id) >= 0) return false;
+      if (!q) return true; // на focus без вводу — показати всіх
+      var n = (u.name || '').toLowerCase();
+      var e = (u.email || '').toLowerCase();
+      return n.indexOf(q) >= 0 || e.indexOf(q) >= 0;
+    }).slice(0, 20);
+
+    if (!matches.length) { list.classList.remove('show'); list.innerHTML = ''; return; }
+    list.innerHTML = matches.map(function (u) {
+      var label = (u.name || u.email).replace(/</g, '&lt;');
+      var role = u.role ? ' <span style="opacity:.5;font-size:11px">· ' + u.role + '</span>' : '';
+      return '<div class="ms-list-item" data-uid="' + u.id + '">' + label + role + '</div>';
+    }).join('');
+    list.classList.add('show');
+    var r = inp.getBoundingClientRect();
+    list.style.left = r.left + 'px';
+    list.style.top = (r.bottom + window.scrollY + 2) + 'px';
+    list.style.width = Math.max(r.width, 240) + 'px';
   }
+
+  /* Document-level delegation — survives renderWatchers re-renders */
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'watchersInput') {
+      var list = document.getElementById('watchersList');
+      if (list) renderWatchersListAt(e.target, list, e.target.value);
+    }
+  }, true);
+
+  document.addEventListener('focus', function (e) {
+    if (e.target && e.target.id === 'watchersInput') {
+      var list = document.getElementById('watchersList');
+      if (list) renderWatchersListAt(e.target, list, e.target.value || '');
+    }
+  }, true);
+
+  document.addEventListener('click', function (e) {
+    var item = e.target.closest && e.target.closest('.ms-list-item');
+    if (!item) return;
+    // Перевіряємо що це наш watchers list (а не assignee у майбутньому)
+    var list = item.closest('.ms-list');
+    if (!list || list.id !== 'watchersList') return;
+    var uid = item.dataset.uid;
+    if (uid && window.state && !state.watchers.includes(uid)) {
+      state.watchers.push(uid);
+      try { window.renderWatchers && renderWatchers(); } catch (_) {}
+      list.classList.remove('show');
+      // Re-focus інпут щоб юзер міг далі додати
+      setTimeout(function () { var inp = document.getElementById('watchersInput'); if (inp) inp.focus(); }, 50);
+    }
+  }, true);
+
+  /* Закрити список при кліку поза ним */
+  document.addEventListener('mousedown', function (e) {
+    var list = document.getElementById('watchersList');
+    if (!list || !list.classList.contains('show')) return;
+    if (e.target.closest('#watchersList') || e.target.closest('#watchersInput')) return;
+    list.classList.remove('show');
+  });
+
+  function patchWatchersFocus() { /* no-op — delegation вже працює */ }
 
   /* ===== Initialization ===== */
   function init() {
