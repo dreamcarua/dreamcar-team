@@ -90,6 +90,14 @@
     background:var(--red); border-color:var(--red); color:#fff;
     box-shadow:0 2px 6px rgba(227,6,19,0.3);
   }
+  .filter-rad .chip-cta{
+    background:var(--red); border-color:var(--red); color:#fff;
+    font-weight:700; letter-spacing:0.08em;
+    box-shadow:0 2px 6px rgba(227,6,19,0.3);
+    margin-right:auto; /* CTA ліворуч, інші flex-line після нього */
+  }
+  .filter-rad .chip-cta:hover{ background:#ff1a1a; border-color:#ff1a1a; color:#fff; }
+  .filter-rad .chip-ghost{ margin-left:auto; }
   .filter-rad .chip .dot{
     width:6px; height:6px; border-radius:50%; display:inline-block;
   }
@@ -413,6 +421,7 @@
 <div id="appView" style="display:none;">
   <!-- Filter chip rad — horizontal scroll-snap, compact як в iOS sigmented control -->
   <nav class="filter-rad" aria-label="Фільтри задач">
+    <button class="chip chip-cta" id="addTaskBtn" type="button" title="Створити нову задачу (n)">+ ЗАВДАННЯ</button>
     <button class="chip" data-filter="all">Всі</button>
     <button class="chip" data-filter="me">Мої</button>
     <button class="chip" data-filter="hipri"><span class="dot dot-red"></span>P1+P2</button>
@@ -422,10 +431,8 @@
     <button class="chip" data-filter="mentions">@мене</button>
     <button class="chip" data-filter="watching">Стежу</button>
     <button class="chip" data-filter="created">Я створив</button>
+    <button class="chip chip-ghost" id="templatesBtn" type="button" title="Шаблони задач">📋 ШАБЛОНИ</button>
   </nav>
-  <!-- Прихована для compat (FAB і drawer тригерять цю кнопку): -->
-  <button class="add-btn" id="addTaskBtn" style="display:none;">+ ЗАВДАННЯ</button>
-  <button class="filter-btn" id="templatesBtn" title="Шаблони задач">📋 ШАБЛОНИ</button>
 
   <div class="kanban">
     <div class="col" data-status="inbox"><div class="col-head"><span class="col-title">📥 INBOX</span><span class="col-count" id="count-inbox">0</span></div><div class="col-body" data-status="inbox" id="col-inbox"></div></div>
@@ -1552,6 +1559,6 @@ document.getElementById('templatesBtn').onclick = openTemplatesModal;
 
 <script src="/assets/global-search.js" defer></script>
 <script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
-<script src="app-tasks-fixes.js?v=20260603h" defer></script>
+<script src="app-tasks-fixes.js?v=20260603i" defer></script>
 </body>
 </html>

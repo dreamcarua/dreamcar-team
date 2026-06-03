@@ -213,10 +213,10 @@
    * розміру і wraps на новий рядок під filter-bar.
    * Тепер: тільки очистка застарілої .new-task-cta з кешу попередніх render. */
   function injectNewTaskButton() {
+    // 03.06.2026 v8: addTaskBtn тепер ВСЕРЕДИНІ <nav class="filter-rad"> як перший chip
+    // (виділений червоним через .chip-cta). FAB лишається у правому кутку як швидкий доступ.
+    // Просто очистити застарілу .new-task-cta з попередніх кешів.
     document.querySelectorAll('.new-task-cta').forEach(function(el){ el.remove(); });
-    // Переконатись що #addTaskBtn НЕ показується (якщо хтось її випадково показав)
-    var addBtn = document.getElementById('addTaskBtn');
-    if (addBtn) addBtn.style.display = 'none';
   }
 
   /* ===== 7b. Same wrap для postComment — Daniel "коментарі не відправляються" ===== */
