@@ -196,25 +196,106 @@
     mo.observe(overview, { childList: true, subtree: true });
   }
 
-  /* ===== 7. Save button error visibility — wrap fetch errors ===== */
-  function wrapSaveTaskErrors() {
-    // Якщо saveTask не існує — wait + retry
-    if (typeof window.saveTask !== 'function') { setTimeout(wrapSaveTaskErrors, 500); return; }
-    if (window.saveTask.__wrappedForErr) return;
-    var orig = window.saveTask;
-    window.saveTask = async function () {
-      try {
-        return await orig.apply(this, arguments);
-      } catch (e) {
-        console.error('[saveTask error]', e);
-        window.toast && toast('Помилка збереження: ' + (e && e.message || 'unknown'), 'error');
-        throw e;
-      }
+  /* ===== 7. saveTask REPLACEMENT — explicit error visibility + .select() to detect RLS silent fails ===== */
+  async function saveTaskV2() {
+    var titleEl = document.getElementById('f-title');
+    var title = (titleEl && titleEl.value || '').trim();
+    if (!title) { window.toast && toast('Введи назву', 'error'); titleEl && titleEl.focus(); return; }
+
+    // Перевірка авторизації перед insert
+    if (!window.state || !state.publicUser || !state.publicUser.id) {
+      console.error('[saveTaskV2] state.publicUser missing — auth not ready');
+      window.toast && toast('Сесія не завантажена. Оновіть сторінку (Cmd+R) і спробуй ще раз.', 'error');
+      return;
+    }
+
+    var data = {
+      title: title,
+      description: (document.getElementById('f-description').value || '').trim() || null,
+      status: document.getElementById('f-status').value,
+      priority: document.getElementById('f-priority').value,
+      assignee_id: document.getElementById('f-assignee').value || null,
+      due_date: document.getElementById('f-due').value || null,
+      recurrence: document.getElementById('f-recurrence').value || null,
+      estimated_h: parseFloat(document.getElementById('f-estimated').value) || null,
+      tags: (document.getElementById('f-tags').value || '').split(',').map(function(s){return s.trim();}).filter(Boolean),
+      subtasks: state.subtasks || [],
+      watchers: state.watchers || [],
+      updated_at: new Date().toISOString(),
     };
-    window.saveTask.__wrappedForErr = true;
-    // Re-bind кнопці (бо onclick=saveTask був прив'язаний на старий)
+
+    console.log('[saveTaskV2] payload', { editingId: state.editingId, data, user: state.publicUser.id });
+
+    var res;
+    try {
+      if (state.editingId) {
+        res = await window.supabase.from('team_tasks').update(data).eq('id', state.editingId).select().single();
+      } else {
+        data.created_by = state.publicUser.id;
+        data.created_at = new Date().toISOString();
+        res = await window.supabase.from('team_tasks').insert(data).select().single();
+      }
+    } catch (e) {
+      console.error('[saveTaskV2] throw', e);
+      window.toast && toast('Виняток: ' + (e.message || e), 'error');
+      return;
+    }
+
+    console.log('[saveTaskV2] result', res);
+
+    if (res.error) {
+      window.toast && toast('Помилка: ' + res.error.message, 'error');
+      return;
+    }
+    if (!res.data) {
+      // RLS silent fail — 0 rows повернуто
+      window.toast && toast('Не збережено (RLS заблокувала). Перевір що ти у списку users (auth_id мапиться).', 'error');
+      return;
+    }
+
+    window.toast && toast(state.editingId ? 'Збережено' : 'Створено: ' + res.data.title, 'success');
+    var m = document.getElementById('taskModal'); if (m) m.classList.remove('show');
+    try { window.loadTasks && await loadTasks(); } catch (_) {}
+    try { window.triggerNotifyWorker && triggerNotifyWorker(); } catch (_) {}
+  }
+
+  function installSaveTaskV2() {
+    window.saveTask = saveTaskV2;
     var btn = document.getElementById('saveTaskBtn');
-    if (btn) btn.onclick = window.saveTask;
+    if (btn) btn.onclick = saveTaskV2;
+  }
+  function wrapSaveTaskErrors() {
+    installSaveTaskV2();
+    // Retry щоб переконатися що onclick привʼязаний навіть після pізніших script binders
+    setTimeout(installSaveTaskV2, 600);
+    setTimeout(installSaveTaskV2, 2000);
+  }
+
+  /* ===== 7c. Cmd+S перехопити ГЛОБАЛЬНО з preventDefault ===== */
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы' || e.key === 'і' || e.key === 'І')) {
+      var modal = document.getElementById('taskModal');
+      if (modal && modal.classList.contains('show')) {
+        e.preventDefault();
+        e.stopPropagation();
+        saveTaskV2();
+      }
+    }
+  }, true); // capture phase — раніше за browser і за існуючий handler
+
+  /* ===== 7d. + Нова задача button у view header (раніше display:none) ===== */
+  function injectNewTaskButton() {
+    var addBtn = document.getElementById('addTaskBtn');
+    if (addBtn) addBtn.style.display = 'inline-flex';
+    // Якщо нема — додаємо у header
+    var headerArea = document.querySelector('.filter-bar, .toolbar, .header, header, .topbar');
+    if (!headerArea || headerArea.querySelector('.new-task-cta')) return;
+    var btn = document.createElement('button');
+    btn.className = 'add-btn new-task-cta';
+    btn.style.cssText = 'background:var(--red,#E30613);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;margin-left:8px;letter-spacing:.05em;';
+    btn.innerHTML = '+ НОВА ЗАДАЧА';
+    btn.onclick = function () { window.openTaskModal && openTaskModal(null); };
+    headerArea.appendChild(btn);
   }
 
   /* ===== 7b. Same wrap для postComment — Daniel "коментарі не відправляються" ===== */
@@ -317,6 +398,7 @@
     wrapPostCommentErrors();
     bindDuePicker();
     patchWatchersFocus();
+    injectNewTaskButton();
   }
 
   if (document.readyState === 'loading') {
