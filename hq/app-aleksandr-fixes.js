@@ -15,13 +15,12 @@
   var css = document.createElement('style');
   css.id = 'aleksandr-fixes-css';
   css.textContent = [
-    /* 2: cell не клікабельна, + кнопка показується при hover */
+    /* 2: cell не клікабельна на empty area (native + у нижньому правому куті — нехай він) */
     '.cal-day { cursor: default !important; position: relative; }',
-    '.cal-day .cal-add-btn { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(227,6,19,0.85); color: #fff; border: none; cursor: pointer; font-size: 14px; line-height: 1; display: none; align-items: center; justify-content: center; padding: 0; z-index: 2; transition: transform .12s, background .12s; }',
-    '.cal-day:hover .cal-add-btn { display: flex; }',
-    '.cal-day .cal-add-btn:hover { background: #ff1a2b; transform: scale(1.15); }',
     '.cal-card { cursor: pointer !important; }',
-    /* розрізняємо мій '+' (червоний — створити pub) і "+N ще" (синій — показати решту публікацій) */
+    /* HIDE моя дублююча .cal-add-btn (якщо ще лишилась з кеш-render) */
+    '.cal-day .cal-add-btn { display: none !important; }',
+    /* "+N ще" (синій pill) — щоб не плутати з нативним "+" (червоний) */
     '.cal-day .more { background: rgba(59,130,246,0.85) !important; color: #fff !important; padding: 2px 8px !important; border-radius: 100px !important; font-size: 10px !important; font-weight: 600; cursor: pointer; }',
     '.cal-day .more:hover { background: #3b82f6 !important; }',
     /* 3: DreamCar Life — білий фон, чорний текст */
@@ -55,36 +54,10 @@
     Store.upsertPub.__optimistic = true;
   }
 
-  /* ===== 2. + button у комірці calendar + блокування cell click ===== */
+  /* ===== 2. Прибрати випадкову створену .cal-add-btn з попередніх кешів =====
+   * Native HQ має свій "+" внизу справа cell — не дублюємо. */
   function injectCellAddButtons() {
-    document.querySelectorAll('.cal-day').forEach(function (cell) {
-      if (cell.querySelector('.cal-add-btn')) return;
-      var btn = document.createElement('button');
-      btn.className = 'cal-add-btn';
-      btn.title = 'Нова публікація у цей день';
-      btn.textContent = '+';
-      btn.onclick = function (e) {
-        e.stopPropagation();
-        e.preventDefault();
-        if (typeof window.createPub !== 'function') return;
-        var date = cell.dataset.date;
-        if (!date) return;
-        window.createPub(new Date(date + 'T12:00:00'));
-      };
-      cell.appendChild(btn);
-      // Блокуємо існуючий cell onclick (createPub on empty area)
-      var origOnClick = cell.onclick;
-      cell.onclick = function (e) {
-        // Якщо клік на cal-card / more / cal-add-btn → нехай рідний handler спрацює
-        if (e.target.closest('.cal-card') || e.target.classList.contains('more') || e.target.classList.contains('cal-add-btn')) {
-          if (origOnClick) origOnClick.call(cell, e);
-          return;
-        }
-        // Інакше — нічого не робимо (cell не клікабельна)
-        e.preventDefault();
-        e.stopPropagation();
-      };
-    });
+    document.querySelectorAll('.cal-add-btn').forEach(function(el){ el.remove(); });
   }
 
   /* ===== 3. DreamCar Life launch styling ===== */
