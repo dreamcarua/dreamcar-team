@@ -316,28 +316,67 @@
   }
 
   /* ===== 9. Watchers dropdown — robust handler через event delegation =====
-   * Native renderWatchers() переписує innerHTML #watchersMS при кожній зміні,
-   * через що inp.oninput може загубитись. Робимо delegation на document — handlers
-   * виживають перерендер. Плюс показуємо ВСІХ юзерів на focus (без вводу). */
-  function renderWatchersListAt(inp, list, query) {
-    if (!window.state || !Array.isArray(state.users) || !state.users.length) return;
+   * v3 (03.06): + API fallback якщо state.users пустий + visible placeholder. */
+  
+  var _watchersCache = null; // fallback cache якщо state.users порожній
+  
+  async function ensureUsersLoaded() {
+    if (window.state && Array.isArray(state.users) && state.users.length) {
+      _watchersCache = state.users;
+      return state.users;
+    }
+    if (_watchersCache) return _watchersCache;
+    if (!window.supabase) return [];
+    try {
+      console.log('[watchers] state.users empty — fallback fetch from API');
+      var r = await window.supabase.from('users').select('id,name,email,role').eq('is_active', true).order('name');
+      _watchersCache = r.data || [];
+      // Спробуємо синхронізувати з state теж
+      if (window.state && Array.isArray(state.users) && !state.users.length) {
+        state.users = _watchersCache;
+      }
+      console.log('[watchers] fallback loaded:', _watchersCache.length, 'users');
+      return _watchersCache;
+    } catch (e) {
+      console.error('[watchers] fallback fetch error', e);
+      return [];
+    }
+  }
+  
+  async function renderWatchersListAt(inp, list, query) {
+    var users = await ensureUsersLoaded();
+    
+    if (!users.length) {
+      list.innerHTML = '<div class="ms-list-item" style="opacity:.6;cursor:default;">Немає юзерів у системі</div>';
+      list.classList.add('show');
+      var r0 = inp.getBoundingClientRect();
+      list.style.left = r0.left + 'px';
+      list.style.top = (r0.bottom + window.scrollY + 2) + 'px';
+      list.style.width = Math.max(r0.width, 240) + 'px';
+      return;
+    }
+    
     var q = (query || '').toLowerCase().trim();
-    var sel = state.watchers || [];
-    var matches = state.users.filter(function (u) {
+    var sel = (window.state && state.watchers) || [];
+    var matches = users.filter(function (u) {
       if (sel.indexOf(u.id) >= 0) return false;
-      if (!q) return true; // на focus без вводу — показати всіх
+      if (!q) return true;
       var n = (u.name || '').toLowerCase();
       var e = (u.email || '').toLowerCase();
       return n.indexOf(q) >= 0 || e.indexOf(q) >= 0;
     }).slice(0, 20);
 
-    if (!matches.length) { list.classList.remove('show'); list.innerHTML = ''; return; }
-    list.innerHTML = matches.map(function (u) {
-      var label = (u.name || u.email).replace(/</g, '&lt;');
-      var role = u.role ? ' <span style="opacity:.5;font-size:11px">· ' + u.role + '</span>' : '';
-      return '<div class="ms-list-item" data-uid="' + u.id + '">' + label + role + '</div>';
-    }).join('');
-    list.classList.add('show');
+    if (!matches.length) {
+      list.innerHTML = '<div class="ms-list-item" style="opacity:.6;cursor:default;">' + (q ? 'Нічого не знайдено за "' + q + '"' : 'Всіх юзерів вже додано') + '</div>';
+      list.classList.add('show');
+    } else {
+      list.innerHTML = matches.map(function (u) {
+        var label = (u.name || u.email).replace(/</g, '&lt;');
+        var role = u.role ? ' <span style="opacity:.5;font-size:11px">· ' + u.role + '</span>' : '';
+        return '<div class="ms-list-item" data-uid="' + u.id + '">' + label + role + '</div>';
+      }).join('');
+      list.classList.add('show');
+    }
     var r = inp.getBoundingClientRect();
     list.style.left = r.left + 'px';
     list.style.top = (r.bottom + window.scrollY + 2) + 'px';
