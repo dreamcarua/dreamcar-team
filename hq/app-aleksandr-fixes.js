@@ -33,6 +33,15 @@
     '.card-save-fab::after { content: attr(data-tip); position: absolute; right: 68px; top: 50%; transform: translateY(-50%); background: #0a0a0a; color: #fff; font-size: 12px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; }',
     '.card-save-fab:hover::after { opacity: 1; }',
     '@media (max-width: 900px){ .card-save-fab { bottom: 16px; right: 16px; width: 52px; height: 52px; font-size: 20px; } }',
+    /* 5: креативи у формі редагування — клікабельні + ▶ for video */
+    '.cs-item { cursor: pointer; position: relative; }',
+    '.cs-item:hover { outline: 2px solid var(--red, #E30613); }',
+    '.cs-item video { background: #0a0a0a; }',
+    '.cs-item::after { content: ""; }',
+    '.cs-item[data-type="video"]::before { content: "▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; z-index: 2; }',
+    '.ov-cr-thumb { cursor: pointer; }',
+    '.ov-cr-thumb:hover { outline: 2px solid var(--red, #E30613); }',
+    '.ov-cr-thumb[data-type="video"]::before { content: "▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; z-index: 2; }',
   ].join('\n');
   document.head.appendChild(css);
 
@@ -127,16 +136,77 @@
   var mo = new MutationObserver(function () {
     injectCellAddButtons();
     markDcLifeCards();
+    markCreativeTileTypes();
     if (location.hash.startsWith('#publication/')) {
       injectSaveFab();
       ensureDcLifeOption();
     }
   });
 
+  /* ===== 5. CREATIVE TILE CLICK → preview modal (03.06.2026 Вадим: video без preview) ===== */
+  document.addEventListener('click', function (e) {
+    // Strip у формі редагування (.cs-item) АБО overview thumbs (.ov-cr-thumb)
+    var tile = e.target.closest('.cs-item') || e.target.closest('.ov-cr-thumb');
+    if (!tile) return;
+    // skip remove button
+    if (e.target.classList.contains('cs-remove') || e.target.closest('.cs-remove')) return;
+    // skip if click came from already-controlling <video controls>
+    if (e.target.tagName === 'VIDEO' && e.target.hasAttribute('controls')) return;
+
+    var creativeId = tile.dataset.id || tile.dataset.cid;
+    if (!creativeId && tile.querySelector('img,video')) {
+      // try to find id from parent walker
+      var par = tile.closest('[data-id]'); if (par) creativeId = par.dataset.id;
+    }
+    if (!creativeId) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      if (typeof window.openCreative === 'function') {
+        window.openCreative(creativeId);
+      } else {
+        // fallback inline preview overlay
+        var c = window.Store && Store.creative && Store.creative(creativeId);
+        if (c) showCreativePreview(c);
+      }
+    } catch (err) {
+      console.error('[creative-preview]', err);
+    }
+  }, true);
+
+  /* Fallback inline preview overlay якщо openCreative не доступна */
+  function showCreativePreview(c) {
+    var url = c.compressed_url || c.url || c.thumbnail_url || '';
+    if (!url) { alert('Файл недоступний (нема URL)'); return; }
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;cursor:pointer;';
+    var media = c.type === 'video'
+      ? '<video src="' + url + '" controls autoplay style="max-width:90vw;max-height:90vh;background:#000;"></video>'
+      : '<img src="' + url + '" style="max-width:90vw;max-height:90vh;object-fit:contain;"/>';
+    ov.innerHTML = media + '<button style="position:absolute;top:24px;right:24px;background:rgba(255,255,255,0.1);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;">✕</button>';
+    ov.onclick = function (e) { if (e.target === ov || e.target.tagName === 'BUTTON') ov.remove(); };
+    document.body.appendChild(ov);
+  }
+
+  /* Mark creative tiles with data-type for CSS ::before ▶ */
+  function markCreativeTileTypes() {
+    if (!window.Store || !Store.creative) return;
+    document.querySelectorAll('.cs-item[data-id], .ov-cr-thumb[data-id]').forEach(function (el) {
+      var id = el.dataset.id;
+      if (!id || el.hasAttribute('data-type')) return;
+      try {
+        var c = Store.creative(id);
+        if (c && c.type) el.setAttribute('data-type', c.type);
+      } catch (_) {}
+    });
+  }
+
   function init() {
     patchUpsertPubReRender();
     injectCellAddButtons();
     markDcLifeCards();
+    markCreativeTileTypes();
     mo.observe(document.body, { childList: true, subtree: true });
   }
 
