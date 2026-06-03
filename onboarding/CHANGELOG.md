@@ -8,6 +8,94 @@
 
 ---
 
+## 03.06.2026 — BIG SPRINT day (HQ + Dashboard + Webhooks)
+
+> 103 коміти (80 у team, 23 у dashboard-dreamcar). Всі P0/P1/P2 проблеми зачищені.
+
+### 🛡 INFRA / WEBHOOKS (паралельна автономна система)
+- 🆕 **Edge Function `webhook-dashboard-sendpulse`** (v1 ACTIVE) — прийом оплат напряму у Supabase, минаючи сервер Олександра. URL: `https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/webhook-dashboard-sendpulse`.
+- 🆕 **Edge Function `webhook-dashboard-make-com`** (v1 ACTIVE) — fallback endpoint для legacy Make.com сценаріїв.
+- 🆕 **`dashboard_webhook_health()` RPC** + `webhook_health_monitor` view — success_rate, avg processing_ms, error breakdown за 24h по source.
+- 🆕 **Cron `webhook-health-alert`** (*/30 хв) — якщо success_rate <90% → автоматичний DM у TG.
+- 🔧 **`webhooks_auto_cleanup_cron` fix** — колонка `received_at` не існує, переписано на `created_at`.
+- 📖 Dual-write monitoring: legacy webhook (сервер Олександра) залишається активним 1 тиждень для звірки до cutover.
+- 🚀 SendPulse webhook URL доданий у `Вебхуки об успешной оплате` (паралельно з legacy).
+
+### 🆕 HQ — Board view + Next Action Pipeline + UX
+- 🆕 **Board view (5-й режим календаря)** — kanban 4 колонки (script→design→editing→done) з drag-drop та transitionStatus. Файл: `hq/app-board-view.js` (225 LOC). Запит Давида.
+- 🆕 **Next Action Pipeline** — "Зараз хід" блок у edit modal: emoji за kind (8 типів: script/video/design/copy/review/revise/approve/other) + Modal "Передати" з user picker, kind radio, note textarea. AFTER UPDATE trigger у БД + notify-tg v24 handler `handleNextActionChange`. Файл: `hq/app-next-action.js`. Запит Артема+Олександра.
+- 🆕 **flatpickr заміна нативного datetime-local/date** — uk локаль, dark theme, minuteIncrement=5. Bind на `f_dateTime`, `f_deadline`, `lnf_from/to`, `hv_from/to`. Файл: `hq/app-hq-flatpickr.js`. Запит Давида.
+- 🆕 **+ Cell button у cal-day** (hover-shown), **DreamCar Life launch styling** (white bg), **Floating Save FAB** у edit modal, **Cell click blocker** (тільки `.cal-card` + `.more` клікабельні), **Optimistic re-render** після Store.upsertPub, **візуальна різниця "+" (створити pub) vs "+N ще"** (синій pill). Файл: `hq/app-aleksandr-fixes.js` (169 LOC). Запит Олександра.
+- 🆕 **Orphan Untitled drafts fix** — `createPub` → `upsertPub` тримає `_isNew` у memory, persist лише при save з title. Default route reset на reload (`performance.navigation.type='reload'`). Periodic cleanup кожні 30 сек. Created-by badge + save-as-template button. Файл: `hq/app-orphan-drafts-fix.js` (176 LOC).
+
+### 🛡 HQ session bleed (CRITICAL)
+- 🛡 **Session-bleed guard** — на login перевіряти `currentUserId` mismatch → wipe `localStorage`. Олександр бачив себе як Вадим через cached previous user → виправлено.
+
+### 🔧 Compress pipeline fix
+- 🔧 **app-drive.js INSERT compressed_status fix** — orphan drafts фікс. Раніше INSERT не передавав `compressed_status`, через що 3 відео >50MB (e-tron_1.mp4 376MB, 210MB, test.mp4 131MB) застрягли як `n/a`. Тепер: `compressedStatus = needsServerCompress ? 'pending' : 'ready'`.
+
+### 🆕 TASKS — 10 багів Давида + global UX
+- 🆕 **saveTaskV2 з `.select().single()`** — RLS silent fail detection. Раніше save мовчки падав без видимого error.
+- 🆕 **Dirty-state backdrop confirm** — захист від втрати даних при кліку поза модалкою.
+- 🆕 **Workflow buttons у overview**: ✓ Виконано / ↩ На перевірку / 🚧 Заблоковано / 🤝 Передати.
+- 🆕 **Cmd+S global preventDefault** з cyrillic support (`s`/`ы`/`і`) — браузер не відкриває "Зберегти сторінку".
+- 🆕 **+ НОВА ЗАДАЧА CTA btn** — раніше не було видимої кнопки створення.
+- 🆕 **flatpickr для f-due** — uk локаль, datetime picker.
+- 🆕 **Watchers focus-show dropdown** — на focus показує всіх юзерів.
+- 🆕 **Tags datalist autocomplete** з історії всіх задач.
+- 🆕 **Priority hint inline** — підказка біля select.
+- 🆕 **postComment errors visibility wrap** — "коментарі не відправляються" → тепер видимий error toast.
+- 📁 Файл: `tasks/app-tasks-fixes.js` (~430 LOC, `v=20260603d`).
+
+### ⚡ DASHBOARD — Analytics performance (60-90s → 783ms)
+- ⚡ **`dashboard_kpi_with_delta` v3 без COUNT DISTINCT** (153ms замість 2722ms) — single-pass з bucket, buyers беремо з `dashboard_extended_kpi`.
+- ⚡ **`mv_dashboard_utm_agg` pre-aggregated MV** (`*/15 min` refresh) — `#terms` route 14s → 34ms.
+- ⚡ **`dashboard_agg_deals_with_traffic` через MV** — 34ms.
+- ⚡ **`mv_dashboard_globals` hourly refresh** + `dashboard_globals()` RPC — sub-ms KPI loading.
+- ⚡ **DROP unused indexes** на `dashboard_deals` + drop redundant single-col indexes.
+- 🛡 **REVOKE MVs from anon/authenticated** (доступ тільки через RPC).
+- ⚡ **`fetchAllDealsBatched` secondary order `id desc`** — запобігає pagination duplicates при concurrent ETL.
+
+### 🆕 DASHBOARD — BIG SPRINT (P1 + P2 повністю зачищені)
+- 🆕 **People Merge route `#people`** — CRM↔ADS mapping `dashboard_people_mapping` table + `agg_by_person` RPC + UI з add/edit/delete.
+- 🆕 **Webhook Health KPI cards** (`#webhooks`) — success_rate, count, avg ms по source за 24h.
+- 🆕 **Cohort Retention `#cohort`** — MV `dashboard_cohort_retention` + cron daily 04:00, heatmap UI.
+- 🆕 **Source Distribution doughnut** (P1 #9).
+- 🆕 **Per-page selector** у всіх таблицях (P1 #7).
+- 🆕 **Projects CRUD у Settings** (P1 #13) — add/edit/archive проектів через UI.
+- 🆕 **manual_costs by category** pie + timeline (P1 #12).
+- 🆕 **Deals 34 колонки** + UTM free-text filters + `paid_at`/`failed_at` (P1 #8, #10).
+- 🆕 **Hourly heatmap** DOW × hour Kyiv-time у Analytics (P2 #14).
+- 🆕 **Saved Views ⭐ dropdown** (localStorage) + **Light theme toggle ☀️/🌙** + **Notifications tray** `window.dcNotify` (P2 #18/#19/#20). Файл: `docs/app-dashboard-extras.js` (~193 LOC).
+- 🆕 **Renderprojectsoverview unique_buyers fix** (true COUNT DISTINCT через RPC).
+- 🆕 **Ad spend + ROI + CAC per project** — додано у `Projects Overview`.
+- 🆕 **Extended KPI block** — time-to-pay, repeat rate, currency split (UAH/USD/EUR).
+
+### 🔧 DASHBOARD — UX fixes
+- 🔧 **f-model "Усі проекти" reset** — при виборі скидає дати на all-time (2019→today), getActiveModel() поверне null → else-branch.
+- 🔧 **f-model period sync** — при m.start/m.end → write у `filters.from/to`.
+- 🔧 **Ads Overview pagination loop** — REST default limit=1000 не повертав всі 6680 rows → 455K UAH → виправлено на full pagination → 3.7M UAH actual spend.
+
+### 🔧 BUG FIX — notify-tg duplicate
+- 🔧 **`AFTER UPDATE OF status`** замість generic `AFTER UPDATE` — раніше тригер запускався на КОЖЕН UPDATE публікації (Олександр отримав дубль о 23:48 за погоджений матеріал).
+
+### 🆕 NEXT ACTION PIPELINE (DB)
+- 🆕 SQL: 5 нових колонок у `publications` (`next_action_user_id`, `next_action_kind`, `next_action_at`, `next_action_note`, `next_action_handed_off_by`).
+- 🆕 AFTER UPDATE TRIGGER + `handleNextActionChange` у `notify-tg` v24 — DM наступному виконавцю з emoji+kind+note.
+
+### 🛡 SECURITY / CLEANUP
+- 🛡 **DROP unused indexes** на `dashboard_deals` (4 застарілих) — write speed-up.
+- 🛡 **Drop redundant single-col indexes** (де є composite).
+
+### 📖 ONBOARDING / AUDITS
+- 📖 **`DASHBOARD_PARITY_AUDIT_2026-06-03.md`** — повний звіт OLD `ticket.ai-platform.space/utm-dashboard` vs NEW `dashboard.dreamcar.ua` (80% parity, Finance gap залишається до окремого rebuild).
+- 📖 Pending manual actions (Вадим): TG_BOT_TOKEN rotate у @BotFather, HIBP password protection у Auth, `iphone.dreamcar.ua` DNS (тип A).
+
+### 👤 TEAM NAME FIX (HARD RULE)
+- 📖 У commit messages зустрічається "Daniel" — це ПОМИЛКА. У команді DreamCar є тільки **Давид (David Gennadievich, COO)**. Не плутати з Daniel / Денис / Даніл. Memory: `team_member_david.md`.
+
+---
+
 ## 02.06.2026 — вечір (audit fixes)
 
 ### 🛡 SECURITY + INFRA
