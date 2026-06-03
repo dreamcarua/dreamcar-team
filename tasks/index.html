@@ -1091,8 +1091,18 @@ function openEditModal(task){
 }
 
 async function saveTask(){
+  console.log('[saveTask v3] start', {editingId: state.editingId, publicUser: state.publicUser?.id, role: state.publicUser?.role});
   const title=document.getElementById('f-title').value.trim();
-  if(!title){toast('Введи назву','error');return;}
+  if(!title){toast('Введи назву','error');document.getElementById('f-title').focus();return;}
+
+  // CRITICAL: перевірка auth ПЕРЕД insert — інакше RLS silent fail
+  if(!state.publicUser||!state.publicUser.id){
+    const msg='⚠ Сесія втрачена. Перезавантаж сторінку (Cmd+Shift+R) і залогінься заново через Telegram.';
+    alert(msg); toast(msg,'error');
+    console.error('[saveTask v3] publicUser missing', state);
+    return;
+  }
+
   const data={
     title,
     description:document.getElementById('f-description').value.trim()||null,
@@ -1103,25 +1113,47 @@ async function saveTask(){
     recurrence:document.getElementById('f-recurrence').value||null,
     estimated_h:parseFloat(document.getElementById('f-estimated').value)||null,
     tags:document.getElementById('f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
-    subtasks:state.subtasks,
-    watchers:state.watchers,
+    subtasks:state.subtasks||[],
+    watchers:state.watchers||[],
     updated_at:new Date().toISOString(),
   };
+
   let res;
-  if(state.editingId){
-    res=await supabase.from('team_tasks').update(data).eq('id',state.editingId);
-  }else{
-    data.created_by=state.publicUser?.id;
-    data.created_at=new Date().toISOString();
-    res=await supabase.from('team_tasks').insert(data);
+  try {
+    if(state.editingId){
+      res=await supabase.from('team_tasks').update(data).eq('id',state.editingId).select().single();
+    }else{
+      data.created_by=state.publicUser.id;
+      data.created_at=new Date().toISOString();
+      res=await supabase.from('team_tasks').insert(data).select().single();
+    }
+  } catch(e) {
+    console.error('[saveTask v3] throw', e);
+    const msg='Помилка: '+(e.message||e);
+    alert(msg); toast(msg,'error');
+    return;
   }
-  if(res.error){toast('Помилка: '+res.error.message,'error');}
-  else{
-    toast(state.editingId?'Збережено':'Створено','success');
-    modal.classList.remove('show');
-    loadTasks();
-    triggerNotifyWorker(); // запустимо воркер одразу
+
+  console.log('[saveTask v3] result', res);
+
+  if(res.error){
+    const msg='Помилка БД: '+res.error.message+(res.error.code?' ['+res.error.code+']':'');
+    console.error('[saveTask v3] error', res.error);
+    alert(msg); toast(msg,'error');
+    return;
   }
+  if(!res.data){
+    // RLS silent fail: insert/update вибрався але returning повернуло 0 rows
+    const msg='⚠ RLS заблокувала збереження (0 rows returning). Твій user '+state.publicUser.id+' можливо НЕ у списку active users. Покажи скрін Console (F12) Вадиму.';
+    console.error('[saveTask v3] RLS silent fail — 0 rows', {data, user: state.publicUser});
+    alert(msg); toast(msg,'error');
+    return;
+  }
+
+  toast(state.editingId?'Збережено':'Створено: '+res.data.title,'success');
+  modal.classList.remove('show');
+  loadTasks();
+  try { triggerNotifyWorker(); } catch(_){}
 }
 
 async function deleteTask(){
