@@ -27,12 +27,8 @@
     '.cal-card[data-launch-dc-life="1"], .week-card[data-launch-dc-life="1"], .list-row[data-launch-dc-life="1"] { background: #FFFFFF !important; color: #0a0a0a !important; border-color: #FFFFFF !important; }',
     '.cal-card[data-launch-dc-life="1"] .title, .week-card[data-launch-dc-life="1"] .title, .cal-card[data-launch-dc-life="1"] .time, .week-card[data-launch-dc-life="1"] .time { color: #0a0a0a !important; }',
     '.cal-card[data-launch-dc-life="1"]::before { content: "DC LIFE"; position: absolute; top: 2px; right: 4px; font-family: "JetBrains Mono",monospace; font-size: 8px; color: #888; letter-spacing: .08em; }',
-    /* 1: floating Save button у card edit */
-    '.card-save-fab { position: fixed; bottom: 80px; right: 24px; width: 56px; height: 56px; padding: 0; background: var(--red,#E30613); color: #fff; border: none; border-radius: 50%; font-size: 22px; cursor: pointer; box-shadow: 0 6px 18px rgba(227,6,19,.5); z-index: 200; display: flex; align-items: center; justify-content: center; transition: transform .15s, box-shadow .15s; }',
-    '.card-save-fab:hover { background: #ff1a2b; transform: scale(1.06); box-shadow: 0 8px 22px rgba(227,6,19,.7); }',
-    '.card-save-fab::after { content: attr(data-tip); position: absolute; right: 68px; top: 50%; transform: translateY(-50%); background: #0a0a0a; color: #fff; font-size: 12px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; }',
-    '.card-save-fab:hover::after { opacity: 1; }',
-    '@media (max-width: 900px){ .card-save-fab { bottom: 16px; right: 16px; width: 52px; height: 52px; font-size: 20px; } }',
+    /* 1: SAVE FAB ВИМКНЕНО 03.06.2026 — Олександр скаржиться що перекриває native footer save. Native save кнопки у footer достатньо. */
+    '.card-save-fab { display: none !important; }',
     /* 5: креативи у формі редагування — клікабельні + ▶ for video */
     '.cs-item { cursor: pointer; position: relative; }',
     '.cs-item:hover { outline: 2px solid var(--red, #E30613); }',
@@ -132,15 +128,21 @@
     sel.appendChild(opt);
   }
 
-  /* ===== Init ===== */
+  /* ===== Init =====
+   * MutationObserver — БЕЗ injectSaveFab (вимкнено). 
+   * Throttle 200ms щоб не плодити інфініті re-runs у edit-modal. */
+  var moPending = false;
   var mo = new MutationObserver(function () {
-    injectCellAddButtons();
-    markDcLifeCards();
-    markCreativeTileTypes();
-    if (location.hash.startsWith('#publication/')) {
-      injectSaveFab();
-      ensureDcLifeOption();
-    }
+    if (moPending) return;
+    moPending = true;
+    setTimeout(function () {
+      moPending = false;
+      markDcLifeCards();
+      markCreativeTileTypes();
+      if (location.hash.startsWith('#publication/')) {
+        ensureDcLifeOption();
+      }
+    }, 200);
   });
 
   /* ===== 5. CREATIVE TILE CLICK → preview modal (03.06.2026 Вадим: video без preview) ===== */
@@ -204,10 +206,12 @@
 
   function init() {
     patchUpsertPubReRender();
-    injectCellAddButtons();
+    injectCellAddButtons(); // тепер тільки cleanup .cal-add-btn
     markDcLifeCards();
     markCreativeTileTypes();
-    mo.observe(document.body, { childList: true, subtree: true });
+    // Observer тільки на cal-content (не whole body — не bомбардуємо modal-body мутаціями)
+    var calArea = document.querySelector('.cal-body, .cal-content, .board-grid, #appBody, main') || document.body;
+    mo.observe(calArea, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'loading') {
