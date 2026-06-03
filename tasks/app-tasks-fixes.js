@@ -196,92 +196,14 @@
     mo.observe(overview, { childList: true, subtree: true });
   }
 
-  /* ===== 7. saveTask REPLACEMENT — explicit error visibility + .select() to detect RLS silent fails ===== */
-  async function saveTaskV2() {
-    var titleEl = document.getElementById('f-title');
-    var title = (titleEl && titleEl.value || '').trim();
-    if (!title) { window.toast && toast('Введи назву', 'error'); titleEl && titleEl.focus(); return; }
-
-    // Перевірка авторизації перед insert
-    if (!window.state || !state.publicUser || !state.publicUser.id) {
-      console.error('[saveTaskV2] state.publicUser missing — auth not ready');
-      window.toast && toast('Сесія не завантажена. Оновіть сторінку (Cmd+R) і спробуй ще раз.', 'error');
-      return;
-    }
-
-    var data = {
-      title: title,
-      description: (document.getElementById('f-description').value || '').trim() || null,
-      status: document.getElementById('f-status').value,
-      priority: document.getElementById('f-priority').value,
-      assignee_id: document.getElementById('f-assignee').value || null,
-      due_date: document.getElementById('f-due').value || null,
-      recurrence: document.getElementById('f-recurrence').value || null,
-      estimated_h: parseFloat(document.getElementById('f-estimated').value) || null,
-      tags: (document.getElementById('f-tags').value || '').split(',').map(function(s){return s.trim();}).filter(Boolean),
-      subtasks: state.subtasks || [],
-      watchers: state.watchers || [],
-      updated_at: new Date().toISOString(),
-    };
-
-    console.log('[saveTaskV2] payload', { editingId: state.editingId, data, user: state.publicUser.id });
-
-    var res;
-    try {
-      if (state.editingId) {
-        res = await window.supabase.from('team_tasks').update(data).eq('id', state.editingId).select().single();
-      } else {
-        data.created_by = state.publicUser.id;
-        data.created_at = new Date().toISOString();
-        res = await window.supabase.from('team_tasks').insert(data).select().single();
-      }
-    } catch (e) {
-      console.error('[saveTaskV2] throw', e);
-      window.toast && toast('Виняток: ' + (e.message || e), 'error');
-      return;
-    }
-
-    console.log('[saveTaskV2] result', res);
-
-    if (res.error) {
-      window.toast && toast('Помилка: ' + res.error.message, 'error');
-      return;
-    }
-    if (!res.data) {
-      // RLS silent fail — 0 rows повернуто
-      window.toast && toast('Не збережено (RLS заблокувала). Перевір що ти у списку users (auth_id мапиться).', 'error');
-      return;
-    }
-
-    window.toast && toast(state.editingId ? 'Збережено' : 'Створено: ' + res.data.title, 'success');
-    var m = document.getElementById('taskModal'); if (m) m.classList.remove('show');
-    try { window.loadTasks && await loadTasks(); } catch (_) {}
-    try { window.triggerNotifyWorker && triggerNotifyWorker(); } catch (_) {}
-  }
-
-  function installSaveTaskV2() {
-    window.saveTask = saveTaskV2;
-    var btn = document.getElementById('saveTaskBtn');
-    if (btn) btn.onclick = saveTaskV2;
-  }
-  function wrapSaveTaskErrors() {
-    installSaveTaskV2();
-    // Retry щоб переконатися що onclick привʼязаний навіть після pізніших script binders
-    setTimeout(installSaveTaskV2, 600);
-    setTimeout(installSaveTaskV2, 2000);
-  }
-
-  /* ===== 7c. Cmd+S перехопити ГЛОБАЛЬНО з preventDefault ===== */
-  document.addEventListener('keydown', function (e) {
-    if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы' || e.key === 'і' || e.key === 'І')) {
-      var modal = document.getElementById('taskModal');
-      if (modal && modal.classList.contains('show')) {
-        e.preventDefault();
-        e.stopPropagation();
-        saveTaskV2();
-      }
-    }
-  }, true); // capture phase — раніше за browser і за існуючий handler
+  /* ===== 7. saveTask REPLACEMENT — DISABLED 03.06.2026 evening
+   * Виявилось що bare `toast(...)` падає TypeError у app-tasks-fixes.js scope (toast лише у HTML closure).
+   * Тепер vmesto override — самий saveTask переписаний прямо у tasks/index.html line 1093
+   * (з alert + console.log + .select().single() + RLS silent fail detection).
+   * Cmd+S handler також у HTML line 1420 — викликає саме той локальний saveTask.
+   * Ми НЕ перевизначаємо нічого, тільки залишаємо це як no-op stub для зворотньої сумісності.
+   */
+  function wrapSaveTaskErrors() { /* no-op */ }
 
   /* ===== 7d. + Нова задача button у view header (раніше display:none) ===== */
   function injectNewTaskButton() {
