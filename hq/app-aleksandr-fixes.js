@@ -29,8 +29,11 @@
     '.cal-card[data-launch-dc-life="1"] .title, .week-card[data-launch-dc-life="1"] .title, .cal-card[data-launch-dc-life="1"] .time, .week-card[data-launch-dc-life="1"] .time { color: #0a0a0a !important; }',
     '.cal-card[data-launch-dc-life="1"]::before { content: "DC LIFE"; position: absolute; top: 2px; right: 4px; font-family: "JetBrains Mono",monospace; font-size: 8px; color: #888; letter-spacing: .08em; }',
     /* 1: floating Save button у card edit */
-    '.card-save-fab { position: sticky; bottom: 12px; right: 12px; float: right; padding: 10px 18px; background: var(--red,#E30613); color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(227,6,19,.4); z-index: 50; }',
-    '.card-save-fab:hover { background: #ff1a2b; }',
+    '.card-save-fab { position: fixed; bottom: 80px; right: 24px; width: 56px; height: 56px; padding: 0; background: var(--red,#E30613); color: #fff; border: none; border-radius: 50%; font-size: 22px; cursor: pointer; box-shadow: 0 6px 18px rgba(227,6,19,.5); z-index: 200; display: flex; align-items: center; justify-content: center; transition: transform .15s, box-shadow .15s; }',
+    '.card-save-fab:hover { background: #ff1a2b; transform: scale(1.06); box-shadow: 0 8px 22px rgba(227,6,19,.7); }',
+    '.card-save-fab::after { content: attr(data-tip); position: absolute; right: 68px; top: 50%; transform: translateY(-50%); background: #0a0a0a; color: #fff; font-size: 12px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; }',
+    '.card-save-fab:hover::after { opacity: 1; }',
+    '@media (max-width: 900px){ .card-save-fab { bottom: 16px; right: 16px; width: 52px; height: 52px; font-size: 20px; } }',
   ].join('\n');
   document.head.appendChild(css);
 
@@ -105,7 +108,9 @@
     var body = modal.querySelector('.modal-body') || modal;
     var btn = document.createElement('button');
     btn.className = 'card-save-fab';
-    btn.textContent = '💾 Зберегти';
+    btn.innerHTML = '💾';
+    btn.setAttribute('data-tip', 'Зберегти (⌘S)');
+    btn.title = 'Зберегти публікацію';
     btn.onclick = async function () {
       var idMatch = location.hash.match(/^#publication\/(.+)$/);
       if (!idMatch) return;
