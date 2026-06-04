@@ -1092,10 +1092,17 @@ async function boot() {
       ind.className = 'backend-indicator live';
       document.getElementById('backendIndicatorLabel').textContent = 'Live · ' + me.name;
       ind.style.display = 'flex';
-      // 03.06.2026: ?next=... redirect для Tasks→HQ login bridge (Давид login loop fix)
+      // 03.06.2026: ?next=... redirect для Tasks→HQ і Dashboard→HQ login bridge
       try {
-        var nextParam = new URLSearchParams(location.search).get('next');
-        if (nextParam && /^\/[a-z0-9_-]+\/?$/i.test(nextParam)) {
+        var qs = new URLSearchParams(location.search);
+        var nextParam = qs.get('next');
+        var isDashboard = qs.get('dashboard') === '1';
+        if (isDashboard) {
+          // Redirect на dashboard.dreamcar.ua з оригінальним path
+          var dashUrl = 'https://dashboard.dreamcar.ua' + (nextParam && /^\/[\w/#-]*$/.test(nextParam) ? nextParam : '/');
+          console.log('[auth] login complete → dashboard:', dashUrl);
+          setTimeout(function () { window.location.href = dashUrl; }, 200);
+        } else if (nextParam && /^\/[a-z0-9_-]+\/?$/i.test(nextParam)) {
           console.log('[auth] login complete → redirect to', nextParam);
           setTimeout(function () { window.location.href = nextParam; }, 200);
         }
