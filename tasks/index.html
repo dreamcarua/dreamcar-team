@@ -676,8 +676,15 @@ async function loadPrefs(){
 function subscribeRealtime(){
   try{
     supabase.channel('team_tasks_realtime').on('postgres_changes',{event:'*',schema:'public',table:'team_tasks'},payload=>{
-      if(payload.eventType==='INSERT')state.tasks.unshift(payload.new);
-      if(payload.eventType==='UPDATE'){const i=state.tasks.findIndex(t=>t.id===payload.new.id);if(i>=0)state.tasks[i]=payload.new;}
+      // IDEMPOTENT: ігноруємо INSERT/UPDATE якщо id вже існує (race з save + loadTasks)
+      if(payload.eventType==='INSERT'){
+        if(!state.tasks.find(t=>t.id===payload.new.id)) state.tasks.unshift(payload.new);
+      }
+      if(payload.eventType==='UPDATE'){
+        const i=state.tasks.findIndex(t=>t.id===payload.new.id);
+        if(i>=0) state.tasks[i]=payload.new;
+        else state.tasks.unshift(payload.new); // UPDATE до неіснуючої → вставити
+      }
       if(payload.eventType==='DELETE')state.tasks=state.tasks.filter(t=>t.id!==payload.old.id);
       renderBoard();
     }).subscribe();
