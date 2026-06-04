@@ -1346,20 +1346,23 @@ async function loadTrash(){
   if(error){console.warn('[loadTrash]', error); state.trash=[]; return;}
   state.trash = data || [];
 }
+window.loadTrash = loadTrash;
 
 async function showTrashView(){
   await loadTrash();
   renderTrash();
-  document.querySelector('.kanban').style.display = 'none';
-  document.getElementById('trashView').style.display = 'block';
+  const k = document.querySelector('.kanban'); if(k) k.style.display = 'none';
+  const tv = document.getElementById('trashView'); if(tv) tv.style.display = 'block';
   location.hash = '#trash';
 }
+window.showTrashView = showTrashView;
 
 function hideTrashView(){
-  document.getElementById('trashView').style.display = 'none';
-  document.querySelector('.kanban').style.display = '';
+  const tv = document.getElementById('trashView'); if(tv) tv.style.display = 'none';
+  const k = document.querySelector('.kanban'); if(k) k.style.display = '';
   if(location.hash === '#trash') location.hash = '';
 }
+window.hideTrashView = hideTrashView;
 
 document.addEventListener('click', e=>{
   if(e.target?.id === 'trashBackBtn') hideTrashView();
