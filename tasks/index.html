@@ -636,8 +636,11 @@ document.getElementById('loginGoogle').onclick=async()=>{
   if(error)setStatus('OAuth: '+error.message,'error');
 };
 document.getElementById('loginTelegram').onclick=()=>{
-  toast('Telegram login: підключи через HQ → Settings → Telegram','info');
-  setTimeout(()=>window.open('/hq/#settings','_blank'),800);
+  // 03.06.2026 Давид fix: TG login робиться у HQ (через tg-login-verify edge fn),
+  // session shareable через localStorage. Redirect: /hq/ → user logins TG → redirect назад /tasks/.
+  setStatus('Перенаправляю на TG login через HQ…');
+  var ret = encodeURIComponent(window.location.pathname);
+  window.location.href = '/hq/?next=' + ret;
 };
 
 async function loadUsers(){
