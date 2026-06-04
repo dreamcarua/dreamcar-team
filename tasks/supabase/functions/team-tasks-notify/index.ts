@@ -179,10 +179,12 @@ async function sendTelegram(
   }
 }
 
-// Build inline keyboard для task notification (assigned/reminder/overdue)
-function buildTaskKeyboard(taskId: string | null, kind: string): Array<Array<{ text: string; callback_data: string }>> | undefined {
+// Build inline keyboard для task notification
+// 03.06.2026: "Відкрити" — це URL button (1 клік відкриває браузер у TG client)
+function buildTaskKeyboard(taskId: string | null, kind: string): Array<Array<Record<string, string>>> | undefined {
   if (!taskId) return undefined;
-  // Quick actions для actionable notifications
+  const tasksBase = Deno.env.get('TASKS_URL') || 'https://team.dreamcar.ua/tasks';
+  const openUrl = `${tasksBase}/#task=${taskId}`;
   if (['assigned', 'reminder_24h', 'reminder_1h', 'overdue', 'recurring_created', 'mention', 'comment'].includes(kind)) {
     return [
       [
@@ -190,7 +192,7 @@ function buildTaskKeyboard(taskId: string | null, kind: string): Array<Array<{ t
         { text: '▶ В роботу', callback_data: `task:doing:${taskId}` },
       ],
       [
-        { text: '👀 Відкрити', callback_data: `task:open:${taskId}` },
+        { text: '👀 Відкрити у браузері', url: openUrl },
       ],
     ];
   }
