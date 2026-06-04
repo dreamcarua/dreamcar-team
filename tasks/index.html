@@ -431,8 +431,18 @@
     <button class="chip" data-filter="mentions">@мене</button>
     <button class="chip" data-filter="watching">Стежу</button>
     <button class="chip" data-filter="created">Я створив</button>
+    <button class="chip" id="trashBtn" type="button" title="Корзина" onclick="showTrashView()">🗑 КОРЗИНА <span id="trashCount" style="opacity:.6;"></span></button>
     <button class="chip chip-ghost" id="templatesBtn" type="button" title="Шаблони задач">📋 ШАБЛОНИ</button>
   </nav>
+  
+  <!-- TRASH VIEW (hidden by default, shown on #trash hash) -->
+  <div id="trashView" style="display:none;padding:8px 0;">
+    <div style="padding:16px;border-bottom:1px solid var(--steel);font-family:Oswald,sans-serif;font-size:18px;display:flex;justify-content:space-between;align-items:center;">
+      <span>🗑 КОРЗИНА</span>
+      <button class="filter-btn" id="trashBackBtn" type="button">← Назад до задач</button>
+    </div>
+    <div id="trashList"></div>
+  </div>
 
   <div class="kanban">
     <div class="col" data-status="inbox"><div class="col-head"><span class="col-title">📥 INBOX</span><span class="col-count" id="count-inbox">0</span></div><div class="col-body" data-status="inbox" id="col-inbox"></div></div>
@@ -617,7 +627,10 @@ async function checkAuth(){
       document.getElementById('bellBtn').style.display='inline-flex';
       document.getElementById('prefsBtn').style.display='inline-flex';
       document.getElementById('helpBtn').style.display='inline-flex';
-      await Promise.all([loadUsers(),loadTasks(),loadNotifications(),loadPrefs()]);
+      await Promise.all([loadUsers(),loadTasks(),loadNotifications(),loadPrefs(),loadTrash()]);
+      updateTrashCount();
+      // Якщо #trash hash при першому load — показати trash view
+      if(location.hash === '#trash') showTrashView();
       subscribeRealtime();
     }else{
       document.getElementById('loginGate').style.display='flex';
@@ -1211,10 +1224,124 @@ async function saveTask(){
 
 async function deleteTask(){
   if(!state.editingId)return;
-  if(!confirm('Видалити завдання? Це не можна скасувати.'))return;
-  const {error}=await supabase.from('team_tasks').delete().eq('id',state.editingId);
-  if(error)toast('Помилка: '+error.message,'error');
-  else{toast('Видалено','success');modal.classList.remove('show');loadTasks();}
+  const me = state.publicUser;
+  const task = state.tasks.find(t=>t.id===state.editingId);
+  if(!task){toast('Задача не знайдена','error');return;}
+  // Перевірка прав: тільки автор + CEO/COO
+  const isAuthor = task.created_by === me?.id;
+  const isAdmin = me?.role && ['ceo','coo'].includes(me.role);
+  if(!isAuthor && !isAdmin){
+    toast('Видалити може тільки автор задачі або CEO/COO','error');
+    return;
+  }
+  const reason = prompt('Перенести у корзину?\nЗберігається 30 днів, потім видаляється назавжди.\n\nПричина (опціонально):', '');
+  if(reason === null) return; // user canceled
+  const {error} = await supabase.from('team_tasks')
+    .update({deleted_at:new Date().toISOString(), deleted_reason: reason||null})
+    .eq('id', state.editingId);
+  if(error){toast('Помилка: '+error.message,'error');return;}
+  toast('Перенесено у корзину','success');
+  modal.classList.remove('show');
+  // Видалити з local state (RLS вже не покаже)
+  state.tasks = state.tasks.filter(t=>t.id!==state.editingId);
+  renderBoard();
+  updateTrashCount();
+}
+
+async function restoreTask(taskId){
+  const {error} = await supabase.from('team_tasks').update({deleted_at:null}).eq('id', taskId);
+  if(error){toast('Помилка відновлення: '+error.message,'error');return;}
+  toast('Задачу відновлено','success');
+  await loadTasks();
+  await loadTrash();
+  updateTrashCount();
+}
+
+async function purgeTask(taskId){
+  if(!confirm('Видалити НАЗАВЖДИ? Не можна буде відновити.'))return;
+  const {error} = await supabase.from('team_tasks').delete().eq('id', taskId);
+  if(error){toast('Помилка: '+error.message,'error');return;}
+  toast('Видалено назавжди','success');
+  state.trash = (state.trash||[]).filter(t=>t.id!==taskId);
+  renderTrash();
+  updateTrashCount();
+}
+
+async function loadTrash(){
+  const {data, error} = await supabase.rpc('tasks_trash');
+  if(error){console.warn('[loadTrash]', error); state.trash=[]; return;}
+  state.trash = data || [];
+}
+
+async function showTrashView(){
+  await loadTrash();
+  renderTrash();
+  document.querySelector('.kanban').style.display = 'none';
+  document.getElementById('trashView').style.display = 'block';
+  location.hash = '#trash';
+}
+
+function hideTrashView(){
+  document.getElementById('trashView').style.display = 'none';
+  document.querySelector('.kanban').style.display = '';
+  if(location.hash === '#trash') location.hash = '';
+}
+
+document.addEventListener('click', e=>{
+  if(e.target?.id === 'trashBackBtn') hideTrashView();
+});
+
+window.addEventListener('hashchange', ()=>{
+  if(location.hash === '#trash') showTrashView();
+  else if(document.getElementById('trashView').style.display === 'block') hideTrashView();
+});
+
+// Periodic trash count refresh
+setInterval(async ()=>{ if(state.publicUser){ await loadTrash(); updateTrashCount(); } }, 120000);
+
+function updateTrashCount(){
+  const el = document.getElementById('trashCount');
+  if(el) el.textContent = state.trash ? '('+state.trash.length+')' : '';
+}
+
+function renderTrash(){
+  const cont = document.getElementById('trashList');
+  if(!cont) return;
+  const items = state.trash || [];
+  if(!items.length){
+    cont.innerHTML = '<div style="padding:40px;text-align:center;color:var(--ash);">🗑 Корзина порожня</div>';
+    return;
+  }
+  const me = state.publicUser?.id;
+  const isAdmin = state.publicUser?.role && ['ceo','coo'].includes(state.publicUser.role);
+  cont.innerHTML = '<div style="padding:8px 16px;font-size:12px;color:var(--ash);">Задачі зберігаються 30 днів, потім видаляються назавжди. Можна відновити.</div>' +
+    items.map(t=>{
+      const author = state.users.find(u=>u.id===t.created_by);
+      const canRestore = t.deleted_by===me || t.created_by===me || isAdmin;
+      const canPurge = t.created_by===me || isAdmin;
+      const daysLeft = t.days_remaining || 0;
+      const daysColor = daysLeft <= 3 ? '#FF6A7A' : daysLeft <= 7 ? '#FBBF24' : 'var(--ash)';
+      return `<div class="trash-row" style="padding:14px 16px;border-bottom:1px solid var(--steel);">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${escapeHtml(t.title)}</div>
+            <div style="font-size:11px;color:var(--ash);line-height:1.6;">
+              Автор: ${escapeHtml(author?.name||'?')} · 
+              Видалив: <b style="color:#fff;">${escapeHtml(t.deleted_by_name||'?')}</b> · 
+              ${timeAgo(t.deleted_at)} · 
+              <span style="color:${daysColor};">залишилось ${daysLeft}д</span>
+            </div>
+            ${t.deleted_reason ? `<div style="font-size:11px;color:var(--ash);margin-top:4px;font-style:italic;">«${escapeHtml(t.deleted_reason)}»</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            ${canRestore ? `<button class="filter-btn trash-restore" data-id="${t.id}" title="Відновити">↩ Відновити</button>` : ''}
+            ${canPurge ? `<button class="filter-btn" style="color:#FF6A7A;border-color:rgba(255,106,122,0.3);" data-id="${t.id}" data-act="purge" title="Видалити назавжди">🗑</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  cont.querySelectorAll('.trash-restore').forEach(btn=>btn.onclick=()=>restoreTask(btn.dataset.id));
+  cont.querySelectorAll('[data-act="purge"]').forEach(btn=>btn.onclick=()=>purgeTask(btn.dataset.id));
 }
 
 // ========== SUBTASKS ==========
