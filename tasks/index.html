@@ -1102,6 +1102,13 @@ function openEditModal(task){
 }
 
 async function saveTask(){
+  // IDEMPOTENCY: запобігати подвійному click (Давид report 03.06.2026)
+  if(state._saving){console.warn('[saveTask v3] already saving — skip');return;}
+  state._saving = true;
+  const saveBtn = document.getElementById('saveTaskBtn');
+  if(saveBtn){saveBtn.disabled = true; saveBtn.style.opacity='0.6'; saveBtn.dataset.origText = saveBtn.textContent; saveBtn.textContent = '⏳ Зберігаю…';}
+
+  try {
   console.log('[saveTask v3] start', {editingId: state.editingId, publicUser: state.publicUser?.id, role: state.publicUser?.role});
   const title=document.getElementById('f-title').value.trim();
   if(!title){toast('Введи назву','error');document.getElementById('f-title').focus();return;}
@@ -1165,6 +1172,10 @@ async function saveTask(){
   modal.classList.remove('show');
   loadTasks();
   try { triggerNotifyWorker(); } catch(_){}
+  } finally {
+    state._saving = false;
+    if(saveBtn){saveBtn.disabled = false; saveBtn.style.opacity=''; if(saveBtn.dataset.origText) saveBtn.textContent = saveBtn.dataset.origText;}
+  }
 }
 
 async function deleteTask(){
