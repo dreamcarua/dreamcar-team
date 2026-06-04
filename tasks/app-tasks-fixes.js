@@ -318,28 +318,52 @@
   /* ===== 9. Watchers dropdown — robust handler через event delegation =====
    * v3 (03.06): + API fallback якщо state.users пустий + visible placeholder. */
   
-  var _watchersCache = null; // fallback cache якщо state.users порожній
+  var _watchersCache = null;
   
   async function ensureUsersLoaded() {
+    // 1) Check state.users (native populated through loadUsers)
     if (window.state && Array.isArray(state.users) && state.users.length) {
       _watchersCache = state.users;
       return state.users;
     }
-    if (_watchersCache) return _watchersCache;
-    if (!window.supabase) return [];
-    try {
-      console.log('[watchers] state.users empty — fallback fetch from API');
-      var r = await window.supabase.from('users').select('id,name,email,role').eq('is_active', true).order('name');
-      _watchersCache = r.data || [];
-      // Спробуємо синхронізувати з state теж
-      if (window.state && Array.isArray(state.users) && !state.users.length) {
-        state.users = _watchersCache;
+    // 2) Wait up to 2 сек поки native loadUsers() завершить (на load modal паралельно)
+    for (var i = 0; i < 20; i++) {
+      await new Promise(function(r){ setTimeout(r, 100); });
+      if (window.state && Array.isArray(state.users) && state.users.length) {
+        _watchersCache = state.users;
+        return state.users;
       }
-      console.log('[watchers] fallback loaded:', _watchersCache.length, 'users');
-      return _watchersCache;
+    }
+    if (_watchersCache && _watchersCache.length) return _watchersCache;
+    // 3) Fallback fetch напряму (БЕЗ .eq('is_active',true) — RLS вже фільтрує)
+    if (!window.supabase) { console.error('[watchers] no supabase client'); return []; }
+    try {
+      console.log('[watchers] fallback fetch from API');
+      var r = await window.supabase.from('users').select('id,name,email,role,is_active').order('name');
+      var users = (r.data || []).filter(function(u){ return u.is_active !== false; });
+      _watchersCache = users;
+      if (window.state) state.users = users;
+      console.log('[watchers] fallback loaded:', users.length, 'users; rpc err:', r.error);
+      return users;
     } catch (e) {
       console.error('[watchers] fallback fetch error', e);
       return [];
+    }
+  }
+  
+  // POSITIONING FIX: переносимо watchersList у multiselect parent щоб top:100% працювало
+  function ensureWatchersListAttached() {
+    var ms = document.getElementById('watchersMS');
+    var list = document.getElementById('watchersList');
+    if (!ms || !list) return;
+    if (!ms.contains(list)) {
+      ms.style.position = 'relative';
+      ms.appendChild(list);
+      list.style.position = 'absolute';
+      list.style.top = 'calc(100% + 4px)';
+      list.style.left = '0';
+      list.style.right = '0';
+      list.style.width = 'auto';
     }
   }
   
@@ -377,10 +401,14 @@
       }).join('');
       list.classList.add('show');
     }
-    var r = inp.getBoundingClientRect();
-    list.style.left = r.left + 'px';
-    list.style.top = (r.bottom + window.scrollY + 2) + 'px';
-    list.style.width = Math.max(r.width, 240) + 'px';
+    // Якщо list переміщений у multiselect parent — top:100% уже set. Інакше — getBoundingClientRect fallback.
+    ensureWatchersListAttached();
+    if (!list.parentElement || list.parentElement.id !== 'watchersMS') {
+      var r = inp.getBoundingClientRect();
+      list.style.left = r.left + 'px';
+      list.style.top = (r.bottom + window.scrollY + 2) + 'px';
+      list.style.width = Math.max(r.width, 240) + 'px';
+    }
   }
 
   /* Document-level delegation — survives renderWatchers re-renders */
