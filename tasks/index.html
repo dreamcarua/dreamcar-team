@@ -1639,11 +1639,46 @@ document.getElementById('bulkStatusSelect').onchange=async e=>{
   e.target.value='';
 };
 document.getElementById('bulkDelete').onclick=async()=>{
-  if(!confirm(`Видалити ${state.selected.size} завдань? Це не можна скасувати.`))return;
+  const n = state.selected.size;
+  const me = state.publicUser;
+  const isAdmin = me?.role && ['ceo','coo'].includes(me.role);
   const ids=[...state.selected];
-  const {error}=await supabase.from('team_tasks').delete().in('id',ids);
-  if(error)toast('Помилка: '+error.message,'error');
-  else{toast(`Видалено ${ids.length}`,'success');state.selected.clear();await loadTasks();}
+  
+  let mode = 'soft', reason = null;
+  if(isAdmin){
+    const useHard = confirm(`Як видалити ${n} завдань?\n\n• OK — ВИДАЛИТИ НАЗАВЖДИ (без корзини)\n• Cancel — Перенести у корзину 30 днів`);
+    if(useHard){
+      if(!confirm(`⚠ Точно видалити ${n} завдань НАЗАВЖДИ?\n\nЦе фінальне рішення. Корзини НЕ буде.`)) return;
+      mode = 'hard';
+    } else {
+      reason = prompt('Причина видалення (опціонально):', '');
+      if(reason === null) return;
+    }
+  } else {
+    // Member/non-admin: тільки soft, але треба перевірити що ВСІ обрані — мої (creator)
+    const notMine = state.tasks.filter(t=>ids.includes(t.id) && t.created_by !== me?.id);
+    if(notMine.length){
+      toast(`Ти не автор ${notMine.length} з обраних задач. Bulk delete недоступний.`, 'error');
+      return;
+    }
+    reason = prompt(`Перенести ${n} завдань у корзину?\n\nЗберігається 30 днів — можна відновити.\n\nПричина (опціонально):`, '');
+    if(reason === null) return;
+  }
+  
+  let error;
+  if(mode === 'hard'){
+    const r = await supabase.from('team_tasks').delete().in('id', ids);
+    error = r.error;
+  } else {
+    const r = await supabase.from('team_tasks').update({deleted_at:new Date().toISOString(), deleted_reason: reason||null}).in('id', ids);
+    error = r.error;
+  }
+  if(error) { toast('Помилка: '+error.message,'error'); return; }
+  toast((mode==='hard'?'Видалено назавжди ':'Перенесено у корзину ')+ids.length, 'success');
+  state.selected.clear();
+  await loadTasks();
+  if(typeof loadTrash==='function') await loadTrash();
+  if(typeof updateTrashCount==='function') updateTrashCount();
 };
 document.getElementById('bulkAssign').onclick=async()=>{
   const name=prompt('Призначити кому? (введи частину імені або email)');
