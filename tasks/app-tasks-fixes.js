@@ -411,46 +411,9 @@
     }
   }
 
-  /* Document-level delegation — survives renderWatchers re-renders */
-  document.addEventListener('input', function (e) {
-    if (e.target && e.target.id === 'watchersInput') {
-      var list = document.getElementById('watchersList');
-      if (list) renderWatchersListAt(e.target, list, e.target.value);
-    }
-  }, true);
-
-  document.addEventListener('focus', function (e) {
-    if (e.target && e.target.id === 'watchersInput') {
-      var list = document.getElementById('watchersList');
-      if (list) renderWatchersListAt(e.target, list, e.target.value || '');
-    }
-  }, true);
-
-  document.addEventListener('click', function (e) {
-    var item = e.target.closest && e.target.closest('.ms-list-item');
-    if (!item) return;
-    // Перевіряємо що це наш watchers list (а не assignee у майбутньому)
-    var list = item.closest('.ms-list');
-    if (!list || list.id !== 'watchersList') return;
-    var uid = item.dataset.uid;
-    if (uid && window.state && !state.watchers.includes(uid)) {
-      state.watchers.push(uid);
-      try { window.renderWatchers && renderWatchers(); } catch (_) {}
-      list.classList.remove('show');
-      // Re-focus інпут щоб юзер міг далі додати
-      setTimeout(function () { var inp = document.getElementById('watchersInput'); if (inp) inp.focus(); }, 50);
-    }
-  }, true);
-
-  /* Закрити список при кліку поза ним */
-  document.addEventListener('mousedown', function (e) {
-    var list = document.getElementById('watchersList');
-    if (!list || !list.classList.contains('show')) return;
-    if (e.target.closest('#watchersList') || e.target.closest('#watchersInput')) return;
-    list.classList.remove('show');
-  });
-
-  function patchWatchersFocus() { /* no-op — delegation вже працює */ }
+  /* Watchers — переписано на native <select> у HTML (03.06.2026 Вадим feedback).
+   * Старий custom input з autocomplete dropdown прибраний. Native renderWatchers робить роботу. */
+  function patchWatchersFocus() { /* no-op */ }
 
   /* ===== Initialization ===== */
   function init() {

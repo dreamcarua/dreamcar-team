@@ -479,8 +479,8 @@
     </div>
     <div class="field" style="position:relative;">
       <label>СПОСТЕРІГАЧІ (отримують усі нотифікації)</label>
-      <div class="multiselect" id="watchersMS"><input class="ms-input" id="watchersInput" placeholder="Додай людину…" aria-label="Додати спостерігача до задачі"></div>
-      <div class="ms-list" id="watchersList"></div>
+      <div id="watchersChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:0;"></div>
+      <select id="watchersAdd" style="width:100%;"><option value="">— обрати спостерігача —</option></select>
     </div>
     <div class="field"><label for="f-tags">МІТКИ (через кому)</label><input type="text" id="f-tags" placeholder="hq, dreamcar, x5, brand" aria-label="Мітки задачі через кому"></div>
     <div class="field">
@@ -1240,24 +1240,34 @@ function renderSubtasks(){
   document.getElementById('st-add-btn').onclick=addSt;
 }
 
-// ========== WATCHERS ==========
+// ========== WATCHERS (simple select + chips — Вадим request 03.06.2026) ==========
 function renderWatchers(){
-  const ms=document.getElementById('watchersMS');
-  const chips=state.watchers.map(uid=>{const u=state.users.find(x=>x.id===uid);if(!u)return '';return `<span class="ms-chip">${escapeHtml(u.name||u.email)}<span class="rm" data-uid="${uid}">✕</span></span>`;}).join('');
-  ms.innerHTML=chips+`<input class="ms-input" id="watchersInput" placeholder="Додай людину…" aria-label="Додати спостерігача до задачі">`;
-  ms.querySelectorAll('.ms-chip .rm').forEach(el=>el.onclick=e=>{const uid=e.target.dataset.uid;state.watchers=state.watchers.filter(x=>x!==uid);renderWatchers();});
-  const inp=document.getElementById('watchersInput');
-  const list=document.getElementById('watchersList');
-  inp.oninput=()=>{
-    const q=inp.value.toLowerCase().trim();
-    if(!q){list.classList.remove('show');return;}
-    const matches=state.users.filter(u=>!state.watchers.includes(u.id)&&((u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q))).slice(0,8);
-    list.innerHTML=matches.map(u=>`<div class="ms-list-item" data-uid="${u.id}">${escapeHtml(u.name||u.email)}</div>`).join('');
-    list.querySelectorAll('.ms-list-item').forEach(el=>el.onclick=()=>{state.watchers.push(el.dataset.uid);renderWatchers();list.classList.remove('show');});
-    list.classList.toggle('show',matches.length>0);
-    const r=inp.getBoundingClientRect();list.style.left=r.left+'px';list.style.top=(r.bottom+window.scrollY)+'px';list.style.width=r.width+'px';
+  const chipsBox = document.getElementById('watchersChips');
+  const sel = document.getElementById('watchersAdd');
+  if(!chipsBox || !sel) return;
+  // Chips для уже доданих
+  chipsBox.innerHTML = (state.watchers||[]).map(uid=>{
+    const u = state.users.find(x=>x.id===uid);
+    if(!u) return '';
+    return `<span class="ms-chip" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,0.06);border-radius:100px;font-size:12px;">${escapeHtml(u.name||u.email)}<span class="rm" data-uid="${uid}" style="cursor:pointer;opacity:.6;font-size:14px;line-height:1;">✕</span></span>`;
+  }).join('');
+  chipsBox.querySelectorAll('.rm').forEach(el=>el.onclick=e=>{
+    const uid = e.target.dataset.uid;
+    state.watchers = (state.watchers||[]).filter(x=>x!==uid);
+    renderWatchers();
+  });
+  // Select options — тільки ті кого ще не додали
+  const available = (state.users||[]).filter(u=>!(state.watchers||[]).includes(u.id));
+  sel.innerHTML = '<option value="">— обрати спостерігача —</option>' +
+    available.map(u=>`<option value="${u.id}">${escapeHtml(u.name||u.email)}${u.role?' · '+u.role:''}</option>`).join('');
+  sel.value = '';
+  sel.onchange = ()=>{
+    const uid = sel.value;
+    if(!uid) return;
+    if(!state.watchers) state.watchers = [];
+    if(!state.watchers.includes(uid)) state.watchers.push(uid);
+    renderWatchers(); // re-render → select повертається до placeholder, можна додавати ще
   };
-  inp.onblur=()=>setTimeout(()=>list.classList.remove('show'),120);
 }
 
 // ========== COMMENTS ==========
@@ -1595,6 +1605,6 @@ document.getElementById('templatesBtn').onclick = openTemplatesModal;
 
 <script src="/assets/global-search.js" defer></script>
 <script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
-<script src="app-tasks-fixes.js?v=20260603m" defer></script>
+<script src="app-tasks-fixes.js?v=20260603n" defer></script>
 </body>
 </html>
