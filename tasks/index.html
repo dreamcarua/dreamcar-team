@@ -1326,10 +1326,14 @@ async function restoreTask(taskId){
   const {error} = await supabase.from('team_tasks').update({deleted_at:null}).eq('id', taskId);
   if(error){toast('Помилка відновлення: '+error.message,'error');return;}
   toast('Задачу відновлено','success');
-  await loadTasks();
-  await loadTrash();
+  // Видалити з local trash + перерендерити trash list одразу
+  state.trash = (state.trash||[]).filter(t=>t.id!==taskId);
+  renderTrash();
   updateTrashCount();
+  // Re-fetch tasks щоб коли користувач повернеться на board — побачив відновлену
+  loadTasks();
 }
+window.restoreTask = restoreTask;
 
 async function purgeTask(taskId){
   if(!confirm('Видалити НАЗАВЖДИ? Не можна буде відновити.'))return;
@@ -1340,6 +1344,7 @@ async function purgeTask(taskId){
   renderTrash();
   updateTrashCount();
 }
+window.purgeTask = purgeTask;
 
 async function loadTrash(){
   const {data, error} = await supabase.rpc('tasks_trash');
