@@ -1157,6 +1157,45 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     return;
   }
 
+  // 03.06.2026 — TASK callbacks (task:done:<id> / task:doing:<id> / task:open:<id>)
+  if (action === "task") {
+    const taskAction = parts[1]; // done | doing | open
+    const taskId = parts[2];
+    if (!taskId) { await tgAnswerCallback(cb.id, "Bad task id"); return; }
+
+    if (taskAction === "open") {
+      const tasksUrl = (Deno.env.get("TASKS_URL") || "https://team.dreamcar.ua/tasks") + "/#task=" + taskId;
+      await tgAnswerCallback(cb.id, "Відкрий у браузері: " + tasksUrl, true);
+      return;
+    }
+
+    // Резолвимо public.users по auth_id
+    const tgUserId = cb.from?.id;
+    if (!tgUserId) { await tgAnswerCallback(cb.id, "TG user не визначено"); return; }
+    const { data: meUser } = await supabase.from("users").select("id,name,role").eq("tg_chat_id", tgUserId).maybeSingle();
+    if (!meUser) { await tgAnswerCallback(cb.id, "TG не привʼязано — /start у боті", true); return; }
+
+    let newStatus: string | null = null;
+    let label = "";
+    if (taskAction === "done") { newStatus = "done"; label = "✅ Виконано"; }
+    else if (taskAction === "doing") { newStatus = "doing"; label = "▶ В роботі"; }
+    else { await tgAnswerCallback(cb.id, "Невідома дія по задачі"); return; }
+
+    const updates: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
+    if (newStatus === "done") updates.completed_at = new Date().toISOString();
+    const upd = await supabase.from("team_tasks").update(updates).eq("id", taskId).select("id,title").maybeSingle();
+    if (upd.error) {
+      console.error("[task update]", upd.error);
+      await tgAnswerCallback(cb.id, "Помилка: " + upd.error.message, true);
+      return;
+    }
+    await tgAnswerCallback(cb.id, label);
+    const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+    await tgEditMessage(msg.chat.id, msg.message_id,
+      (msg.text || "") + `\n\n${label} · ${escHtml(meUser.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+    return;
+  }
+
   await tgAnswerCallback(cb.id, "Невідома дія");
 }
 
