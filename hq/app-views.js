@@ -1093,15 +1093,33 @@ async function boot() {
       document.getElementById('backendIndicatorLabel').textContent = 'Live · ' + me.name;
       ind.style.display = 'flex';
       // 03.06.2026: ?next=... redirect для Tasks→HQ і Dashboard→HQ login bridge
+      // SSO: для cross-domain Dashboard передаємо access_token+refresh_token у URL fragment (#sso=...)
       try {
         var qs = new URLSearchParams(location.search);
         var nextParam = qs.get('next');
         var isDashboard = qs.get('dashboard') === '1';
         if (isDashboard) {
-          // Redirect на dashboard.dreamcar.ua з оригінальним path
-          var dashUrl = 'https://dashboard.dreamcar.ua' + (nextParam && /^\/[\w/#-]*$/.test(nextParam) ? nextParam : '/');
-          console.log('[auth] login complete → dashboard:', dashUrl);
-          setTimeout(function () { window.location.href = dashUrl; }, 200);
+          (async function () {
+            try {
+              var sessRes = await window.supabase.auth.getSession();
+              var sess = sessRes && sessRes.data && sessRes.data.session;
+              if (!sess || !sess.access_token) throw new Error('No session to bridge');
+              var sso = {
+                access_token: sess.access_token,
+                refresh_token: sess.refresh_token,
+                expires_at: sess.expires_at,
+              };
+              var ssoStr = encodeURIComponent(btoa(JSON.stringify(sso)));
+              var path = nextParam && /^\/[\w/#-]*$/.test(nextParam) ? nextParam : '/';
+              var dashUrl = 'https://dashboard.dreamcar.ua' + path + '#sso=' + ssoStr;
+              console.log('[auth] SSO bridge → dashboard');
+              setTimeout(function () { window.location.href = dashUrl; }, 100);
+            } catch (e) {
+              console.error('[auth] SSO bridge fail', e);
+              alert('Не вдалося передати сесію у Dashboard. Залогінься окремо.');
+              window.location.href = 'https://dashboard.dreamcar.ua/';
+            }
+          })();
         } else if (nextParam && /^\/[a-z0-9_-]+\/?$/i.test(nextParam)) {
           console.log('[auth] login complete → redirect to', nextParam);
           setTimeout(function () { window.location.href = nextParam; }, 200);
