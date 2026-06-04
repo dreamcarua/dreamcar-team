@@ -1242,21 +1242,42 @@ async function saveTask(){
   }
 }
 
-// Спільний дилог вибору: повертає 'soft' | 'hard' | null (cancel)
-async function showDeleteChoice(taskTitle, isAdmin){
-  if(!isAdmin){
-    const reason = prompt('Перенести у корзину?\nЗберігається 30 днів, потім видаляється назавжди.\n\nПричина (опціонально):', '');
-    return reason === null ? null : { mode: 'soft', reason };
-  }
-  // CEO/COO — два confirm з clear options
-  const useHard = confirm('Як видалити: «'+taskTitle+'»?\n\n• OK — ВИДАЛИТИ НАЗАВЖДИ (без корзини, не можна відновити)\n• Cancel — Перенести у корзину 30 днів (можна відновити)');
-  if(useHard){
-    if(!confirm('⚠ Точно видалити НАЗАВЖДИ?\n\n«'+taskTitle+'»\n\nЦе фінальне рішення. Корзини НЕ буде.')) return null;
-    return { mode: 'hard' };
-  }
-  const reason = prompt('Причина видалення (опціонально):', '');
-  if(reason === null) return null;
-  return { mode: 'soft', reason };
+// Custom 3-button delete dialog → 'hard' | 'soft' | null
+function showDeleteChoice(taskTitle, isAdmin, isBulk){
+  return new Promise(resolve => {
+    const existing = document.getElementById('dc-delete-modal');
+    if(existing) existing.remove();
+    const ov = document.createElement('div');
+    ov.id = 'dc-delete-modal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Manrope,sans-serif;';
+    const label = isBulk ? ('Видалити '+taskTitle+' завдань?') : ('Як саме видалити?');
+    const titlePart = isBulk ? '' : ('<div style="font-size:14px;color:#bbb;margin-top:8px;line-height:1.45;font-style:italic;">«'+taskTitle.replace(/</g,'&lt;')+'»</div>');
+    ov.innerHTML = '<div style="background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:28px;max-width:480px;width:100%;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,0.6);">'+
+      '<div style="font-family:Oswald,sans-serif;font-size:20px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;">'+label+'</div>'+
+      titlePart +
+      '<div style="display:flex;flex-direction:column;gap:8px;margin-top:24px;">'+
+        (isAdmin ? '<button class="dc-del-btn" data-mode="hard" style="padding:12px 18px;background:linear-gradient(135deg,#DC2626,#991B1B);color:#fff;border:none;border-radius:8px;font-family:Manrope,sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;cursor:pointer;text-transform:uppercase;">🗑 Видалити НАЗАВЖДИ</button>' : '')+
+        '<button class="dc-del-btn" data-mode="soft" style="padding:12px 18px;background:rgba(245,158,11,0.15);color:#FBBF24;border:1px solid #F59E0B;border-radius:8px;font-family:Manrope,sans-serif;font-size:13px;font-weight:600;letter-spacing:.06em;cursor:pointer;text-transform:uppercase;">📦 Перемістити в корзину</button>'+
+        '<button class="dc-del-btn" data-mode="cancel" style="padding:12px 18px;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:8px;font-family:Manrope,sans-serif;font-size:13px;letter-spacing:.06em;cursor:pointer;text-transform:uppercase;">✕ Скасувати</button>'+
+      '</div>'+
+    '</div>';
+    document.body.appendChild(ov);
+    function close(result){ ov.remove(); resolve(result); }
+    ov.querySelectorAll('.dc-del-btn').forEach(btn=>{
+      btn.onclick = ()=>{
+        const m = btn.dataset.mode;
+        if(m === 'cancel') return close(null);
+        if(m === 'soft') return close({ mode: 'soft', reason: null });
+        // hard — додаткове подтвердження для безпеки
+        if(!confirm('⚠ Точно видалити НАЗАВЖДИ?\n\nЦе фінальне рішення. Корзини НЕ буде.')) return;
+        close({ mode: 'hard' });
+      };
+    });
+    ov.addEventListener('click', e=>{ if(e.target===ov) close(null); });
+    document.addEventListener('keydown', function escH(e){
+      if(e.key === 'Escape'){ document.removeEventListener('keydown', escH); close(null); }
+    });
+  });
 }
 
 async function deleteTask(){
@@ -1643,38 +1664,25 @@ document.getElementById('bulkDelete').onclick=async()=>{
   const me = state.publicUser;
   const isAdmin = me?.role && ['ceo','coo'].includes(me.role);
   const ids=[...state.selected];
-  
-  let mode = 'soft', reason = null;
-  if(isAdmin){
-    const useHard = confirm(`Як видалити ${n} завдань?\n\n• OK — ВИДАЛИТИ НАЗАВЖДИ (без корзини)\n• Cancel — Перенести у корзину 30 днів`);
-    if(useHard){
-      if(!confirm(`⚠ Точно видалити ${n} завдань НАЗАВЖДИ?\n\nЦе фінальне рішення. Корзини НЕ буде.`)) return;
-      mode = 'hard';
-    } else {
-      reason = prompt('Причина видалення (опціонально):', '');
-      if(reason === null) return;
-    }
-  } else {
-    // Member/non-admin: тільки soft, але треба перевірити що ВСІ обрані — мої (creator)
+  if(!isAdmin){
     const notMine = state.tasks.filter(t=>ids.includes(t.id) && t.created_by !== me?.id);
     if(notMine.length){
       toast(`Ти не автор ${notMine.length} з обраних задач. Bulk delete недоступний.`, 'error');
       return;
     }
-    reason = prompt(`Перенести ${n} завдань у корзину?\n\nЗберігається 30 днів — можна відновити.\n\nПричина (опціонально):`, '');
-    if(reason === null) return;
   }
-  
+  const choice = await showDeleteChoice(String(n), isAdmin, true);
+  if(!choice) return;
   let error;
-  if(mode === 'hard'){
+  if(choice.mode === 'hard'){
     const r = await supabase.from('team_tasks').delete().in('id', ids);
     error = r.error;
   } else {
-    const r = await supabase.from('team_tasks').update({deleted_at:new Date().toISOString(), deleted_reason: reason||null}).in('id', ids);
+    const r = await supabase.from('team_tasks').update({deleted_at:new Date().toISOString()}).in('id', ids);
     error = r.error;
   }
   if(error) { toast('Помилка: '+error.message,'error'); return; }
-  toast((mode==='hard'?'Видалено назавжди ':'Перенесено у корзину ')+ids.length, 'success');
+  toast((choice.mode==='hard'?'Видалено назавжди ':'Перенесено у корзину ')+ids.length, 'success');
   state.selected.clear();
   await loadTasks();
   if(typeof loadTrash==='function') await loadTrash();
