@@ -673,7 +673,7 @@ async function loadUsers(){
 }
 
 async function loadTasks(){
-  const {data,error}=await supabase.from('team_tasks').select('*').order('priority').order('updated_at',{ascending:false});
+  const {data,error}=await supabase.from('team_tasks').select('*').is('deleted_at',null).order('priority').order('updated_at',{ascending:false});
   if(error){toast('SQL не запущений? schema_v2_notifications.sql','error');state.tasks=[];}
   else state.tasks=data||[];
   renderBoard();
@@ -698,14 +698,25 @@ async function loadPrefs(){
 function subscribeRealtime(){
   try{
     supabase.channel('team_tasks_realtime').on('postgres_changes',{event:'*',schema:'public',table:'team_tasks'},payload=>{
-      // IDEMPOTENT: ігноруємо INSERT/UPDATE якщо id вже існує (race з save + loadTasks)
-      if(payload.eventType==='INSERT'){
-        if(!state.tasks.find(t=>t.id===payload.new.id)) state.tasks.unshift(payload.new);
+      // Soft-delete: якщо UPDATE з deleted_at NOT NULL → видалити з list (з активного board)
+      if(payload.eventType==='UPDATE' && payload.new?.deleted_at){
+        state.tasks=state.tasks.filter(t=>t.id!==payload.new.id);
+        renderBoard();
+        if(typeof updateTrashCount==='function') { loadTrash().then(updateTrashCount); }
+        return;
       }
-      if(payload.eventType==='UPDATE'){
+      // Soft-restore: UPDATE з deleted_at NULL → додати назад
+      if(payload.eventType==='UPDATE' && payload.new && !payload.new.deleted_at){
         const i=state.tasks.findIndex(t=>t.id===payload.new.id);
         if(i>=0) state.tasks[i]=payload.new;
-        else state.tasks.unshift(payload.new); // UPDATE до неіснуючої → вставити
+        else state.tasks.unshift(payload.new);
+        renderBoard();
+        return;
+      }
+      // IDEMPOTENT: ігноруємо INSERT якщо id вже існує (race з save + loadTasks)
+      if(payload.eventType==='INSERT'){
+        if(payload.new?.deleted_at) return; // не показувати deleted
+        if(!state.tasks.find(t=>t.id===payload.new.id)) state.tasks.unshift(payload.new);
       }
       if(payload.eventType==='DELETE')state.tasks=state.tasks.filter(t=>t.id!==payload.old.id);
       renderBoard();
