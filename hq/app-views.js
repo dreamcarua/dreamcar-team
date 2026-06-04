@@ -959,24 +959,24 @@ const Auth = {
 
   async loadCurrentUser(session) {
     const sb = window.supabase;
+    // 1) Direct users.auth_id lookup
     const { data: existing, error: e1 } = await sb.from('users').select('*').eq('auth_id', session.user.id).maybeSingle();
     if (e1) console.warn('Load user:', e1);
     if (existing) return existing;
+    // 2) Alias lookup через RPC (для multiple Google accounts на одного юзера)
+    try {
+      const rpc = await sb.rpc('resolve_user_by_auth', { p_auth_id: session.user.id });
+      if (rpc.data && rpc.data[0]) return rpc.data[0];
+    } catch (e) { console.warn('[resolve_user_by_auth fallback]', e); }
+    // 3) Match by email — link auth_id до існуючого user
     const email = session.user.email;
     const { data: byEmail } = await sb.from('users').select('*').eq('email', email).maybeSingle();
     if (byEmail) {
       await sb.from('users').update({ auth_id: session.user.id }).eq('id', byEmail.id);
       return byEmail;
     }
-    const meta = session.user.user_metadata || {};
-    const { data: created, error: e2 } = await sb.from('users').insert({
-      auth_id: session.user.id,
-      email,
-      name: meta.full_name || meta.name || email.split('@')[0],
-      role: 'member',
-    }).select().single();
-    if (e2) { console.error('Create user:', e2); throw e2; }
-    return created;
+    // 4) AUTO-CREATE BLOCKED — 03.06.2026 Closed System rule: тільки CEO/COO може створювати users
+    throw new Error('Профіль не знайдено для ' + email + '. Звернися до CEO щоб додати auth_id у users.');
   },
 
   async signInGoogle() {
