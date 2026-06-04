@@ -1012,10 +1012,26 @@ async function openOverview(task){
     openEditModal(task);
   });
   document.getElementById('ov-act-delete')?.addEventListener('click', async()=>{
-    if(!confirm('Видалити завдання? Це не можна скасувати.')) return;
-    const {error} = await supabase.from('team_tasks').delete().eq('id',task.id);
-    if(error) toast(error.message,'error');
-    else {toast('Видалено','success'); overviewModal.classList.remove('show');}
+    // 03.06.2026 — soft-delete у корзину 30 днів
+    const me = state.publicUser;
+    const isAuthor = task.created_by === me?.id;
+    const isAdmin = me?.role && ['ceo','coo'].includes(me.role);
+    if(!isAuthor && !isAdmin){
+      alert('Видалити може тільки автор задачі або CEO/COO');
+      return;
+    }
+    const reason = prompt('Перенести у корзину?\n\nЗберігається 30 днів — можна відновити з корзини.\nПотім видаляється назавжди.\n\nПричина (опціонально):', '');
+    if(reason === null) return; // user canceled
+    const {error} = await supabase.from('team_tasks')
+      .update({deleted_at:new Date().toISOString(), deleted_reason: reason||null})
+      .eq('id', task.id);
+    if(error){toast('Помилка: '+error.message,'error'); return;}
+    toast('Перенесено у корзину','success');
+    overviewModal.classList.remove('show');
+    state.tasks = state.tasks.filter(t=>t.id!==task.id);
+    renderBoard();
+    if(typeof loadTrash==='function') await loadTrash();
+    if(typeof updateTrashCount==='function') updateTrashCount();
   });
 
   overviewModal.classList.add('show');
