@@ -1012,7 +1012,6 @@ async function openOverview(task){
     openEditModal(task);
   });
   document.getElementById('ov-act-delete')?.addEventListener('click', async()=>{
-    // 03.06.2026 — soft-delete у корзину 30 днів
     const me = state.publicUser;
     const isAuthor = task.created_by === me?.id;
     const isAdmin = me?.role && ['ceo','coo'].includes(me.role);
@@ -1020,13 +1019,18 @@ async function openOverview(task){
       alert('Видалити може тільки автор задачі або CEO/COO');
       return;
     }
-    const reason = prompt('Перенести у корзину?\n\nЗберігається 30 днів — можна відновити з корзини.\nПотім видаляється назавжди.\n\nПричина (опціонально):', '');
-    if(reason === null) return; // user canceled
-    const {error} = await supabase.from('team_tasks')
-      .update({deleted_at:new Date().toISOString(), deleted_reason: reason||null})
-      .eq('id', task.id);
+    const choice = await showDeleteChoice(task.title, isAdmin);
+    if(!choice) return;
+    let error;
+    if(choice.mode === 'hard'){
+      const r = await supabase.from('team_tasks').delete().eq('id', task.id);
+      error = r.error;
+    } else {
+      const r = await supabase.from('team_tasks').update({deleted_at:new Date().toISOString(), deleted_reason: choice.reason||null}).eq('id', task.id);
+      error = r.error;
+    }
     if(error){toast('Помилка: '+error.message,'error'); return;}
-    toast('Перенесено у корзину','success');
+    toast(choice.mode === 'hard' ? 'Видалено назавжди' : 'Перенесено у корзину','success');
     overviewModal.classList.remove('show');
     state.tasks = state.tasks.filter(t=>t.id!==task.id);
     renderBoard();
@@ -1238,27 +1242,49 @@ async function saveTask(){
   }
 }
 
+// Спільний дилог вибору: повертає 'soft' | 'hard' | null (cancel)
+async function showDeleteChoice(taskTitle, isAdmin){
+  if(!isAdmin){
+    const reason = prompt('Перенести у корзину?\nЗберігається 30 днів, потім видаляється назавжди.\n\nПричина (опціонально):', '');
+    return reason === null ? null : { mode: 'soft', reason };
+  }
+  // CEO/COO — два confirm з clear options
+  const useHard = confirm('Як видалити: «'+taskTitle+'»?\n\n• OK — ВИДАЛИТИ НАЗАВЖДИ (без корзини, не можна відновити)\n• Cancel — Перенести у корзину 30 днів (можна відновити)');
+  if(useHard){
+    if(!confirm('⚠ Точно видалити НАЗАВЖДИ?\n\n«'+taskTitle+'»\n\nЦе фінальне рішення. Корзини НЕ буде.')) return null;
+    return { mode: 'hard' };
+  }
+  const reason = prompt('Причина видалення (опціонально):', '');
+  if(reason === null) return null;
+  return { mode: 'soft', reason };
+}
+
 async function deleteTask(){
   if(!state.editingId)return;
   const me = state.publicUser;
   const task = state.tasks.find(t=>t.id===state.editingId);
   if(!task){toast('Задача не знайдена','error');return;}
-  // Перевірка прав: тільки автор + CEO/COO
   const isAuthor = task.created_by === me?.id;
   const isAdmin = me?.role && ['ceo','coo'].includes(me.role);
   if(!isAuthor && !isAdmin){
     toast('Видалити може тільки автор задачі або CEO/COO','error');
     return;
   }
-  const reason = prompt('Перенести у корзину?\nЗберігається 30 днів, потім видаляється назавжди.\n\nПричина (опціонально):', '');
-  if(reason === null) return; // user canceled
-  const {error} = await supabase.from('team_tasks')
-    .update({deleted_at:new Date().toISOString(), deleted_reason: reason||null})
-    .eq('id', state.editingId);
+  const choice = await showDeleteChoice(task.title, isAdmin);
+  if(!choice) return;
+  let error;
+  if(choice.mode === 'hard'){
+    const r = await supabase.from('team_tasks').delete().eq('id', state.editingId);
+    error = r.error;
+  } else {
+    const r = await supabase.from('team_tasks')
+      .update({deleted_at:new Date().toISOString(), deleted_reason: choice.reason||null})
+      .eq('id', state.editingId);
+    error = r.error;
+  }
   if(error){toast('Помилка: '+error.message,'error');return;}
-  toast('Перенесено у корзину','success');
+  toast(choice.mode === 'hard' ? 'Видалено назавжди' : 'Перенесено у корзину','success');
   modal.classList.remove('show');
-  // Видалити з local state (RLS вже не покаже)
   state.tasks = state.tasks.filter(t=>t.id!==state.editingId);
   renderBoard();
   updateTrashCount();
