@@ -543,14 +543,9 @@
     setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 0.3s'; }, 6500);
     setTimeout(function () { el.remove(); }, 7000);
   }
-  var _origDeletePub;
-  function patchDelete() {
-    if (!window.Store || typeof Store.deletePub !== 'function' || Store.deletePub.__softPatched) return;
-    _origDeletePub = Store.deletePub.bind(Store);
-    Store.deletePub = function (id) { softDelete(id); };
-    Store.deletePub.__softPatched = true;
-  }
-  patchDelete(); setTimeout(patchDelete, 300); setTimeout(patchDelete, 1500);
+  // 03.06.2026: старий 7-сек soft-delete DISABLED. Замінений у app-trash.js на 30-day Корзину.
+  // Не патчимо Store.deletePub тут — щоб не конфліктувати з __trashV2.
+  /* function patchDelete() { ... } — REMOVED */
 
   if (window.Store && typeof Store.pubs === 'function' && !Store.pubs.__trashFiltered) {
     var _origPubs = Store.pubs.bind(Store);
