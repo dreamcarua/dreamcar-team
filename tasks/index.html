@@ -1012,20 +1012,35 @@ async function openOverview(task){
 async function loadOverviewComments(taskId){
   const target = document.getElementById('ov-comments-mini');
   if(!target) return;
-  const {data} = await supabase.from('team_task_comments').select('*').eq('task_id',taskId).is('deleted_at',null).order('created_at',{ascending:false}).limit(3);
-  if(!data || !data.length){
-    target.innerHTML = '<div class="ov-empty">Немає коментарів. Будь першим у Редагуванні.</div>';
-    return;
+  // 03.06.2026 fix: timeout + try/catch щоб placeholder НЕ висів вічно при network error
+  try {
+    const fetchPromise = supabase.from('team_task_comments').select('*').eq('task_id',taskId).is('deleted_at',null).order('created_at',{ascending:false}).limit(3);
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+    const result = await Promise.race([fetchPromise, timeout]);
+    const data = result?.data;
+    const error = result?.error;
+    if(error){
+      console.warn('[loadOverviewComments]', error);
+      target.innerHTML = '<div class="ov-empty" style="color:#FF6A7A;">Помилка завантаження: '+(error.message||'unknown')+'</div>';
+      return;
+    }
+    if(!data || !data.length){
+      target.innerHTML = '<div class="ov-empty">Немає коментарів. Будь першим у Редагуванні.</div>';
+      return;
+    }
+    target.innerHTML = data.reverse().map(c=>{
+      const a = state.users.find(u=>u.id===c.author_id);
+      let body = escapeHtml(c.body);
+      (c.mentions||[]).forEach(uid=>{
+        const u = state.users.find(x=>x.id===uid);
+        if(u){const re=new RegExp('@'+u.name.split(' ')[0],'gi');body=body.replace(re,`<span class="mention">@${escapeHtml(u.name.split(' ')[0])}</span>`);}
+      });
+      return `<div class="ov-comment"><div class="head"><span class="who">${escapeHtml(a?.name||'?')}</span><span>${timeAgo(c.created_at)}</span></div><div class="body">${body}</div></div>`;
+    }).join('');
+  } catch(e) {
+    console.error('[loadOverviewComments] failed:', e);
+    target.innerHTML = '<div class="ov-empty" style="color:#FF6A7A;">⚠ Не вдалося завантажити (' + (e.message || 'timeout') + '). Спробуй закрити і відкрити знову.</div>';
   }
-  target.innerHTML = data.reverse().map(c=>{
-    const a = state.users.find(u=>u.id===c.author_id);
-    let body = escapeHtml(c.body);
-    (c.mentions||[]).forEach(uid=>{
-      const u = state.users.find(x=>x.id===uid);
-      if(u){const re=new RegExp('@'+u.name.split(' ')[0],'gi');body=body.replace(re,`<span class="mention">@${escapeHtml(u.name.split(' ')[0])}</span>`);}
-    });
-    return `<div class="ov-comment"><div class="head"><span class="who">${escapeHtml(a?.name||'?')}</span><span>${timeAgo(c.created_at)}</span></div><div class="body">${body}</div></div>`;
-  }).join('');
 }
 
 const modal=document.getElementById('taskModal');
