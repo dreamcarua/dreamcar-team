@@ -1092,13 +1092,23 @@ async function boot() {
       ind.className = 'backend-indicator live';
       document.getElementById('backendIndicatorLabel').textContent = 'Live · ' + me.name;
       ind.style.display = 'flex';
-      // Підпис на auth change — щоб коли юзер вийде з іншої вкладки, ця теж очистилась
+      // 03.06.2026: ?next=... redirect для Tasks→HQ login bridge (Давид login loop fix)
+      try {
+        var nextParam = new URLSearchParams(location.search).get('next');
+        if (nextParam && /^\/[a-z0-9_-]+\/?$/i.test(nextParam)) {
+          console.log('[auth] login complete → redirect to', nextParam);
+          setTimeout(function () { window.location.href = nextParam; }, 200);
+        }
+      } catch (_) {}
+      // Підпис на auth change — ТІЛЬКИ SIGNED_OUT тригерить reload (інакше TOKEN_REFRESHED викликав loop)
+      // Disabled 03.06.2026 (Давид: login loop між HQ↔Tasks). Init-time mismatch check вище достатньо.
       try {
         window.supabase.auth.onAuthStateChange(function (evt, sess) {
-          if (evt === 'SIGNED_OUT' || (sess && sess.user && sess.user.id !== SUPABASE_USER_ID)) {
-            console.warn('[session-bleed-guard] auth state change (' + evt + ') → reload');
+          // Тільки явний SIGNED_OUT (інакше TOKEN_REFRESHED / INITIAL_SESSION з Tasks tab тригерить reload)
+          if (evt === 'SIGNED_OUT') {
+            console.warn('[session-guard] explicit SIGNED_OUT → cleanup local state');
             try { localStorage.removeItem(STORE_KEY); } catch (_) {}
-            location.reload();
+            // Не reload автоматично — нехай UI покаже login screen природно через showAuthScreen
           }
         });
       } catch (_) {}
