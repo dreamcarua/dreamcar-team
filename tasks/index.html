@@ -598,10 +598,19 @@ async function checkAuth(){
     if(error)throw error;
     if(session&&session.user){
       state.authUser=session.user;
-      const {data:pu,error:puErr}=await supabase.from('users').select('id,name,email,role').eq('auth_id',session.user.id).maybeSingle();
-      if(puErr)console.warn(puErr.message);
+      // Resolve через RPC що враховує user_auth_aliases (multiple Google accounts на одного юзера)
+      let pu = null;
+      try {
+        const rpc = await supabase.rpc('resolve_user_by_auth', { p_auth_id: session.user.id });
+        pu = (rpc.data && rpc.data[0]) || null;
+      } catch(e){ console.warn('[resolve_user_by_auth]', e); }
+      // Fallback на direct users lookup
+      if(!pu){
+        const {data:directPu} = await supabase.from('users').select('id,name,email,role,tg_chat_id').eq('auth_id',session.user.id).maybeSingle();
+        pu = directPu;
+      }
       state.publicUser=pu||null;
-      if(!pu){setStatus('⚠ Профіль public.users не знайдено. Звернися до CEO.','error');return;}
+      if(!pu){setStatus('⚠ Профіль не знайдено. Email: '+session.user.email+'. Звернися до CEO щоб додати auth_id у users.','error');return;}
       document.getElementById('loginGate').style.display='none';
       document.getElementById('appView').style.display='block';
       renderAuthChip();
