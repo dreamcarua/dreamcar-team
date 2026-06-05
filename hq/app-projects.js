@@ -232,9 +232,10 @@
     if (existing) return existing;
     var root = document.createElement('div');
     root.id = 'dcpView';
-    root.style.cssText = 'min-height:60vh;';
-    var content = document.querySelector('.app') || document.body;
-    content.appendChild(root);
+    root.style.cssText = 'min-height:60vh;background:var(--bg,#0a0a0a);';
+    // Інжектимо у .main щоб замінити content area SMM, а не дублювати
+    var mainContent = document.querySelector('.main') || document.querySelector('.app') || document.body;
+    mainContent.appendChild(root);
     return root;
   }
 
@@ -398,20 +399,40 @@
   // ============================================================
   // Hide existing HQ views коли на /hq/#projects
   // ============================================================
+  // Приховуємо ВСІ children .main крім dcpView
   function hideOtherHqViews() {
-    // Це CSS hack — приховуємо основні views HQ через display:none
-    ['.app-main', '.calendar', '.board-view', '#kanbanRoot'].forEach(function (sel) {
-      document.querySelectorAll(sel).forEach(function (el) {
-        if (el.id !== 'dcpView') el.style.display = 'none';
-      });
+    var main = document.querySelector('.main');
+    if (!main) return;
+    Array.prototype.forEach.call(main.children, function (el) {
+      if (el.id === 'dcpView') return;
+      if (!el.dataset.dcpHidden) {
+        el.dataset.dcpHidden = el.style.display || 'block';
+        el.style.display = 'none';
+      }
     });
+    // Також ховаємо banner онбордингу якщо є — він поза .main
+    var banner = document.querySelector('.hq-onb-banner');
+    if (banner && !banner.dataset.dcpHidden) {
+      banner.dataset.dcpHidden = banner.style.display || 'flex';
+      banner.style.display = 'none';
+    }
   }
   function restoreOtherHqViews() {
-    ['.app-main', '.calendar', '.board-view', '#kanbanRoot'].forEach(function (sel) {
-      document.querySelectorAll(sel).forEach(function (el) {
-        if (el.style.display === 'none' && el.id !== 'dcpView') el.style.display = '';
+    var main = document.querySelector('.main');
+    if (main) {
+      Array.prototype.forEach.call(main.children, function (el) {
+        if (el.id === 'dcpView') return;
+        if (el.dataset.dcpHidden) {
+          el.style.display = el.dataset.dcpHidden === 'block' ? '' : el.dataset.dcpHidden;
+          delete el.dataset.dcpHidden;
+        }
       });
-    });
+    }
+    var banner = document.querySelector('.hq-onb-banner');
+    if (banner && banner.dataset.dcpHidden) {
+      banner.style.display = banner.dataset.dcpHidden;
+      delete banner.dataset.dcpHidden;
+    }
     var v = document.getElementById('dcpView');
     if (v) v.remove();
   }
