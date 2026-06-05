@@ -1080,6 +1080,100 @@ async function handleWhoami(supabase: ReturnType<typeof createClient>, chatId: n
   await tgSend(chatId, `🪪 <b>${escHtml(user.name || "—")}</b>\nEmail: ${escHtml(user.email || "—")}\nРоль: ${escHtml(user.role || "—")}`);
 }
 
+// ===================================================================
+// 05.06.2026 — TG Task Bot: керування whitelisted чатами
+// ===================================================================
+async function handleChatId(chatId: number, msg: TgMessage): Promise<void> {
+  const title = msg.chat.title ? `\n📛 <b>${escHtml(msg.chat.title)}</b>` : "";
+  const type = msg.chat.type;
+  await tgSend(chatId,
+    `🆔 <b>chat_id:</b> <code>${chatId}</code>\n` +
+    `📐 type: ${escHtml(type)}${title}\n\n` +
+    `Для CEO/COO: <code>/listen_here</code> щоб увімкнути TG Task Bot у цьому чаті.`
+  );
+}
+
+async function handleListenHere(
+  supabase: ReturnType<typeof createClient>,
+  chatId: number,
+  tgUser: { id?: number; username?: string; first_name?: string },
+  msg: TgMessage,
+): Promise<void> {
+  // Тільки CEO/COO
+  if (!tgUser.id) { await tgSend(chatId, "⚠️ TG user не визначено."); return; }
+  const { data: u } = await supabase.from("users").select("id, name, role").eq("tg_chat_id", String(tgUser.id)).maybeSingle();
+  if (!u) { await tgSend(chatId, "🚫 Не привʼязаний як юзер HQ. Спочатку /start у DM.", { silent: true }); return; }
+  if (!["ceo", "coo"].includes(u.role)) {
+    await tgSend(chatId, `🚫 Команда тільки для CEO/COO. Твоя роль: <b>${escHtml(u.role)}</b>.`, { silent: true });
+    return;
+  }
+  // Upsert у whitelist
+  const chatTitle = msg.chat.title || msg.chat.first_name || "Untitled";
+  const { error } = await supabase.from("tg_listening_chats").upsert({
+    chat_id: chatId,
+    chat_title: chatTitle,
+    added_by: u.id,
+    reactive: true,
+    proactive: true,
+    notes: `Додано через /listen_here від ${u.name || u.role}`,
+  }, { onConflict: "chat_id" });
+  if (error) { await tgSend(chatId, `⚠️ Помилка: ${escHtml(error.message)}`); return; }
+  await tgSend(chatId,
+    `✅ <b>TG Task Bot активний у цьому чаті</b>\n\n` +
+    `📛 Чат: <b>${escHtml(chatTitle)}</b>\n` +
+    `🆔 ID: <code>${chatId}</code>\n` +
+    `👤 Активовано: <b>${escHtml(u.name || u.role)}</b>\n\n` +
+    `<b>Як юзати:</b>\n` +
+    `1️⃣ <i>Inline:</i> "Сашо, треба X 📌" одним повідомленням\n` +
+    `2️⃣ <i>Reply:</i> Reply з 📌/📋/📝/⚡ на повідомлення\n` +
+    `3️⃣ <i>/task</i> у reply\n\n` +
+    `Бот витягне задачу і пришле тобі DM з пропозицією + кнопками.\n` +
+    `Зупинити: <code>/listen_stop</code>`
+  );
+}
+
+async function handleListenStop(
+  supabase: ReturnType<typeof createClient>,
+  chatId: number,
+  tgUser: { id?: number },
+  msg: TgMessage,
+): Promise<void> {
+  if (!tgUser.id) { await tgSend(chatId, "⚠️ TG user не визначено."); return; }
+  const { data: u } = await supabase.from("users").select("id, name, role").eq("tg_chat_id", String(tgUser.id)).maybeSingle();
+  if (!u || !["ceo", "coo"].includes(u.role)) {
+    await tgSend(chatId, `🚫 Команда тільки для CEO/COO.`, { silent: true });
+    return;
+  }
+  const { error } = await supabase.from("tg_listening_chats")
+    .update({ reactive: false, proactive: false })
+    .eq("chat_id", chatId);
+  if (error) { await tgSend(chatId, `⚠️ ${escHtml(error.message)}`); return; }
+  await tgSend(chatId, `🔌 TG Task Bot вимкнено у цьому чаті. Знов увімкнути: <code>/listen_here</code>`);
+}
+
+async function handleListenStatus(
+  supabase: ReturnType<typeof createClient>,
+  chatId: number,
+): Promise<void> {
+  const { data: c } = await supabase
+    .from("tg_listening_chats")
+    .select("chat_title, reactive, proactive, added_at, notes")
+    .eq("chat_id", chatId)
+    .maybeSingle();
+  if (!c) {
+    await tgSend(chatId, `❌ Цей чат <b>не в whitelist</b>. CEO/COO може ввімкнути: <code>/listen_here</code>`);
+    return;
+  }
+  await tgSend(chatId,
+    `📋 <b>TG Task Bot статус</b>\n\n` +
+    `📛 ${escHtml(c.chat_title || "?")}\n` +
+    `⚡ Reactive (📌 / reply / /task): ${c.reactive ? "✅ on" : "🔌 off"}\n` +
+    `🤖 Proactive (daily 18:00 scan): ${c.proactive ? "✅ on" : "🔌 off"}\n` +
+    `📅 Додано: ${c.added_at}\n` +
+    (c.notes ? `📝 ${escHtml(c.notes)}` : "")
+  );
+}
+
 async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
   if (isGroup) {
     await tgSend(chatId, `🤖 Я шлю сповіщення з кнопками ✓ / ↩. Команди — у DM: <a href="https://t.me/dreamcar_team_bot">@dreamcar_team_bot</a>`, { silent: true });
@@ -1703,6 +1797,10 @@ Deno.serve(async (req: Request) => {
     else if (cmd === "/late") await handleLate(supabase, chatId, isGroup);
     else if (cmd === "/my") await handleMy(supabase, chatId, isGroup);
     else if (cmd === "/approve") await handleApprove(supabase, chatId, isGroup);
+    else if (cmd === "/chatid") await handleChatId(chatId, msg);
+    else if (cmd === "/listen_here") await handleListenHere(supabase, chatId, tgUser, msg);
+    else if (cmd === "/listen_stop") await handleListenStop(supabase, chatId, tgUser, msg);
+    else if (cmd === "/listen_status") await handleListenStatus(supabase, chatId);
     else if (cmd && !isGroup) await tgSend(chatId, "ℹ️ Не зрозумів. /help");
     else if (!cmd && !isGroup && msg.text) {
       // Текст БЕЗ команди у DM → AI асистент
