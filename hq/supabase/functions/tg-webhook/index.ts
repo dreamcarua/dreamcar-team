@@ -1316,7 +1316,11 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       .eq("id", propId)
       .maybeSingle();
     if (!prop) { await tgAnswerCallback(cb.id, "Пропозиція не знайдена", true); return; }
-    if (prop.proposer_id !== meUser.id) { await tgAnswerCallback(cb.id, "Це не твоя пропозиція", true); return; }
+    // У group чатах будь-який member команди може діяти. У DM (private) — тільки proposer.
+    const isGroupProp = prop.chat_id < 0;
+    if (!isGroupProp && prop.proposer_id !== meUser.id) {
+      await tgAnswerCallback(cb.id, "Це не твоя пропозиція", true); return;
+    }
     if (prop.state !== "proposed" && prop.state !== "editing") { await tgAnswerCallback(cb.id, "Вже оброблена", true); return; }
 
     if (subAction === "accept") {
