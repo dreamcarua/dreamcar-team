@@ -499,7 +499,13 @@
     btn.title = 'Онбординг Tasks — як користуватися системою';
     btn.style.cssText = 'border-color:#F59E0B;color:#FBBF24;font-weight:700;';
     btn.innerHTML = '🚀 ОНБОРДИНГ <span style="opacity:.7;font-weight:400;">' + pctLabel + '</span>';
-    btn.addEventListener('click', function (e) { e.preventDefault(); location.hash = '#onboarding'; });
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      // FIX 05.06.2026: якщо hash вже = #onboarding, location.hash=хххх НЕ тригерить hashchange.
+      // Тому викликаємо maybeRoute напряму, і ставимо hash тільки якщо інший.
+      if (location.hash !== '#onboarding') location.hash = '#onboarding';
+      else maybeRoute(); // повторний клік — форсуємо render
+    });
 
     // Вставити перед ANALYTICS
     var analyticsBtn = topbarActions.querySelector('a[href="/tasks/analytics.html"]');
@@ -516,6 +522,11 @@
         drOnb.className = 'dr-item';
         drOnb.href = '#onboarding';
         drOnb.innerHTML = '<span class="ico">🚀</span>Онбординг <span style="opacity:.6;margin-left:auto;font-size:11px;">' + pctLabel + '</span>';
+        drOnb.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (location.hash !== '#onboarding') location.hash = '#onboarding';
+          else maybeRoute();
+        });
         drAnalytics.parentNode.insertBefore(drOnb, drAnalytics);
       }
     }
@@ -585,6 +596,9 @@
   });
 
   window.renderTasksOnboarding = renderOnboarding;
-  window.showTasksOnboarding = function () { location.hash = '#onboarding'; };
+  window.showTasksOnboarding = function () {
+    if (location.hash !== '#onboarding') location.hash = '#onboarding';
+    else maybeRoute();
+  };
   console.log('%cDreamCar Tasks Onboarding v1.1 %c· 10 steps loaded · retry до 30 сек', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();
