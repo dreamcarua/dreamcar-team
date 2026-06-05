@@ -458,12 +458,14 @@
   window.addEventListener('hashchange', maybeRoute);
 
   // Додати chip у TOPBAR біля 📊 ANALYTICS (як HQ, окремо від фільтрів задач)
+  // НЕ чекаємо auth — chip показуємо одразу як топбар є, прогрес update later
   function injectChip() {
     var topbarActions = document.getElementById('topbarActions');
-    if (!topbarActions || document.getElementById('onbBtn')) return;
+    if (!topbarActions) return false;
+    if (document.getElementById('onbBtn')) return true; // вже інжектований
     var me = getMe();
-    if (!me) return;
-    var prog = getProgress(me);
+    var prog = me ? getProgress(me) : { done: 0, total: STEPS.length };
+    var pctLabel = prog.done === prog.total && me ? '✓' : '(' + prog.done + '/' + prog.total + ')';
 
     // Desktop кнопка — поряд з ANALYTICS
     var btn = document.createElement('a');
@@ -472,7 +474,6 @@
     btn.className = 'filter-btn desktop-only';
     btn.title = 'Онбординг Tasks — як користуватися системою';
     btn.style.cssText = 'border-color:#F59E0B;color:#FBBF24;font-weight:700;';
-    var pctLabel = prog.done === prog.total ? '✓' : '(' + prog.done + '/' + prog.total + ')';
     btn.innerHTML = '🚀 ОНБОРДИНГ <span style="opacity:.7;font-weight:400;">' + pctLabel + '</span>';
     btn.addEventListener('click', function (e) { e.preventDefault(); location.hash = '#onboarding'; });
 
@@ -494,28 +495,53 @@
         drAnalytics.parentNode.insertBefore(drOnb, drAnalytics);
       }
     }
+    console.log('[tasks-onb] chip injected. me:', !!me, '· progress:', prog.done + '/' + prog.total);
+    return true;
   }
 
-  // Aggressive retry: продовжуємо інжектити chip поки user data не з'явиться
+  // Оновити label chip коли auth догрузиться (без re-injection)
+  function refreshChipLabel() {
+    var btn = document.getElementById('onbBtn');
+    if (!btn) return;
+    var me = getMe();
+    if (!me) return;
+    var prog = getProgress(me);
+    var pctLabel = prog.done === prog.total ? '✓' : '(' + prog.done + '/' + prog.total + ')';
+    btn.innerHTML = '🚀 ОНБОРДИНГ <span style="opacity:.7;font-weight:400;">' + pctLabel + '</span>';
+  }
+
+  // Aggressive retry — чекаємо ТІЛЬКИ topbar (НЕ me!), бо chip показуємо одразу
   var _initAttempts = 0;
   function init() {
     _initAttempts++;
-    var me = getMe();
     var topbar = document.getElementById('topbarActions');
-    console.log('[tasks-onb] init attempt', _initAttempts, '· me:', !!me, '· topbar:', !!topbar, '· chip:', !!document.getElementById('onbBtn'));
-    if (topbar && me) {
+    var hasChip = !!document.getElementById('onbBtn');
+    console.log('[tasks-onb] init attempt', _initAttempts, '· topbar:', !!topbar, '· chip:', hasChip);
+    if (topbar && !hasChip) {
       injectChip();
       maybeRenderBanner();
       if (location.hash === '#onboarding') renderOnboarding();
-      return; // success — stop retrying
+    } else if (hasChip) {
+      refreshChipLabel(); // auth могла догрузитись, оновити прогрес
+      maybeRenderBanner();
     }
-    if (_initAttempts < 30) setTimeout(init, 1000); // retry до 30 сек
+    if (_initAttempts < 30) setTimeout(init, 1000); // продовжуємо щоб ловити refresh label
   }
   document.addEventListener('DOMContentLoaded', init);
   if (document.readyState !== 'loading') init();
   setTimeout(init, 500);
   setTimeout(init, 1500);
   setTimeout(init, 3000);
+
+  // MutationObserver — якщо хтось видалив chip з topbar, інжектимо знову
+  (function watchTopbar() {
+    var topbar = document.getElementById('topbarActions');
+    if (!topbar) { setTimeout(watchTopbar, 500); return; }
+    var obs = new MutationObserver(function () {
+      if (!document.getElementById('onbBtn')) injectChip();
+    });
+    obs.observe(topbar, { childList: true });
+  })();
 
   // Hash route handler — окремо, гарантовано спрацьовує
   window.addEventListener('hashchange', function () {
