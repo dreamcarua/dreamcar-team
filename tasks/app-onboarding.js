@@ -17,7 +17,7 @@
     var css = document.createElement('style');
     css.id = 'tasks-onb-css';
     css.textContent =
-      '.tonb-banner { position:fixed; top:0; left:0; right:0; background: linear-gradient(90deg, rgba(227,6,19,0.18), rgba(245,158,11,0.06)); border-bottom: 1px solid var(--red,#E30613); padding: 8px 24px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: #fff; z-index: 5000; }' +
+      '.tonb-banner { position:fixed; top:60px; left:0; right:0; background: linear-gradient(90deg, rgba(227,6,19,0.18), rgba(245,158,11,0.06)); border-bottom: 1px solid var(--red,#E30613); padding: 8px 24px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: #fff; z-index: 49; }' +
       '@media (max-width: 900px) { .tonb-banner { display: none !important; } }' +
       '.tonb-banner .ico { font-size: 18px; }' +
       '.tonb-banner .prog { flex: 1; background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; max-width: 220px; margin-left: auto; }' +
