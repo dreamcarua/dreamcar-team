@@ -295,6 +295,7 @@
 <a class="sb-link" data-page="compress">🎬 Креативи</a>
 <a class="sb-link" data-page="autopost">🚀 Автопостинг</a>
 <a class="sb-link" data-page="bot">🤖 TG бот</a>
+<a class="sb-link" data-page="dashboard" data-role="ceo,coo,lead">📊 Dashboard (CEO/COO/Lead)</a>
 <a class="sb-link" data-page="brand">🎨 Brand Book</a>
 <div class="sb-section">Решта</div>
 <a class="sb-link" data-page="faq">❓ FAQ</a>
@@ -491,6 +492,60 @@
 <div class="card accent" data-role="approver,ceo,coo"><div class="who"><span class="role-pill">APPROVER</span></div><h4>Як повернути на rework</h4><ol class="steps"><li>↩ у TG inline (двокроковий: причина → confirm)</li><li>Або у HQ «Повернути» → модалка з категоріями</li><li>SMM одразу отримає TG DM з причиною</li><li>У Tasks автоматично створюється задача (due = +1 день)</li></ol></div>
 <div class="card" data-role="smm"><div class="who"><span class="role-pill">SMM</span></div><h4>Корисні трюки</h4><ul><li><b>Дублювати на платформу</b> — один пост → дублі для TG/IG/FB</li><li><b>Шаблони</b> — повторювані типи постів</li><li><b>Per-platform date/time</b> — різний час одним постом</li><li><b>Bulk delete + undo</b> — 5 сек на скасування</li><li><b>Cmd+K</b> — глобальний пошук</li></ul></div>
 <div class="block"><h2>🔍 Де результат</h2><p>Після того як пост запостився — у HQ зʼявляється <b>посилання на TG-повідомлення</b>. Клік → відкривається пост у каналі.</p></div>
+
+<div class="block"><h2>👀 "Зараз хід" — хто наступний (Next Action Pipeline)</h2>
+<p>У картці публікації блок <b>«Зараз хід»</b> показує хто наступний у роботі і що саме робить.</p>
+<p><b>8 типів роботи (з emoji):</b></p>
+<ul style="columns:2;column-gap:24px;">
+  <li>✍️ Сценарій</li>
+  <li>🎬 Відео</li>
+  <li>🎨 Дизайн</li>
+  <li>📝 Копі</li>
+  <li>👀 Перегляд</li>
+  <li>✏️ Доопрацювати</li>
+  <li>✅ Погодити</li>
+  <li>🔄 Інше</li>
+</ul>
+<p><b>Як передати:</b></p>
+<ol>
+  <li>Відкрий публікацію у HQ</li>
+  <li>Клацни кнопку <b>«🤝 Передати»</b> у блоці «Зараз хід»</li>
+  <li>Обери виконавця зі списку</li>
+  <li>Обери тип роботи (з 8 emoji)</li>
+  <li>Опціонально — нотатка ("уточни шрифти Х, Y..." )</li>
+  <li>Save → виконавець отримує TG DM "{ім'я} передав тобі {тип}: {назва pub} — {нотатка}"</li>
+</ol>
+<div class="tip">💡 <b>Зачем це треба:</b> щоб не було "хто наступний?". Якщо ти зробив сценарій — клацаєш Передати → Дизайнеру → 🎨. Він бачить що це адресовано йому, не "будь-коли хтось зробить".</div>
+</div>
+
+<div class="block"><h2>🗑 Корзина публікацій — 30 днів</h2>
+<p>Видалені публікації не зникають назавжди — йдуть у корзину, зберігаються 30 днів, можна відновити.</p>
+<p><b>Хто може видалити:</b></p>
+<ul>
+  <li><b>Автор</b> (хто створив публікацію) — завжди</li>
+  <li><b>CEO / COO</b> — може все</li>
+  <li><b>Інші ролі</b> — НЕ можуть видаляти чужі публікації</li>
+</ul>
+<p><b>Як видалити:</b> у HQ → клік 🗑 → вибір з 3 кнопок:</p>
+<ul>
+  <li style="list-style:none;color:#FF6A7A;">🗑 <b>ВИДАЛИТИ НАЗАВЖДИ</b> — тільки CEO/COO. Корзини НЕ буде.</li>
+  <li style="list-style:none;color:#FBBF24;">📦 <b>ПЕРЕМІСТИТИ В КОРЗИНУ</b> — 30 днів, можна відновити.</li>
+  <li style="list-style:none;">✕ <b>СКАСУВАТИ</b> — Esc теж закриває.</li>
+</ul>
+<p><b>Де знайти корзину:</b> у sidebar посилання <code>🗑 Корзина (N)</code>.</p>
+<p>У корзині бачиш: назва, автор, <b>хто видалив</b>, коли, <b>скільки днів залишилось</b>, кнопки ↩ Відновити / 🗑 Purge.</p>
+<div class="tip">💡 CEO/COO бачать видалені публікації ВСІЄЇ команди. Інші ролі — лише свої.</div>
+<div class="warn">⚠️ Через 30 днів — hard delete через cron.</div>
+</div>
+
+<div class="block"><h2>🎨 Світла тема</h2>
+<p>Якщо тобі важко працювати у темному режимі — клацніть на іконку <b>🌙 / ☀️</b> у топбарі.</p>
+<ul>
+  <li>Тема <b>зберігається у браузері</b></li>
+  <li>Синхронізується між <b>HQ + Tasks + Dashboard</b></li>
+  <li>Синхронізується між <b>вкладками</b></li>
+</ul>
+</div>
 </section>
 
 <section class="page" data-page="tasks">
@@ -585,6 +640,24 @@
 <section class="page" data-page="bot">
 <div class="page-header"><div class="kicker">/// СИСТЕМА 05</div><h1>TG <span>БОТ</span> @dreamcar_team_bot</h1><p class="lead">Командна лінія через Telegram.</p></div>
 <div class="block"><h2>💡 Що це</h2><p>Бот <a href="https://t.me/dreamcar_team_bot" target="_blank" style="color:#E30613;">@dreamcar_team_bot</a> — інтерфейс до HQ і Tasks через Telegram. Ти у поїздці — все одно можеш погоджувати, бачити задачі.</p></div>
+
+<div class="block"><h2>🔘 Inline кнопки під сповіщеннями</h2>
+<p>Коли тобі приходить нотифікація — під нею кнопки одразу для дій:</p>
+<p><b>Під задачею:</b></p>
+<ul>
+  <li>✅ <b>Готово</b> — статус → done, у повідомленні зʼявиться «✅ Виконано · Вадим · 15:35»</li>
+  <li>▶ <b>В роботу</b> — статус → doing</li>
+  <li>👀 <b>Відкрити у браузері</b> — <b>1 клік</b> відкриває задачу у браузері (раніше показувало URL текстом, треба було копіювати)</li>
+</ul>
+<p><b>Під публікацією на погодженні:</b></p>
+<ul>
+  <li>✅ <b>Погодити</b></li>
+  <li>↩ <b>Повернути</b> — далі двокроковий: причина → confirm</li>
+  <li>💬 <b>Коментар</b></li>
+  <li>👀 <b>Відкрити у HQ</b></li>
+</ul>
+<div class="tip">💡 Дедуплікація: якщо хтось reload-ить HQ — ти НЕ отримаєш повторне сповіщення. Один статус-change = одна нотифікація (5-хв guard).</div>
+</div>
 <div class="block"><h2>📖 Команди — універсальні</h2><table class="dataset"><thead><tr><th>Команда</th><th>Що робить</th></tr></thead><tbody>
 <tr><td><code>/start</code></td><td>Прив'язати TG до акаунту (один раз)</td></tr>
 <tr><td><code>/today</code></td><td>Що заплановано сьогодні</td></tr>
@@ -607,8 +680,71 @@
 <div class="card"><h4>🎯 Інтерактивні кнопки під сповіщеннями</h4><ul><li>✅ Погодити / ↩ Повернути — для постів</li><li>💬 Коментар — пишеш у відповідь → стає коментарем</li><li>⏰ +1 день — посунути дедлайн</li><li>📌 Деталі — повний текст + creative</li></ul></div>
 </section>
 
+<section class="page" data-page="dashboard" data-role="ceo,coo,lead">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 06 · ЗАКРИТА</div><h1>DASHBOARD — <span>БІЗНЕС</span> АНАЛІТИКА</h1><p class="lead">Revenue, leads, spend, conversions — всі цифри DreamCar у real-time. Доступ лише CEO / COO / Lead.</p></div>
+
+<div class="block"><h2>💡 Що це</h2><p><a href="https://dashboard.dreamcar.ua" target="_blank" style="color:#E30613;text-decoration:underline;font-weight:600;">dashboard.dreamcar.ua</a> — бізнес-аналітика DreamCar з 9 розділами: Огляд, Проекти, Аналітика, Комбінації, Джерела, Тип трафіка, Кампанії, Виконавець, Оголошення + блоки Facebook Ads (Overview / Campaigns) + Maintenance (Таблиця, Webhook логи, UTM Mapping, People Merge, Cohort Retention, Manual Costs).</p>
+<p>Real-time через WebSocket: нова оплата → дашборд оновлюється &lt;200мс. ETL FB Ads щодня кожні 15 хв.</p>
+</div>
+
+<div class="block"><h2>🔒 Як зайти</h2>
+<ol>
+  <li>Відкрий <a href="https://dashboard.dreamcar.ua" target="_blank" style="color:#E30613;">dashboard.dreamcar.ua</a></li>
+  <li>Побачиш login screen "🔒 Закрита бізнес-аналітика"</li>
+  <li>Клік <b>"🔐 Увійти через Telegram"</b></li>
+  <li>Перенаправляє на HQ → TG login → автоматично повертає на dashboard</li>
+  <li>Якщо вже залогінений у HQ — sso bridge передає сесію автоматично, не треба перелогуватись</li>
+</ol>
+<div class="warn">⚠️ <b>Member отримує "Доступ заборонено"</b>. Якщо у тебе кілька Google аккаунтів (наприклад <code>vg@abrisart.com</code> + <code>dreamcarua@gmail.com</code>) — всі ведуть на один профіль через систему aliases.</div>
+</div>
+
+<div class="block"><h2>📊 Ключові метрики (вкладка Аналітика)</h2>
+<ul>
+  <li><b>Лідів / Оплат / Виручка / AOV</b> — з delta ▲/▼% vs попередній період</li>
+  <li><b>Платний vs Органічний</b> doughnut (на основі реальних FB Ads кампаній, не "instagram = paid")</li>
+  <li><b>Топ-5 каналів</b>, <b>Топ-10 кампаній</b>, <b>Топ-10 джерел</b></li>
+  <li><b>Hourly heatmap</b> — день тижня × година (по Kyiv time)</li>
+  <li><b>Time-to-pay, Repeat rate, Currency split</b> (UAH/USD/EUR)</li>
+</ul>
+</div>
+
+<div class="block"><h2>🏎️ Сторінка "Проекти"</h2>
+<p>7 активних проектів (VOLVO XC90 / AUDI Q7 / BMW 330E HYBRID / MERCEDES GLE COUPE / BMW X5 HYBRID / AUDI E-TRON / Архів-до-VOLVO).</p>
+<p>KPI cards: всього лідів / оплат / revenue / AOV / buyers / top-revenue / top-conv.</p>
+<p>Bar charts: Revenue (брендові кольори) + Conv % + <b>Ad spend + ROI + CAC per project</b>.</p>
+</div>
+
+<div class="block"><h2>🪝 Webhooks та джерела даних</h2>
+<p>Дані приходять з 4 точок:</p>
+<ol>
+  <li><b>SendPulse CRM</b> — оплати через webhook (real-time). Dual-write з сервером Олександра поки тестуємо.</li>
+  <li><b>Facebook Ads</b> — spend/impressions/clicks/conversions, ETL Python cron */15 хв</li>
+  <li><b>Manual costs</b> — partнерства, призи, сервіси (вручну у Settings)</li>
+  <li><b>Projects</b> — довідник 7 авто</li>
+</ol>
+<p>Здоров'я webhooks видно у <code>#webhooks</code>: success_rate, count, avg latency по джерелу. Якщо &lt;90% — автоматичний DM у TG.</p>
+</div>
+
+<div class="block"><h2>👥 People Merge (CRM ↔ ADS)</h2>
+<p>Один клієнт може мати кілька email/телефонів у CRM але один FB click. Сторінка <code>#people</code> дозволяє ручний merge — щоб counts не були завищені.</p>
+</div>
+
+<div class="block"><h2>📈 Cohort Retention</h2>
+<p><code>#cohort</code> heatmap — повторні оплати за місяцями. Видно з якого "винтажу" клієнти повертаються найкраще.</p>
+</div>
+
+<div class="block"><h2>🎨 Світла тема</h2>
+<p>Toggle 🌙/☀️ — синхронізується з HQ і Tasks. Один localStorage key для всіх 3 систем.</p>
+</div>
+
+<div class="block"><h2>📚 Детальна документація</h2>
+<p><a href="onboarding/dashboard.html" target="_blank" style="color:#E30613;">onboarding/dashboard.html</a> — повна архітектура (8 секцій: концепція, RPC, FB Ads ETL, paid/organic logic, всі сторінки, use cases, troubleshooting).</p>
+<p><a href="onboarding/DASHBOARD_DATA_FLOW.md" target="_blank" style="color:#E30613;">DASHBOARD_DATA_FLOW.md</a> — потоки даних, вузькі місця, моніторинг.</p>
+</div>
+</section>
+
 <section class="page" data-page="brand">
-<div class="page-header"><div class="kicker">/// СИСТЕМА 06</div><h1>BRAND <span>BOOK</span></h1><p class="lead">Як виглядає DreamCar, як говорить.</p></div>
+<div class="page-header"><div class="kicker">/// СИСТЕМА 07</div><h1>BRAND <span>BOOK</span></h1><p class="lead">Як виглядає DreamCar, як говорить.</p></div>
 <div class="block"><h2>💡 Навіщо</h2><p>Щоб усі говорили однаково. Не «продакт-агенство», а «команда». Не «розіграш» а «проект».</p><p><b>URL:</b> <a href="https://brand.dreamcar.ua" target="_blank" style="color:#E30613;text-decoration:underline;font-weight:600;">brand.dreamcar.ua</a></p></div>
 <div class="block"><h2>📚 Точно треба знати</h2><ul><li><b>Quickstart</b> — 5 хв</li><li><b>Voice & Tone</b> — як ми говоримо</li><li><b>Examples</b> — добре vs погано</li><li><b>Логотип + Кольори + Шрифти</b></li><li><b>Photography Brief</b> — як знімати креативи</li><li><b>Email шаблони</b></li></ul></div>
 <div class="block"><h2>🛠 Інтерактивні tools</h2><ul><li><b>Voice Linter</b> — миттєвий аналіз тексту (з вибором проекту)</li><li><b>Color Checker</b> — WCAG accessibility</li><li><b>Brand Post Generator</b> — кістяк поста</li><li><b>Component Storybook</b> — кнопки/картки + CSS</li></ul></div>
