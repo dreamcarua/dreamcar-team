@@ -1174,6 +1174,70 @@ async function handleListenStatus(
   );
 }
 
+// 05.06.2026: /tasks — мої задачі (Inbox/Doing) у TG
+async function handleMyTasks(
+  supabase: ReturnType<typeof createClient>,
+  chatId: number,
+  isGroup: boolean,
+): Promise<void> {
+  if (isGroup) { await tgSend(chatId, "🔒 /tasks — у DM з ботом.", { silent: true }); return; }
+  const { data: me } = await supabase.from("users").select("id, name, role").eq("tg_chat_id", chatId).maybeSingle();
+  if (!me) { await tgSend(chatId, "🚫 Не привʼязаний. Спочатку /start у DM."); return; }
+
+  const { data: tasks } = await supabase
+    .from("team_tasks")
+    .select("id, title, status, priority, due_date, project_id")
+    .eq("assignee_id", me.id)
+    .in("status", ["inbox", "doing"])
+    .is("deleted_at", null);
+
+  if (!tasks || tasks.length === 0) {
+    await tgSend(chatId, `🎉 <b>${escHtml(me.name || "Ти")}, у тебе немає активних задач!</b>\n\nВсе чисто. Або робота тебе оминає, або ти вже все закрив.`);
+    return;
+  }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // Sort: P1/P2 → overdue → today → інші
+  const prioOrd: Record<string, number> = { p1: 1, p2: 2, p3: 3, p4: 4 };
+  const scored = (tasks as Array<{ id: string; title: string; status: string; priority: string; due_date: string | null; project_id: string | null }>).map((t) => {
+    let score = (prioOrd[t.priority] || 5) * 100;
+    if (t.due_date) {
+      const due = new Date(t.due_date);
+      due.setHours(0, 0, 0, 0);
+      if (due < today) score -= 50; // overdue → пріоритет вище
+      else if (due.getTime() === today.getTime()) score -= 25; // сьогодні
+    }
+    return { ...t, _score: score };
+  });
+  scored.sort((a, b) => a._score - b._score);
+
+  const lines = [
+    `📋 <b>Твої активні задачі (${tasks.length}):</b>\n`,
+  ];
+  const STATUS_LABEL: Record<string, string> = { inbox: "📥", doing: "🔄" };
+  const P_LABEL: Record<string, string> = { p1: "🔴", p2: "🟡", p3: "🔵", p4: "⚪" };
+  for (const t of scored.slice(0, 15)) {
+    const ico = STATUS_LABEL[t.status] || "•";
+    const p = P_LABEL[t.priority] || "";
+    let dueChip = "";
+    if (t.due_date) {
+      const due = new Date(t.due_date);
+      const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+      if (diff < 0) dueChip = ` ⚠️ -${-diff}д`;
+      else if (diff === 0) dueChip = " 📅 сьогодні";
+      else if (diff <= 3) dueChip = ` 📅 +${diff}д`;
+    }
+    const url = `https://team.dreamcar.ua/tasks/#task=${t.id}`;
+    lines.push(`${ico} ${p} <a href="${url}">${escHtml(t.title.slice(0, 60))}</a>${dueChip}`);
+  }
+  if (scored.length > 15) lines.push(`\n…і ще ${scored.length - 15}. Дивись усе у <a href="https://team.dreamcar.ua/tasks/">Tasks ↗</a>`);
+  lines.push(`\n🔗 <a href="https://team.dreamcar.ua/tasks/">Відкрити Tasks</a>`);
+
+  await tgSend(chatId, lines.join("\n"));
+}
+
 async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
   if (isGroup) {
     await tgSend(chatId, `🤖 Я шлю сповіщення з кнопками ✓ / ↩. Команди — у DM: <a href="https://t.me/dreamcar_team_bot">@dreamcar_team_bot</a>`, { silent: true });
@@ -1842,6 +1906,7 @@ Deno.serve(async (req: Request) => {
     else if (cmd === "/listen_here") await handleListenHere(supabase, chatId, tgUser, msg);
     else if (cmd === "/listen_stop") await handleListenStop(supabase, chatId, tgUser, msg);
     else if (cmd === "/listen_status") await handleListenStatus(supabase, chatId);
+    else if (cmd === "/tasks" || cmd === "/mytasks") await handleMyTasks(supabase, chatId, isGroup);
     else if (cmd && !isGroup) await tgSend(chatId, "ℹ️ Не зрозумів. /help");
     else if (!cmd && !isGroup && msg.text) {
       // Текст БЕЗ команди у DM → AI асистент
