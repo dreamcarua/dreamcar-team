@@ -614,6 +614,25 @@ const state={
     setStatus('Завантажую SDK…');
     const createClient=await importSupabase();
     supabase=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
+    // 05.06.2026: SSO bridge від HQ — парсимо #sso=base64(json) ДО checkAuth
+    // (потрібно бо у TG WebView / Mobile Safari localStorage НЕ shared між /hq/ та /tasks/)
+    try {
+      const ssoMatch = location.hash.match(/#sso=([^&]+)/);
+      if (ssoMatch) {
+        setStatus('Приймаю сесію з HQ…');
+        const decoded = JSON.parse(atob(decodeURIComponent(ssoMatch[1])));
+        if (decoded.access_token && decoded.refresh_token) {
+          const setRes = await supabase.auth.setSession({
+            access_token: decoded.access_token,
+            refresh_token: decoded.refresh_token,
+          });
+          if (setRes.error) console.warn('[sso] setSession err:', setRes.error.message);
+          else console.log('[sso] Session bridged from HQ → Tasks');
+        }
+        // Очистити hash після прийому щоб не показувати у URL
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+    } catch(e) { console.warn('[sso] bridge parse fail:', e); }
     setStatus('Перевіряю сесію…');
     await checkAuth();
     supabase.auth.onAuthStateChange(()=>checkAuth().catch(err=>setStatus('Auth: '+err.message,'error')));
@@ -670,10 +689,11 @@ function renderAuthChip(){
 }
 
 document.getElementById('loginGoogle').onclick=async()=>{
-  if(!supabase){setStatus('SDK ще не завантажився…','error');return;}
-  setStatus('Перенаправляю на Google…');
-  const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+'/tasks/'}});
-  if(error)setStatus('OAuth: '+error.message,'error');
+  // 05.06.2026: Google login робиться через HQ — HQ після auth робить SSO bridge назад у /tasks/#sso=...
+  // (бо у TG WebView / iOS Safari localStorage НЕ shared між /hq/ і /tasks/)
+  setStatus('Перенаправляю на HQ для Google login…');
+  var ret = encodeURIComponent(window.location.pathname);
+  window.location.href = '/hq/?next=' + ret;
 };
 document.getElementById('loginTelegram').onclick=()=>{
   // 03.06.2026 Давид fix: TG login робиться у HQ (через tg-login-verify edge fn),
@@ -1981,6 +2001,6 @@ document.getElementById('templatesBtn').onclick = openTemplatesModal;
 <script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
 <script src="app-tasks-fixes.js?v=20260603n" defer></script>
 <script src="dc-theme.js?v=20260605a" defer></script>
-<script src="app-onboarding.js?v=20260605e" defer></script>
+<script src="app-onboarding.js?v=20260605f" defer></script>
 </body>
 </html>
