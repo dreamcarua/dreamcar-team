@@ -608,9 +608,13 @@ const state={
   authUser:null, publicUser:null,
   tasks:[], users:[], notifications:[], projects:[],
   filter:'all', projectFilter:null, editingId:null, selected:new Set(),
+};
+// 05.06.2026: експорт у global щоб app-onboarding.js (не-module script) бачив state.publicUser
+window.state = state;
+Object.assign(state, {
   subtasks:[], watchers:[], comments:[],
   mentionAuthors:new Set(),  // userIds, у чиїх коментарях я тегнутий
-};
+});
 
 (async()=>{
   try{
