@@ -1121,8 +1121,28 @@ async function boot() {
             }
           })();
         } else if (nextParam && /^\/[a-z0-9_-]+\/?$/i.test(nextParam)) {
-          console.log('[auth] login complete → redirect to', nextParam);
-          setTimeout(function () { window.location.href = nextParam; }, 200);
+          // 05.06.2026: SSO bridge для Tasks (потрібно бо TG WebView / iOS Safari
+          // не шерять localStorage між /hq/ та /tasks/)
+          (async function () {
+            try {
+              var sessRes = await window.supabase.auth.getSession();
+              var sess = sessRes && sessRes.data && sessRes.data.session;
+              if (sess && sess.access_token) {
+                var sso = {
+                  access_token: sess.access_token,
+                  refresh_token: sess.refresh_token,
+                  expires_at: sess.expires_at,
+                };
+                var ssoStr = encodeURIComponent(btoa(JSON.stringify(sso)));
+                console.log('[auth] SSO bridge → ' + nextParam);
+                setTimeout(function () { window.location.href = nextParam + '#sso=' + ssoStr; }, 200);
+                return;
+              }
+            } catch (e) { console.warn('[auth] SSO bridge to Tasks fail:', e); }
+            // Fallback — простий redirect
+            console.log('[auth] login complete → redirect to', nextParam);
+            setTimeout(function () { window.location.href = nextParam; }, 200);
+          })();
         }
       } catch (_) {}
       // Підпис на auth change — ТІЛЬКИ SIGNED_OUT тригерить reload (інакше TOKEN_REFRESHED викликав loop)
