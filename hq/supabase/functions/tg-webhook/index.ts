@@ -1557,13 +1557,19 @@ function extractMention(text: string | undefined, entities: TgEntity[] | undefin
   return {};
 }
 
+// 05.06.2026: iOS/Mac додає U+FE0F (variation selector) ПІСЛЯ emoji у TG.
+// "📌️".endsWith("📌") → false! Тому стрипаємо перед matching.
+function stripEmojiVariationSelector(s: string): string {
+  return s.replace(/️/g, "");
+}
+
 function detectTaskTrigger(msg: TgMessage): TaskTrigger | null {
   const text = msg.text;
   if (!text) return null;
-  const trimmed = text.trim();
+  const trimmed = stripEmojiVariationSelector(text.trim());
   const reply = msg.reply_to_message;
 
-  // Mode 1: REPLY з єдиним emoji — mention беремо з batker message (parent)
+  // Mode 1: REPLY з єдиним emoji
   if (REPLY_TRIGGER_EMOJIS.includes(trimmed) && reply?.text) {
     const mention = extractMention(reply.text, reply.entities);
     return {
@@ -1587,12 +1593,11 @@ function detectTaskTrigger(msg: TgMessage): TaskTrigger | null {
     };
   }
 
-  // Mode 3: INLINE — emoji у кінці поточного msg
+  // Mode 3: INLINE — emoji у кінці поточного msg (з variation selector tolerance)
   for (const emoji of INLINE_TRIGGER_EMOJIS) {
     if (trimmed.endsWith(emoji)) {
       const stripped = trimmed.slice(0, -emoji.length).trim();
       if (stripped.length >= 10) {
-        // mention беремо з самого повідомлення; offsets лишаються валідні бо emoji у кінці
         const mention = extractMention(msg.text, msg.entities);
         return {
           sourceText: stripped,
@@ -1678,6 +1683,37 @@ async function tryAutoDiscoverUsername(
   }
 }
 
+// 05.06.2026 Sprint 2: пушити кожне msg у whitelisted chat у buffer для 18:00 scan
+async function pushToBuffer(
+  supabase: ReturnType<typeof createClient>,
+  msg: TgMessage,
+): Promise<void> {
+  if (!msg.text || msg.text.startsWith("/")) return; // skip commands і non-text
+  if (!msg.from?.id) return;
+  try {
+    // тільки whitelisted з proactive=true
+    const { data: chat } = await supabase
+      .from("tg_listening_chats")
+      .select("chat_id, proactive")
+      .eq("chat_id", msg.chat.id)
+      .maybeSingle();
+    if (!chat || !chat.proactive) return;
+
+    const fullName = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(" ") || msg.from.username || "?";
+    await supabase.from("tg_chat_buffer").upsert({
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      user_tg_id: msg.from.id,
+      user_name: fullName,
+      text: msg.text,
+      reply_to: msg.reply_to_message?.message_id || null,
+      ts: new Date().toISOString(),
+    }, { onConflict: "chat_id,message_id" });
+  } catch (e) {
+    console.warn("[tg-buffer] push error:", e);
+  }
+}
+
 // =====================================================================
 // v26: AI Assistant + Voice forwarding to tg-ai-router
 // =====================================================================
@@ -1755,6 +1791,7 @@ Deno.serve(async (req: Request) => {
     // ===== 05.06.2026: TG Task Bot — inline 📌 / reply 📌 / /task → extract task =====
     // Async fire-and-forget auto-discovery tg_username
     tryAutoDiscoverUsername(supabase, msg).catch((e) => console.warn("[tg-discover]", e));
+    pushToBuffer(supabase, msg).catch((e) => console.warn("[tg-buffer]", e));
 
     if (msg.text) {
       const trigger = detectTaskTrigger(msg);
