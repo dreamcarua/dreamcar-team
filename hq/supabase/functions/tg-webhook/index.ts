@@ -156,6 +156,12 @@ function todayBoundsKyiv() {
 interface TgPhotoSize { file_id: string; file_unique_id: string; width: number; height: number; file_size?: number; }
 interface TgDocument { file_id: string; file_unique_id: string; file_name?: string; mime_type?: string; file_size?: number; }
 interface TgVideo { file_id: string; file_unique_id: string; width: number; height: number; duration: number; file_name?: string; mime_type?: string; file_size?: number; thumbnail?: TgPhotoSize; }
+interface TgEntity {
+  type: string; // "mention" | "text_mention" | "hashtag" | "url" | ...
+  offset: number;
+  length: number;
+  user?: { id: number; first_name?: string; last_name?: string; username?: string };
+}
 interface TgMessage {
   message_id: number;
   chat: { id: number; type: string; username?: string; first_name?: string; title?: string };
@@ -166,6 +172,7 @@ interface TgMessage {
   document?: TgDocument;
   video?: TgVideo;
   reply_to_message?: TgMessage;
+  entities?: TgEntity[];
 }
 interface TgCallbackQuery {
   id: string;
@@ -1431,6 +1438,25 @@ interface TaskTrigger {
   sourceText: string;
   sourceMsgId: number;
   mode: "inline" | "reply" | "cmd";
+  mentionTgUserId?: number;     // з text_mention entity (direct user.id)
+  mentionUsername?: string;      // з mention entity (@username)
+}
+
+// Витягти першу mention (text_mention або mention) з повідомлення-джерела
+function extractMention(text: string | undefined, entities: TgEntity[] | undefined):
+  { tgUserId?: number; username?: string } {
+  if (!text || !entities || entities.length === 0) return {};
+  for (const e of entities) {
+    if (e.type === "text_mention" && e.user?.id) {
+      return { tgUserId: e.user.id, username: e.user.username };
+    }
+    if (e.type === "mention") {
+      // @username — витягуємо substring
+      const u = text.substring(e.offset, e.offset + e.length).replace(/^@/, "");
+      if (u) return { username: u };
+    }
+  }
+  return {};
 }
 
 function detectTaskTrigger(msg: TgMessage): TaskTrigger | null {
@@ -1439,22 +1465,44 @@ function detectTaskTrigger(msg: TgMessage): TaskTrigger | null {
   const trimmed = text.trim();
   const reply = msg.reply_to_message;
 
-  // Mode 1: REPLY з єдиним emoji
+  // Mode 1: REPLY з єдиним emoji — mention беремо з batker message (parent)
   if (REPLY_TRIGGER_EMOJIS.includes(trimmed) && reply?.text) {
-    return { sourceText: reply.text, sourceMsgId: reply.message_id, mode: "reply" };
+    const mention = extractMention(reply.text, reply.entities);
+    return {
+      sourceText: reply.text,
+      sourceMsgId: reply.message_id,
+      mode: "reply",
+      mentionTgUserId: mention.tgUserId,
+      mentionUsername: mention.username,
+    };
   }
 
   // Mode 2: /task у reply
   if (trimmed.toLowerCase().startsWith("/task") && reply?.text) {
-    return { sourceText: reply.text, sourceMsgId: reply.message_id, mode: "cmd" };
+    const mention = extractMention(reply.text, reply.entities);
+    return {
+      sourceText: reply.text,
+      sourceMsgId: reply.message_id,
+      mode: "cmd",
+      mentionTgUserId: mention.tgUserId,
+      mentionUsername: mention.username,
+    };
   }
 
-  // Mode 3: INLINE — повідомлення закінчується trigger emoji + текст ≥ 10 символів
+  // Mode 3: INLINE — emoji у кінці поточного msg
   for (const emoji of INLINE_TRIGGER_EMOJIS) {
     if (trimmed.endsWith(emoji)) {
       const stripped = trimmed.slice(0, -emoji.length).trim();
       if (stripped.length >= 10) {
-        return { sourceText: stripped, sourceMsgId: msg.message_id, mode: "inline" };
+        // mention беремо з самого повідомлення; offsets лишаються валідні бо emoji у кінці
+        const mention = extractMention(msg.text, msg.entities);
+        return {
+          sourceText: stripped,
+          sourceMsgId: msg.message_id,
+          mode: "inline",
+          mentionTgUserId: mention.tgUserId,
+          mentionUsername: mention.username,
+        };
       }
     }
   }
@@ -1479,7 +1527,7 @@ async function handleTaskTrigger(
     .maybeSingle();
   if (!chat || !chat.reactive) return false;
 
-  // Fire-and-forget POST to tg-task-extract
+  // Fire-and-forget POST to tg-task-extract з mention info
   try {
     await fetch(`${SUPABASE_URL}/functions/v1/tg-task-extract`, {
       method: "POST",
@@ -1494,12 +1542,42 @@ async function handleTaskTrigger(
         message_id: trigger.sourceMsgId,
         proposer_tg_id: msg.from.id,
         text: trigger.sourceText,
+        mention_tg_user_id: trigger.mentionTgUserId,
+        mention_username: trigger.mentionUsername,
       }),
     });
   } catch (e) {
     console.error("[task-trigger] fetch error:", e);
   }
   return true;
+}
+
+// Auto-discovery: коли бачимо юзера у whitelisted chat — заповнюємо telegram_username
+// якщо у БД він порожній. Це робить @mention резолв все ефективнішим з часом.
+async function tryAutoDiscoverUsername(
+  supabase: ReturnType<typeof createClient>,
+  msg: TgMessage,
+): Promise<void> {
+  if (!msg.from?.id || !msg.from.username) return;
+  try {
+    // Тільки для whitelisted чатів
+    const { data: chat } = await supabase
+      .from("tg_listening_chats").select("chat_id").eq("chat_id", msg.chat.id).maybeSingle();
+    if (!chat) return;
+    // Знайти юзера за tg_chat_id
+    const { data: u } = await supabase
+      .from("users")
+      .select("id, telegram_username")
+      .eq("tg_chat_id", String(msg.from.id))
+      .maybeSingle();
+    if (!u) return;
+    if (!u.telegram_username) {
+      await supabase.from("users").update({ telegram_username: msg.from.username }).eq("id", u.id);
+      console.log("[tg-discover] filled telegram_username:", msg.from.username, "for user", u.id);
+    }
+  } catch (e) {
+    console.warn("[tg-discover] error:", e);
+  }
 }
 
 // =====================================================================
@@ -1577,6 +1655,9 @@ Deno.serve(async (req: Request) => {
     const tgUser = msg.from || {};
 
     // ===== 05.06.2026: TG Task Bot — inline 📌 / reply 📌 / /task → extract task =====
+    // Async fire-and-forget auto-discovery telegram_username
+    tryAutoDiscoverUsername(supabase, msg).catch((e) => console.warn("[tg-discover]", e));
+
     if (msg.text) {
       const trigger = detectTaskTrigger(msg);
       if (trigger) {

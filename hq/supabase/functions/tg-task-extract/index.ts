@@ -42,6 +42,9 @@ interface ExtractInput {
   proposer_tg_id: number;
   text: string;
   thread_context?: Array<{ from: string; text: string }>;
+  // 05.06.2026: пряма передача mention info з tg-webhook entities
+  mention_tg_user_id?: number;
+  mention_username?: string;
 }
 
 interface ExtractedTask {
@@ -334,9 +337,32 @@ Deno.serve(async (req: Request) => {
       }), { status: 200 });
     }
 
-    // 5. Resolve assignee
-    const assigneeId = resolveAssignee(extracted.assignee_hint, teamMembers) || chat.default_assignee_id || null;
+    // 5. Resolve assignee — пріоритет:
+    //    a) mention_tg_user_id з TG entities (text_mention) — найвищий, бо direct user.id
+    //    b) mention_username з TG entities — резолв через telegram_username
+    //    c) Claude's assignee_hint — fallback через name/username match
+    //    d) chat default_assignee_id
+    let assigneeId: string | null = null;
+    let assigneeSource = "none";
+    if (input.mention_tg_user_id) {
+      const found = teamMembers.find((u) => u.tg_chat_id === String(input.mention_tg_user_id));
+      if (found) { assigneeId = found.id; assigneeSource = "text_mention"; }
+    }
+    if (!assigneeId && input.mention_username) {
+      const norm = input.mention_username.toLowerCase().replace(/^@/, "").trim();
+      const found = teamMembers.find((u) => u.telegram_username && u.telegram_username.toLowerCase() === norm);
+      if (found) { assigneeId = found.id; assigneeSource = "mention"; }
+    }
+    if (!assigneeId) {
+      assigneeId = resolveAssignee(extracted.assignee_hint, teamMembers);
+      if (assigneeId) assigneeSource = "claude_hint";
+    }
+    if (!assigneeId && chat.default_assignee_id) {
+      assigneeId = chat.default_assignee_id;
+      assigneeSource = "chat_default";
+    }
     const assigneeName = assigneeId ? teamMembers.find((u) => u.id === assigneeId)?.name || null : null;
+    console.log("[extract] assignee resolved:", { assigneeId, assigneeName, source: assigneeSource });
 
     // 6. INSERT proposed task
     const { data: proposed, error: insErr } = await supabase
