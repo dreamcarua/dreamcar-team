@@ -226,6 +226,25 @@
     },
 
     {
+      key: 'projects',
+      title: '📁 Привʼязати задачу до Проєкту',
+      desc:
+        '<div class="why"><b>Чому це важливо:</b> Проєкти (запуски, кампанії) тепер окрема система <a href="/projects/" target="_blank">/projects/</a>. Задачі лінкуються до проєкту через поле <code>📁 ПРОЄКТ</code> у формі. У Kanban видно бейдж з кодом проєкту (наприклад <code>📁 IPHONE17</code>).</div>' +
+        '<p><b>Як цим юзати:</b></p>' +
+        '<ul>' +
+          '<li>📝 <b>Створити задачу</b> → у формі обрати поле <code>📁 ПРОЄКТ</code> → один зі списку (LIFE, IPHONE17, AUDI_ETRON, тощо)</li>' +
+          '<li>🔍 <b>Filter chip</b> <code>📁 ПРОЄКТ</code> у фільтрах — клік → вибір → видно тільки задачі цього проєкту</li>' +
+          '<li>🏷 <b>Бейдж</b> на картці у Kanban — кольоровий індикатор з кодом проєкту</li>' +
+          '<li>🔗 <b>Cross-link</b>: на сторінці проєкту у <a href="/projects/" target="_blank">/projects/</a> — Detail view має список усіх задач + публікацій по проєкту</li>' +
+        '</ul>' +
+        '<div class="tip">💡 <b>Use case:</b> CEO запускає кампанію → створює проєкт у /projects/ → SMM прикріплює пости до нього → ти (member) бачиш задачі у Tasks з фільтром "по проєкту X" → робиш свої кроки. Naприкінці у /projects/ Detail видно цілий звіт.</div>' +
+        '<p>URL прямого фільтру: <code>team.dreamcar.ua/tasks/#project=&lt;uuid&gt;</code> — клік з картки проєкту відразу сюди.</p>',
+      action: { label: '📁 Відкрити /projects/', href: '/projects/', external: true },
+      actionLabel: '✓ Зрозумів',
+      manual: true,
+    },
+
+    {
       key: 'trash',
       title: '🗑 Корзина — 30 днів захисту',
       desc:

@@ -238,6 +238,14 @@
     html.push('<div class="dcp-card-box"><h3>Публікацій</h3><div class="dcp-big">' + p.publications_count + '</div><div class="dcp-sub-info">У SMM</div></div>');
     html.push('</div>');
 
+    // 05.06.2026: cross-link на Dashboard analytics (Spend / Revenue / ROI / CAC per project)
+    html.push('<div class="dcp-card-box" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(227,6,19,0.06),transparent);"><h3>📊 Аналітика результатів</h3>' +
+      '<p style="color:#ccc;font-size:13px;margin-bottom:10px;">Фактичні дані по продажам, рекламі і ROI — у DreamCar Dashboard.</p>' +
+      '<a href="https://dashboard.dreamcar.ua/#projects" target="_blank" class="dcp-link-btn" style="background:#E30613;color:#fff;border-color:#E30613;">📊 Відкрити Dashboard ↗</a>' +
+      '<a href="https://dashboard.dreamcar.ua/#analytics" target="_blank" class="dcp-link-btn">💰 Витрати ↗</a>' +
+      '<a href="https://dashboard.dreamcar.ua/#sources" target="_blank" class="dcp-link-btn">📍 Джерела ↗</a>' +
+      '</div>');
+
     if (p.description) {
       html.push('<div class="dcp-card-box"><h3>Опис</h3><div style="white-space:pre-wrap;color:#ccc;">' + esc(p.description) + '</div></div>');
       html.push('<div style="margin-top:14px;"></div>');
