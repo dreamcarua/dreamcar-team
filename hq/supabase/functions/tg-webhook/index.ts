@@ -1196,9 +1196,283 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     return;
   }
 
+  // ===================================================================
+  // 05.06.2026 — TG Task Bot: taskprop:* callbacks (Sprint 1)
+  // ===================================================================
+  if (action === "taskprop") {
+    const subAction = parts[1]; // accept | edit | dismiss | set_assignee | set_priority | set_due | confirm
+    const propId = parts[2];
+    if (!propId) { await tgAnswerCallback(cb.id, "Bad proposal id"); return; }
+
+    const tgUserId = cb.from?.id;
+    if (!tgUserId) { await tgAnswerCallback(cb.id, "TG user не визначено"); return; }
+    const { data: meUser } = await supabase.from("users").select("id,name,role").eq("tg_chat_id", tgUserId).maybeSingle();
+    if (!meUser) { await tgAnswerCallback(cb.id, "TG не привʼязано — /start", true); return; }
+
+    const { data: prop } = await supabase
+      .from("tg_proposed_tasks")
+      .select("*")
+      .eq("id", propId)
+      .maybeSingle();
+    if (!prop) { await tgAnswerCallback(cb.id, "Пропозиція не знайдена", true); return; }
+    if (prop.proposer_id !== meUser.id) { await tgAnswerCallback(cb.id, "Це не твоя пропозиція", true); return; }
+    if (prop.state !== "proposed" && prop.state !== "editing") { await tgAnswerCallback(cb.id, "Вже оброблена", true); return; }
+
+    if (subAction === "accept") {
+      // INSERT у team_tasks
+      const taskInsert: Record<string, unknown> = {
+        title: prop.title,
+        description: prop.description,
+        status: "inbox",
+        priority: prop.priority || "p3",
+        assignee_id: prop.assignee_id,
+        due_date: prop.due_date,
+        created_by: meUser.id,
+        tags: ["from-tg"],
+      };
+      const { data: createdTask, error: tErr } = await supabase
+        .from("team_tasks")
+        .insert(taskInsert)
+        .select("id, title")
+        .single();
+      if (tErr || !createdTask) {
+        console.error("[taskprop:accept] create error:", tErr);
+        await tgAnswerCallback(cb.id, "Помилка створення: " + (tErr?.message || "?"), true);
+        return;
+      }
+      await supabase.from("tg_proposed_tasks")
+        .update({ state: "accepted", created_task_id: createdTask.id, decided_at: new Date().toISOString() })
+        .eq("id", propId);
+      await tgAnswerCallback(cb.id, "✅ Створено");
+      const tasksUrl = (Deno.env.get("TASKS_URL") || "https://team.dreamcar.ua/tasks") + "/#task=" + createdTask.id;
+      await tgEditMessage(
+        msg.chat.id,
+        msg.message_id,
+        (msg.text || "") + `\n\n✅ <b>Створено</b> · <a href="${tasksUrl}">Відкрити у Tasks</a>`,
+      );
+      return;
+    }
+
+    if (subAction === "dismiss") {
+      await supabase.from("tg_proposed_tasks")
+        .update({ state: "dismissed", decided_at: new Date().toISOString() })
+        .eq("id", propId);
+      await tgAnswerCallback(cb.id, "❌ Скасовано");
+      await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "") + `\n\n❌ <b>Не задача</b>`);
+      return;
+    }
+
+    if (subAction === "edit") {
+      await supabase.from("tg_proposed_tasks")
+        .update({ state: "editing" })
+        .eq("id", propId);
+      await tgAnswerCallback(cb.id, "✏ Що змінити?");
+      // Меню вибору поля
+      const editKeyboard = [
+        [{ text: "👤 Виконавця", callback_data: `taskprop:edit_assignee:${propId}` },
+         { text: "📅 Дедлайн", callback_data: `taskprop:edit_due:${propId}` }],
+        [{ text: "🔴 Пріоритет", callback_data: `taskprop:edit_priority:${propId}` }],
+        [{ text: "✅ Створити", callback_data: `taskprop:accept:${propId}` },
+         { text: "↩ Назад", callback_data: `taskprop:back:${propId}` }],
+      ];
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          reply_markup: { inline_keyboard: editKeyboard },
+        }),
+      });
+      return;
+    }
+
+    if (subAction === "back") {
+      await supabase.from("tg_proposed_tasks")
+        .update({ state: "proposed" })
+        .eq("id", propId);
+      await tgAnswerCallback(cb.id, "↩");
+      const backKb = [
+        [{ text: "✅ Створити", callback_data: `taskprop:accept:${propId}` },
+         { text: "✏ Змінити", callback_data: `taskprop:edit:${propId}` }],
+        [{ text: "❌ Не задача", callback_data: `taskprop:dismiss:${propId}` }],
+      ];
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: backKb } }),
+      });
+      return;
+    }
+
+    if (subAction === "edit_assignee") {
+      const { data: members } = await supabase.from("users").select("id, name").eq("is_active", true).order("name");
+      const buttons = (members || []).map((u: { id: string; name: string }) => [{ text: u.name, callback_data: `taskprop:set_assignee:${propId}:${u.id}` }]);
+      buttons.push([{ text: "↩ Назад", callback_data: `taskprop:edit:${propId}` }]);
+      await tgAnswerCallback(cb.id, "Кому?");
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: buttons } }),
+      });
+      return;
+    }
+
+    if (subAction === "set_assignee") {
+      const newAssignee = parts[3];
+      await supabase.from("tg_proposed_tasks").update({ assignee_id: newAssignee }).eq("id", propId);
+      await tgAnswerCallback(cb.id, "👤 Виконавця змінено");
+      // повернутись до edit menu
+      const editKeyboard = [
+        [{ text: "👤 Виконавця", callback_data: `taskprop:edit_assignee:${propId}` },
+         { text: "📅 Дедлайн", callback_data: `taskprop:edit_due:${propId}` }],
+        [{ text: "🔴 Пріоритет", callback_data: `taskprop:edit_priority:${propId}` }],
+        [{ text: "✅ Створити", callback_data: `taskprop:accept:${propId}` },
+         { text: "↩ Назад", callback_data: `taskprop:back:${propId}` }],
+      ];
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: editKeyboard } }),
+      });
+      return;
+    }
+
+    if (subAction === "edit_priority") {
+      const buttons = [
+        [{ text: "🔴 P1 (терміново)", callback_data: `taskprop:set_priority:${propId}:p1` }],
+        [{ text: "🟡 P2 (важливо)", callback_data: `taskprop:set_priority:${propId}:p2` }],
+        [{ text: "🔵 P3 (звичайний)", callback_data: `taskprop:set_priority:${propId}:p3` }],
+        [{ text: "↩ Назад", callback_data: `taskprop:edit:${propId}` }],
+      ];
+      await tgAnswerCallback(cb.id, "Пріоритет?");
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: buttons } }),
+      });
+      return;
+    }
+
+    if (subAction === "set_priority") {
+      const newP = parts[3];
+      await supabase.from("tg_proposed_tasks").update({ priority: newP }).eq("id", propId);
+      await tgAnswerCallback(cb.id, `Пріоритет: ${newP.toUpperCase()}`);
+      const editKeyboard = [
+        [{ text: "👤 Виконавця", callback_data: `taskprop:edit_assignee:${propId}` },
+         { text: "📅 Дедлайн", callback_data: `taskprop:edit_due:${propId}` }],
+        [{ text: "🔴 Пріоритет", callback_data: `taskprop:edit_priority:${propId}` }],
+        [{ text: "✅ Створити", callback_data: `taskprop:accept:${propId}` },
+         { text: "↩ Назад", callback_data: `taskprop:back:${propId}` }],
+      ];
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: editKeyboard } }),
+      });
+      return;
+    }
+
+    if (subAction === "edit_due") {
+      // швидкі пресети
+      const today = new Date();
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      const today_s = fmt(today);
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const friday = new Date(today); friday.setDate(friday.getDate() + (5 - friday.getDay() + 7) % 7 || 7);
+      const next_week = new Date(today); next_week.setDate(next_week.getDate() + 7);
+      const buttons = [
+        [{ text: `Сьогодні ${today_s.slice(5)}`, callback_data: `taskprop:set_due:${propId}:${today_s}` },
+         { text: `Завтра ${fmt(tomorrow).slice(5)}`, callback_data: `taskprop:set_due:${propId}:${fmt(tomorrow)}` }],
+        [{ text: `Пʼятниця ${fmt(friday).slice(5)}`, callback_data: `taskprop:set_due:${propId}:${fmt(friday)}` },
+         { text: `+7 днів ${fmt(next_week).slice(5)}`, callback_data: `taskprop:set_due:${propId}:${fmt(next_week)}` }],
+        [{ text: "Без дедлайну", callback_data: `taskprop:set_due:${propId}:none` }],
+        [{ text: "↩ Назад", callback_data: `taskprop:edit:${propId}` }],
+      ];
+      await tgAnswerCallback(cb.id, "Дедлайн?");
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: buttons } }),
+      });
+      return;
+    }
+
+    if (subAction === "set_due") {
+      const newDue = parts[3] === "none" ? null : parts[3];
+      await supabase.from("tg_proposed_tasks").update({ due_date: newDue }).eq("id", propId);
+      await tgAnswerCallback(cb.id, newDue ? `Дедлайн ${newDue}` : "Без дедлайну");
+      const editKeyboard = [
+        [{ text: "👤 Виконавця", callback_data: `taskprop:edit_assignee:${propId}` },
+         { text: "📅 Дедлайн", callback_data: `taskprop:edit_due:${propId}` }],
+        [{ text: "🔴 Пріоритет", callback_data: `taskprop:edit_priority:${propId}` }],
+        [{ text: "✅ Створити", callback_data: `taskprop:accept:${propId}` },
+         { text: "↩ Назад", callback_data: `taskprop:back:${propId}` }],
+      ];
+      await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/editMessageReplyMarkup`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: editKeyboard } }),
+      });
+      return;
+    }
+
+    await tgAnswerCallback(cb.id, "Невідома дія taskprop");
+    return;
+  }
+
   await tgAnswerCallback(cb.id, "Невідома дія");
 }
 
+// =====================================================================
+// TG Task Bot: detect task-trigger reply (Sprint 1, 05.06.2026)
+// =====================================================================
+const TASK_TRIGGER_EMOJIS = ["📌", "📋", "📝", "✅", "⚡"];
+
+function isTaskTrigger(text: string | undefined): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (TASK_TRIGGER_EMOJIS.includes(trimmed)) return true;
+  // /task command (з payload або без)
+  if (trimmed.toLowerCase().startsWith("/task")) return true;
+  return false;
+}
+
+async function handleTaskTrigger(
+  supabase: ReturnType<typeof createClient>,
+  msg: TgMessage,
+): Promise<boolean> {
+  const reply = msg.reply_to_message;
+  if (!reply || !reply.text) return false;
+  if (!msg.from?.id) return false;
+
+  const chatId = msg.chat.id;
+  const replyText = reply.text;
+
+  // Check chat whitelist (silent skip if not whitelisted)
+  const { data: chat } = await supabase
+    .from("tg_listening_chats")
+    .select("chat_id, chat_title, reactive")
+    .eq("chat_id", chatId)
+    .maybeSingle();
+  if (!chat || !chat.reactive) return false;
+
+  // Fire-and-forget POST to tg-task-extract
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/tg-task-extract`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        source: "emoji",
+        chat_id: chatId,
+        chat_title: chat.chat_title || msg.chat.title,
+        message_id: reply.message_id,
+        proposer_tg_id: msg.from.id,
+        text: replyText,
+      }),
+    });
+  } catch (e) {
+    console.error("[task-trigger] fetch error:", e);
+  }
+  return true;
+}
 
 // =====================================================================
 // v26: AI Assistant + Voice forwarding to tg-ai-router
@@ -1273,6 +1547,14 @@ Deno.serve(async (req: Request) => {
     const chatType = msg.chat.type || "private";
     const isGroup = chatType !== "private";
     const tgUser = msg.from || {};
+
+    // ===== 05.06.2026: TG Task Bot — reply with 📌 / 📋 / /task → extract task =====
+    if (msg.text && msg.reply_to_message && isTaskTrigger(msg.text)) {
+      const handled = await handleTaskTrigger(supabase, msg);
+      if (handled) {
+        return new Response(JSON.stringify({ ok: true, kind: "task-trigger" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+    }
 
     if (!isGroup && msg.text && msg.reply_to_message) {
       const handled = await handleReworkCommentReply(supabase, msg);
