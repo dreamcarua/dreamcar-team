@@ -447,15 +447,39 @@
   }
 
   // ===== Route handler =====
+  // 05.06.2026: aggressive retry бо state.publicUser може ще не бути готовим
   function maybeRoute() {
     if (location.hash === '#onboarding') {
-      renderOnboarding();
+      // Спробуй негайно, якщо me ще null — retry до 30 разів (9 сек)
+      var tries = 0;
+      function tryRender() {
+        var me = getMe();
+        if (me) { renderOnboarding(); return; }
+        if (tries++ < 30) setTimeout(tryRender, 300);
+        else {
+          // Показуємо повідомлення помилки після 9 сек
+          var board = document.querySelector('.kanban');
+          if (board) board.style.display = 'none';
+          var existing = document.getElementById('tonbView');
+          if (existing) existing.remove();
+          var root = document.createElement('div');
+          root.id = 'tonbView';
+          root.innerHTML = '<div class="tonb-view"><h1>⏳ Завантаження сесії…</h1><p style="color:#ccc;">Якщо це триває довше 10 сек — Cmd+Shift+R і залогінься знов через TG.</p></div>';
+          document.body.appendChild(root);
+        }
+      }
+      tryRender();
     } else {
       var view = document.getElementById('tonbView');
       if (view) view.remove();
+      // Показати kanban знов
+      var board = document.querySelector('.kanban');
+      if (board) board.style.display = '';
     }
   }
   window.addEventListener('hashchange', maybeRoute);
+  // Запустити одразу якщо #onboarding (на load сторінки з прямим лінком)
+  if (location.hash === '#onboarding') setTimeout(maybeRoute, 100);
 
   // Додати chip у TOPBAR біля 📊 ANALYTICS (як HQ, окремо від фільтрів задач)
   // НЕ чекаємо auth — chip показуємо одразу як топбар є, прогрес update later
