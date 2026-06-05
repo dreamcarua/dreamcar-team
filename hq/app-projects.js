@@ -442,17 +442,17 @@
   // ============================================================
   function maybeRoute() {
     var h = location.hash || '';
-    // 05.06.2026: legacy #launches redirect → #projects
-    if (h === '#launches') { location.hash = '#projects'; return; }
-    if (h === '#projects') {
-      state.view = 'kanban';
-      renderListView();
-    } else if (h.indexOf('#project/') === 0) {
-      var id = h.substring('#project/'.length);
-      renderDetail(id);
-    } else {
-      restoreOtherHqViews();
+    // 05.06.2026: Phase 2 — Проєкти винесено у /projects/. Redirect старих URL.
+    if (h === '#projects' || h === '#launches') {
+      window.location.replace('/projects/');
+      return;
     }
+    if (h.indexOf('#project/') === 0) {
+      var id = h.substring('#project/'.length);
+      window.location.replace('/projects/#project/' + id);
+      return;
+    }
+    restoreOtherHqViews();
   }
   window.addEventListener('hashchange', maybeRoute);
 
