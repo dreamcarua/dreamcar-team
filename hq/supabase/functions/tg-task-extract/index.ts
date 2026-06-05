@@ -221,6 +221,28 @@ function resolveAssignee(hint: string | null, members: UserRow[]): string | null
 // ---------------------------------------------------------------------
 // TG helpers
 // ---------------------------------------------------------------------
+// 05.06.2026: silent emoji reaction для повідомлень де Claude вирішив "не задача"
+async function tgSetReaction(chatId: number, messageId: number, emoji: string): Promise<boolean> {
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/setMessageReaction`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        reaction: [{ type: "emoji", emoji }],
+        is_big: false,
+      }),
+    });
+    const j = await r.json();
+    if (!j.ok) console.warn("[reaction] fail:", j.description);
+    return j.ok;
+  } catch (e) {
+    console.warn("[reaction] error:", e);
+    return false;
+  }
+}
+
 async function tgSendMessage(
   chatId: number | string,
   text: string,
@@ -360,11 +382,17 @@ Deno.serve(async (req: Request) => {
     const extracted = await extractWithClaude(input, teamMembers);
 
     if (!extracted.is_task || !extracted.title || extracted.confidence < 0.4) {
+      // Silent 👀 reaction — щоб user бачив що бот ловив повідомлення але не вважає задачею
+      const isGroupChat = input.chat_id < 0;
+      if (isGroupChat && input.message_id) {
+        await tgSetReaction(input.chat_id, input.message_id, "👀");
+      }
       return new Response(JSON.stringify({
         ok: true,
         is_task: false,
         confidence: extracted.confidence,
         msg: "Not a task per LLM",
+        reacted: isGroupChat,
       }), { status: 200 });
     }
 
