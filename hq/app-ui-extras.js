@@ -173,14 +173,9 @@
       setSidebarState(!getSidebarState());
     };
 
-    // Theme toggle
-    var themeBtn = document.createElement('button');
-    themeBtn.className = 'hq-topbar-icon';
-    themeBtn.id = 'hq-theme-toggle';
-    themeBtn.onclick = function () {
-      var cur = getThemeState();
-      setThemeState(cur === 'dark' ? 'light' : 'dark');
-    };
+    // Theme toggle DISABLED 05.06.2026 — замінено на shared dc-theme.js (cross-app, cross-tab sync).
+    // Стара локальна кнопка дублювала іконку 🌙 у топбарі (Вадим report).
+    // Залишаємо setThemeState() function для backward compat у разі коли інший код викликає.
 
     // Sound toggle
     var soundBtn = document.createElement('button');
@@ -192,22 +187,23 @@
       if (getSoundsEnabled()) setTimeout(function () { playDing(880, 0.15); }, 50);
     };
 
-    // Insert перед bell
+    // Insert перед bell (themeBtn НЕ додаємо — використовуємо dc-theme.js)
     var bell = topbar.querySelector('.bell');
     if (bell) {
       topbar.insertBefore(sidebarBtn, bell);
-      topbar.insertBefore(themeBtn, bell);
       topbar.insertBefore(soundBtn, bell);
     } else {
       topbar.appendChild(sidebarBtn);
-      topbar.appendChild(themeBtn);
       topbar.appendChild(soundBtn);
     }
 
     // Restore state
     setSidebarState(getSidebarState());
-    setThemeState(getThemeState());
     setSoundsEnabled(getSoundsEnabled());
+
+    // Прибрати existing #hq-theme-toggle якщо вже інжектився раніше (cache)
+    var oldTheme = document.getElementById('hq-theme-toggle');
+    if (oldTheme) oldTheme.remove();
 
     return true;
   }
