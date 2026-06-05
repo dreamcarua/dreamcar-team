@@ -479,15 +479,45 @@
     else nav.appendChild(btn);
   }
 
+  // Aggressive retry: продовжуємо інжектити chip поки user data не з'явиться
+  var _initAttempts = 0;
   function init() {
-    injectChip();
-    maybeRenderBanner();
-    if (location.hash === '#onboarding') setTimeout(renderOnboarding, 500);
+    _initAttempts++;
+    var me = getMe();
+    var nav = document.querySelector('.filter-rad');
+    console.log('[tasks-onb] init attempt', _initAttempts, '· me:', !!me, '· nav:', !!nav, '· chip:', !!document.getElementById('onbBtn'));
+    if (nav && me) {
+      injectChip();
+      maybeRenderBanner();
+      if (location.hash === '#onboarding') renderOnboarding();
+      return; // success — stop retrying
+    }
+    if (_initAttempts < 30) setTimeout(init, 1000); // retry до 30 сек
   }
   document.addEventListener('DOMContentLoaded', init);
   if (document.readyState !== 'loading') init();
-  [800, 2500, 5000].forEach(function (ms) { setTimeout(init, ms); });
+  setTimeout(init, 500);
+  setTimeout(init, 1500);
+  setTimeout(init, 3000);
+
+  // Hash route handler — окремо, гарантовано спрацьовує
+  window.addEventListener('hashchange', function () {
+    if (location.hash === '#onboarding') {
+      var tries = 0;
+      function tryRender() {
+        if (getMe()) renderOnboarding();
+        else if (tries++ < 20) setTimeout(tryRender, 300);
+      }
+      tryRender();
+    } else {
+      var view = document.getElementById('tonbView');
+      if (view) view.remove();
+      var board = document.querySelector('.kanban');
+      if (board) board.style.display = '';
+    }
+  });
 
   window.renderTasksOnboarding = renderOnboarding;
-  console.log('%cDreamCar Tasks Onboarding v1 %c· 10 steps loaded', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+  window.showTasksOnboarding = function () { location.hash = '#onboarding'; };
+  console.log('%cDreamCar Tasks Onboarding v1.1 %c· 10 steps loaded · retry до 30 сек', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();
