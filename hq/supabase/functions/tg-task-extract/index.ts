@@ -208,6 +208,7 @@ async function tgSendMessage(
   chatId: number | string,
   text: string,
   inlineKeyboard?: Array<Array<Record<string, string>>>,
+  opts?: { reply_to_message_id?: number },
 ): Promise<{ message_id?: number; ok: boolean; err?: string }> {
   const body: Record<string, unknown> = {
     chat_id: chatId,
@@ -217,6 +218,10 @@ async function tgSendMessage(
   };
   if (inlineKeyboard) {
     body.reply_markup = { inline_keyboard: inlineKeyboard };
+  }
+  if (opts?.reply_to_message_id) {
+    body.reply_to_message_id = opts.reply_to_message_id;
+    body.allow_sending_without_reply = true;
   }
   const r = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -245,9 +250,15 @@ function formatProposalText(
   assigneeName: string | null,
   chatTitle: string,
   sourceText: string,
+  isGroup: boolean = false,
 ): string {
   const lines = [];
-  lines.push(`🤖 <b>Знайшов можливу задачу</b> у чаті <i>${escHtml(chatTitle)}</i>\n`);
+  if (isGroup) {
+    // У групі — лаконічніше, без чату назви (усі тут)
+    lines.push(`🤖 <b>Зловив можливу задачу</b> — погоджуємо?\n`);
+  } else {
+    lines.push(`🤖 <b>Знайшов можливу задачу</b> у чаті <i>${escHtml(chatTitle)}</i>\n`);
+  }
   lines.push(`📌 <b>Заголовок:</b> ${escHtml(proposed.title)}`);
   if (proposed.description) {
     lines.push(`📝 ${escHtml(proposed.description)}`);
@@ -264,7 +275,10 @@ function formatProposalText(
     const map = { p1: "🔴 P1 (терміново)", p2: "🟡 P2 (важливо)", p3: "🔵 P3 (звичайний)" };
     lines.push(`<b>Пріоритет:</b> ${map[proposed.priority as keyof typeof map] || proposed.priority}`);
   }
-  lines.push(`\n💡 <i>Контекст:</i> "${escHtml(sourceText.slice(0, 200))}${sourceText.length > 200 ? "..." : ""}"`);
+  if (!isGroup) {
+    // У DM показуємо контекст — у group це reply на сам контекст, не треба дублювати
+    lines.push(`\n💡 <i>Контекст:</i> "${escHtml(sourceText.slice(0, 200))}${sourceText.length > 200 ? "..." : ""}"`);
+  }
   lines.push(`\nConfidence: ${(proposed.confidence * 100).toFixed(0)}%`);
   return lines.join("\n");
 }
@@ -390,9 +404,21 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: false, err: "insert_failed", details: insErr?.message }), { status: 500 });
     }
 
-    // 7. Send DM to proposer with confirmation buttons
-    if (!proposer.tg_chat_id) {
-      return new Response(JSON.stringify({ ok: true, proposed_id: proposed.id, warn: "proposer_no_tg" }), { status: 200 });
+    // 7. Send proposal — у group чат (як reply на джерело) АБО у DM proposer
+    // Group chat у TG має negative chat_id; DM — positive
+    const isGroupChat = input.chat_id < 0;
+    let targetChatId: number;
+    let replyToMsgId: number | undefined = undefined;
+    if (isGroupChat) {
+      // У групу — відповідь на оригінальне повідомлення
+      targetChatId = input.chat_id;
+      replyToMsgId = input.message_id;
+    } else {
+      // У DM proposer'у
+      if (!proposer.tg_chat_id) {
+        return new Response(JSON.stringify({ ok: true, proposed_id: proposed.id, warn: "proposer_no_tg" }), { status: 200 });
+      }
+      targetChatId = Number(proposer.tg_chat_id);
     }
 
     const proposalText = formatProposalText(
@@ -408,6 +434,7 @@ Deno.serve(async (req: Request) => {
       assigneeName,
       chat.chat_title || "Невідомий чат",
       input.text,
+      isGroupChat, // для group — скоротити preamble (всі вже у чаті)
     );
 
     const keyboard = [
@@ -420,12 +447,17 @@ Deno.serve(async (req: Request) => {
       ],
     ];
 
-    const sendRes = await tgSendMessage(Number(proposer.tg_chat_id), proposalText, keyboard);
+    const sendRes = await tgSendMessage(
+      targetChatId,
+      proposalText,
+      keyboard,
+      replyToMsgId ? { reply_to_message_id: replyToMsgId } : undefined,
+    );
     if (sendRes.ok && sendRes.message_id) {
       await supabase
         .from("tg_proposed_tasks")
         .update({
-          dm_chat_id: Number(proposer.tg_chat_id),
+          dm_chat_id: targetChatId,
           dm_message_id: sendRes.message_id,
         })
         .eq("id", proposed.id);
