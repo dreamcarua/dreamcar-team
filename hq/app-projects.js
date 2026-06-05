@@ -457,27 +457,18 @@
   window.addEventListener('hashchange', maybeRoute);
 
   // ============================================================
-  // Inject chip "📁 ПРОЄКТИ" у nav (поряд з іншими)
-  // ============================================================
-  function injectNavChip() {
-    // Шукаємо подібний chip у sidebar / topbar
-    var sidebar = document.querySelector('.sidebar') || document.querySelector('aside');
-    if (!sidebar) { setTimeout(injectNavChip, 500); return; }
-    if (document.getElementById('dcp-nav-link')) return;
-    var a = document.createElement('a');
-    a.id = 'dcp-nav-link';
-    a.href = '#projects';
-    a.style.cssText = 'display:block;padding:8px 14px;color:#FF6A7A;text-decoration:none;border-left:3px solid #E30613;background:rgba(227,6,19,0.05);font-family:JetBrains Mono,monospace;font-size:12px;letter-spacing:.05em;margin:6px 0;border-radius:0 6px 6px 0;';
-    a.innerHTML = '📁 ПРОЄКТИ';
-    // Вставка у топ sidebar
-    sidebar.insertBefore(a, sidebar.firstChild);
+  // 05.06.2026: injectNavChip ПРИБРАНО — після Phase 2 entry "Проєкти" вже у sidebar HTML (data-route=projects-ext)
+  // Прибираємо існуючий chip якщо є у DOM (cleanup для старих сесій)
+  function cleanupOldNavChip() {
+    var old = document.getElementById('dcp-nav-link');
+    if (old) old.remove();
   }
 
   // ============================================================
   // Init
   // ============================================================
   function init() {
-    injectNavChip();
+    cleanupOldNavChip();
     maybeRoute();
   }
   if (document.readyState !== 'loading') init();
