@@ -189,14 +189,31 @@ async function extractWithClaude(input: ExtractInput, teamMembers: UserRow[]): P
 
 // ---------------------------------------------------------------------
 // Resolve assignee_hint → user_id
+// Підтримує patterns: "Саша", "@username", "Давид (@username)", "Name @user"
 // ---------------------------------------------------------------------
 function resolveAssignee(hint: string | null, members: UserRow[]): string | null {
   if (!hint) return null;
-  const norm = hint.toLowerCase().replace(/^@/, "").trim();
-  for (const u of members) {
-    if (u.tg_username && u.tg_username.toLowerCase() === norm) return u.id;
-    if (u.name && u.name.toLowerCase().split(/\s+/).some((p) => p === norm)) return u.id;
-    if (u.name && u.name.toLowerCase() === norm) return u.id;
+  const raw = hint.trim();
+
+  // Збираємо кандидатів у порядку від найбільш специфічних до загальніших:
+  const candidates: string[] = [];
+  // 1. @username з тексту (якщо є)
+  const atMatches = raw.match(/@([a-zA-Z0-9_]+)/g);
+  if (atMatches) for (const m of atMatches) candidates.push(m); // "@some_mario"
+  // 2. Перше слово (часто це ім'я перед дужкою/коми)
+  const firstWord = raw.split(/[\s,()\[\]]+/).filter(Boolean)[0];
+  if (firstWord && !candidates.includes(firstWord)) candidates.push(firstWord);
+  // 3. Уся строка як остання спроба
+  if (!candidates.includes(raw)) candidates.push(raw);
+
+  for (const cand of candidates) {
+    const norm = cand.toLowerCase().replace(/^@/, "").trim();
+    if (!norm) continue;
+    for (const u of members) {
+      if (u.tg_username && u.tg_username.toLowerCase() === norm) return u.id;
+      if (u.name && u.name.toLowerCase() === norm) return u.id;
+      if (u.name && u.name.toLowerCase().split(/\s+/).some((p) => p === norm)) return u.id;
+    }
   }
   return null;
 }
