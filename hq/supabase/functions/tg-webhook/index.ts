@@ -1419,29 +1419,57 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
 }
 
 // =====================================================================
-// TG Task Bot: detect task-trigger reply (Sprint 1, 05.06.2026)
+// TG Task Bot: detect task-trigger (Sprint 1, 05.06.2026)
+// Updated 05.06.2026 — inline emoji mode (без reply)
 // =====================================================================
-const TASK_TRIGGER_EMOJIS = ["📌", "📋", "📝", "✅", "⚡"];
+// Reply-only emoji: треба явно зробити Reply з лише цим emoji
+const REPLY_TRIGGER_EMOJIS = ["📌", "📋", "📝", "⚡"];
+// Inline trigger emoji: 📌 у кінці звичайного повідомлення → ця сама задача
+const INLINE_TRIGGER_EMOJIS = ["📌", "📋", "📝", "⚡"];
 
-function isTaskTrigger(text: string | undefined): boolean {
-  if (!text) return false;
+interface TaskTrigger {
+  sourceText: string;
+  sourceMsgId: number;
+  mode: "inline" | "reply" | "cmd";
+}
+
+function detectTaskTrigger(msg: TgMessage): TaskTrigger | null {
+  const text = msg.text;
+  if (!text) return null;
   const trimmed = text.trim();
-  if (TASK_TRIGGER_EMOJIS.includes(trimmed)) return true;
-  // /task command (з payload або без)
-  if (trimmed.toLowerCase().startsWith("/task")) return true;
-  return false;
+  const reply = msg.reply_to_message;
+
+  // Mode 1: REPLY з єдиним emoji
+  if (REPLY_TRIGGER_EMOJIS.includes(trimmed) && reply?.text) {
+    return { sourceText: reply.text, sourceMsgId: reply.message_id, mode: "reply" };
+  }
+
+  // Mode 2: /task у reply
+  if (trimmed.toLowerCase().startsWith("/task") && reply?.text) {
+    return { sourceText: reply.text, sourceMsgId: reply.message_id, mode: "cmd" };
+  }
+
+  // Mode 3: INLINE — повідомлення закінчується trigger emoji + текст ≥ 10 символів
+  for (const emoji of INLINE_TRIGGER_EMOJIS) {
+    if (trimmed.endsWith(emoji)) {
+      const stripped = trimmed.slice(0, -emoji.length).trim();
+      if (stripped.length >= 10) {
+        return { sourceText: stripped, sourceMsgId: msg.message_id, mode: "inline" };
+      }
+    }
+  }
+
+  return null;
 }
 
 async function handleTaskTrigger(
   supabase: ReturnType<typeof createClient>,
   msg: TgMessage,
+  trigger: TaskTrigger,
 ): Promise<boolean> {
-  const reply = msg.reply_to_message;
-  if (!reply || !reply.text) return false;
   if (!msg.from?.id) return false;
 
   const chatId = msg.chat.id;
-  const replyText = reply.text;
 
   // Check chat whitelist (silent skip if not whitelisted)
   const { data: chat } = await supabase
@@ -1463,9 +1491,9 @@ async function handleTaskTrigger(
         source: "emoji",
         chat_id: chatId,
         chat_title: chat.chat_title || msg.chat.title,
-        message_id: reply.message_id,
+        message_id: trigger.sourceMsgId,
         proposer_tg_id: msg.from.id,
-        text: replyText,
+        text: trigger.sourceText,
       }),
     });
   } catch (e) {
@@ -1548,11 +1576,14 @@ Deno.serve(async (req: Request) => {
     const isGroup = chatType !== "private";
     const tgUser = msg.from || {};
 
-    // ===== 05.06.2026: TG Task Bot — reply with 📌 / 📋 / /task → extract task =====
-    if (msg.text && msg.reply_to_message && isTaskTrigger(msg.text)) {
-      const handled = await handleTaskTrigger(supabase, msg);
-      if (handled) {
-        return new Response(JSON.stringify({ ok: true, kind: "task-trigger" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    // ===== 05.06.2026: TG Task Bot — inline 📌 / reply 📌 / /task → extract task =====
+    if (msg.text) {
+      const trigger = detectTaskTrigger(msg);
+      if (trigger) {
+        const handled = await handleTaskTrigger(supabase, msg, trigger);
+        if (handled) {
+          return new Response(JSON.stringify({ ok: true, kind: "task-trigger", mode: trigger.mode }), { status: 200, headers: { "Content-Type": "application/json" } });
+        }
       }
     }
 
