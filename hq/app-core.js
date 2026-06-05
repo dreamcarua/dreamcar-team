@@ -209,8 +209,16 @@ const Store = {
 
     if (BACKEND_MODE) {
       return this._persistPub(pub).catch(err => {
-        console.error('Persist failed:', err);
-        toast('Помилка збереження', 'error', err.message || 'мережа');
+        // 05.06.2026: розширена діагностика — toast + alert щоб user точно побачив
+        console.error('[persistPub] Persist failed:', err);
+        console.error('[persistPub] Pub data:', { id: pub.id, title: pub.title, rubric_id: pub.rubric, status: pub.status });
+        var detail = err.message || err.code || 'мережа';
+        var hint = '';
+        if (err.code === '23503') hint = ' (FK constraint — невалідний rubric/launch/desk)';
+        else if (err.code === '42501') hint = ' (RLS блокує — auth_id/desk_members)';
+        else if (err.code === '23505') hint = ' (duplicate id)';
+        toast('Помилка збереження: ' + detail + hint, 'error');
+        alert('⚠ Публікація НЕ збережена!\n\nПомилка: ' + detail + hint + '\n\nДеталі у консолі (F12). Скрін → Вадиму.');
         throw err;
       });
     } else {
@@ -221,6 +229,12 @@ const Store = {
 
   async _persistPub(pub) {
     const sb = window.supabase;
+    // 05.06.2026: pre-validation — pub.id має бути валідний UUID
+    var uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!pub.id || !uuidRe.test(pub.id)) {
+      console.error('[persistPub] невалідний pub.id:', pub.id);
+      throw new Error('Невалідний UUID публікації: ' + pub.id);
+    }
     // 1. main row
     const row = {
       id: pub.id,
