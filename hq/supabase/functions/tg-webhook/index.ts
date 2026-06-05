@@ -1552,7 +1552,7 @@ async function handleTaskTrigger(
   return true;
 }
 
-// Auto-discovery: коли бачимо юзера у whitelisted chat — заповнюємо telegram_username
+// Auto-discovery: коли бачимо юзера у whitelisted chat — заповнюємо tg_username
 // якщо у БД він порожній. Це робить @mention резолв все ефективнішим з часом.
 async function tryAutoDiscoverUsername(
   supabase: ReturnType<typeof createClient>,
@@ -1567,13 +1567,13 @@ async function tryAutoDiscoverUsername(
     // Знайти юзера за tg_chat_id
     const { data: u } = await supabase
       .from("users")
-      .select("id, telegram_username")
+      .select("id, tg_username")
       .eq("tg_chat_id", String(msg.from.id))
       .maybeSingle();
     if (!u) return;
-    if (!u.telegram_username) {
-      await supabase.from("users").update({ telegram_username: msg.from.username }).eq("id", u.id);
-      console.log("[tg-discover] filled telegram_username:", msg.from.username, "for user", u.id);
+    if (!u.tg_username) {
+      await supabase.from("users").update({ tg_username: msg.from.username }).eq("id", u.id);
+      console.log("[tg-discover] filled tg_username:", msg.from.username, "for user", u.id);
     }
   } catch (e) {
     console.warn("[tg-discover] error:", e);
@@ -1655,7 +1655,7 @@ Deno.serve(async (req: Request) => {
     const tgUser = msg.from || {};
 
     // ===== 05.06.2026: TG Task Bot — inline 📌 / reply 📌 / /task → extract task =====
-    // Async fire-and-forget auto-discovery telegram_username
+    // Async fire-and-forget auto-discovery tg_username
     tryAutoDiscoverUsername(supabase, msg).catch((e) => console.warn("[tg-discover]", e));
 
     if (msg.text) {
