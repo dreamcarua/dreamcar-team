@@ -431,6 +431,7 @@
     <button class="chip" data-filter="mentions">@мене</button>
     <button class="chip" data-filter="watching">Стежу</button>
     <button class="chip" data-filter="created">Я створив</button>
+    <button class="chip" id="projectFilterBtn" type="button" title="Фільтр за проєктом">📁 ПРОЄКТ <span id="projectFilterLabel" style="opacity:.7;"></span></button>
     <button class="chip" id="calendarBtn" type="button" title="Календар задач">📅 КАЛЕНДАР</button>
     <button class="chip" id="trashBtn" type="button" title="Корзина">🗑 КОРЗИНА <span id="trashCount" style="opacity:.6;"></span></button>
     <button class="chip chip-ghost" id="templatesBtn" type="button" title="Шаблони задач">📋 ШАБЛОНИ</button>
@@ -501,6 +502,7 @@
       <div class="field"><label>ВИКОНАВЕЦЬ</label><select id="f-assignee"><option value="">— не призначено —</option></select></div>
       <div class="field"><label for="f-due">ДЕДЛАЙН</label><input type="date" id="f-due" aria-label="Дедлайн задачі" min="2026-01-01"></div>
     </div>
+    <div class="field"><label>📁 ПРОЄКТ</label><select id="f-project"><option value="">— без проєкту —</option></select></div>
     <div class="grid2">
       <div class="field"><label>ПОВТОР</label><select id="f-recurrence"><option value="">— разово —</option><option value="daily">щодня</option><option value="workdays">по буднях</option><option value="weekly">щотижня</option><option value="monthly">щомісяця</option></select></div>
       <div class="field"><label for="f-estimated">ОЦІНКА (год)</label><input type="number" id="f-estimated" min="0" step="0.5" placeholder="2.5" aria-label="Оцінка трудовитрат у годинах"></div>
@@ -604,8 +606,8 @@ window.addEventListener('unhandledrejection',e=>{console.error(e.reason);setStat
 
 const state={
   authUser:null, publicUser:null,
-  tasks:[], users:[], notifications:[],
-  filter:'all', editingId:null, selected:new Set(),
+  tasks:[], users:[], notifications:[], projects:[],
+  filter:'all', projectFilter:null, editingId:null, selected:new Set(),
   subtasks:[], watchers:[], comments:[],
   mentionAuthors:new Set(),  // userIds, у чиїх коментарях я тегнутий
 };
@@ -665,7 +667,7 @@ async function checkAuth(){
       document.getElementById('bellBtn').style.display='inline-flex';
       document.getElementById('prefsBtn').style.display='inline-flex';
       document.getElementById('helpBtn').style.display='inline-flex';
-      await Promise.all([loadUsers(),loadTasks(),loadNotifications(),loadPrefs(),loadTrash()]);
+      await Promise.all([loadUsers(),loadProjects(),loadTasks(),loadNotifications(),loadPrefs(),loadTrash()]);
       updateTrashCount();
       // Якщо #trash hash при першому load — показати trash view
       if(location.hash === '#trash') showTrashView();
@@ -709,6 +711,18 @@ async function loadUsers(){
   state.users=(data||[]).filter(u=>u.is_active!==false);
   const sel=document.getElementById('f-assignee');
   sel.innerHTML='<option value="">— не призначено —</option>'+state.users.map(u=>`<option value="${u.id}">${escapeHtml(u.name||u.email)}</option>`).join('');
+}
+
+async function loadProjects(){
+  // 05.06.2026 Phase 1.2: завантажити проєкти для select у task form + filter
+  const {data}=await supabase.from('projects').select('id,name,code,status,color').order('status').order('name');
+  state.projects=(data||[]).filter(p=>p.status!=='archived');
+  const sel=document.getElementById('f-project');
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML='<option value="">— без проєкту —</option>'+state.projects.map(p=>`<option value="${p.id}">${escapeHtml(p.code?p.code+' · ':'')+escapeHtml(p.name)}</option>`).join('');
+    sel.value=cur||'';
+  }
 }
 
 async function loadTasks(){
@@ -818,6 +832,10 @@ function sortByDeadline(tasks){
 function filterTasks(tasks){
   const today=new Date();today.setHours(0,0,0,0);
   const me=state.publicUser?.id;
+  // 05.06.2026: project filter — комбінується з іншими
+  if(state.projectFilter){
+    tasks=tasks.filter(t=>t.project_id===state.projectFilter);
+  }
   if(state.filter==='me')return tasks.filter(t=>t.assignee_id===me);
   if(state.filter==='watching')return tasks.filter(t=>(t.watchers||[]).includes(me));
   if(state.filter==='created')return tasks.filter(t=>t.created_by===me);
@@ -855,13 +873,16 @@ function renderTask(t){
   if((t.watchers||[]).length>0)icons.push(`👁 ${t.watchers.length}`);
   if((t.depends_on||[]).length>0)icons.push(`⛓ ${t.depends_on.length}`);
   const sel=state.selected.has(t.id)?' selected':'';
+  // 05.06.2026 Phase 1.2: project badge
+  const project = t.project_id ? (state.projects||[]).find(p=>p.id===t.project_id) : null;
+  const projectBadge = project ? `<span class="task-tag" style="background:${escapeHtml(project.color||'#1a1a1a')};color:#fff;border:1px solid rgba(255,255,255,0.1);" title="${escapeHtml(project.name)}">📁 ${escapeHtml(project.code||project.name.slice(0,8))}</span>` : '';
   return `<div class="task${sel}" draggable="true" data-id="${t.id}">
     ${icons.length?`<div class="task-icons">${icons.map(i=>`<span>${i}</span>`).join(' ')}</div>`:''}
     <div class="task-title"><span class="task-priority ${t.priority||'p3'}"></span>${escapeHtml(t.title)}</div>
     <div class="task-meta">
       ${user?`<div class="task-assignee" title="${escapeHtml(user.name||user.email)}">${initials}</div>`:''}
       ${dueText?`<span class="task-due ${dueClass}">${dueText}</span>`:''}
-      ${tags}${moreTags}
+      ${projectBadge}${tags}${moreTags}
     </div>
     ${sTotal>0?`<div class="task-progress"><div class="task-progress-fill" style="width:${progressPct}%"></div></div>`:''}
   </div>`;
@@ -1213,6 +1234,7 @@ function openEditModal(task){
   document.getElementById('f-assignee').value=task?.assignee_id||'';
   document.getElementById('f-due').value=task?.due_date?task.due_date.split('T')[0]:'';
   document.getElementById('f-recurrence').value=task?.recurrence||'';
+  document.getElementById('f-project').value=task?.project_id||'';
   document.getElementById('f-estimated').value=task?.estimated_h||'';
   document.getElementById('f-tags').value=(task?.tags||[]).join(', ');
   document.getElementById('deleteTaskBtn').style.display=task?'inline-block':'none';
@@ -1262,6 +1284,7 @@ async function saveTask(){
     assignee_id:document.getElementById('f-assignee').value||null,
     due_date:document.getElementById('f-due').value||null,
     recurrence:document.getElementById('f-recurrence').value||null,
+    project_id:document.getElementById('f-project').value||null,
     estimated_h:parseFloat(document.getElementById('f-estimated').value)||null,
     tags:document.getElementById('f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
     subtasks:state.subtasks||[],
@@ -1524,6 +1547,47 @@ function renderCalendar(){
   document.getElementById('calTodayBtn').onclick=()=>{_calCursor=new Date();_calCursor.setDate(1);renderCalendar();};
   document.getElementById('calBackBtn').onclick=hideCalendarView;
   document.getElementById('calOnlyMine').onchange=e=>{_calOnlyMine=e.target.checked;renderCalendar();};
+})();
+
+// 05.06.2026 Phase 1.2: project filter chip
+(function bindProjectFilter(){
+  const btn=document.getElementById('projectFilterBtn');
+  if(!btn){setTimeout(bindProjectFilter,200);return;}
+  function updateLabel(){
+    const lab=document.getElementById('projectFilterLabel');
+    if(!lab)return;
+    if(!state.projectFilter){lab.textContent='';btn.classList.remove('active');return;}
+    const p=state.projects.find(x=>x.id===state.projectFilter);
+    lab.textContent=p?(': '+(p.code||p.name.slice(0,12))):'';
+    btn.classList.add('active');
+  }
+  btn.addEventListener('click',e=>{
+    e.preventDefault();
+    // Toggle-like prompt: показуємо native dialog з опціями
+    if(state.projectFilter){
+      // якщо вже фільтр активний — скидаємо
+      state.projectFilter=null; updateLabel(); renderBoard();
+      return;
+    }
+    if(!state.projects||state.projects.length===0){toast('Немає проєктів. Створи у SMM.','info');return;}
+    const opts=['— всі проєкти —', ...state.projects.map(p=>(p.code?p.code+' · ':'')+p.name)];
+    // Простий prompt з номером (швидкий MVP)
+    const pick=prompt('Обери проєкт (введи цифру 1-'+state.projects.length+', або 0 для скидання):\n\n0. — всі —\n'+state.projects.map((p,i)=>(i+1)+'. '+(p.code?p.code+' · ':'')+p.name).join('\n'));
+    if(pick===null)return;
+    const n=parseInt(pick,10);
+    if(isNaN(n)||n===0){state.projectFilter=null;}
+    else if(n>=1&&n<=state.projects.length){state.projectFilter=state.projects[n-1].id;}
+    updateLabel(); renderBoard();
+  });
+  // Якщо у URL вже #project=<id> — встановити filter
+  function checkHashProject(){
+    const m=location.hash.match(/#project=([0-9a-f-]{36})/);
+    if(m){state.projectFilter=m[1];updateLabel();renderBoard();}
+  }
+  window.addEventListener('hashchange',checkHashProject);
+  checkHashProject();
+  updateLabel();
+  window.updateProjectFilterLabel=updateLabel;
 })();
 
 // Експортуємо у window для inline onclick fallback

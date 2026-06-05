@@ -291,6 +291,7 @@
 <a class="sb-link" data-page="notifications">🔔 Карта сповіщень</a>
 <div class="sb-section">Системи</div>
 <a class="sb-link" data-page="hq">📝 SMM · Публікації</a>
+<a class="sb-link" data-page="projects">📁 Проєкти</a>
 <a class="sb-link" data-page="tasks">✅ Tasks</a>
 <a class="sb-link" data-page="compress">🎬 Креативи</a>
 <a class="sb-link" data-page="autopost">🚀 Автопостинг</a>
@@ -548,8 +549,75 @@
 </div>
 </section>
 
+<section class="page" data-page="projects">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 02</div><h1>ПРОЄКТИ — <span>ЗАПУСКИ</span> ТА КАМПАНІЇ</h1><p class="lead">Усе що має життєвий цикл, бюджет і ROI. Розіграші авто, спецпропозиції, продуктові запуски, кампанії партнерств. URL: <code>team.dreamcar.ua/hq/#projects</code> (Phase 1, у HQ). Пізніше винесемо у окремий <code>/projects/</code>.</p></div>
+
+<div class="block"><h2>💡 Що це робить</h2><p>До нинішнього моменту "Запуски" були маленьким filter всередині SMM. Тепер це повноцінна сутність зі своїм lifecycle:</p>
+<ul>
+  <li><b>💡 Ідея</b> — додали проєкт, ще нічого не вирішено</li>
+  <li><b>📋 Підготовка</b> — план, бюджет, дати, команда</li>
+  <li><b>🚀 Активний</b> — у роботі, публікації виходять, задачі робляться</li>
+  <li><b>📊 Вимірюємо</b> — закінчили, дивимось результати</li>
+  <li><b>✅ Завершено</b> — підсумки записано, ROI пораховано</li>
+  <li><b>📦 Архів</b> — старі проєкти що більше не змінюються</li>
+</ul>
+</div>
+
+<div class="block"><h2>🎬 Що містить кожен проєкт</h2>
+<ul>
+  <li><b>Код</b> (DC17_X5, IPHONE17, MOTO) — короткий slug для швидкого пошуку</li>
+  <li><b>Назва, опис, нотатки</b></li>
+  <li><b>Дати:</b> старт + кінець (опціонально)</li>
+  <li><b>Бюджет:</b> план + факт</li>
+  <li><b>Команда:</b> team_lead + responsible</li>
+  <li><b>KPI targets / actuals</b> (JSON, для майбутнього дашборду)</li>
+  <li><b>Cross-link:</b> усі публікації у SMM (через launch_id) + усі задачі у Tasks (через project_id)</li>
+</ul>
+</div>
+
+<div class="card accent" data-role="ceo,coo,lead"><div class="who"><span class="role-pill">CEO/COO</span></div><h4>Як створити проєкт</h4><ol class="steps"><li>SMM → меню <b>📁 ПРОЄКТИ</b> у sidebar (або URL <code>/hq/#projects</code>)</li><li>Кнопка <b>+ НОВИЙ ПРОЄКТ</b> зверху</li><li>Назва, код, статус (за замовчуванням <i>Активний</i>), дати, бюджет, колір</li><li>Зберегти — проєкт у Kanban</li></ol></div>
+
+<div class="card" data-role="smm,lead,member"><div class="who"><span class="role-pill">УСІ</span></div><h4>Як привʼязати задачу/публікацію до проєкту</h4>
+<p><b>У Tasks:</b> при створенні задачі — поле <b>📁 ПРОЄКТ</b> → обери зі списку. У Kanban і списку буде бейдж з кодом.</p>
+<p><b>У SMM:</b> при створенні публікації — поле <b>Запуск</b> (вже було) → обери проєкт. Публікація лінкується.</p>
+<p><b>Filter:</b> у Tasks chip <b>📁 ПРОЄКТ</b> у фільтрах — клік → обери проєкт → видно тільки задачі цього проєкту.</p>
+</div>
+
+<div class="block"><h2>📊 Detail view проєкту</h2>
+<p>Клік на проєкт у Kanban → відкривається detail з:</p>
+<ul>
+  <li>Назва + статус + дати</li>
+  <li>Бюджет (план / факт)</li>
+  <li>Кількість публікацій</li>
+  <li>Список задач по проєкту (клікабельні → відкривають Tasks)</li>
+  <li>Список публікацій (клікабельні → відкривають у SMM)</li>
+  <li>Нотатки</li>
+  <li>CEO/COO: кнопка <b>✏ РЕДАГУВАТИ</b></li>
+</ul>
+</div>
+
+<div class="card" data-role="ceo,coo,lead"><div class="who"><span class="role-pill">CEO/COO</span></div><h4>Як використовувати на практиці</h4>
+<ol class="steps">
+  <li><b>Запускаєш новий розіграш</b> → створи проєкт зі статусом <i>Підготовка</i>, познач дати кампанії, бюджет на рекламу</li>
+  <li><b>SMM</b> створюють пости і прикріплюють до цього проєкту (через launch_id)</li>
+  <li><b>Tasks</b> по підготовці прикріплюються до проєкту через project_id</li>
+  <li><b>Перехід у активний</b> — стартує продаж, всі пости йдуть з тегом проєкту</li>
+  <li><b>Finalize</b> — статус <i>Вимірюємо</i>, заносиш реальний бюджет/виторг у KPI</li>
+  <li><b>Завершено</b> — підсумки, архів</li>
+</ol>
+</div>
+
+<div class="block"><h2>🛣 Roadmap наступні фази</h2>
+<ul>
+  <li><b>Phase 2:</b> винесення у окремий <code>/projects/</code> з власним SPA, dashboard ROI per project</li>
+  <li><b>Phase 3:</b> TG-бот <code>/projects</code> команда, нотифікації "проєкт стартує завтра"</li>
+  <li><b>Phase 4:</b> Gantt chart, milestone tracking, dependencies між проєктами</li>
+</ul>
+</div>
+</section>
+
 <section class="page" data-page="tasks">
-<div class="page-header"><div class="kicker">/// СИСТЕМА 02</div><h1>TASKS — <span>ЗАДАЧІ</span> КОМАНДИ</h1><p class="lead">Все що НЕ публікація: операційне, бюджети, переговори, баги.</p></div>
+<div class="page-header"><div class="kicker">/// СИСТЕМА 03</div><h1>TASKS — <span>ЗАДАЧІ</span> КОМАНДИ</h1><p class="lead">Все що НЕ публікація: операційне, бюджети, переговори, баги.</p></div>
 <div class="block"><h2>💡 Що це робить</h2><p>Кожна задача має <b>одного власника</b>, дедлайн, пріоритет (P1-P4), watchers, автоматичні нагадування.</p><p><b>Звідки беруться задачі:</b></p><ul><li>Lead/COO створив і призначив тобі</li><li>Ти створив сам собі (todo)</li><li>Авто-задача з HQ — коли пост повернули на rework</li><li>Recurring — «Щотижневий звіт» сам зʼявляється</li></ul></div>
 <div class="card accent" data-role="member,smm,designer,ceo,coo"><div class="who"><span class="role-pill">ВИКОНАВЕЦЬ</span></div><h4>Як закрити задачу</h4><ol class="steps"><li>Tasks → клік на свою задачу → Overview</li><li>«Розпочати» → status: doing</li><li>Subtasks галочками</li><li>«Завершити» → status: done</li><li>Recurring → наступна автоматично</li></ol><div class="tip">💡 З TG: під нотифікацією — ✅ Виконано / 💬 Коментар / ⏰ +1 день.</div></div>
 <div class="card accent" data-role="ceo,coo"><div class="who"><span class="role-pill">LEAD / COO</span></div><h4>Як створити задачу</h4><ol class="steps"><li>Tasks → «+ Нова задача»</li><li>Заголовок на дію («Зробити Х»)</li><li>Assignee — одна людина</li><li>Priority (P1=критично, P4=коли буде час)</li><li>Due date — реалістичний дедлайн</li><li>Save → assignee отримає TG DM</li></ol></div>
