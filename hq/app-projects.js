@@ -442,6 +442,8 @@
   // ============================================================
   function maybeRoute() {
     var h = location.hash || '';
+    // 05.06.2026: legacy #launches redirect → #projects
+    if (h === '#launches') { location.hash = '#projects'; return; }
     if (h === '#projects') {
       state.view = 'kanban';
       renderListView();
