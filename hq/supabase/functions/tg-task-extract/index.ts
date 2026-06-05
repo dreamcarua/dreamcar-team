@@ -60,7 +60,7 @@ interface ExtractedTask {
 interface UserRow {
   id: string;
   name: string | null;
-  telegram_username: string | null;
+  tg_username: string | null;
   tg_chat_id: string | null;
   role: string;
   is_active: boolean;
@@ -71,7 +71,7 @@ interface UserRow {
 // ---------------------------------------------------------------------
 function buildSystemPrompt(today: string, teamMembers: UserRow[]): string {
   const memberList = teamMembers
-    .map((u) => `- ${u.name || "?"}${u.telegram_username ? " (@" + u.telegram_username + ")" : ""}`)
+    .map((u) => `- ${u.name || "?"}${u.tg_username ? " (@" + u.tg_username + ")" : ""}`)
     .join("\n");
 
   return `Ти — асистент-помічник української команди DreamCar.
@@ -194,7 +194,7 @@ function resolveAssignee(hint: string | null, members: UserRow[]): string | null
   if (!hint) return null;
   const norm = hint.toLowerCase().replace(/^@/, "").trim();
   for (const u of members) {
-    if (u.telegram_username && u.telegram_username.toLowerCase() === norm) return u.id;
+    if (u.tg_username && u.tg_username.toLowerCase() === norm) return u.id;
     if (u.name && u.name.toLowerCase().split(/\s+/).some((p) => p === norm)) return u.id;
     if (u.name && u.name.toLowerCase() === norm) return u.id;
   }
@@ -321,7 +321,7 @@ Deno.serve(async (req: Request) => {
     // 3. Load active team members for assignee resolution
     const { data: members } = await supabase
       .from("users")
-      .select("id, name, telegram_username, tg_chat_id, role, is_active")
+      .select("id, name, tg_username, tg_chat_id, role, is_active")
       .eq("is_active", true);
     const teamMembers = (members || []) as UserRow[];
 
@@ -339,7 +339,7 @@ Deno.serve(async (req: Request) => {
 
     // 5. Resolve assignee — пріоритет:
     //    a) mention_tg_user_id з TG entities (text_mention) — найвищий, бо direct user.id
-    //    b) mention_username з TG entities — резолв через telegram_username
+    //    b) mention_username з TG entities — резолв через tg_username
     //    c) Claude's assignee_hint — fallback через name/username match
     //    d) chat default_assignee_id
     let assigneeId: string | null = null;
@@ -350,7 +350,7 @@ Deno.serve(async (req: Request) => {
     }
     if (!assigneeId && input.mention_username) {
       const norm = input.mention_username.toLowerCase().replace(/^@/, "").trim();
-      const found = teamMembers.find((u) => u.telegram_username && u.telegram_username.toLowerCase() === norm);
+      const found = teamMembers.find((u) => u.tg_username && u.tg_username.toLowerCase() === norm);
       if (found) { assigneeId = found.id; assigneeSource = "mention"; }
     }
     if (!assigneeId) {

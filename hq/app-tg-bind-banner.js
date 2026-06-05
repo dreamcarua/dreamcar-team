@@ -52,7 +52,7 @@
     var el = document.createElement('div');
     el.id = 'hq-tg-banner';
     el.className = 'hq-tg-banner';
-    var deeplink = 'https://t.me/' + BOT_USERNAME + '?start=' + (userId || '');
+    var deeplink = 'https://t.me/' + BOT_USERNAME + '?start=hq_' + (userId || '');
     el.innerHTML =
       '<div class="hq-tg-msg">🔗 <b>Telegram не прив\'язано.</b> Ти не отримуєш сповіщень про @mentions, погодження, нові задачі.</div>' +
       '<a href="' + deeplink + '" target="_blank" rel="noopener" class="hq-tg-cta">' +
