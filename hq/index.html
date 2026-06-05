@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://wotghlaehnvxyeacznvv.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://brand.dreamcar.ua">
 <script src="config.js"></script>
+<script src="dc-shared-storage.js"></script>
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config.
   // SAFETY: try/catch + 8s timeout — щоб app не висів якщо CDN недоступний.
@@ -32,7 +33,15 @@
       window.supabase = createClient(
         window.HQ_CONFIG.SUPABASE_URL,
         window.HQ_CONFIG.SUPABASE_ANON_KEY,
-        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            // 05.06.2026: cookies замість localStorage щоб session шерилась між /hq/, /tasks/, etc.
+            storage: window.dcStorage,
+          },
+        }
       );
       window.HQ_BACKEND = true;
     } else {

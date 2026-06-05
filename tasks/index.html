@@ -579,6 +579,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="dc-shared-storage.js"></script>
 <script type="module">
 const SUPABASE_URL  = 'https://wotghlaehnvxyeacznvv.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
@@ -613,7 +614,7 @@ const state={
   try{
     setStatus('Завантажую SDK…');
     const createClient=await importSupabase();
-    supabase=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
+    supabase=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,storage:window.dcStorage}});
     // 05.06.2026: SSO bridge від HQ — парсимо #sso=base64(json) ДО checkAuth
     // (потрібно бо у TG WebView / Mobile Safari localStorage НЕ shared між /hq/ та /tasks/)
     try {
@@ -689,11 +690,11 @@ function renderAuthChip(){
 }
 
 document.getElementById('loginGoogle').onclick=async()=>{
-  // 05.06.2026: Google login робиться через HQ — HQ після auth робить SSO bridge назад у /tasks/#sso=...
-  // (бо у TG WebView / iOS Safari localStorage НЕ shared між /hq/ і /tasks/)
-  setStatus('Перенаправляю на HQ для Google login…');
-  var ret = encodeURIComponent(window.location.pathname);
-  window.location.href = '/hq/?next=' + ret;
+  // 05.06.2026: direct Google login — cookie storage shared with /hq/, /brand/, etc.
+  if(!supabase){setStatus('SDK ще не завантажився…','error');return;}
+  setStatus('Перенаправляю на Google…');
+  const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+'/tasks/'}});
+  if(error)setStatus('OAuth: '+error.message,'error');
 };
 document.getElementById('loginTelegram').onclick=()=>{
   // 03.06.2026 Давид fix: TG login робиться у HQ (через tg-login-verify edge fn),
