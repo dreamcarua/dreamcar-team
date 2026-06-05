@@ -457,26 +457,43 @@
   }
   window.addEventListener('hashchange', maybeRoute);
 
-  // Додати chip у filter-rad
+  // Додати chip у TOPBAR біля 📊 ANALYTICS (як HQ, окремо від фільтрів задач)
   function injectChip() {
-    var nav = document.querySelector('.filter-rad');
-    if (!nav || document.getElementById('onbBtn')) return;
+    var topbarActions = document.getElementById('topbarActions');
+    if (!topbarActions || document.getElementById('onbBtn')) return;
     var me = getMe();
     if (!me) return;
     var prog = getProgress(me);
-    if (prog.done === prog.total) return;
-    var btn = document.createElement('button');
-    btn.className = 'chip';
+
+    // Desktop кнопка — поряд з ANALYTICS
+    var btn = document.createElement('a');
     btn.id = 'onbBtn';
-    btn.type = 'button';
+    btn.href = '#onboarding';
+    btn.className = 'filter-btn desktop-only';
     btn.title = 'Онбординг Tasks — як користуватися системою';
-    btn.style.cssText = 'border-color:#F59E0B;color:#FBBF24;';
-    btn.innerHTML = '🚀 ОНБОРДИНГ <span style="opacity:.7;">(' + prog.done + '/' + prog.total + ')</span>';
+    btn.style.cssText = 'border-color:#F59E0B;color:#FBBF24;font-weight:700;';
+    var pctLabel = prog.done === prog.total ? '✓' : '(' + prog.done + '/' + prog.total + ')';
+    btn.innerHTML = '🚀 ОНБОРДИНГ <span style="opacity:.7;font-weight:400;">' + pctLabel + '</span>';
     btn.addEventListener('click', function (e) { e.preventDefault(); location.hash = '#onboarding'; });
-    // Вставити після останнього data-filter chip, перед calendarBtn
-    var calBtn = document.getElementById('calendarBtn');
-    if (calBtn) nav.insertBefore(btn, calBtn);
-    else nav.appendChild(btn);
+
+    // Вставити перед ANALYTICS
+    var analyticsBtn = topbarActions.querySelector('a[href="/tasks/analytics.html"]');
+    if (analyticsBtn) topbarActions.insertBefore(btn, analyticsBtn);
+    else topbarActions.insertBefore(btn, topbarActions.firstChild);
+
+    // Mobile drawer — додати пункт онбордінгу
+    var drawer = document.getElementById('taskDrawer');
+    if (drawer && !document.getElementById('drOnb')) {
+      var drAnalytics = drawer.querySelector('a[href="/tasks/analytics.html"]');
+      if (drAnalytics) {
+        var drOnb = document.createElement('a');
+        drOnb.id = 'drOnb';
+        drOnb.className = 'dr-item';
+        drOnb.href = '#onboarding';
+        drOnb.innerHTML = '<span class="ico">🚀</span>Онбординг <span style="opacity:.6;margin-left:auto;font-size:11px;">' + pctLabel + '</span>';
+        drAnalytics.parentNode.insertBefore(drOnb, drAnalytics);
+      }
+    }
   }
 
   // Aggressive retry: продовжуємо інжектити chip поки user data не з'явиться
@@ -484,9 +501,9 @@
   function init() {
     _initAttempts++;
     var me = getMe();
-    var nav = document.querySelector('.filter-rad');
-    console.log('[tasks-onb] init attempt', _initAttempts, '· me:', !!me, '· nav:', !!nav, '· chip:', !!document.getElementById('onbBtn'));
-    if (nav && me) {
+    var topbar = document.getElementById('topbarActions');
+    console.log('[tasks-onb] init attempt', _initAttempts, '· me:', !!me, '· topbar:', !!topbar, '· chip:', !!document.getElementById('onbBtn'));
+    if (topbar && me) {
       injectChip();
       maybeRenderBanner();
       if (location.hash === '#onboarding') renderOnboarding();
