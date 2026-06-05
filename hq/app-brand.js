@@ -165,7 +165,7 @@
     if (logoText && !logoText.dataset.brandApplied) {
       logoText.dataset.brandApplied = '1';
       logoText.style.marginLeft = '0';
-      logoText.innerHTML = '<span style="font-weight:800;color:#fff;letter-spacing:0.5px;">HQ</span> <span class="small">КОМАНДНИЙ ШТАБ</span>';
+      logoText.innerHTML = '<span style="font-weight:800;color:#fff;letter-spacing:0.5px;">SMM</span> <span class="small">КОНТЕНТ І ПОГОДЖЕННЯ</span>';
     }
   }
 
