@@ -1324,6 +1324,74 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     return;
   }
 
+  // 06.06.2026 — Retention message approve callback (rmappr:<msgId>:y|n)
+  if (action === "rmappr") {
+    const msgId = parts[1]; const decision = parts[2];
+    const me = await findUser(supabase, cb.from.id);
+    if (!me) { await tgAnswerCallback(cb.id, "Спочатку /start у DM", true); return; }
+
+    const { data: appr } = await supabase
+      .from("retention_message_approvers")
+      .select("user_id, is_approved")
+      .eq("message_id", msgId).eq("user_id", me.id).maybeSingle();
+    if (!appr) { await tgAnswerCallback(cb.id, "Ти не у списку погоджувачів", true); return; }
+
+    const { data: rmsg } = await supabase
+      .from("retention_messages").select("id, title, status, approver_policy").eq("id", msgId).maybeSingle();
+    if (!rmsg) { await tgAnswerCallback(cb.id, "Не знайдено", true); return; }
+    if (rmsg.status !== "review") {
+      await tgAnswerCallback(cb.id, `Статус: ${rmsg.status}`, true);
+      return;
+    }
+
+    if (decision === "n") {
+      // Rework
+      await supabase.from("retention_messages")
+        .update({ status: "rework", last_action_via: "tg" })
+        .eq("id", msgId);
+      await supabase.from("retention_message_history").insert({
+        message_id: msgId, action: "rework_via_tg", detail: me.name || "?"
+      });
+      await tgAnswerCallback(cb.id, "↩ Повернуто на доопрацювання");
+      const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+      if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
+        (msg.text || "") + `\n\n↩ Повернуто · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+      return;
+    }
+
+    // decision === 'y' — mark this approver as approved
+    await supabase.from("retention_message_approvers")
+      .update({ is_approved: true })
+      .eq("message_id", msgId).eq("user_id", me.id);
+
+    // Check policy: 'all' (default) → потрібно всім; 'any' → достатньо одного
+    const policy = rmsg.approver_policy || "all";
+    const { data: allApprovers } = await supabase
+      .from("retention_message_approvers").select("user_id, is_approved").eq("message_id", msgId);
+    const total = (allApprovers ?? []).length;
+    const approvedCount = (allApprovers ?? []).filter((a: any) => a.is_approved === true).length;
+    const allDone = policy === "any" ? approvedCount >= 1 : approvedCount >= total;
+
+    if (allDone) {
+      await supabase.from("retention_messages")
+        .update({ status: "approved", last_action_via: "tg" })
+        .eq("id", msgId);
+      await supabase.from("retention_message_history").insert({
+        message_id: msgId, action: "approved_via_tg", detail: me.name || "?"
+      });
+      await tgAnswerCallback(cb.id, "✅ Погоджено повністю");
+    } else {
+      await supabase.from("retention_message_history").insert({
+        message_id: msgId, action: "partial_approval_via_tg", detail: `${me.name}: ${approvedCount}/${total}`
+      });
+      await tgAnswerCallback(cb.id, `✓ Твій голос. Чекаємо ще ${total - approvedCount}`);
+    }
+    const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+    if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
+      (msg.text || "") + `\n\n✓ Погодив · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}` + (allDone ? " · <b>Усе погоджено</b>" : ""));
+    return;
+  }
+
   // 03.06.2026 — TASK callbacks (task:done:<id> / task:doing:<id> / task:open:<id>)
   if (action === "task") {
     const taskAction = parts[1]; // done | doing | open
