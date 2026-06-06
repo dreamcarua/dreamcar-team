@@ -68,7 +68,8 @@
     overflow-x:auto; overflow-y:hidden;
     scroll-snap-type:x proximity;
     -webkit-overflow-scrolling:touch;
-    position:sticky; top:114px; z-index:40; /* 60 global header + 54 topbar */
+    /* 05.06.2026: position:static — не sticky, бо topbar wrap'иться на 2 рядки коли багато chip-ів і налазить */
+    position:relative; z-index:1;
   }
   .filter-rad::-webkit-scrollbar{display:none;}
   .filter-rad .chip{
