@@ -36,7 +36,7 @@
   const API_URL = config.apiUrl || 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/track-checkout';
   const API_KEY = config.apiKey || '';
   const EXPERIMENT_ID = config.experimentId || 'upsell_window_1';
-  const VERSION = '2.0.0';
+  const VERSION = '2.1.0';
   const BATCH_SIZE = 5;
   const FLUSH_INTERVAL_MS = 2000;
   const INACTIVITY_MS = 5 * 60 * 1000;
@@ -57,15 +57,44 @@
     return sid;
   }
 
-  // ===== Variant — приходит от сайта через dcSetVariant() =====
-  // Трекер сам НЕ вычисляет вариант. Только хранит то что передал сайт.
+  // ===== Variant — приоритет: dcSetVariant() от сайта; fallback: auto-hash =====
+  // v2.1: backward-compatible. Если сайт уже вызвал dcSetVariant — используем его.
+  // Если не вызвал — fallback на auto-расчёт по хешу session_id (как было в v1.0).
+  // Это гарантирует что события не теряются если сайт не обновил интеграцию.
+
+  function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function autoComputeVariant() {
+    // Fallback: детерминированный hash от session_id
+    const sid = getSessionId();
+    const hash = simpleHash(sid + EXPERIMENT_ID);
+    const bucket = hash % 100;
+    if (bucket < 20) return 'control';
+    if (bucket < 60) return 'A';
+    return 'B';
+  }
+
   function getVariant() {
     const cacheKey = `__dc_variant_${EXPERIMENT_ID}`;
+    const setKey = `__dc_variant_set_${EXPERIMENT_ID}`;
     try {
+      // Если сайт явно вызвал dcSetVariant — берём его
+      const explicitlySet = sessionStorage.getItem(setKey) === '1';
       const cached = sessionStorage.getItem(cacheKey);
       if (cached && VALID_VARIANTS.indexOf(cached) >= 0) return cached;
+      if (explicitlySet) return null; // явно установили null/неверное — не угадывать
     } catch (_) {}
-    return null; // не угадываем — если сайт не вызвал dcSetVariant, события не отправляются
+    // Fallback: автоматический расчёт
+    const auto = autoComputeVariant();
+    try { sessionStorage.setItem(cacheKey, auto); } catch (_) {}
+    return auto;
   }
 
   function setVariant(variant) {
@@ -74,8 +103,10 @@
       return false;
     }
     const cacheKey = `__dc_variant_${EXPERIMENT_ID}`;
+    const setKey = `__dc_variant_set_${EXPERIMENT_ID}`;
     try {
       sessionStorage.setItem(cacheKey, variant);
+      sessionStorage.setItem(setKey, '1');
     } catch (e) {
       console.warn('[dcTrack] sessionStorage недоступен:', e);
     }
@@ -193,7 +224,9 @@
     }
     const ev = buildEvent(input);
     if (!ev.variant) {
-      console.warn('[dcTrack] variant не установлен — вызови dcSetVariant("control"|"A"|"B") до dcTrack. Event пропущен:', input.step, input.outcome);
+      // getVariant() уже делает fallback на auto-расчёт, так что null значит только
+      // что explicit dcSetVariant был вызван с невалидным значением. Пропускаем.
+      console.warn('[dcTrack] variant=null после fallback (вероятно dcSetVariant вызван с невалидным значением). Event пропущен.');
       return null;
     }
     queue.push(ev);
