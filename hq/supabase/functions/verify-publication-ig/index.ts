@@ -165,11 +165,19 @@ async function notifyError(pub: any, errMsg: string) {
   if (TG_GROUP_CHAT_ID) await tgSend(TG_GROUP_CHAT_ID, text);
 }
 
+// Auto-cleanup: видалити cron job після виконання (one-shot pattern)
+async function cleanupCronJob(sb: any, pubId: string) {
+  const jobName = "verify_pub_" + pubId.replace(/-/g, "");
+  try {
+    await sb.rpc("safe_unschedule", { job_name: jobName });
+  } catch (e) { console.warn("cleanup cron failed", e); }
+}
+
 // ----- Core handler -----
 async function verifyPublication(sb: any, pubId: string) {
   const { data: pub } = await sb.from("publications").select("*").eq("id", pubId).maybeSingle();
-  if (!pub) { console.warn("pub not found", pubId); return; }
-  if (pub.verified_at) { console.log("already verified", pubId); return; }
+  if (!pub) { console.warn("pub not found", pubId); await cleanupCronJob(sb, pubId); return; }
+  if (pub.verified_at) { console.log("already verified", pubId); await cleanupCronJob(sb, pubId); return; }
 
   // Перевірити чи IG у platforms
   const { data: plats } = await sb.from("publication_platforms").select("platform").eq("publication_id", pubId);
@@ -243,6 +251,8 @@ async function verifyPublication(sb: any, pubId: string) {
     await notifyError(pub, errMsg);
     console.error("VERIFY ERROR", pubId, errMsg);
   }
+  // Auto-cleanup cron job (one-shot pattern)
+  await cleanupCronJob(sb, pubId);
 }
 
 // ----- Batch (cron) handler -----
