@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>DreamCar РЕТЕНШН · Розсилки та автоматизація</title>
+<link rel="preconnect" href="https://wotghlaehnvxyeacznvv.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://brand.dreamcar.ua">
+<script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg-2: #141414;
+  --bg-3: #1a1a1a;
+  --line: #1a1a1a;
+  --steel: #2a2a2a;
+  --white: #fff;
+  --ash: #888;
+  --grey: #888;
+  --red: #E30613;
+  --red-soft: #FF6A7A;
+  --gold: #FBBF24;
+  --green: #10B981;
+  --blue: #60A5FA;
+  --purple: #a5b4fc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'JetBrains Mono', 'Manrope', system-ui, sans-serif;
+  min-height: 100vh;
+}
+body { padding-top: 60px; }
+
+/* Topbar */
+.topbar {
+  position: sticky; top: 60px; z-index: 49;
+  background: rgba(10,10,10,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 28px;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.brand-mark { font-family: 'Oswald', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.05em; color: #fff; text-decoration: none; }
+.brand-mark .red { color: var(--red); }
+.brand-mark .meta { font-size: 10px; color: var(--ash); letter-spacing: 0.15em; margin-left: 8px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; }
+.topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.filter-btn, .icon-btn {
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--white);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s;
+  border-radius: 6px;
+}
+.filter-btn:hover { border-color: var(--red); }
+.user-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.3);
+  color: var(--green);
+  font-size: 11px;
+  border-radius: 6px;
+  letter-spacing: 0.1em;
+}
+
+/* Layout */
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 60px - 60px); }
+@media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+
+.sidebar { background: #0a0a0a; border-right: 1px solid var(--line); padding: 18px 0; }
+.nav-section { padding: 0 18px; font-size: 10px; color: var(--ash); letter-spacing: 0.15em; text-transform: uppercase; margin: 18px 0 8px; }
+.nav-section:first-child { margin-top: 0; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px;
+  color: #ccc;
+  text-decoration: none;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: rgba(255,255,255,0.03); color: #fff; }
+.nav-item.active { background: rgba(227,6,19,0.08); border-left-color: var(--red); color: #fff; }
+.nav-item .ico { font-size: 15px; }
+.nav-item .count { margin-left: auto; font-size: 11px; color: var(--ash); }
+
+.main { padding: 0; overflow-y: auto; }
+
+/* Login gate */
+.login-gate {
+  position: fixed;
+  inset: 60px 0 0 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 100;
+}
+.login-card {
+  max-width: 420px; width: 100%;
+  background: var(--bg-2); border: 1px solid var(--steel); border-radius: 16px;
+  padding: 40px 32px; text-align: center;
+}
+.login-card .lock { font-size: 48px; margin-bottom: 20px; opacity: 0.6; }
+.login-card h1 { font-family: 'Oswald', sans-serif; font-size: 24px; letter-spacing: 0.02em; margin-bottom: 8px; }
+.login-card h1 .red { color: var(--red); }
+.login-card p { color: var(--ash); font-size: 13px; margin-bottom: 24px; line-height: 1.5; }
+.login-btn { display: block; width: 100%; padding: 12px; background: var(--red); color: #fff; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; letter-spacing: 0.1em; cursor: pointer; margin-bottom: 10px; text-transform: uppercase; text-decoration: none; text-align: center; }
+.login-btn:hover { background: #ff1a1a; }
+.login-btn.ghost { background: transparent; border: 1px solid var(--steel); color: var(--white); }
+.login-btn.ghost:hover { border-color: var(--red); }
+.login-status { font-size: 11px; color: var(--ash); margin-top: 16px; letter-spacing: 0.1em; }
+.login-status.error { color: var(--red-soft); }
+
+/* Status & channel chips для cards */
+.chip { display: inline-flex; padding: 3px 8px; border-radius: 4px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.chip-channel-email { background: rgba(96,165,250,0.15); color: var(--blue); }
+.chip-channel-tg { background: rgba(165,180,252,0.15); color: var(--purple); }
+.chip-channel-push { background: rgba(251,191,36,0.15); color: var(--gold); }
+.chip-channel-sms { background: rgba(16,185,129,0.15); color: var(--green); }
+.chip-channel-viber { background: rgba(199,75,255,0.15); color: #c74bff; }
+.chip-channel-other { background: var(--bg-3); color: var(--ash); }
+.chip-status-draft { background: var(--bg-3); color: #ccc; }
+.chip-status-review { background: rgba(251,191,36,0.15); color: var(--gold); }
+.chip-status-approved { background: rgba(74,222,128,0.15); color: var(--green); }
+.chip-status-scheduled { background: rgba(96,165,250,0.15); color: var(--blue); }
+.chip-status-sending { background: rgba(251,191,36,0.15); color: var(--gold); }
+.chip-status-sent { background: rgba(16,185,129,0.15); color: var(--green); }
+.chip-status-failed { background: rgba(227,6,19,0.15); color: var(--red-soft); }
+.chip-status-rework { background: rgba(227,6,19,0.10); color: var(--red-soft); }
+.chip-status-archived { background: var(--bg-3); color: #666; }
+
+/* List view */
+.section-head { padding: 20px 24px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+.section-head h1 { font-family: 'Oswald', sans-serif; font-size: 22px; letter-spacing: 0.05em; }
+.section-head .actions { display: flex; gap: 10px; }
+.btn { padding: 10px 18px; background: var(--bg-2); border: 1px solid var(--line); color: var(--white); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; cursor: pointer; text-decoration: none; text-transform: uppercase; }
+.btn:hover { border-color: var(--red); }
+.btn.primary { background: var(--red); border-color: var(--red); }
+.btn.primary:hover { background: #ff1a1a; }
+
+.list { padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; }
+.msg-row { background: var(--bg-2); border: 1px solid var(--steel); border-radius: 10px; padding: 16px 18px; display: grid; grid-template-columns: 80px 100px 1fr 140px 140px 100px; gap: 14px; align-items: center; cursor: pointer; transition: border-color 0.15s; }
+.msg-row:hover { border-color: var(--red); }
+.msg-row-title { color: #fff; font-weight: 700; font-size: 14px; }
+.msg-row-meta { font-size: 11px; color: var(--ash); }
+@media (max-width: 900px) { .msg-row { grid-template-columns: 1fr; gap: 6px; } }
+
+.empty { padding: 60px 20px; text-align: center; color: var(--ash); font-size: 14px; }
+.toast { position: fixed; top: 80px; right: 20px; background: var(--bg-2); border: 1px solid var(--steel); padding: 12px 18px; border-radius: 8px; font-size: 13px; display: none; z-index: 9999; }
+.toast.show { display: block; }
+.toast.error { border-color: var(--red); }
+.toast.success { border-color: var(--green); }
+</style>
+<script src="dc-shared-storage.js"></script>
+<script src="dc-theme.js"></script>
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <a href="#" class="brand-mark">
+    DREAM<span class="red">CAR</span> · РЕТЕНШН
+    <span class="meta">Розсилки · Автоматизація</span>
+  </a>
+  <div class="topbar-actions">
+    <a href="/projects/" class="filter-btn" title="Проєкти">📁 ПРОЄКТИ</a>
+    <a href="/tasks/" class="filter-btn" title="Задачі">✅ TASKS</a>
+    <a href="/hq/" class="filter-btn" title="SMM">🎯 SMM</a>
+    <span id="authChip"></span>
+    <a href="#" id="signOutBtn" class="filter-btn" style="display:none;">EXIT</a>
+  </div>
+</header>
+
+<!-- Login Gate -->
+<div class="login-gate" id="loginGate" style="display:none;">
+  <div class="login-card">
+    <div class="lock">🔒</div>
+    <h1>РЕТЕНШН — <span class="red">ВХІД</span></h1>
+    <p>Стіл планування розсилок DreamCar. Закрита система для команди.</p>
+    <button class="login-btn" id="loginGoogle">УВІЙТИ ЧЕРЕЗ GOOGLE</button>
+    <button class="login-btn ghost" id="loginTelegram">УВІЙТИ ЧЕРЕЗ TELEGRAM</button>
+    <div class="login-status" id="loginStatus">Перевіряю сесію…</div>
+  </div>
+</div>
+
+<!-- App layout -->
+<div class="app" id="appContent" style="display:none;">
+  <aside class="sidebar">
+    <div class="nav-section">Робочий простір</div>
+    <a class="nav-item" data-route="all" href="#all"><span class="ico">📬</span><span>Всі розсилки</span><span class="count" id="cnt-all">0</span></a>
+    <a class="nav-item" data-route="board" href="#board"><span class="ico">✅</span><span>Дошка погоджень</span><span class="count" id="cnt-board">0</span></a>
+    <a class="nav-item" data-route="calendar" href="#calendar"><span class="ico">📅</span><span>Календар</span><span class="count" id="cnt-cal">0</span></a>
+    <a class="nav-item" data-route="templates" href="#templates"><span class="ico">📝</span><span>Шаблони</span></a>
+
+    <div class="nav-section">Канали</div>
+    <a class="nav-item" data-route="ch-email" href="#ch-email"><span class="ico">📧</span><span>Email</span><span class="count" id="cnt-email">0</span></a>
+    <a class="nav-item" data-route="ch-tg" href="#ch-tg"><span class="ico">📨</span><span>Telegram</span><span class="count" id="cnt-tg">0</span></a>
+    <a class="nav-item" data-route="ch-push" href="#ch-push"><span class="ico">🔔</span><span>Push</span><span class="count" id="cnt-push">0</span></a>
+    <a class="nav-item" data-route="ch-sms" href="#ch-sms"><span class="ico">💬</span><span>SMS</span><span class="count" id="cnt-sms">0</span></a>
+    <a class="nav-item" data-route="ch-viber" href="#ch-viber"><span class="ico">📱</span><span>Viber</span><span class="count" id="cnt-viber">0</span></a>
+    <a class="nav-item" data-route="ch-other" href="#ch-other"><span class="ico">📤</span><span>Інше</span><span class="count" id="cnt-other">0</span></a>
+
+    <div class="nav-section">Статуси</div>
+    <a class="nav-item" data-route="st-draft" href="#st-draft"><span class="ico">📝</span><span>Чернетка</span><span class="count" id="cnt-draft">0</span></a>
+    <a class="nav-item" data-route="st-review" href="#st-review"><span class="ico">👀</span><span>На погодженні</span><span class="count" id="cnt-review">0</span></a>
+    <a class="nav-item" data-route="st-approved" href="#st-approved"><span class="ico">✅</span><span>Погоджено</span><span class="count" id="cnt-approved">0</span></a>
+    <a class="nav-item" data-route="st-scheduled" href="#st-scheduled"><span class="ico">⏰</span><span>У черзі</span><span class="count" id="cnt-scheduled">0</span></a>
+    <a class="nav-item" data-route="st-sent" href="#st-sent"><span class="ico">🚀</span><span>Відправлено</span><span class="count" id="cnt-sent">0</span></a>
+    <a class="nav-item" data-route="st-failed" href="#st-failed"><span class="ico">⚠️</span><span>Помилка</span><span class="count" id="cnt-failed">0</span></a>
+
+    <div class="nav-section">Системи</div>
+    <a class="nav-item" href="/projects/" title="Проєкти"><span class="ico">📁</span><span>Проєкти ↗</span></a>
+    <a class="nav-item" href="/tasks/" title="Tasks"><span class="ico">✅</span><span>Tasks ↗</span></a>
+    <a class="nav-item" href="/hq/" title="SMM"><span class="ico">🎯</span><span>SMM ↗</span></a>
+    <a class="nav-item" href="https://dashboard.dreamcar.ua/" target="_blank"><span class="ico">📊</span><span>Аналітика ↗</span></a>
+  </aside>
+
+  <main class="main" id="appMain"></main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const SUPABASE_URL = 'https://wotghlaehnvxyeacznvv.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
+
+let supabase = null;
+window.retState = { authUser: null, publicUser: null };
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('loginStatus');
+  if (el) { el.textContent = msg; el.className = 'login-status' + (cls ? ' ' + cls : ''); }
+}
+
+window.toast = function(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => t.classList.remove('show'), 3000);
+};
+
+(async () => {
+  try {
+    setStatus('Завантажую SDK…');
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.dcStorage }
+    });
+    window.supabase = supabase;
+    // SSO
+    try {
+      const ssoMatch = location.hash.match(/#sso=([^&]+)/);
+      if (ssoMatch) {
+        setStatus('Приймаю сесію з HQ…');
+        const decoded = JSON.parse(atob(decodeURIComponent(ssoMatch[1])));
+        if (decoded.access_token && decoded.refresh_token) {
+          await supabase.auth.setSession({ access_token: decoded.access_token, refresh_token: decoded.refresh_token });
+        }
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+    } catch (e) { console.warn('[sso]', e); }
+    setStatus('Перевіряю сесію…');
+    await checkAuth();
+    supabase.auth.onAuthStateChange(() => checkAuth().catch(e => setStatus('Auth: ' + e.message, 'error')));
+  } catch (e) {
+    setStatus('❌ ' + e.message, 'error');
+  }
+})();
+
+async function checkAuth() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (session && session.user) {
+    window.retState.authUser = session.user;
+    let pu = null;
+    try {
+      const rpc = await supabase.rpc('resolve_user_by_auth', { p_auth_id: session.user.id });
+      pu = (rpc.data && rpc.data[0]) || null;
+    } catch (_) {}
+    if (!pu) {
+      const { data: directPu } = await supabase.from('users').select('id,name,email,role,tg_chat_id').eq('auth_id', session.user.id).maybeSingle();
+      pu = directPu;
+    }
+    window.retState.publicUser = pu || null;
+    if (!pu) {
+      setStatus('⚠ Профіль не знайдено для ' + session.user.email + '. Звернися до CEO.', 'error');
+      document.getElementById('loginGate').style.display = 'flex';
+      return;
+    }
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('appContent').style.display = 'grid';
+    document.getElementById('signOutBtn').style.display = 'inline-flex';
+    document.getElementById('authChip').innerHTML = `<span class="user-chip">✓ ${(pu.name || pu.email).toUpperCase().slice(0, 16)}</span>`;
+    window.dispatchEvent(new CustomEvent('ret-ready'));
+  } else {
+    document.getElementById('loginGate').style.display = 'flex';
+    document.getElementById('appContent').style.display = 'none';
+    document.getElementById('signOutBtn').style.display = 'none';
+    document.getElementById('authChip').innerHTML = '';
+    setStatus('Готово до входу.');
+  }
+}
+
+document.getElementById('loginGoogle').onclick = async () => {
+  if (!supabase) return;
+  setStatus('Перенаправляю на HQ для Google login…');
+  window.location.href = '/hq/?next=' + encodeURIComponent('/retention/');
+};
+document.getElementById('loginTelegram').onclick = () => {
+  setStatus('Перенаправляю на TG через HQ…');
+  window.location.href = '/hq/?next=' + encodeURIComponent('/retention/');
+};
+document.getElementById('signOutBtn').onclick = async (e) => {
+  e.preventDefault();
+  await supabase.auth.signOut();
+  location.reload();
+};
+</script>
+
+<!-- Retention app logic -->
+<script src="app-retention.js?v=20260605a" defer></script>
+
+</body>
+</html>
