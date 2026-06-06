@@ -7,7 +7,7 @@
 <title>DreamCar РЕТЕНШН · Розсилки та автоматизація</title>
 <link rel="preconnect" href="https://wotghlaehnvxyeacznvv.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://brand.dreamcar.ua">
-<script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
+<script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260606b" defer></script>
 <style>
 :root {
   --bg: #0a0a0a;
@@ -32,13 +32,11 @@ html, body {
   font-family: 'JetBrains Mono', 'Manrope', system-ui, sans-serif;
   min-height: 100vh;
 }
-body { padding-top: 60px; }
+/* body padding-top керує global-header.js — НЕ дублюємо */
 
-/* Topbar */
+/* Topbar — статичний, у normal flow одразу після global-header (керується body padding) */
 .topbar {
-  position: sticky; top: 60px; z-index: 49;
-  background: rgba(10,10,10,0.95);
-  backdrop-filter: blur(20px);
+  background: var(--bg-2);
   border-bottom: 1px solid var(--line);
   padding: 14px 28px;
   display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -73,7 +71,7 @@ body { padding-top: 60px; }
 }
 
 /* Layout */
-.app { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 60px - 60px); }
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 130px); }
 @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
 
 .sidebar { background: #0a0a0a; border-right: 1px solid var(--line); padding: 18px 0; }
@@ -99,7 +97,7 @@ body { padding-top: 60px; }
 /* Login gate */
 .login-gate {
   position: fixed;
-  inset: 60px 0 0 0;
+  inset: 56px 0 0 0;
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
   padding: 20px; z-index: 100;
@@ -172,9 +170,11 @@ body { padding-top: 60px; }
     <span class="meta">Розсилки · Автоматизація</span>
   </a>
   <div class="topbar-actions">
-    <a href="/projects/" class="filter-btn" title="Проєкти">📁 ПРОЄКТИ</a>
-    <a href="/tasks/" class="filter-btn" title="Задачі">✅ TASKS</a>
-    <a href="/hq/" class="filter-btn" title="SMM">🎯 SMM</a>
+    <button class="filter-btn" id="btnNewTop" title="Нова розсилка">+ НОВА</button>
+    <a href="#calendar" class="filter-btn" title="Календар">📅 КАЛЕНДАР</a>
+    <a href="#board" class="filter-btn" title="Дошка погоджень">✅ ПОГОДЖЕННЯ</a>
+    <a href="#analytics" class="filter-btn" title="Аналітика">📊 АНАЛІТИКА</a>
+    <a href="#settings" class="filter-btn" title="Налаштування">⚙ НАЛАШТУВАННЯ</a>
     <span id="authChip"></span>
     <a href="#" id="signOutBtn" class="filter-btn" style="display:none;">EXIT</a>
   </div>
@@ -217,11 +217,10 @@ body { padding-top: 60px; }
     <a class="nav-item" data-route="st-sent" href="#st-sent"><span class="ico">🚀</span><span>Відправлено</span><span class="count" id="cnt-sent">0</span></a>
     <a class="nav-item" data-route="st-failed" href="#st-failed"><span class="ico">⚠️</span><span>Помилка</span><span class="count" id="cnt-failed">0</span></a>
 
-    <div class="nav-section">Системи</div>
-    <a class="nav-item" href="/projects/" title="Проєкти"><span class="ico">📁</span><span>Проєкти ↗</span></a>
-    <a class="nav-item" href="/tasks/" title="Tasks"><span class="ico">✅</span><span>Tasks ↗</span></a>
-    <a class="nav-item" href="/hq/" title="SMM"><span class="ico">🎯</span><span>SMM ↗</span></a>
-    <a class="nav-item" href="https://dashboard.dreamcar.ua/" target="_blank"><span class="ico">📊</span><span>Аналітика ↗</span></a>
+    <div class="nav-section">Інструменти</div>
+    <a class="nav-item" data-route="analytics" href="#analytics"><span class="ico">📊</span><span>Аналітика розсилок</span></a>
+    <a class="nav-item" data-route="settings" href="#settings"><span class="ico">⚙</span><span>Налаштування</span></a>
+    <a class="nav-item" data-route="archive" href="#st-archived"><span class="ico">🗃</span><span>Архів</span></a>
   </aside>
 
   <main class="main" id="appMain"></main>
