@@ -173,68 +173,77 @@ async function cleanupCronJob(sb: any, pubId: string) {
   } catch (e) { console.warn("cleanup cron failed", e); }
 }
 
+// ----- Manual confirmation question -----
+async function requestManualConfirmation(sb: any, pub: any, stakeholders: UserRow[], platforms: string[]) {
+  const platformLabels: Record<string, string> = {
+    ig: "📷 Instagram", tg: "✈️ Telegram", fb: "📘 Facebook",
+    tt: "🎵 TikTok", yt: "▶️ YouTube", th: "🧵 Threads"
+  };
+  const platformsList = platforms.length
+    ? platforms.map(p => platformLabels[p] || p).join(", ")
+    : "(не вказано)";
+  const kyivTime = new Date(pub.publish_at).toLocaleString("uk-UA", { timeZone: "Europe/Kiev", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const text = [
+    `🕒 <b>Час публікації!</b>`,
+    `«${escHtml(pub.title || "")}»`,
+    ``,
+    `📅 Запланована: ${kyivTime}`,
+    `📲 Платформи: ${platformsList}`,
+    ``,
+    `<i>Хто відповідає за публікацію — підтверди статус однією кнопкою.</i>`
+  ].join("\n");
+
+  const kb = {
+    inline_keyboard: [
+      [
+        { text: "✅ Опубліковано", callback_data: `vrfy:confirm:${pub.id}` },
+        { text: "❌ Не вийшло", callback_data: `vrfy:miss:${pub.id}` }
+      ],
+      [
+        { text: "↻ Переніс +1 год", callback_data: `vrfy:resched:${pub.id}:60` },
+        { text: "🔗 Відкрити в SMM", url: `${HQ_BASE}#publication/${pub.id}` }
+      ]
+    ]
+  };
+
+  // Group chat (primary visibility)
+  if (TG_GROUP_CHAT_ID) await tgSend(TG_GROUP_CHAT_ID, text, { reply_markup: kb });
+
+  // DM кожному stakeholder (щоб не пропустили)
+  for (const u of stakeholders) {
+    if (u.tg_chat_id) await tgSend(u.tg_chat_id, text, { reply_markup: kb });
+  }
+}
+
 // ----- Core handler -----
 async function verifyPublication(sb: any, pubId: string) {
   const { data: pub } = await sb.from("publications").select("*").eq("id", pubId).maybeSingle();
   if (!pub) { console.warn("pub not found", pubId); await cleanupCronJob(sb, pubId); return; }
   if (pub.verified_at) { console.log("already verified", pubId); await cleanupCronJob(sb, pubId); return; }
+  if (pub.status === "published") { console.log("already published", pubId); await cleanupCronJob(sb, pubId); return; }
 
-  // Перевірити чи IG у platforms
+  // Зчитуємо платформи (для довідки у повідомленні; не блокуємо verify)
   const { data: plats } = await sb.from("publication_platforms").select("platform").eq("publication_id", pubId);
   const platforms = (plats ?? []).map((p: any) => p.platform);
-  const hasIG = platforms.includes("ig");
-  if (!hasIG) {
-    console.log("skip pub", pubId, "— no IG platform");
-    // Mark as verified with status='skipped' щоб cron більше не перевіряв
-    await sb.from("publications").update({
-      verified_at: new Date().toISOString(),
-      verified_status: "skipped",
-    }).eq("id", pubId);
-    return;
-  }
 
   const stakeholders = await getStakeholders(sb, pubId, pub.created_by);
 
   try {
-    const media = await fetchIGRecentMedia();
-    const match = findMatchingMedia(media, pub.publish_at, pub.text_body);
+    // Мітимо як "очікуємо підтвердження"
+    await sb.from("publications").update({
+      verified_status: "requested",
+    }).eq("id", pubId);
 
-    if (match) {
-      // ✅ Знайшли — auto-publish
-      await sb.from("publications").update({
-        status: "published",
-        verified_at: new Date().toISOString(),
-        verified_status: "ok",
-        verified_evidence_url: match.permalink,
-        last_action_via: "auto-verify-ig",
-      }).eq("id", pubId);
+    await sb.from("publication_history").insert({
+      publication_id: pubId,
+      action: "verify_question_sent",
+      detail: `T+3min manual confirmation question → group chat + ${stakeholders.length} stakeholders DM`,
+      actor_id: null,
+    });
 
-      await sb.from("publication_history").insert({
-        publication_id: pubId,
-        action: "auto_published_ig",
-        detail: `IG media ${match.id} timestamp=${match.timestamp}`,
-        actor_id: null,
-      });
-
-      await notifySuccess(sb, pub, match, stakeholders);
-      console.log("VERIFIED OK", pubId, "→", match.permalink);
-    } else {
-      // ❌ Не знайшли — alarm
-      await sb.from("publications").update({
-        verified_at: new Date().toISOString(),
-        verified_status: "missed",
-      }).eq("id", pubId);
-
-      await sb.from("publication_history").insert({
-        publication_id: pubId,
-        action: "auto_verify_missed",
-        detail: `IG check at T+3min: 0 matching media у вікні ±30хв`,
-        actor_id: null,
-      });
-
-      await notifyMissed(sb, pub, stakeholders);
-      console.log("VERIFIED MISSED", pubId);
-    }
+    await requestManualConfirmation(sb, pub, stakeholders, platforms);
+    console.log("VERIFY QUESTION SENT", pubId, "→", stakeholders.length, "stakeholders");
   } catch (e: any) {
     const errMsg = String(e?.message || e);
     await sb.from("publications").update({
@@ -244,14 +253,14 @@ async function verifyPublication(sb: any, pubId: string) {
     }).eq("id", pubId);
     await sb.from("publication_history").insert({
       publication_id: pubId,
-      action: "auto_verify_error",
+      action: "verify_question_error",
       detail: errMsg.slice(0, 500),
       actor_id: null,
     });
     await notifyError(pub, errMsg);
     console.error("VERIFY ERROR", pubId, errMsg);
   }
-  // Auto-cleanup cron job (one-shot pattern)
+  // Cron job знятий — питання задане. Подальший status встановиться через кнопку у tg-webhook
   await cleanupCronJob(sb, pubId);
 }
 

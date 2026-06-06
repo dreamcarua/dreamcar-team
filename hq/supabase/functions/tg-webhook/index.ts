@@ -1335,8 +1335,79 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     const { data: me } = await supabase.from("users").select("id,name,role").eq("tg_chat_id", tgUserId).maybeSingle();
     if (!me) { await tgAnswerCallback(cb.id, "TG не привʼязано — /start у боті", true); return; }
 
+    if (sub === "confirm") {
+      // ✅ Команда підтвердила що опубліковано
+      const { data: pubBefore } = await supabase.from("publications")
+        .select("title, publish_at, status").eq("id", pubId).maybeSingle();
+      if (!pubBefore) { await tgAnswerCallback(cb.id, "Не знайдено", true); return; }
+      if (pubBefore.status === "published") {
+        await tgAnswerCallback(cb.id, "Вже опубліковано", true);
+        return;
+      }
+      await supabase.from("publications").update({
+        status: "published",
+        verified_at: new Date().toISOString(),
+        verified_status: "ok",
+        last_action_via: "manual-tg-confirm",
+      }).eq("id", pubId);
+      await supabase.from("publication_history").insert({
+        publication_id: pubId,
+        action: "manual_confirm_published",
+        detail: `Підтвердив у TG: ${me.name || "?"}`,
+        actor_id: me.id,
+      });
+      // Notify ВСІМ stakeholders через notify-tg
+      try {
+        await fetch("https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/notify-tg", {
+          method: "POST",
+          headers: { "Content-Type":"application/json", "x-hq-secret": "10b4e4588f679775068f0de314851e40157b8146f71f628da2303d7dfccef5dd" },
+          body: JSON.stringify({ entity: "publication", id: pubId, event: "UPDATE", status: "published", old_status: pubBefore.status }),
+        });
+      } catch(e) { console.error("notify-tg invoke", e); }
+      await tgAnswerCallback(cb.id, "✅ Підтверджено · status=published");
+      const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+      if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
+        (msg.text || "") + `\n\n✅ <b>Опубліковано</b> · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+      return;
+    }
+    if (sub === "miss") {
+      // ❌ Збій публікації — алярм
+      await supabase.from("publications").update({
+        verified_at: new Date().toISOString(),
+        verified_status: "missed",
+      }).eq("id", pubId);
+      await supabase.from("publication_history").insert({
+        publication_id: pubId,
+        action: "manual_confirm_missed",
+        detail: `Збій підтвердив у TG: ${me.name || "?"}`,
+        actor_id: me.id,
+      });
+      // Шлемо алярм усім через прямий tg (бо це не статус-change для notify-tg)
+      const { data: pubM } = await supabase.from("publications").select("title").eq("id", pubId).maybeSingle();
+      const alertText = [
+        `🚨 <b>АЛЯРМ: публікація НЕ ВИЙШЛА</b>`,
+        `«${escHtml((pubM as any)?.title || "")}»`,
+        ``,
+        `${escHtml(me.name || "?")} підтвердив(ла) збій. Терміново розібратись.`,
+      ].join("\n");
+      // Group chat — silent=false (звукове сповіщення)
+      // Stakeholders — DM
+      // Простий шлях через прямий fetch — без stakeholders fanout тут, бо це rare event
+      const TG_GROUP_CHAT_ID_LOCAL = Deno.env.get("DCSMM_GROUP_CHAT_ID") || "-1003933841573";
+      try {
+        await fetch(`https://api.telegram.org/bot${Deno.env.get("TG_BOT_TOKEN")}/sendMessage`, {
+          method: "POST", headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({ chat_id: TG_GROUP_CHAT_ID_LOCAL, text: alertText, parse_mode: "HTML" })
+        });
+      } catch(e) { console.error("alarm send", e); }
+      await tgAnswerCallback(cb.id, "🚨 Алярм надіслано команді");
+      const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+      if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
+        (msg.text || "") + `\n\n❌ <b>Збій</b> · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+      return;
+    }
     if (sub === "retry") {
-      // Скидаємо verified_at щоб verify-publication-ig перевірив ще раз
+      // Legacy: скидаємо verified_at щоб verify-publication-ig перевірив ще раз
       await supabase.from("publications").update({
         verified_at: null, verified_status: null, verified_evidence_url: null,
       }).eq("id", pubId);
