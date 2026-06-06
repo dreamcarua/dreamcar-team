@@ -8,6 +8,35 @@
 
 ---
 
+## 07.06.2026 — Production Readiness Audit (3 ітерації × 4 агенти)
+
+### 🛡 Security fixes (P0 з audit iter 1)
+- 🛡 **`team_tasks_update_member` RLS** — раніше будь-який authenticated user міг UPDATE будь-яку задачу (включно зі soft-delete). Тепер обмежено до: creator OR assignee OR watcher OR ceo/coo/lead.
+- 🛡 **`checkout_events.ce_insert_service`** — `with_check=true` дозволяв anon-ключу INSERT платіжні події з фронта (обходячи backend). Тепер `auth.role()='service_role'` only.
+- 🛡 **`retention_message_history.rmh_insert`** — `with_check=true` для public → anon міг підробити approve-historу. Тепер service_role OR authenticated user only.
+- 🛡 **`dashboard_deals`/`dashboard_ads_data`/`dashboard_manual_costs`/`dashboard_settings`/`dashboard_webhooks` SELECT** — раніше designer/member бачили клієнтські платежі. Тепер ceo/coo/lead only.
+- 🛡 **`dashboard_people_mapping` INSERT/UPDATE/DELETE** — будь-хто міг переписати mapping людей. Тепер ceo/coo/lead only.
+- 🛡 **8 SECURITY DEFINER функцій без `SET search_path`** — search-path hijack risk. Додав `SET search_path = public, pg_temp` для: schedule_publication_verify, tg_proposed_tasks_expire, trg_publications_schedule_verify, trg_publications_unschedule_verify, trg_pub_platforms_reschedule_verify, trg_publications_schedule_verify_for, safe_unschedule, verify_pub_job_name.
+- 🛡 **`ALLOW_DEMO_FALLBACK: true → false`** у `hq/config.js` — у проді demo-режим без логіну = session leak risk.
+- 🛡 **GitHub branch protection** увімкнено на main для `dreamcar-team`, `dreamcar-dashboard`, `brand-book` (allow_force_pushes=false, allow_deletions=false).
+
+### 🚀 Performance fixes
+- 🚀 **Cron jobs offset** для `*/5` (4 jobs) і `*/15` (3 MV-refreshes) — раніше всі стартували одночасно на `:00,:15,:30,:45` створюючи 80+ сек одночасного DB load. Тепер розкидано: mv-utm на `:02,:17,:32,:47`, mv-paid-signatures на `:05,:20,:35,:50`, mv-projects-stats на `:08,:23,:38,:53`, autopost-tg-enqueue на `:01-:56/5`, retention-scheduler на `:02-:57/5`, mv-globals на `:12`.
+- 🚀 **`mv_dashboard_globals` unique index** + `REFRESH CONCURRENTLY` — раніше блокувало view ~30 сек/год під час hourly refresh.
+- 🚀 **DROP 3 unused indexes** (idx_dashboard_deals_campaign_paid, idx_dashboard_ads_campaign, idx_pubs_search) — 880KB+ на найбільшій таблиці, idx_scan=0.
+- 🚀 **`cron-reminders` schedule** з щогодини → */15 хв — забезпечує реальні T+10 нагадування (раніше lag до 60 хв).
+
+### 🔧 Integration & reliability fixes (audit iter 2)
+- 🔧 **`publication_approved_to_task`** — раніше assignee=created_by (автор). Тепер шукає responsible, fallback на автора. Назва задачі "🚀 Опублікувати: <title>".
+- 🔧 **`publications_check_platforms_before_status` trigger** — warning у логи якщо pub без platforms транзитує у review/approved/published. Не блокує (щоб не зламати existing flow), але видно у моніторингу.
+- 🔧 **2 publications зі status='published' без verified_at** — виправлено вручну (verified_at=updated_at, verified_status='ok_legacy').
+- 🔧 **`track-checkout` v2** — `verify_jwt: true → false`. Anon tracker client з браузера не міг передавати service_role JWT → INSERT падав з 401. Тепер працює.
+- 🔧 **`tg_processed_updates` table** — bigint PK для idempotency tg-webhook (TG retry-ить 1 update за 60s, дубль callback ламав approve). Cleanup cron daily на 03:00.
+- 🛡 **DROP старого тригера `trg_team_tasks_notify`** (з audit iter 1 ще раніше) — дублював notify-tg fanout, assignee отримував DM 2 рази.
+- 🧹 **6 stale verify_pub_* cron jobs** — cleanup (jobs для вже-verified/deleted/published pubs).
+
+---
+
 ## 06.06.2026 (вечір) — Universal TG notify + Modal/Tables fixes + HQ recovery
 
 ### 🚀 TG notify v10 — універсальна нотифікація ВСІМ stakeholders
