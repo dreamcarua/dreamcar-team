@@ -41,5 +41,6 @@ window.HQ_CONFIG = {
   // ---- Поведінка ----
   // Якщо true — навіть при наявному backend дозволяє demo-режим
   // (для розробки/презентації без логіну)
-  ALLOW_DEMO_FALLBACK: true,
+  // P0 security audit 07.06.2026: вимкнено в production, щоб не було session leak demo→real
+  ALLOW_DEMO_FALLBACK: false,
 };
