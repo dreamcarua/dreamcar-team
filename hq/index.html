@@ -8,8 +8,11 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>DreamCar HQ · Стіл SMM</title>
+<<<<<<< Updated upstream
 <!-- GLOBAL BRAND HEADER — обов'язково на ВСІХ сторінках проекту для навігації -->
 <script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=20260606b" defer></script>
+=======
+>>>>>>> Stashed changes
 <script src="config.js"></script>
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config
@@ -1406,8 +1409,1880 @@
 
 <div class="toast-stack" id="toastStack"></div>
 
+<<<<<<< Updated upstream
 <script src="app-core.js" defer></script>
 <script src="app-views.js" defer></script>
+=======
+<script>
+/* ====================================================================
+   DreamCar HQ — Стіл SMM (Пілот)
+   MVP як SPA: HTML + ванільний JS + localStorage
+   Архітектура: hash-router → views (Calendar/Board/Library/Launches)
+                Store wrapper над localStorage
+                Seed-дані при першому старті
+   ==================================================================== */
+
+const PLATFORMS = [
+  { id: 'ig', name: 'Instagram', icon: '📷', color: '#E1306C' },
+  { id: 'tg', name: 'Telegram', icon: '✈️', color: '#0088cc' },
+  { id: 'tt', name: 'TikTok', icon: '🎵', color: '#fe2c55' },
+  { id: 'th', name: 'Threads', icon: '🧵', color: '#888' },
+  { id: 'yt', name: 'YT Shorts', icon: '▶️', color: '#ff0000' },
+  { id: 'fb', name: 'Facebook', icon: '📘', color: '#1877f2' },
+];
+const PLATFORM_BY_ID = Object.fromEntries(PLATFORMS.map(p => [p.id, p]));
+
+const STATUSES = [
+  { id: 'draft', label: 'Чернетка', color: 'var(--grey)' },
+  { id: 'in_work', label: 'В роботі', color: 'var(--blue)' },
+  { id: 'review', label: 'На погодженні', color: 'var(--gold)' },
+  { id: 'approved', label: 'Погоджено', color: 'var(--green-soft)' },
+  { id: 'published', label: 'Опубліковано', color: 'var(--green)' },
+  { id: 'rework', label: 'На доопрацюванні', color: 'var(--orange)' },
+];
+const STATUS_BY_ID = Object.fromEntries(STATUSES.map(s => [s.id, s]));
+
+const CONTENT_TYPES = ['Пост', 'Reels', 'Сторис', 'Карусель', 'Лонгрід'];
+const ROLES = [
+  { id: 'ceo',    label: 'CEO',         tag: 'CEO' },
+  { id: 'coo',    label: 'COO',         tag: 'COO' },
+  { id: 'lead',   label: 'Тимлід SMM',  tag: 'Тимлід' },
+  { id: 'member', label: 'SMM-учасник', tag: 'Учасник' },
+];
+
+/* ============ Store (hybrid: Supabase + localStorage) ============
+   - SYNC reads: from in-memory cache (_data)
+   - ASYNC writes: optimistic to cache + persist to backend
+   - Realtime: backend pushes updates → re-render
+   Mode is determined by window.HQ_BACKEND flag (set in <head> loader).
+   ===================================================================== */
+const STORE_KEY = 'dreamcar_hq_v1';
+let BACKEND_MODE = false;          // set after init()
+let SUPABASE_USER_ID = null;        // auth.uid()
+
+const Store = {
+  _data: null,
+  _subscriptions: [],
+
+  async init() {
+    BACKEND_MODE = !!window.HQ_BACKEND && !!SUPABASE_USER_ID;
+    if (BACKEND_MODE) {
+      await this._loadFromBackend();
+      this._subscribeRealtime();
+    } else {
+      // Demo mode: localStorage with seed
+      this._loadFromLocal();
+    }
+  },
+
+  _loadFromLocal() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      this._data = raw ? JSON.parse(raw) : null;
+    } catch(e) { this._data = null; }
+    if (!this._data) { this._data = SEED(); this._saveLocal(); }
+  },
+  _saveLocal() {
+    if (BACKEND_MODE) return; // not used in backend mode
+    localStorage.setItem(STORE_KEY, JSON.stringify(this._data));
+  },
+
+  async _loadFromBackend() {
+    const sb = window.supabase;
+    // Fetch all in parallel
+    const [users, rubrics, launches, creatives, pubs, platforms, resp, apr, crePubs, comments, history] = await Promise.all([
+      sb.from('users').select('*'),
+      sb.from('rubrics').select('*').order('sort_order'),
+      sb.from('launches').select('*').eq('is_active', true),
+      sb.from('creatives').select('*').is('deleted_at', null).order('uploaded_at', { ascending: false }),
+      sb.from('publications').select('*').order('publish_at'),
+      sb.from('publication_platforms').select('*'),
+      sb.from('publication_responsibles').select('*'),
+      sb.from('publication_approvers').select('*'),
+      sb.from('creative_publications').select('*'),
+      sb.from('comments').select('*').is('deleted_at', null).order('created_at'),
+      sb.from('publication_history').select('*').order('at'),
+    ]);
+    // Map publications with nested arrays (frontend shape compatible with old JS)
+    const platformsByPub = groupBy(platforms.data, 'publication_id');
+    const respByPub = groupBy(resp.data, 'publication_id');
+    const aprByPub = groupBy(apr.data, 'publication_id');
+    const crByPub = groupBy(crePubs.data, 'publication_id');
+    const commentsByPub = groupBy(comments.data, 'publication_id');
+    const historyByPub = groupBy(history.data, 'publication_id');
+
+    const mappedPubs = (pubs.data || []).map(p => ({
+      id: p.id,
+      title: p.title,
+      dateTime: p.publish_at,
+      contentType: contentTypeFromDb(p.content_type),
+      text: p.text_body,
+      hashtags: p.hashtags || [],
+      rubric: p.rubric_id,
+      launch: p.launch_id,
+      status: p.status,
+      approverPolicy: p.approver_policy,
+      deadline: p.deadline_on,
+      platforms: (platformsByPub[p.id] || []).map(x => x.platform),
+      responsibles: (respByPub[p.id] || []).map(x => x.user_id),
+      approvers: (aprByPub[p.id] || []).map(x => x.user_id),
+      creatives: (crByPub[p.id] || []).sort((a,b)=>a.sort_order-b.sort_order).map(x => x.creative_id),
+      comments: (commentsByPub[p.id] || []).map(c => ({ id: c.id, at: c.created_at, author: c.author_id, body: c.body })),
+      history: (historyByPub[p.id] || []).map(h => ({ id: h.id, at: h.at, author: h.actor_id, action: h.action, detail: h.detail })),
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    }));
+
+    this._data = {
+      version: 1,
+      currentUserId: (users.data || []).find(u => u.auth_id === SUPABASE_USER_ID)?.id || null,
+      users:    (users.data || []).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, initial: u.initial })),
+      rubrics:  rubrics.data || [],
+      launches: (launches.data || []).map(l => ({ id: l.id, name: l.name, from: l.starts_on, to: l.ends_on, color: l.color })),
+      creatives: (creatives.data || []).map(c => ({
+        id: c.id, name: c.name, type: c.type,
+        size: humanSize(c.size_bytes), duration: c.duration_sec,
+        res: c.width_px && c.height_px ? `${c.width_px}×${c.height_px}` : '—',
+        tags: c.tags || [], uploadedBy: c.uploaded_by, uploadedAt: c.uploaded_at,
+        preview: previewFor(c.type), color: previewColor(c.type),
+      })),
+      publications: mappedPubs,
+    };
+  },
+
+  _subscribeRealtime() {
+    const sb = window.supabase;
+    const chan = sb.channel('hq-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'publications' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'publication_history' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'publication_platforms' }, () => this._refreshAfterChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'creatives' }, () => this._refreshAfterChange())
+      .subscribe();
+    this._subscriptions.push(chan);
+  },
+
+  async _refreshAfterChange() {
+    // Debounce: коли купа змін летить разом, перезавантажуємо раз
+    clearTimeout(this._refreshTimer);
+    this._refreshTimer = setTimeout(async () => {
+      await this._loadFromBackend();
+      if (typeof navigate === 'function') {
+        navigate();
+        renderSidebarFilters?.();
+      }
+    }, 300);
+  },
+
+  reset() {
+    if (BACKEND_MODE) {
+      toast('Reset недоступний у backend-режимі', 'warn', 'Видаляй через Supabase Dashboard.');
+      return;
+    }
+    localStorage.removeItem(STORE_KEY); this._data = null; this._loadFromLocal();
+  },
+  data() { return this._data; },
+
+  // ---- Sync reads (з кешу) ----
+  pubs() { return this._data?.publications || []; },
+  pub(id) { return this._data?.publications.find(p => p.id === id); },
+  creatives() { return this._data?.creatives || []; },
+  creative(id) { return this._data?.creatives.find(c => c.id === id); },
+  users() { return this._data?.users || []; },
+  user(id) { return this._data?.users.find(u => u.id === id); },
+  rubrics() { return this._data?.rubrics || []; },
+  launches() { return this._data?.launches || []; },
+  currentUser() { return this.user(this._data?.currentUserId); },
+
+  setCurrentUser(id) {
+    if (BACKEND_MODE) {
+      toast('Перемикач ролей працює лише в demo-режимі', 'warn');
+      return;
+    }
+    this._data.currentUserId = id;
+    this._saveLocal();
+  },
+
+  // ---- Async writes (optimistic + persist) ----
+  upsertPub(pub) {
+    // Optimistic cache update
+    const ix = this._data.publications.findIndex(p => p.id === pub.id);
+    if (ix >= 0) this._data.publications[ix] = pub;
+    else this._data.publications.push(pub);
+
+    if (BACKEND_MODE) {
+      this._persistPub(pub).catch(err => {
+        console.error('Persist failed:', err);
+        toast('Помилка збереження', 'error', err.message || 'мережа');
+      });
+    } else {
+      this._saveLocal();
+    }
+  },
+
+  async _persistPub(pub) {
+    const sb = window.supabase;
+    // 1. main row
+    const row = {
+      id: pub.id,
+      desk_id: '11111111-1111-1111-1111-111111111111',
+      title: pub.title || 'Untitled',
+      publish_at: pub.dateTime,
+      content_type: contentTypeToDb(pub.contentType),
+      text_body: pub.text || '',
+      hashtags: pub.hashtags || [],
+      rubric_id: pub.rubric || null,
+      launch_id: pub.launch || null,
+      status: pub.status || 'draft',
+      approver_policy: pub.approverPolicy || 'all',
+      deadline_on: pub.deadline || null,
+      created_by: this._data.currentUserId,
+    };
+    const { error: e1 } = await sb.from('publications').upsert(row);
+    if (e1) throw e1;
+
+    // 2. relations — простий підхід: видалити і вставити заново
+    await sb.from('publication_platforms').delete().eq('publication_id', pub.id);
+    if (pub.platforms?.length) {
+      await sb.from('publication_platforms').insert(pub.platforms.map(p => ({ publication_id: pub.id, platform: p })));
+    }
+    await sb.from('publication_responsibles').delete().eq('publication_id', pub.id);
+    if (pub.responsibles?.length) {
+      await sb.from('publication_responsibles').insert(pub.responsibles.map(u => ({ publication_id: pub.id, user_id: u, role: 'generic' })));
+    }
+    await sb.from('publication_approvers').delete().eq('publication_id', pub.id);
+    if (pub.approvers?.length) {
+      await sb.from('publication_approvers').insert(pub.approvers.map(u => ({ publication_id: pub.id, user_id: u })));
+    }
+    await sb.from('creative_publications').delete().eq('publication_id', pub.id);
+    if (pub.creatives?.length) {
+      await sb.from('creative_publications').insert(pub.creatives.map((c, i) => ({ publication_id: pub.id, creative_id: c, sort_order: i })));
+    }
+  },
+
+  deletePub(id) {
+    this._data.publications = this._data.publications.filter(p => p.id !== id);
+    if (BACKEND_MODE) {
+      window.supabase.from('publications').delete().eq('id', id).then(({ error }) => {
+        if (error) { console.error(error); toast('Помилка видалення', 'error'); }
+      });
+    } else {
+      this._saveLocal();
+    }
+  },
+
+  // History (append-only)
+  addHistory(pubId, action, detail = '') {
+    const pub = this.pub(pubId);
+    if (!pub) return;
+    if (!pub.history) pub.history = [];
+    const entry = {
+      id: uid(),
+      at: new Date().toISOString(),
+      author: this._data.currentUserId,
+      action,
+      detail
+    };
+    pub.history.push(entry);
+    if (BACKEND_MODE) {
+      window.supabase.from('publication_history').insert({
+        publication_id: pubId,
+        actor_id: this._data.currentUserId,
+        action,
+        detail: detail || null,
+      }).then(({ error }) => { if (error) console.error('History insert:', error); });
+    } else {
+      this._saveLocal();
+    }
+  },
+
+  // Comments
+  addComment(pubId, body) {
+    const pub = this.pub(pubId);
+    if (!pub) return;
+    if (!pub.comments) pub.comments = [];
+    const c = {
+      id: uid(),
+      at: new Date().toISOString(),
+      author: this._data.currentUserId,
+      body
+    };
+    pub.comments.push(c);
+    if (BACKEND_MODE) {
+      window.supabase.from('comments').insert({
+        publication_id: pubId,
+        author_id: this._data.currentUserId,
+        body,
+      }).then(({ error }) => { if (error) console.error('Comment insert:', error); });
+    } else {
+      this._saveLocal();
+    }
+  },
+};
+
+/* Helpers */
+function groupBy(arr, key) {
+  const m = {};
+  for (const x of arr || []) { (m[x[key]] = m[x[key]] || []).push(x); }
+  return m;
+}
+function humanSize(bytes) {
+  if (!bytes) return '—';
+  const k = 1024; const u = ['B','KB','MB','GB'];
+  let i = 0; let n = bytes;
+  while (n >= k && i < u.length-1) { n /= k; i++; }
+  return `${n.toFixed(n>=10?0:1)} ${u[i]}`;
+}
+function previewFor(t) { return { photo: '🖼️', video: '🎬', doc: '📄', audio: '🎵' }[t] || '📦'; }
+function previewColor(t) { return { photo: '#ff6577', video: '#7ab0ff', doc: '#888', audio: '#fbbf24' }[t] || '#888'; }
+function contentTypeToDb(t) {
+  return { 'Пост':'post', 'Reels':'reels', 'Сторис':'stories', 'Карусель':'carousel', 'Лонгрід':'longread' }[t] || 'post';
+}
+function contentTypeFromDb(t) {
+  return { post:'Пост', reels:'Reels', stories:'Сторис', carousel:'Карусель', longread:'Лонгрід' }[t] || t;
+}
+
+function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+
+/* ============ Seed ============ */
+function SEED() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const userIds = {
+    vadym: 'u_vadym', danil: 'u_danil', oleksandra: 'u_oleks', artem: 'u_artem', vira: 'u_vira',
+  };
+  const users = [
+    { id: userIds.vadym,      name: 'Вадим',       role: 'ceo',    email: 'vg@dreamcar.ua',    initial: 'В' },
+    { id: userIds.danil,      name: 'Даніл',       role: 'coo',    email: 'danil@dreamcar.ua', initial: 'Д' },
+    { id: userIds.oleksandra, name: 'Олександра',  role: 'lead',   email: 'sasha@dreamcar.ua', initial: 'О' },
+    { id: userIds.artem,      name: 'Артем',       role: 'member', email: 'artem@dreamcar.ua',initial: 'А' },
+    { id: userIds.vira,       name: 'Віра',        role: 'member', email: 'vira@dreamcar.ua', initial: 'В' },
+  ];
+  const rubrics = [
+    { id: 'r_sales',   name: 'Продажний',   color: '#ff6577' },
+    { id: 'r_expert',  name: 'Експертний',  color: '#7ab0ff' },
+    { id: 'r_fun',     name: 'Розважальний', color: '#fbbf24' },
+    { id: 'r_news',    name: 'Новинний',    color: '#6ee7b7' },
+    { id: 'r_partner', name: 'Партнерський', color: '#c89af0' },
+  ];
+  const launches = [
+    { id: 'l_audi',  name: 'AUDI E-TRON 2026', from: addDays(today, -10).toISOString().slice(0,10), to: addDays(today, 35).toISOString().slice(0,10), color: '#ff6577' },
+    { id: 'l_bmw',   name: 'BMW X5 Hybrid #17',from: addDays(today, -28).toISOString().slice(0,10),to: addDays(today, 14).toISOString().slice(0,10), color: '#7ab0ff' },
+    { id: 'l_brand', name: 'Bren brand-кампанія',from: addDays(today, 5).toISOString().slice(0,10), to: addDays(today, 50).toISOString().slice(0,10), color: '#fbbf24' },
+  ];
+  const creatives = [
+    { id: 'cr1', name: 'Audi-etron-front.jpg',   type: 'photo', size: '4.2 MB', duration: null, res: '4032×3024', tags: ['audi','etron','front'], uploadedBy: userIds.artem,  uploadedAt: addDays(today,-3).toISOString(), preview: '🚗', color: '#ff6577' },
+    { id: 'cr2', name: 'Audi-test-drive.mp4',    type: 'video', size: '128 MB',  duration: 47,   res: '1080×1920', tags: ['audi','reels','drive'], uploadedBy: userIds.artem,  uploadedAt: addDays(today,-2).toISOString(), preview: '🎬', color: '#7ab0ff' },
+    { id: 'cr3', name: 'BMW-winner-story.mp4',   type: 'video', size: '210 MB',  duration: 89,   res: '1080×1920', tags: ['bmw','x5','winner'], uploadedBy: userIds.artem,    uploadedAt: addDays(today,-5).toISOString(), preview: '🏆', color: '#fbbf24' },
+    { id: 'cr4', name: 'Tech-vacuum-process.mp4',type: 'video', size: '85 MB',   duration: 32,   res: '1920×1080', tags: ['tech','process','behind'], uploadedBy: userIds.artem, uploadedAt: addDays(today,-7).toISOString(), preview: '🏭', color: '#6ee7b7' },
+    { id: 'cr5', name: 'Team-photo-spring.jpg',  type: 'photo', size: '2.8 MB',  duration: null, res: '3024×4032', tags: ['team','spring','office'], uploadedBy: userIds.oleksandra, uploadedAt: addDays(today,-8).toISOString(), preview: '👥', color: '#c89af0' },
+    { id: 'cr6', name: 'Static-promo-bf.png',    type: 'photo', size: '0.9 MB',  duration: null, res: '1080×1080', tags: ['promo','bf','design'], uploadedBy: userIds.oleksandra,uploadedAt: addDays(today,-1).toISOString(), preview: '🎁', color: '#ff6577' },
+    { id: 'cr7', name: 'Carousel-1-numbers.png', type: 'photo', size: '0.7 MB',  duration: null, res: '1080×1350', tags: ['carousel','stats','infographic'], uploadedBy: userIds.oleksandra, uploadedAt: addDays(today,-4).toISOString(), preview: '📊', color: '#7ab0ff' },
+    { id: 'cr8', name: 'Funny-bts-fail.mp4',     type: 'video', size: '54 MB',   duration: 22,   res: '1080×1920', tags: ['fun','bts','fail'], uploadedBy: userIds.artem,         uploadedAt: addDays(today,-2).toISOString(), preview: '😂', color: '#fbbf24' },
+    { id: 'cr9', name: 'TZ-onboarding.pdf',      type: 'doc',   size: '1.2 MB',  duration: null, res: '—',         tags: ['doc','onboarding'], uploadedBy: userIds.oleksandra,    uploadedAt: addDays(today,-12).toISOString(), preview: '📄', color: '#888' },
+    { id: 'cr10', name: 'BMW-handover-emotion.jpg',type:'photo',size:'5.6 MB',   duration: null, res: '4032×3024', tags: ['bmw','winner','emotion'], uploadedBy: userIds.artem,    uploadedAt: addDays(today,-6).toISOString(), preview: '🥹', color: '#ff6577' },
+    { id: 'cr11', name: 'YT-shorts-teaser.mp4',  type:'video',  size: '38 MB',   duration: 18,   res: '1080×1920', tags: ['yt','shorts','teaser'], uploadedBy: userIds.artem,      uploadedAt: addDays(today,-1).toISOString(), preview: '⚡', color: '#6ee7b7' },
+    { id: 'cr12', name: 'Wallpaper-audi-night.jpg',type:'photo',size:'7.1 MB',   duration: null, res: '4032×6048', tags: ['audi','wallpaper','night'], uploadedBy: userIds.artem,   uploadedAt: addDays(today,-9).toISOString(), preview: '🌃', color: '#c89af0' },
+  ];
+
+  // Build 25 publications across the month around today
+  const pubs = [];
+  const titles = [
+    { t:'Audi E-tron — перші тест-драйви від нашої команди', type:'Reels', plats:['ig','tt','yt'], rub:'r_expert', launch:'l_audi', cr:['cr2'] },
+    { t:'BMW X5 #17 — момент передачі ключів',                type:'Reels', plats:['ig','tt'],     rub:'r_sales',  launch:'l_bmw',  cr:['cr3','cr10'] },
+    { t:'5 фактів про мікрохвильово-вакуумну сушку',         type:'Карусель', plats:['ig'],       rub:'r_expert', launch:null,     cr:['cr7'] },
+    { t:'BTS — як народжуються відео для проєкту',           type:'Reels', plats:['ig','tt'],     rub:'r_fun',    launch:null,     cr:['cr8'] },
+    { t:'Анонс Audi E-tron — старт продажу токенів',         type:'Пост', plats:['ig','tg','fb'], rub:'r_sales',  launch:'l_audi', cr:['cr1','cr6'] },
+    { t:'Команда DreamCar — весна 2026',                     type:'Карусель', plats:['ig','fb'], rub:'r_news',   launch:null,     cr:['cr5'] },
+    { t:'Як працює технологія сушки знизу до верху',         type:'Лонгрід',  plats:['fb','tg'], rub:'r_expert', launch:null,     cr:[] },
+    { t:'Emotion-shot — Олександр та його перша BMW',        type:'Reels', plats:['ig','tt','yt'],rub:'r_sales', launch:'l_bmw',  cr:['cr10'] },
+    { t:'Промо: Black Friday для учасників',                 type:'Пост',  plats:['ig','tg','fb'], rub:'r_sales', launch:null,    cr:['cr6'] },
+    { t:'Wallpaper Wednesday — Audi нічний',                 type:'Сторис', plats:['ig'],         rub:'r_fun',    launch:'l_audi', cr:['cr12'] },
+    { t:'YT Shorts teaser — наступне авто',                  type:'Reels', plats:['yt','ig'],     rub:'r_sales',  launch:null,     cr:['cr11'] },
+    { t:'Партнерство з McLaren-сервісом',                    type:'Пост',  plats:['ig','fb','tg'], rub:'r_partner', launch:null,   cr:['cr1'] },
+    { t:'Інтерв\'ю з власником Audi #5',                     type:'Reels', plats:['ig','yt'],     rub:'r_news',   launch:'l_audi', cr:['cr2'] },
+    { t:'Дайджест тижня: що відбувалося',                    type:'Карусель', plats:['ig','tg'], rub:'r_news',   launch:null,     cr:[] },
+    { t:'Mythbusting — частые питання про токени',           type:'Reels', plats:['ig','tt'],     rub:'r_expert', launch:null,     cr:[] },
+    { t:'Behind the scene — як ми знімаємо Reels',           type:'Сторис', plats:['ig'],         rub:'r_fun',    launch:null,     cr:['cr8'] },
+    { t:'AUDI E-TRON — фінальний countdown',                 type:'Пост',  plats:['ig','tg','fb'], rub:'r_sales', launch:'l_audi', cr:['cr1'] },
+    { t:'Розпаковка — приходить нове авто на склад',         type:'Reels', plats:['ig','tt','yt'],rub:'r_fun',    launch:'l_brand',cr:[] },
+    { t:'Команда зростає — нова вакансія SMM',               type:'Пост',  plats:['ig','tg','th'], rub:'r_news',  launch:null,     cr:['cr5'] },
+    { t:'Тест-драйв новачка — Олексій про Audi',             type:'Reels', plats:['yt','ig'],     rub:'r_sales',  launch:'l_audi', cr:['cr2'] },
+    { t:'Технологічна екскурсія заводом',                    type:'Reels', plats:['ig','tt'],     rub:'r_expert', launch:null,     cr:['cr4'] },
+    { t:'Stories-серія Q&A',                                 type:'Сторис', plats:['ig'],         rub:'r_fun',    launch:null,     cr:[] },
+    { t:'Заглушка — нічого важливого',                       type:'Пост',  plats:['ig'],          rub:'r_fun',    launch:null,     cr:[] },
+    { t:'Black Friday — фінальна заявка',                    type:'Пост',  plats:['ig','tg','fb'], rub:'r_sales', launch:null,     cr:['cr6'] },
+    { t:'Підсумок місяця — цифри і перемоги',                type:'Карусель', plats:['ig','tg'], rub:'r_news',   launch:'l_brand',cr:['cr7','cr5'] },
+  ];
+  // Spread across month
+  const offsets = [-12, -10, -9, -8, -7, -6, -5, -5, -4, -3, -2, -1, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 9, 12, 14];
+  // Status policy: past dates → published or rework; today/+1 → review/in_work; +2..+4 → review/in_work; +5+ → draft/in_work
+  const statusPlan = ['published','published','published','published','published','published','published','rework','published','published','published','review','review','review','in_work','approved','in_work','in_work','draft','draft','draft','draft','draft','draft','draft'];
+
+  for (let i = 0; i < titles.length; i++) {
+    const t = titles[i];
+    const offset = offsets[i];
+    const dt = addDays(today, offset);
+    dt.setHours(11 + (i % 8), [0,15,30,45][i % 4], 0, 0);
+    const status = statusPlan[i] || 'draft';
+    const respId = [userIds.artem, userIds.oleksandra, userIds.vira][i % 3];
+    pubs.push({
+      id: 'p_' + uid(),
+      title: t.t,
+      dateTime: dt.toISOString(),
+      platforms: t.plats,
+      rubric: t.rub,
+      contentType: t.type,
+      text: 'Текст для публікації «' + t.t + '».\n\n— Лід-абзац який чіпляє увагу.\n— Розкриття теми, з деталями та конкретикою.\n— Заклик до дії: переходь, забирай, дізнайся.\n\n#dreamcar #автомрії',
+      hashtags: ['#dreamcar', '#автомрії', '#' + t.rub.slice(2)],
+      creatives: t.cr,
+      responsibles: [respId],
+      deadline: addDays(dt, -2).toISOString().slice(0,10),
+      approvers: [userIds.vadym],
+      approverPolicy: 'all',
+      status,
+      launch: t.launch,
+      comments: [],
+      history: [
+        { id: uid(), at: addDays(dt, -5).toISOString(), author: respId, action: 'create', detail: '' }
+      ],
+      createdAt: addDays(dt, -5).toISOString(),
+      updatedAt: addDays(dt, -1).toISOString(),
+    });
+  }
+
+  // Seed comments on a couple
+  if (pubs[11]) {
+    pubs[11].comments = [{ id: uid(), at: new Date().toISOString(), author: userIds.vadym, body: 'Чудовий ракурс, тільки текст переробіть: третій абзац здається зайвим.' }];
+    pubs[11].status = 'rework';
+  }
+
+  return {
+    version: 1,
+    currentUserId: userIds.vadym,
+    users, rubrics, launches, creatives,
+    publications: pubs,
+  };
+}
+
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+
+/* ============ App state (in-memory) ============ */
+const App = {
+  view: 'calendar',
+  calendarMode: 'month', // month | week | day | list
+  calendarDate: new Date(),
+  filters: { statuses: new Set(), platforms: new Set() },
+  selectedPubs: new Set(),
+  searchQuery: '',
+};
+
+/* ============ Toast ============ */
+function toast(msg, kind = 'success', body = '') {
+  const stack = document.getElementById('toastStack');
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.innerHTML = `<b>${escapeHtml(msg)}</b>${body ? '<div class="toast-body">'+escapeHtml(body)+'</div>' : ''}`;
+  stack.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 0.3s'; }, 3000);
+  setTimeout(() => el.remove(), 3400);
+}
+
+/* ============ Modal ============ */
+const Modal = {
+  open(html, size = '') {
+    const bd = document.getElementById('modalBackdrop');
+    const m = document.getElementById('modal');
+    m.className = 'modal' + (size ? ' ' + size : '');
+    m.innerHTML = html;
+    bd.classList.add('open');
+    bd.onclick = (e) => { if (e.target === bd) this.close(); };
+    document.addEventListener('keydown', this._esc);
+  },
+  close() {
+    document.getElementById('modalBackdrop').classList.remove('open');
+    document.removeEventListener('keydown', this._esc);
+    if (this.onClose) { this.onClose(); this.onClose = null; }
+  },
+  _esc: function(e) { if (e.key === 'Escape') Modal.close(); },
+};
+
+/* ============ Router ============ */
+function parseHash() {
+  const h = (location.hash || '#calendar').slice(1);
+  const [route, ...args] = h.split('/');
+  return { route, args };
+}
+function navigate() {
+  const { route, args } = parseHash();
+  App.view = route;
+  document.querySelectorAll('.sidebar a.nav-item').forEach(a => {
+    a.classList.toggle('active', a.dataset.route === route);
+  });
+  const main = document.getElementById('main');
+  const bc = document.getElementById('breadcrumb');
+  if (route === 'calendar') { bc.innerHTML = 'Стіл SMM · <b>Календар</b>'; renderCalendar(main); }
+  else if (route === 'board') { bc.innerHTML = 'Стіл SMM · <b>Дошка погоджень</b>'; renderBoard(main); }
+  else if (route === 'library') { bc.innerHTML = 'Стіл SMM · <b>Бібліотека креативів</b>'; renderLibrary(main); }
+  else if (route === 'launches') { bc.innerHTML = 'Стіл SMM · <b>Запуски</b>'; renderLaunches(main); }
+  else if (route === 'publication' && args[0]) { openCard(args[0]); }
+  else { bc.innerHTML = 'Стіл SMM · <b>Календар</b>'; renderCalendar(main); }
+  updateNavCounts();
+}
+window.addEventListener('hashchange', navigate);
+
+/* ============ Nav counts ============ */
+function updateNavCounts() {
+  const me = Store.currentUser();
+  const pubs = Store.pubs();
+  document.getElementById('navCntCalendar').textContent = pubs.length;
+  // board count = where I am approver and status is review
+  const board = pubs.filter(p => p.status === 'review' && (p.approvers || []).includes(me.id)).length;
+  document.getElementById('navCntBoard').textContent = board;
+  document.getElementById('navCntLibrary').textContent = Store.creatives().length;
+  document.getElementById('navCntLaunches').textContent = Store.launches().length;
+}
+
+/* ============ Sidebar filters ============ */
+function renderSidebarFilters() {
+  const fs = document.getElementById('filterStatus');
+  fs.innerHTML = STATUSES.map(s => {
+    const cnt = Store.pubs().filter(p => p.status === s.id).length;
+    const on = App.filters.statuses.has(s.id);
+    return `<div class="filter-chip ${on ? 'on' : ''}" data-status="${s.id}">
+      <span class="swatch sw-${s.id}"></span><span>${s.label}</span><span class="cnt">${cnt}</span></div>`;
+  }).join('');
+  fs.querySelectorAll('.filter-chip').forEach(el => {
+    el.onclick = () => {
+      const s = el.dataset.status;
+      if (App.filters.statuses.has(s)) App.filters.statuses.delete(s);
+      else App.filters.statuses.add(s);
+      renderSidebarFilters();
+      navigate();
+    };
+  });
+  const fp = document.getElementById('filterPlatform');
+  fp.innerHTML = PLATFORMS.map(p => {
+    const cnt = Store.pubs().filter(pub => pub.platforms.includes(p.id)).length;
+    const on = App.filters.platforms.has(p.id);
+    return `<div class="filter-chip ${on ? 'on' : ''}" data-platform="${p.id}">
+      <span class="swatch" style="background:${p.color}"></span><span>${p.name}</span><span class="cnt">${cnt}</span></div>`;
+  }).join('');
+  fp.querySelectorAll('.filter-chip').forEach(el => {
+    el.onclick = () => {
+      const id = el.dataset.platform;
+      if (App.filters.platforms.has(id)) App.filters.platforms.delete(id);
+      else App.filters.platforms.add(id);
+      renderSidebarFilters();
+      navigate();
+    };
+  });
+}
+
+/* ============ Apply filters ============ */
+function filteredPubs() {
+  let pubs = Store.pubs();
+  if (App.filters.statuses.size > 0) pubs = pubs.filter(p => App.filters.statuses.has(p.status));
+  if (App.filters.platforms.size > 0) pubs = pubs.filter(p => p.platforms.some(pl => App.filters.platforms.has(pl)));
+  if (App.searchQuery) {
+    const q = App.searchQuery.toLowerCase();
+    pubs = pubs.filter(p => (p.title + ' ' + (p.text||'') + ' ' + (p.hashtags||[]).join(' ')).toLowerCase().includes(q));
+  }
+  return pubs;
+}
+
+/* ============ Helpers ============ */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+}
+function fmtDate(d, opts = {}) {
+  const dt = (d instanceof Date) ? d : new Date(d);
+  const dd = String(dt.getDate()).padStart(2,'0');
+  const mm = String(dt.getMonth()+1).padStart(2,'0');
+  const yyyy = dt.getFullYear();
+  if (opts.short) return `${dd}.${mm}`;
+  if (opts.long)  return dt.toLocaleDateString('uk-UA', { day:'numeric', month:'long', year:'numeric' });
+  return `${dd}.${mm}.${yyyy}`;
+}
+function fmtTime(d) {
+  const dt = (d instanceof Date) ? d : new Date(d);
+  return String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+}
+function fmtDateTime(d) { return fmtDate(d) + ' ' + fmtTime(d); }
+function daysBetween(a, b) {
+  const A = new Date(a); A.setHours(0,0,0,0);
+  const B = new Date(b); B.setHours(0,0,0,0);
+  return Math.round((B - A) / 86400000);
+}
+function urgencyClass(pub) {
+  const dt = new Date(pub.dateTime);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dl = new Date(dt); dl.setHours(0,0,0,0);
+  const diff = (dl - today) / 86400000;
+  if (pub.status === 'published') return '';
+  if (diff < 0) return 'missed';
+  if (diff <= 1 && pub.status !== 'approved') return 'urgent-red';
+  if (diff <= 3 && pub.status !== 'approved') return 'urgent-yellow';
+  return '';
+}
+function platformIcons(ids) {
+  return '<span class="platform-icons">' + ids.map(id => PLATFORM_BY_ID[id]?.icon || '').join('') + '</span>';
+}
+
+/* ============ Avatar ============ */
+function avatarHtml(userId, size = 22) {
+  const u = Store.user(userId);
+  if (!u) return '';
+  return `<span class="avatar" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#cc0000,#ff6577);font-size:${Math.round(size*0.45)}px;font-weight:700;color:#fff">${u.initial}</span>`;
+}
+
+/* ============ CALENDAR ============ */
+function renderCalendar(root) {
+  const me = Store.currentUser();
+  root.innerHTML = `
+    <div class="view-header">
+      <h1>Календар публікацій</h1>
+      <span class="view-meta" id="calMeta"></span>
+      <div class="actions">
+        <div class="segmented" id="modeSwitch">
+          <button class="btn-segmented ${App.calendarMode==='month'?'on':''}" data-mode="month">Місяць</button>
+          <button class="btn-segmented ${App.calendarMode==='week'?'on':''}" data-mode="week">Тиждень</button>
+          <button class="btn-segmented ${App.calendarMode==='day'?'on':''}" data-mode="day">День</button>
+          <button class="btn-segmented ${App.calendarMode==='list'?'on':''}" data-mode="list">Список</button>
+        </div>
+        <button class="btn btn-primary" id="addPubBtn">+ Нова публікація</button>
+      </div>
+    </div>
+    <div class="calendar-wrap">
+      <div class="calendar-controls">
+        <div class="cal-nav">
+          <button id="prevBtn">‹</button>
+          <div class="month-label" id="monthLabel"></div>
+          <button id="nextBtn">›</button>
+          <button id="todayBtn" style="margin-left:8px;width:auto;padding:0 12px;font-size:12px;">Сьогодні</button>
+        </div>
+      </div>
+      <div id="calBody"></div>
+    </div>
+  `;
+  document.getElementById('addPubBtn').onclick = () => createPub(App.calendarDate);
+  document.getElementById('prevBtn').onclick = () => navCal(-1);
+  document.getElementById('nextBtn').onclick = () => navCal(1);
+  document.getElementById('todayBtn').onclick = () => { App.calendarDate = new Date(); renderCalendar(document.getElementById('main')); };
+  document.querySelectorAll('#modeSwitch .btn-segmented').forEach(b => {
+    b.onclick = () => { App.calendarMode = b.dataset.mode; App.selectedPubs.clear(); renderCalendar(document.getElementById('main')); };
+  });
+
+  renderCalBody();
+}
+function navCal(delta) {
+  if (App.calendarMode === 'month') {
+    App.calendarDate = new Date(App.calendarDate.getFullYear(), App.calendarDate.getMonth() + delta, 1);
+  } else if (App.calendarMode === 'week') {
+    App.calendarDate = addDays(App.calendarDate, delta * 7);
+  } else if (App.calendarMode === 'day') {
+    App.calendarDate = addDays(App.calendarDate, delta);
+  }
+  renderCalBody();
+}
+function renderCalBody() {
+  const body = document.getElementById('calBody');
+  const meta = document.getElementById('calMeta');
+  const label = document.getElementById('monthLabel');
+  const pubs = filteredPubs();
+
+  if (App.calendarMode === 'month') {
+    const d = App.calendarDate;
+    label.textContent = d.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+    meta.textContent = `· ${pubs.length} публікацій`;
+    body.innerHTML = renderMonth(d, pubs);
+    attachCalendarHandlers();
+  } else if (App.calendarMode === 'week') {
+    const start = startOfWeek(App.calendarDate);
+    const end = addDays(start, 6);
+    label.textContent = `${fmtDate(start, {short:true})} — ${fmtDate(end, {short:true})}`;
+    meta.textContent = '';
+    body.innerHTML = renderWeek(start, pubs);
+    attachWeekHandlers();
+  } else if (App.calendarMode === 'day') {
+    label.textContent = fmtDate(App.calendarDate, {long:true});
+    meta.textContent = '';
+    body.innerHTML = renderDay(App.calendarDate, pubs);
+    attachWeekHandlers();
+  } else if (App.calendarMode === 'list') {
+    label.textContent = 'Усі публікації';
+    meta.textContent = `· ${pubs.length} рядків`;
+    body.innerHTML = renderList(pubs);
+    attachListHandlers();
+  }
+}
+function startOfWeek(d) {
+  const x = new Date(d);
+  const dayOfWeek = x.getDay() === 0 ? 7 : x.getDay();
+  x.setDate(x.getDate() - (dayOfWeek - 1));
+  x.setHours(0,0,0,0);
+  return x;
+}
+function renderMonth(d, pubs) {
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const start = startOfWeek(first);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekdays = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
+  let html = '<div class="calendar-grid">';
+  for (const w of weekdays) html += `<div class="cal-weekday">${w}</div>`;
+  for (let i = 0; i < 42; i++) {
+    const day = addDays(start, i);
+    const isOther = day.getMonth() !== d.getMonth();
+    const isToday = day.getTime() === today.getTime();
+    const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
+    const cards = dayPubs.slice(0,3).map(p => `
+      <div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${escapeHtml(p.title)}">
+        <span class="time">${fmtTime(p.dateTime)}</span>
+        ${platformIcons(p.platforms)}
+        <span class="title">${escapeHtml(p.title)}</span>
+      </div>
+    `).join('');
+    const more = dayPubs.length > 3 ? `<span class="more" data-date="${day.toISOString().slice(0,10)}">+${dayPubs.length-3} ще</span>` : '';
+    html += `<div class="cal-day ${isOther?'other-month':''} ${isToday?'today':''}" data-date="${day.toISOString().slice(0,10)}">
+      <div class="day-num">${day.getDate()}</div>${cards}${more}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+function sameDate(a, b) {
+  const A = new Date(a), B = new Date(b);
+  return A.getFullYear() === B.getFullYear() && A.getMonth() === B.getMonth() && A.getDate() === B.getDate();
+}
+function attachCalendarHandlers() {
+  // click on day = create
+  document.querySelectorAll('.cal-day').forEach(el => {
+    el.onclick = (e) => {
+      if (e.target.classList.contains('cal-card') || e.target.closest('.cal-card')) return;
+      if (e.target.classList.contains('more')) return;
+      createPub(new Date(el.dataset.date + 'T12:00:00'));
+    };
+    // dragover/drop
+    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drop-over'); };
+    el.ondragleave = () => el.classList.remove('drop-over');
+    el.ondrop = (e) => {
+      e.preventDefault();
+      el.classList.remove('drop-over');
+      const pid = e.dataTransfer.getData('text/plain');
+      const p = Store.pub(pid);
+      if (!p) return;
+      const oldDate = fmtDate(p.dateTime);
+      const newDt = new Date(el.dataset.date + 'T' + fmtTime(p.dateTime) + ':00');
+      p.dateTime = newDt.toISOString();
+      p.updatedAt = new Date().toISOString();
+      Store.upsertPub(p);
+      Store.addHistory(p.id, 'move', `${oldDate} → ${fmtDate(newDt)}`);
+      toast('Перенесено', 'success', `${p.title} → ${fmtDate(newDt)}`);
+      renderCalBody();
+    };
+  });
+  // drag start
+  document.querySelectorAll('.cal-card[draggable]').forEach(el => {
+    el.ondragstart = (e) => {
+      e.dataTransfer.setData('text/plain', el.dataset.id);
+      el.classList.add('dragging');
+    };
+    el.ondragend = () => el.classList.remove('dragging');
+    el.onclick = (e) => { e.stopPropagation(); location.hash = '#publication/' + el.dataset.id; };
+  });
+  document.querySelectorAll('.more').forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      App.calendarMode = 'day';
+      App.calendarDate = new Date(el.dataset.date);
+      renderCalendar(document.getElementById('main'));
+    };
+  });
+}
+
+function renderWeek(start, pubs) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dayNames = ['ПОН','ВІВ','СЕР','ЧЕТ','П\'ЯТ','СУБ','НЕД'];
+  let html = '<div class="week-grid">';
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(start, i);
+    const isToday = day.getTime() === today.getTime();
+    const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
+    const cards = dayPubs.map(p => `
+      <div class="week-card s-${p.status}" data-id="${p.id}">
+        <div class="wc-time">${fmtTime(p.dateTime)}</div>
+        <div class="wc-title">${escapeHtml(p.title)}</div>
+        <div class="wc-meta">${platformIcons(p.platforms)} · <span class="status ${p.status}" style="font-size:8px;padding:1px 5px;">${STATUS_BY_ID[p.status].label}</span></div>
+      </div>
+    `).join('');
+    html += `<div class="week-col" data-date="${day.toISOString().slice(0,10)}">
+      <div class="col-head ${isToday?'today':''}">
+        <div class="day-num">${day.getDate()}</div>
+        <div class="day-name">${dayNames[i]}</div>
+      </div>${cards || '<div style="color:var(--grey-2);font-size:11px;padding:8px 0;">—</div>'}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+function renderDay(date, pubs) {
+  const day = new Date(date); day.setHours(0,0,0,0);
+  const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
+  if (!dayPubs.length) return '<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">Жодної публікації на цей день</div><div>Натисни «+ Нова публікація» щоб створити</div></div>';
+  return '<div style="display:grid;gap:10px;">' + dayPubs.map(p => `
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid;border-left-color:${STATUS_BY_ID[p.status].color};border-radius:10px;padding:18px 22px;cursor:pointer;" data-id="${p.id}" class="week-card">
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="text-align:center;min-width:60px;">
+          <div style="font-size:22px;font-weight:800;color:#fff;">${fmtTime(p.dateTime)}</div>
+          <div style="font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:1px;">${p.contentType}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;">${escapeHtml(p.title)}</div>
+          <div style="font-size:12px;color:var(--grey);margin-bottom:8px;">${platformIcons(p.platforms)} ${p.platforms.map(id=>PLATFORM_BY_ID[id]?.name||id).join(' · ')}</div>
+          <div style="font-size:12px;color:#aaa;line-height:1.5;">${escapeHtml((p.text||'').slice(0,180))}…</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+          <span class="status ${p.status}">${STATUS_BY_ID[p.status].label}</span>
+          <span style="font-size:11px;color:var(--grey);">Відп.: ${(p.responsibles||[]).map(id=>Store.user(id)?.name).filter(Boolean).join(', ')||'—'}</span>
+        </div>
+      </div>
+    </div>
+  `).join('') + '</div>';
+}
+function attachWeekHandlers() {
+  document.querySelectorAll('.week-card').forEach(el => {
+    el.onclick = () => { if (el.dataset.id) location.hash = '#publication/' + el.dataset.id; };
+  });
+}
+
+function renderList(pubs) {
+  pubs = pubs.slice().sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
+  let rows = pubs.map(p => {
+    const r = Store.rubrics().find(x=>x.id===p.rubric);
+    const respNames = (p.responsibles||[]).map(id=>Store.user(id)?.name).filter(Boolean).join(', ') || '—';
+    return `<tr data-id="${p.id}" class="${App.selectedPubs.has(p.id)?'selected':''}">
+      <td class="col-check"><input type="checkbox" data-pub="${p.id}" ${App.selectedPubs.has(p.id)?'checked':''}/></td>
+      <td>${fmtDateTime(p.dateTime)}</td>
+      <td><div class="pub-title">${escapeHtml(p.title)}</div><div class="pub-meta">${p.contentType}</div></td>
+      <td>${platformIcons(p.platforms)} <small style="color:var(--grey)">${p.platforms.join(' · ')}</small></td>
+      <td>${r?'<span style="color:'+r.color+'">●</span> '+escapeHtml(r.name):'—'}</td>
+      <td>${escapeHtml(respNames)}</td>
+      <td><span class="status ${p.status}">${STATUS_BY_ID[p.status].label}</span></td>
+      <td>${(p.creatives||[]).length>0?'✓':'—'}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="list-table">
+    <thead>
+      <tr>
+        <th class="col-check"><input type="checkbox" id="selAll"/></th>
+        <th>Дата і час</th>
+        <th>Назва</th>
+        <th>Майданчики</th>
+        <th>Рубрика</th>
+        <th>Відповідальний</th>
+        <th>Статус</th>
+        <th>Медіа</th>
+      </tr>
+    </thead>
+    <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:var(--grey);padding:40px;">Нічого не знайдено</td></tr>'}</tbody>
+  </table>
+  <div class="bulk-bar ${App.selectedPubs.size>0?'shown':''}" id="bulkBar">
+    <div class="bb-count">Вибрано: ${App.selectedPubs.size}</div>
+    <div class="bb-actions">
+      <button class="btn btn-sm" id="bulkShift">Перенести (днів)</button>
+      <button class="btn btn-sm" id="bulkRubric">Змінити рубрику</button>
+      <button class="btn btn-sm btn-danger" id="bulkDelete">Видалити</button>
+      <button class="btn btn-sm" id="bulkClear">Зняти виділення</button>
+    </div>
+  </div>`;
+}
+function attachListHandlers() {
+  document.querySelectorAll('.list-table tbody tr').forEach(tr => {
+    tr.onclick = (e) => {
+      if (e.target.type === 'checkbox') return;
+      location.hash = '#publication/' + tr.dataset.id;
+    };
+  });
+  document.querySelectorAll('input[type=checkbox][data-pub]').forEach(cb => {
+    cb.onclick = (e) => {
+      e.stopPropagation();
+      if (cb.checked) App.selectedPubs.add(cb.dataset.pub);
+      else App.selectedPubs.delete(cb.dataset.pub);
+      cb.closest('tr').classList.toggle('selected', cb.checked);
+      document.getElementById('bulkBar').classList.toggle('shown', App.selectedPubs.size > 0);
+      document.querySelector('#bulkBar .bb-count').textContent = `Вибрано: ${App.selectedPubs.size}`;
+    };
+  });
+  const selAll = document.getElementById('selAll');
+  if (selAll) selAll.onclick = () => {
+    if (selAll.checked) filteredPubs().forEach(p => App.selectedPubs.add(p.id));
+    else App.selectedPubs.clear();
+    renderCalBody();
+  };
+  // Bulk actions
+  const bulkShift = document.getElementById('bulkShift');
+  if (bulkShift) bulkShift.onclick = () => {
+    const n = parseInt(prompt('Перенести на скільки днів? (+ вперед, − назад)', '7'), 10);
+    if (!n) return;
+    for (const id of App.selectedPubs) {
+      const p = Store.pub(id); if (!p) continue;
+      const d = new Date(p.dateTime); d.setDate(d.getDate() + n);
+      p.dateTime = d.toISOString();
+      Store.upsertPub(p);
+      Store.addHistory(id, 'move', `Bulk shift ${n}d`);
+    }
+    toast(`Перенесено ${App.selectedPubs.size} публікацій`, 'success');
+    App.selectedPubs.clear();
+    renderCalBody();
+  };
+  const bulkDelete = document.getElementById('bulkDelete');
+  if (bulkDelete) bulkDelete.onclick = () => {
+    if (!confirm(`Видалити ${App.selectedPubs.size} публікацій? Це необоротно.`)) return;
+    for (const id of App.selectedPubs) Store.deletePub(id);
+    toast(`Видалено ${App.selectedPubs.size}`, 'warn');
+    App.selectedPubs.clear();
+    renderCalBody();
+    updateNavCounts();
+    renderSidebarFilters();
+  };
+  const bulkRubric = document.getElementById('bulkRubric');
+  if (bulkRubric) bulkRubric.onclick = () => {
+    const options = Store.rubrics().map(r => r.id + ' — ' + r.name).join('\n');
+    const v = prompt('Введи ID нової рубрики:\n' + options, 'r_news');
+    if (!v) return;
+    if (!Store.rubrics().find(r=>r.id===v)) { toast('Невідомий ID', 'error'); return; }
+    for (const id of App.selectedPubs) {
+      const p = Store.pub(id); if (!p) continue;
+      p.rubric = v;
+      Store.upsertPub(p);
+    }
+    toast(`Змінено рубрику для ${App.selectedPubs.size}`, 'success');
+    App.selectedPubs.clear();
+    renderCalBody();
+  };
+  const bulkClear = document.getElementById('bulkClear');
+  if (bulkClear) bulkClear.onclick = () => { App.selectedPubs.clear(); renderCalBody(); };
+}
+
+/* ============ BOARD (Approvals) ============ */
+function renderBoard(root) {
+  const me = Store.currentUser();
+  const pubs = Store.pubs();
+  const col1 = pubs.filter(p => p.status === 'review' && (p.approvers||[]).includes(me.id));
+  const col2 = pubs.filter(p => p.status === 'review' && (p.responsibles||[]).includes(me.id));
+  const col3 = pubs.filter(p => p.status === 'rework' && (p.responsibles||[]).includes(me.id));
+  const sort = (a,b) => new Date(a.dateTime) - new Date(b.dateTime);
+  col1.sort(sort); col2.sort(sort); col3.sort(sort);
+
+  root.innerHTML = `
+    <div class="view-header">
+      <h1>Дошка погоджень</h1>
+      <span class="view-meta">· ${col1.length+col2.length+col3.length} карток</span>
+      <div class="actions"></div>
+    </div>
+    <div class="board-wrap">
+      <div class="board-cols">
+        <div class="board-col ${col1.length>0?'urgent':''}">
+          <div class="col-head">
+            <h3>На моє погодження</h3>
+            <span class="cnt">${col1.length}</span>
+          </div>
+          <div class="col-body">${col1.length?col1.map(boardCard).join(''):'<div class="board-empty">🌿 Тут чисто. Гарна робота.</div>'}</div>
+        </div>
+        <div class="board-col">
+          <div class="col-head">
+            <h3>Я відправив, чекають мене</h3>
+            <span class="cnt">${col2.length}</span>
+          </div>
+          <div class="col-body">${col2.length?col2.map(boardCard).join(''):'<div class="board-empty">Нічого не на чужому погодженні.</div>'}</div>
+        </div>
+        <div class="board-col">
+          <div class="col-head">
+            <h3>Повернуто на доопрацювання</h3>
+            <span class="cnt">${col3.length}</span>
+          </div>
+          <div class="col-body">${col3.length?col3.map(boardCard).join(''):'<div class="board-empty">Жодних повернень.</div>'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  attachBoardHandlers();
+}
+function boardCard(p) {
+  const cr = (p.creatives||[]).map(id => Store.creative(id)).filter(Boolean);
+  const thumb = cr[0] ? cr[0].preview : '📝';
+  const urgency = urgencyClass(p);
+  const dueLabel = (() => {
+    const diff = daysBetween(new Date(), p.dateTime);
+    if (diff < 0) return { txt: 'Пропущено: ' + fmtDate(p.dateTime), cls: 'due-now' };
+    if (diff === 0) return { txt: 'Сьогодні о ' + fmtTime(p.dateTime), cls: 'due-now' };
+    if (diff === 1) return { txt: 'Завтра ' + fmtTime(p.dateTime), cls: 'due-soon' };
+    if (diff <= 3) return { txt: 'Через ' + diff + ' дні · ' + fmtDate(p.dateTime), cls: 'due-soon' };
+    return { txt: fmtDate(p.dateTime) + ' · ' + fmtTime(p.dateTime), cls: '' };
+  })();
+  const respNames = (p.responsibles||[]).map(id => Store.user(id)?.name).filter(Boolean).join(', ');
+  return `<div class="board-card ${urgency}" data-id="${p.id}">
+    <div class="bc-head">
+      <div class="bc-thumb">${thumb}</div>
+      <div class="bc-body">
+        <div class="bc-title">${escapeHtml(p.title)}</div>
+        <div class="bc-meta">${platformIcons(p.platforms)} · ${p.contentType} · ${respNames}</div>
+      </div>
+    </div>
+    <div class="bc-date ${dueLabel.cls}" style="margin-top:8px;">📅 ${dueLabel.txt}</div>
+    <div class="bc-actions">
+      <button class="btn btn-success btn-sm" data-action="approve" data-id="${p.id}">✓ Погодити</button>
+      <button class="btn btn-warn btn-sm" data-action="reject" data-id="${p.id}">↩ Повернути</button>
+      <button class="btn btn-sm" data-action="open" data-id="${p.id}">Відкрити</button>
+    </div>
+  </div>`;
+}
+function attachBoardHandlers() {
+  document.querySelectorAll('.board-card').forEach(el => {
+    el.onclick = (e) => {
+      if (e.target.closest('button')) return;
+      location.hash = '#publication/' + el.dataset.id;
+    };
+  });
+  document.querySelectorAll('.board-card [data-action]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const action = b.dataset.action;
+      const id = b.dataset.id;
+      if (action === 'open') location.hash = '#publication/' + id;
+      else if (action === 'approve') approvePub(id);
+      else if (action === 'reject') rejectPub(id);
+    };
+  });
+}
+function approvePub(id) {
+  const p = Store.pub(id); if (!p) return;
+  const me = Store.currentUser();
+  if (!(p.approvers||[]).includes(me.id)) { toast('Тільки погоджувач може затвердити', 'error'); return; }
+  const comment = prompt('Коментар (опційно):', '');
+  p.status = 'approved'; p.updatedAt = new Date().toISOString();
+  Store.upsertPub(p);
+  Store.addHistory(id, 'approve', comment || '');
+  if (comment) Store.addComment(id, comment);
+  toast('Погоджено', 'success', p.title);
+  navigate();
+}
+function rejectPub(id) {
+  const p = Store.pub(id); if (!p) return;
+  const me = Store.currentUser();
+  if (!(p.approvers||[]).includes(me.id)) { toast('Тільки погоджувач може повернути', 'error'); return; }
+  const comment = prompt('Чому повертаєш? (обов\'язково)', '');
+  if (!comment || !comment.trim()) { toast('Коментар обов\'язковий', 'warn'); return; }
+  p.status = 'rework'; p.updatedAt = new Date().toISOString();
+  Store.upsertPub(p);
+  Store.addHistory(id, 'reject', comment);
+  Store.addComment(id, comment);
+  toast('Повернено на доопрацювання', 'warn', p.title);
+  navigate();
+}
+
+/* ============ LIBRARY ============ */
+function renderLibrary(root) {
+  root.innerHTML = `
+    <div class="view-header">
+      <h1>Бібліотека креативів</h1>
+      <span class="view-meta">· ${Store.creatives().length} файлів</span>
+      <div class="actions">
+        <button class="btn" id="libUpload">📁 Завантажити</button>
+      </div>
+    </div>
+    <div class="library-wrap">
+      <div class="library-toolbar">
+        <div class="segmented" id="libType">
+          <button class="btn-segmented on" data-type="all">Усі</button>
+          <button class="btn-segmented" data-type="photo">Фото</button>
+          <button class="btn-segmented" data-type="video">Відео</button>
+          <button class="btn-segmented" data-type="doc">Документи</button>
+        </div>
+        <input id="libSearch" placeholder="Пошук по назві, тегах…" style="background:var(--bg-3);border:1px solid var(--border);color:#fff;padding:7px 12px;border-radius:8px;font-size:13px;flex:1;max-width:300px;"/>
+      </div>
+      <div class="library-grid" id="libGrid"></div>
+    </div>
+  `;
+  document.getElementById('libUpload').onclick = () => toast('Заглушка', 'info', 'У повноцінній версії — Drive Resumable Upload (див. ТЗ § 9)');
+  document.querySelectorAll('#libType .btn-segmented').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('#libType .btn-segmented').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      renderLibGrid(b.dataset.type, document.getElementById('libSearch').value);
+    };
+  });
+  document.getElementById('libSearch').oninput = (e) => {
+    const t = document.querySelector('#libType .btn-segmented.on').dataset.type;
+    renderLibGrid(t, e.target.value);
+  };
+  renderLibGrid('all', '');
+}
+function renderLibGrid(type, q) {
+  let cr = Store.creatives();
+  if (type !== 'all') cr = cr.filter(c => c.type === type);
+  if (q) {
+    const Q = q.toLowerCase();
+    cr = cr.filter(c => (c.name + ' ' + (c.tags||[]).join(' ')).toLowerCase().includes(Q));
+  }
+  const grid = document.getElementById('libGrid');
+  if (!cr.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">📦</div><div class="empty-title">Нічого не знайдено</div></div>'; return; }
+  grid.innerHTML = cr.map(c => {
+    const u = Store.user(c.uploadedBy);
+    const dur = c.duration ? `<div class="lt-dur">${formatDur(c.duration)}</div>` : '';
+    return `<div class="lib-tile" data-id="${c.id}">
+      <div class="lt-preview" style="background:linear-gradient(135deg, ${c.color}33, transparent)">
+        ${c.preview}
+        <div class="lt-type-badge">${c.type}</div>
+        ${dur}
+      </div>
+      <div class="lt-info">
+        <div class="lt-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</div>
+        <div class="lt-meta">${c.size} · ${c.res}</div>
+        <div class="lt-tags">${(c.tags||[]).slice(0,3).map(t => `<span class="lt-tag">#${escapeHtml(t)}</span>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.lib-tile').forEach(el => {
+    el.onclick = () => openCreative(el.dataset.id);
+  });
+}
+function formatDur(s) {
+  const m = Math.floor(s/60), ss = s % 60;
+  return `${m}:${String(ss).padStart(2,'0')}`;
+}
+function openCreative(id) {
+  const c = Store.creative(id); if (!c) return;
+  const usedIn = Store.pubs().filter(p => (p.creatives||[]).includes(id));
+  Modal.open(`
+    <div class="modal-head">
+      <h2>${escapeHtml(c.name)}</h2>
+      <span class="modal-meta">${c.type} · ${c.size} · ${c.res}${c.duration?' · '+formatDur(c.duration):''}</span>
+      <button class="close" onclick="Modal.close()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:linear-gradient(135deg, ${c.color}33, transparent);border:1px solid var(--border);border-radius:10px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:72px;color:#fff;margin-bottom:18px;">${c.preview}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <div>
+          <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);margin-bottom:8px;font-weight:700;">Інформація</h4>
+          <div style="display:grid;gap:8px;font-size:13px;">
+            <div>📁 <b style="color:#fff">${escapeHtml(c.name)}</b></div>
+            <div>📦 ${c.size}, ${c.res}${c.duration?', '+formatDur(c.duration):''}</div>
+            <div>👤 Завантажив: <b style="color:#fff">${Store.user(c.uploadedBy)?.name||'—'}</b></div>
+            <div>📅 ${fmtDateTime(c.uploadedAt)}</div>
+            <div>🏷️ ${(c.tags||[]).map(t=>'#'+t).join(' ') || '—'}</div>
+          </div>
+        </div>
+        <div>
+          <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);margin-bottom:8px;font-weight:700;">Використовується в публікаціях</h4>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${usedIn.length?usedIn.map(p=>`<a href="#publication/${p.id}" style="background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:12px;color:#fff;text-decoration:none;display:block;" onclick="Modal.close()">${escapeHtml(p.title)} <small style="color:var(--grey)">· ${fmtDate(p.dateTime)}</small></a>`).join(''):'<div style="color:var(--grey);font-size:12px;padding:8px 0;">Не використовується.</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="toast('Заглушка', 'info', 'У повній версії — пряме посилання з Google Drive');">⬇ Завантажити оригінал</button>
+      <button class="btn btn-danger" onclick="Modal.close()">Закрити</button>
+    </div>
+  `);
+}
+
+/* ============ LAUNCHES ============ */
+function renderLaunches(root) {
+  root.innerHTML = `
+    <div class="view-header">
+      <h1>Запуски</h1>
+      <span class="view-meta">· ${Store.launches().length} активних</span>
+    </div>
+    <div class="library-wrap">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+      ${Store.launches().map(l => {
+        const pubs = Store.pubs().filter(p => p.launch === l.id);
+        const byStatus = STATUSES.map(s => ({ s, n: pubs.filter(p=>p.status===s.id).length }));
+        return `<div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${l.color};border-radius:10px;padding:18px 20px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <h3 style="font-size:16px;font-weight:700;color:#fff;">${escapeHtml(l.name)}</h3>
+            <span style="font-size:11px;color:var(--grey);">${fmtDate(l.from,{short:true})} — ${fmtDate(l.to,{short:true})}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+            ${byStatus.filter(x=>x.n>0).map(x => `<span class="status ${x.s.id}">${x.s.label}: ${x.n}</span>`).join('')}
+          </div>
+          <div style="font-size:12px;color:var(--grey);">Усього публікацій: <b style="color:#fff">${pubs.length}</b></div>
+        </div>`;
+      }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/* ============ PUBLICATION CARD ============ */
+let cardAutosaveTimer = null;
+function openCard(id) {
+  let p = id === 'new' ? newPubObject() : Store.pub(id);
+  if (!p) { toast('Публікацію не знайдено', 'error'); location.hash = '#calendar'; return; }
+  const me = Store.currentUser();
+  const isMine = (p.responsibles||[]).includes(me.id) || me.role === 'ceo' || me.role === 'coo' || me.role === 'lead';
+  const showLock = false; // simulated soft-lock disabled on MVP single-user
+
+  Modal.open(`
+    <div class="modal-head">
+      <h2 id="cardTitle">${escapeHtml(p.title || 'Нова публікація')}</h2>
+      <span class="status ${p.status}" id="cardStatusBadge">${STATUS_BY_ID[p.status].label}</span>
+      <div class="autosave saved" id="autosaveInd"><div class="dot"></div><span id="autosaveText">Збережено</span></div>
+      <button class="close" onclick="Modal.close()">×</button>
+    </div>
+    <div class="modal-body" id="cardBody">${renderCardBody(p)}</div>
+    <div class="modal-foot">
+      <div class="left">
+        <button class="btn btn-danger" id="btnDelete">🗑 Видалити</button>
+      </div>
+      ${renderCardWorkflowButtons(p, me)}
+    </div>
+  `);
+  attachCardHandlers(p);
+  Modal.onClose = () => { if (cardAutosaveTimer) clearTimeout(cardAutosaveTimer); };
+}
+function newPubObject() {
+  const now = new Date();
+  now.setHours(12,0,0,0);
+  return {
+    id: 'p_' + uid(),
+    title: '',
+    dateTime: now.toISOString(),
+    platforms: [],
+    rubric: '',
+    contentType: 'Пост',
+    text: '',
+    hashtags: [],
+    creatives: [],
+    responsibles: [Store.currentUser().id],
+    deadline: '',
+    approvers: [Store.users().find(u=>u.role==='ceo').id],
+    approverPolicy: 'all',
+    status: 'draft',
+    launch: null,
+    comments: [],
+    history: [{ id: uid(), at: new Date().toISOString(), author: Store.currentUser().id, action: 'create', detail: '' }],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    _isNew: true,
+  };
+}
+function renderCardBody(p) {
+  const dt = new Date(p.dateTime);
+  const dtLocal = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') + 'T' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+  return `
+    <div class="pub-card-layout">
+      <div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Назва <span class="req">*</span></label>
+          <input type="text" id="f_title" maxlength="120" value="${escapeHtml(p.title)}" placeholder="Audi E-tron — тест-драйв" />
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="field">
+            <label>Дата і час <span class="req">*</span></label>
+            <input type="datetime-local" id="f_dateTime" value="${dtLocal}"/>
+          </div>
+          <div class="field">
+            <label>Тип контенту <span class="req">*</span></label>
+            <select id="f_contentType">${CONTENT_TYPES.map(t=>`<option ${p.contentType===t?'selected':''}>${t}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Майданчики <span class="req">*</span></label>
+          <div class="chip-row" id="f_platforms">
+            ${PLATFORMS.map(pl => `<div class="chip ${p.platforms.includes(pl.id)?'on':''}" data-platform="${pl.id}">${pl.icon} ${pl.name}</div>`).join('')}
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Текст публікації <span class="req">*</span></label>
+          <textarea id="f_text" maxlength="5000" placeholder="Текст поста…">${escapeHtml(p.text||'')}</textarea>
+          <div class="hint"><span id="f_textCount">${(p.text||'').length}</span>/5000 символів</div>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Хештеги</label>
+          <input type="text" id="f_hashtags" value="${(p.hashtags||[]).join(' ')}" placeholder="#dreamcar #автомрії"/>
+          <div class="hint">Розділяй пробілами. Instagram — макс. 30.</div>
+        </div>
+        <div class="pub-section">
+          <h4>Креативи</h4>
+          <div class="creative-strip" id="f_creatives">
+            ${(p.creatives||[]).map(cid => {
+              const c = Store.creative(cid); if (!c) return '';
+              return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}">${c.preview}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
+            }).join('')}
+            <div class="cs-add" id="addCreativeBtn">+</div>
+          </div>
+        </div>
+
+        <div class="tabs" id="cardTabs">
+          <div class="tab active" data-tab="comments">💬 Коментарі <span style="font-size:10px;color:var(--grey);">(${(p.comments||[]).length})</span></div>
+          <div class="tab" data-tab="history">📜 Історія</div>
+        </div>
+        <div id="tabContent">${renderCommentsTab(p)}</div>
+      </div>
+
+      <div>
+        <div class="meta-list">
+          <div class="meta-item">
+            <span class="ml-label">Рубрика <span class="req">*</span></span>
+            <select id="f_rubric" class="ml-value" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px;">
+              <option value="">— Обрати —</option>
+              ${Store.rubrics().map(r => `<option value="${r.id}" ${p.rubric===r.id?'selected':''}>${r.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="meta-item">
+            <span class="ml-label">Відповідальні <span class="req">*</span></span>
+            <div class="chip-row" id="f_resp">
+              ${Store.users().map(u => `<div class="chip ${p.responsibles.includes(u.id)?'on':''}" data-user="${u.id}">${u.initial} · ${escapeHtml(u.name)}</div>`).join('')}
+            </div>
+          </div>
+          <div class="meta-item">
+            <span class="ml-label">Дедлайн матеріалу</span>
+            <input type="date" id="f_deadline" value="${p.deadline||''}" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px;"/>
+          </div>
+          <div class="meta-item">
+            <span class="ml-label">Погоджувачі</span>
+            <div class="chip-row" id="f_appr">
+              ${Store.users().filter(u=>['ceo','coo','lead'].includes(u.role)).map(u => `<div class="chip ${p.approvers.includes(u.id)?'on':''}" data-user="${u.id}">${u.initial} · ${escapeHtml(u.name)}</div>`).join('')}
+            </div>
+          </div>
+          <div class="meta-item">
+            <span class="ml-label">Зв'язаний із запуском</span>
+            <select id="f_launch" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px;">
+              <option value="">— Немає —</option>
+              ${Store.launches().map(l => `<option value="${l.id}" ${p.launch===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function renderCommentsTab(p) {
+  const list = (p.comments||[]).map(c => {
+    const u = Store.user(c.author);
+    return `<div class="comment">
+      <div class="c-head"><span class="c-author">${u?.name||'?'}</span><span class="c-time">${fmtDateTime(c.at)}</span></div>
+      <div class="c-body">${escapeHtml(c.body)}</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--grey);font-size:12px;padding:8px 0;">Немає коментарів.</div>';
+  return `<div id="commentsList">${list}</div>
+    <div class="comment-input">
+      <input id="newComment" placeholder="Додати коментар…"/>
+      <button class="btn btn-primary btn-sm" id="addCommentBtn">Надіслати</button>
+    </div>`;
+}
+function renderHistoryTab(p) {
+  const items = (p.history||[]).slice().reverse().map(h => {
+    const u = Store.user(h.author);
+    const actionMap = { create:'створив(ла) публікацію', status:'змінив(ла) статус →', approve:'погодив(ла)', reject:'повернув(ла) на доопрацювання', move:'переніс(ла) дату', edit:'відредагував(ла)' };
+    return `<div class="history-item">
+      <span class="h-time">${fmtDateTime(h.at)}</span>
+      <span class="h-author">${u?.name||'?'}</span>
+      <span class="h-action">${actionMap[h.action]||h.action}</span>
+      ${h.detail?'<span class="h-detail">'+escapeHtml(h.detail)+'</span>':''}
+    </div>`;
+  }).join('') || '<div style="color:var(--grey);font-size:12px;padding:8px 0;">Історія порожня.</div>';
+  return items;
+}
+function renderCardWorkflowButtons(p, me) {
+  const transitions = [];
+  const isResp = (p.responsibles||[]).includes(me.id) || me.role === 'lead';
+  const isAppr = (p.approvers||[]).includes(me.id);
+  if (p.status === 'draft' && isResp) transitions.push({ to:'in_work', label:'Взяти в роботу', cls:'btn' });
+  if (p.status === 'in_work' && isResp) transitions.push({ to:'review', label:'→ На погодження', cls:'btn-primary' });
+  if (p.status === 'review' && isAppr) {
+    transitions.push({ to:'approved', label:'✓ Погодити', cls:'btn-success' });
+    transitions.push({ to:'rework', label:'↩ Повернути', cls:'btn-warn' });
+  }
+  if (p.status === 'rework' && isResp) transitions.push({ to:'review', label:'→ На погодження', cls:'btn-primary' });
+  if (p.status === 'approved' && (isResp || isAppr)) transitions.push({ to:'published', label:'🚀 Позначити опублікованою', cls:'btn-success' });
+  return `<button class="btn" onclick="Modal.close()">Закрити</button>` +
+    transitions.map(t => `<button class="btn ${t.cls}" data-transition="${t.to}">${t.label}</button>`).join('');
+}
+function attachCardHandlers(p) {
+  // chips: platforms
+  document.querySelectorAll('#f_platforms .chip').forEach(c => {
+    c.onclick = () => {
+      const id = c.dataset.platform;
+      const ix = p.platforms.indexOf(id);
+      if (ix >= 0) p.platforms.splice(ix, 1);
+      else p.platforms.push(id);
+      c.classList.toggle('on');
+      autosave(p);
+    };
+  });
+  // chips: responsibles
+  document.querySelectorAll('#f_resp .chip').forEach(c => {
+    c.onclick = () => {
+      const id = c.dataset.user;
+      const ix = p.responsibles.indexOf(id);
+      if (ix >= 0) p.responsibles.splice(ix, 1);
+      else p.responsibles.push(id);
+      c.classList.toggle('on');
+      autosave(p);
+    };
+  });
+  // chips: approvers
+  document.querySelectorAll('#f_appr .chip').forEach(c => {
+    c.onclick = () => {
+      const id = c.dataset.user;
+      const ix = p.approvers.indexOf(id);
+      if (ix >= 0) p.approvers.splice(ix, 1);
+      else p.approvers.push(id);
+      c.classList.toggle('on');
+      autosave(p);
+    };
+  });
+  // simple fields
+  const fields = [
+    ['f_title','title','text'],['f_text','text','text'],['f_rubric','rubric','select'],
+    ['f_contentType','contentType','select'],['f_deadline','deadline','date'],
+    ['f_launch','launch','select'],
+  ];
+  fields.forEach(([fid, key]) => {
+    const el = document.getElementById(fid);
+    if (!el) return;
+    el.oninput = () => { p[key] = el.value; autosave(p); };
+    el.onchange = () => { p[key] = el.value; autosave(p); };
+  });
+  const dtEl = document.getElementById('f_dateTime');
+  if (dtEl) dtEl.onchange = () => {
+    p.dateTime = new Date(dtEl.value).toISOString();
+    autosave(p);
+  };
+  const hashEl = document.getElementById('f_hashtags');
+  if (hashEl) hashEl.oninput = () => {
+    p.hashtags = hashEl.value.split(/\s+/).filter(Boolean);
+    autosave(p);
+  };
+  const textCount = () => {
+    const el = document.getElementById('f_textCount');
+    if (el) el.textContent = (document.getElementById('f_text').value||'').length;
+  };
+  document.getElementById('f_text').oninput = () => { p.text = document.getElementById('f_text').value; textCount(); autosave(p); };
+
+  // creatives strip
+  document.querySelectorAll('#f_creatives .cs-remove').forEach(rb => {
+    rb.onclick = (e) => {
+      e.stopPropagation();
+      const cid = rb.dataset.remove;
+      p.creatives = (p.creatives||[]).filter(x => x !== cid);
+      rb.closest('.cs-item').remove();
+      autosave(p);
+    };
+  });
+  document.getElementById('addCreativeBtn').onclick = () => openCreativePicker(p);
+
+  // tabs
+  document.querySelectorAll('#cardTabs .tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('#cardTabs .tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const cont = document.getElementById('tabContent');
+      if (t.dataset.tab === 'comments') {
+        cont.innerHTML = renderCommentsTab(p);
+        bindComments(p);
+      } else {
+        cont.innerHTML = renderHistoryTab(p);
+      }
+    };
+  });
+  bindComments(p);
+
+  // workflow buttons
+  document.querySelectorAll('[data-transition]').forEach(b => {
+    b.onclick = () => transitionStatus(p, b.dataset.transition);
+  });
+
+  // delete
+  document.getElementById('btnDelete').onclick = () => {
+    if (!confirm('Видалити публікацію «' + p.title + '»? Це необоротно.')) return;
+    if (!p._isNew) Store.deletePub(p.id);
+    Modal.close();
+    toast('Видалено', 'warn');
+    location.hash = '#calendar';
+  };
+}
+function bindComments(p) {
+  const btn = document.getElementById('addCommentBtn');
+  const inp = document.getElementById('newComment');
+  if (!btn || !inp) return;
+  const submit = () => {
+    const v = inp.value.trim();
+    if (!v) return;
+    Store.addComment(p.id, v);
+    inp.value = '';
+    // re-render comments
+    const cont = document.getElementById('tabContent');
+    cont.innerHTML = renderCommentsTab(p);
+    bindComments(p);
+    toast('Коментар додано', 'success');
+  };
+  btn.onclick = submit;
+  inp.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+}
+function openCreativePicker(p) {
+  const used = new Set(p.creatives||[]);
+  Modal.open(`
+    <div class="modal-head">
+      <h2>Обрати креатив</h2>
+      <button class="close" onclick="reopenCard('${p.id}')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="library-grid">
+        ${Store.creatives().map(c => `
+          <div class="lib-tile" data-pick="${c.id}" style="${used.has(c.id)?'opacity:0.5;outline:2px solid var(--green);':''}">
+            <div class="lt-preview" style="background:linear-gradient(135deg, ${c.color}33, transparent)">${c.preview}<div class="lt-type-badge">${c.type}</div></div>
+            <div class="lt-info">
+              <div class="lt-name">${escapeHtml(c.name)}</div>
+              <div class="lt-meta">${c.size}${c.duration?' · '+formatDur(c.duration):''}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="reopenCard('${p.id}')">Готово</button></div>
+  `, 'modal-md');
+  document.querySelectorAll('.lib-tile[data-pick]').forEach(el => {
+    el.onclick = () => {
+      const id = el.dataset.pick;
+      if (used.has(id)) {
+        p.creatives = (p.creatives||[]).filter(x => x !== id);
+        used.delete(id);
+        el.style.opacity = '1';
+        el.style.outline = '';
+      } else {
+        p.creatives = [...(p.creatives||[]), id];
+        used.add(id);
+        el.style.outline = '2px solid var(--green)';
+        el.style.opacity = '0.7';
+      }
+      autosave(p);
+    };
+  });
+}
+function reopenCard(id) { Modal.close(); setTimeout(()=>openCard(id), 100); }
+
+function autosave(p) {
+  const ind = document.getElementById('autosaveInd');
+  const txt = document.getElementById('autosaveText');
+  if (ind) { ind.className = 'autosave saving'; txt.textContent = 'Зберігаю…'; }
+  if (cardAutosaveTimer) clearTimeout(cardAutosaveTimer);
+  cardAutosaveTimer = setTimeout(() => {
+    p.updatedAt = new Date().toISOString();
+    if (p._isNew) { delete p._isNew; }
+    Store.upsertPub(p);
+    if (ind) { ind.className = 'autosave saved'; txt.textContent = 'Збережено о ' + fmtTime(new Date()); }
+    // update title in header
+    const ct = document.getElementById('cardTitle');
+    if (ct) ct.textContent = p.title || 'Нова публікація';
+  }, 700);
+}
+
+function transitionStatus(p, to) {
+  // Validation
+  if (to === 'review') {
+    const missing = [];
+    if (!p.title) missing.push('Назва');
+    if (!p.platforms.length) missing.push('Майданчики');
+    if (!p.rubric) missing.push('Рубрика');
+    if (!p.text) missing.push('Текст');
+    if (p.contentType !== 'Лонгрід' && (!p.creatives || !p.creatives.length)) missing.push('Креативи');
+    if (missing.length) { toast('Не вистачає полів', 'error', missing.join(', ')); return; }
+  }
+  if (to === 'rework' || to === 'approved') {
+    const me = Store.currentUser();
+    if (!p.approvers.includes(me.id)) { toast('Тільки погоджувач може це робити', 'error'); return; }
+  }
+  if (to === 'rework') {
+    const c = prompt('Чому повертаєш? (обов\'язково)', '');
+    if (!c || !c.trim()) { toast('Коментар обов\'язковий', 'warn'); return; }
+    Store.addComment(p.id, c);
+    Store.addHistory(p.id, 'reject', c);
+  } else if (to === 'approved') {
+    const c = prompt('Коментар (опційно):', '');
+    if (c) Store.addComment(p.id, c);
+    Store.addHistory(p.id, 'approve', c||'');
+  } else {
+    Store.addHistory(p.id, 'status', `${STATUS_BY_ID[p.status].label} → ${STATUS_BY_ID[to].label}`);
+  }
+  p.status = to;
+  p.updatedAt = new Date().toISOString();
+  Store.upsertPub(p);
+  toast('Статус: ' + STATUS_BY_ID[to].label, 'success');
+  Modal.close();
+  navigate();
+}
+
+function createPub(date) {
+  const p = newPubObject();
+  if (date) p.dateTime = new Date(date).toISOString();
+  Store.upsertPub(p);
+  delete p._isNew;
+  location.hash = '#publication/' + p.id;
+}
+
+/* ============ Role switch (demo) ============ */
+function renderRoleBadge() {
+  const me = Store.currentUser();
+  if (!me) return;
+  document.getElementById('roleAvatar').textContent = me.initial;
+  document.getElementById('roleName').textContent = me.name;
+  document.getElementById('roleTag').textContent = ROLES.find(r=>r.id===me.role)?.tag || me.role;
+}
+
+document.getElementById('roleSwitch').onclick = () => {
+  if (BACKEND_MODE) {
+    // У backend-режимі — меню профілю
+    const me = Store.currentUser();
+    Modal.open(`
+      <div class="modal-head">
+        <h2>${escapeHtml(me?.name || '—')}</h2>
+        <span class="modal-meta">${escapeHtml(me?.email || '')} · ${ROLES.find(r=>r.id===me?.role)?.tag || me?.role || ''}</span>
+        <button class="close" onclick="Modal.close()">×</button>
+      </div>
+      <div class="modal-body" style="padding:8px;">
+        <div class="dropdown-item" onclick="toast('Профіль', 'info', 'Налаштування у наступній ітерації')">👤 Профіль</div>
+        <div class="dropdown-item" onclick="toast('Сповіщення', 'info', 'Налаштування у наступній ітерації')">🔔 Налаштування сповіщень</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" onclick="HQ.signOut()">↪ Вийти</div>
+      </div>
+    `, 'modal-sm');
+    return;
+  }
+  // Demo mode: перемикач ролей
+  const me = Store.currentUser();
+  const users = Store.users();
+  const items = users.map(u => `<div class="dropdown-item" data-user="${u.id}">${avatarHtml(u.id, 22)} ${escapeHtml(u.name)} <span style="margin-left:auto;color:var(--grey);font-size:10px;text-transform:uppercase;">${ROLES.find(r=>r.id===u.role)?.tag}</span></div>`).join('');
+  const w = `
+    <div class="modal-head">
+      <h2>Перемкнути роль (демо)</h2>
+      <span class="modal-meta">Без реальної авторизації</span>
+      <button class="close" onclick="Modal.close()">×</button>
+    </div>
+    <div class="modal-body" style="padding:8px;">${items}</div>
+  `;
+  Modal.open(w, 'modal-sm');
+  document.querySelectorAll('.dropdown-item[data-user]').forEach(el => {
+    el.onclick = () => {
+      Store.setCurrentUser(el.dataset.user);
+      renderRoleBadge();
+      navigate();
+      Modal.close();
+      toast('Роль перемкнено', 'info', Store.currentUser().name);
+    };
+  });
+};
+
+/* ============ Bell (notifications mock) ============ */
+document.getElementById('bellBtn').onclick = () => {
+  const me = Store.currentUser();
+  const board = Store.pubs().filter(p => p.status === 'review' && (p.approvers||[]).includes(me.id));
+  const missed = Store.pubs().filter(p => urgencyClass(p) === 'missed');
+  const urgent = Store.pubs().filter(p => urgencyClass(p) === 'urgent-red');
+  const items = [];
+  for (const p of board) items.push({ icon:'✅', title:'Чекає твого погодження', body:p.title, link:'#publication/'+p.id });
+  for (const p of urgent) items.push({ icon:'🔥', title:'Горить, статус не «Погоджено»', body:p.title, link:'#publication/'+p.id });
+  for (const p of missed) items.push({ icon:'⚠️', title:'Пропущена публікація', body:p.title, link:'#publication/'+p.id });
+  if (!items.length) items.push({ icon:'🌿', title:'Усе тихо', body:'Жодних нових сповіщень', link:null });
+  Modal.open(`
+    <div class="modal-head"><h2>Сповіщення</h2><span class="modal-meta">${items.length} активних</span><button class="close" onclick="Modal.close()">×</button></div>
+    <div class="modal-body" style="padding:8px;">
+      ${items.map(i => `<div class="dropdown-item" ${i.link?`onclick="location.hash='${i.link}'; Modal.close()"`:''}>
+        <div style="font-size:18px">${i.icon}</div>
+        <div><div style="font-weight:600;color:#fff">${escapeHtml(i.title)}</div><div style="font-size:11px;color:var(--grey)">${escapeHtml(i.body)}</div></div>
+      </div>`).join('')}
+    </div>
+  `, 'modal-sm');
+};
+
+/* ============ Search ============ */
+document.getElementById('globalSearch').oninput = (e) => {
+  App.searchQuery = e.target.value;
+  if (['calendar','board','library'].includes(App.view)) navigate();
+};
+
+/* ============ Keyboard shortcuts ============ */
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea, select')) return;
+  if (e.key === 'c' || e.key === 'C') { createPub(new Date()); }
+  else if (e.key === '/') { e.preventDefault(); document.getElementById('globalSearch').focus(); }
+  else if (e.key === '1') { App.calendarMode = 'month'; renderCalendar(document.getElementById('main')); }
+  else if (e.key === '2') { App.calendarMode = 'week'; renderCalendar(document.getElementById('main')); }
+  else if (e.key === '3') { App.calendarMode = 'day'; renderCalendar(document.getElementById('main')); }
+  else if (e.key === '4') { App.calendarMode = 'list'; renderCalendar(document.getElementById('main')); }
+});
+
+/* ============ Auth flow ============ */
+const Auth = {
+  async checkSession() {
+    if (!window.HQ_BACKEND) return null;
+    const { data: { session } } = await window.supabase.auth.getSession();
+    return session;
+  },
+
+  async loadCurrentUser(session) {
+    const sb = window.supabase;
+    // Спершу шукаємо запис у public.users з auth_id
+    const { data: existing, error: e1 } = await sb.from('users').select('*').eq('auth_id', session.user.id).maybeSingle();
+    if (e1) console.warn('Load user:', e1);
+    if (existing) return existing;
+    // Якщо немає — пробуємо за email (може бути seed-запис)
+    const email = session.user.email;
+    const { data: byEmail } = await sb.from('users').select('*').eq('email', email).maybeSingle();
+    if (byEmail) {
+      // Прив'язуємо auth_id
+      await sb.from('users').update({ auth_id: session.user.id }).eq('id', byEmail.id);
+      return byEmail;
+    }
+    // Інакше створюємо новий запис із роллю 'member'
+    const meta = session.user.user_metadata || {};
+    const { data: created, error: e2 } = await sb.from('users').insert({
+      auth_id: session.user.id,
+      email,
+      name: meta.full_name || meta.name || email.split('@')[0],
+      role: 'member',
+    }).select().single();
+    if (e2) { console.error('Create user:', e2); throw e2; }
+    return created;
+  },
+
+  async signInGoogle() {
+    const { error } = await window.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin + location.pathname }
+    });
+    if (error) showAuthError(error.message);
+  },
+
+  async signOut() {
+    if (!window.HQ_BACKEND) return;
+    await window.supabase.auth.signOut();
+    location.reload();
+  },
+};
+
+function showAuthScreen(opts = {}) {
+  const sc = document.getElementById('authScreen');
+  sc.classList.add('shown');
+  document.getElementById('authContent').style.display = opts.loading ? 'none' : 'block';
+  document.getElementById('authLoading').style.display = opts.loading ? 'flex' : 'none';
+  // TG widget — показуємо якщо є config
+  if (window.HQ_CONFIG?.TG_LOGIN_BOT) {
+    document.getElementById('authTgWrap').style.display = 'block';
+    initTgLoginWidget();
+  }
+  // Demo fallback link
+  if (window.HQ_CONFIG?.ALLOW_DEMO_FALLBACK !== false) {
+    document.getElementById('authDemoLink').style.display = 'inline-block';
+  }
+}
+function hideAuthScreen() {
+  document.getElementById('authScreen').classList.remove('shown');
+}
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.classList.add('shown');
+}
+function initTgLoginWidget() {
+  const wrap = document.getElementById('authTgWidget');
+  if (wrap.dataset.inited) return;
+  wrap.dataset.inited = '1';
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://telegram.org/js/telegram-widget.js?22';
+  s.setAttribute('data-telegram-login', window.HQ_CONFIG.TG_LOGIN_BOT);
+  s.setAttribute('data-size', 'large');
+  s.setAttribute('data-onauth', 'onTgAuth(user)');
+  s.setAttribute('data-request-access', 'write');
+  wrap.appendChild(s);
+}
+window.onTgAuth = async function(user) {
+  // user = { id, first_name, last_name, username, photo_url, auth_date, hash }
+  // Verifying hash потребує бекенду. Для пілота: довіряємо клієнту,
+  // створюємо/знаходимо user по telegram_username і логінимо через
+  // signInWithPassword із детермінованим паролем (на основі telegram id).
+  toast('TG Login приймає авторизацію', 'info', 'Перевірка hash буде на Edge Function пізніше');
+  // TODO: викликати Supabase Edge Function /verify-tg-login яка валідовує hash і повертає JWT
+};
+
+/* ============ Bootstrap (async) ============ */
+async function boot() {
+  // Чекаємо завершення loader'а (lazy-import Supabase SDK)
+  if (typeof window.HQ_BACKEND === 'undefined') {
+    await new Promise(r => window.addEventListener('hq-loader-ready', r, { once: true }));
+  }
+
+  // Backend indicator
+  const ind = document.getElementById('backendIndicator');
+  if (window.HQ_BACKEND) {
+    showAuthScreen({ loading: true });
+    try {
+      const session = await Auth.checkSession();
+      if (!session) {
+        showAuthScreen({ loading: false });
+        ind.className = 'backend-indicator demo';
+        document.getElementById('backendIndicatorLabel').textContent = 'Не залогінений';
+        ind.style.display = 'flex';
+        return; // чекаємо логіну
+      }
+      // є сесія
+      const me = await Auth.loadCurrentUser(session);
+      SUPABASE_USER_ID = session.user.id;
+      await Store.init();
+      // Прив'язка currentUser
+      Store._data.currentUserId = me.id;
+      hideAuthScreen();
+      ind.className = 'backend-indicator live';
+      document.getElementById('backendIndicatorLabel').textContent = 'Live · ' + me.name;
+      ind.style.display = 'flex';
+    } catch (e) {
+      console.error('Boot error:', e);
+      showAuthError(e.message || 'Помилка завантаження');
+      showAuthScreen({ loading: false });
+      return;
+    }
+  } else {
+    // Demo mode
+    await Store.init();
+    ind.className = 'backend-indicator demo';
+    document.getElementById('backendIndicatorLabel').textContent = 'Demo (localStorage)';
+    ind.style.display = 'flex';
+  }
+
+  // UI bootstrap
+  renderRoleBadge();
+  renderSidebarFilters();
+  if (!location.hash) location.hash = '#calendar';
+  navigate();
+}
+
+// Wire auth buttons
+document.getElementById('authGoogle').onclick = () => Auth.signInGoogle();
+document.getElementById('authDemoLink').onclick = () => {
+  window.HQ_BACKEND = false;
+  hideAuthScreen();
+  boot();
+};
+
+// Reset / inspector / debug helpers
+window.HQ = {
+  reset() { Store.reset(); location.reload(); },
+  seed: SEED,
+  store: Store,
+  auth: Auth,
+  signOut: () => Auth.signOut(),
+};
+
+console.log('%cDreamCar HQ %cv0.2 (Supabase-aware)', 'color:#cc0000;font-weight:800;font-size:14px;', 'color:#888;');
+console.log('Команди: HQ.reset() — скинути demo дані. HQ.signOut() — вийти. HQ.store — інспектор.');
+
+// Запускаємо
+boot();
+</script>
+>>>>>>> Stashed changes
 
 </body>
 </html>
