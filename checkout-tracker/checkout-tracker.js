@@ -1,6 +1,6 @@
 /* ============================================================
    DreamCar Checkout Tracker — A/B/C testing library
-   06.06.2026 v1.0
+   06.06.2026 v2.0 — variant приходит снаружи (от сайта), а не считается внутри
    ============================================================
    Usage:
      <script src="https://team.dreamcar.ua/checkout-tracker/checkout-tracker.js" defer></script>
@@ -8,15 +8,25 @@
        window.dcTrackerConfig = {
          experimentId: 'upsell_window_1',
          apiUrl: 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/track-checkout',
-         apiKey: '<SUPABASE_ANON_KEY>'  // публичный, у нас RLS service
+         apiKey: '<SUPABASE_ANON_KEY>'
        };
      </script>
 
-     На каждом шаге:
-     dcMarkStepArrival('phone', 1);
-     dcTrack({step:'phone', outcome:'next'});         // → следующий шаг
+     // САЙТ сам решил вариант (по своему split в админке) и передал трекеру:
+     dcSetVariant('A'); // 'control' | 'A' | 'B'   ← обязательно ДО первого dcTrack
+
+     // Дальше как обычно — события на каждом шаге:
+     dcMarkStepArrival('phone');
+     dcTrack({step:'phone', outcome:'next'});
      dcTrack({step:'upsell_window_1', outcome:'took', amount_offered:4999});
      dcTrack({step:'success', outcome:'next', amount_final:4999, tariff_final:'gold'});
+
+   Контракт:
+     - Трекер НЕ назначает вариант сам — это делает сайт.
+     - dcGetVariant() возвращает то что передал сайт через dcSetVariant().
+     - Если dcSetVariant() не вызван — dcGetVariant() возвращает null (не угадывает).
+     - Variant sticky: после первого dcSetVariant() сохраняется в sessionStorage
+       и стабилен при F5 (до закрытия таба или явного dcSetVariant с новым значением).
 ============================================================ */
 (function() {
   'use strict';
@@ -26,10 +36,11 @@
   const API_URL = config.apiUrl || 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/track-checkout';
   const API_KEY = config.apiKey || '';
   const EXPERIMENT_ID = config.experimentId || 'upsell_window_1';
-  const VERSION = '1.0.0';
+  const VERSION = '2.0.0';
   const BATCH_SIZE = 5;
   const FLUSH_INTERVAL_MS = 2000;
   const INACTIVITY_MS = 5 * 60 * 1000;
+  const VALID_VARIANTS = ['control', 'A', 'B', 'C', 'D', 'E'];
 
   let queue = [];
   let flushTimer = null;
@@ -46,31 +57,29 @@
     return sid;
   }
 
-  function simpleHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash);
-  }
-
-  // ===== Sticky variant assignment =====
+  // ===== Variant — приходит от сайта через dcSetVariant() =====
+  // Трекер сам НЕ вычисляет вариант. Только хранит то что передал сайт.
   function getVariant() {
     const cacheKey = `__dc_variant_${EXPERIMENT_ID}`;
     try {
       const cached = sessionStorage.getItem(cacheKey);
-      if (cached) return cached;
+      if (cached && VALID_VARIANTS.indexOf(cached) >= 0) return cached;
     } catch (_) {}
-    const sid = getSessionId();
-    const hash = simpleHash(sid + EXPERIMENT_ID);
-    const bucket = hash % 100;
-    let variant;
-    if (bucket < 20) variant = 'control';
-    else if (bucket < 60) variant = 'A';
-    else variant = 'B';
-    try { sessionStorage.setItem(cacheKey, variant); } catch (_) {}
-    return variant;
+    return null; // не угадываем — если сайт не вызвал dcSetVariant, события не отправляются
+  }
+
+  function setVariant(variant) {
+    if (!variant || VALID_VARIANTS.indexOf(variant) < 0) {
+      console.warn('[dcTrack] dcSetVariant: invalid variant "' + variant + '", expected one of: ' + VALID_VARIANTS.join(', '));
+      return false;
+    }
+    const cacheKey = `__dc_variant_${EXPERIMENT_ID}`;
+    try {
+      sessionStorage.setItem(cacheKey, variant);
+    } catch (e) {
+      console.warn('[dcTrack] sessionStorage недоступен:', e);
+    }
+    return true;
   }
 
   // ===== Device detection =====
@@ -137,6 +146,7 @@
     const visitor = getVisitor();
     const utm = getUtm();
     const sid = getSessionId();
+    // Variant: либо явно передан в input, либо берём из storage (установлен через dcSetVariant)
     const variant = input.variant || getVariant();
     const eventId = 'evt_' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '_' + Math.random().toString(36).slice(2));
     return {
@@ -182,6 +192,10 @@
       return;
     }
     const ev = buildEvent(input);
+    if (!ev.variant) {
+      console.warn('[dcTrack] variant не установлен — вызови dcSetVariant("control"|"A"|"B") до dcTrack. Event пропущен:', input.step, input.outcome);
+      return null;
+    }
     queue.push(ev);
     if (queue.length >= BATCH_SIZE) flush();
     else scheduleFlush();
@@ -193,6 +207,13 @@
     window.__currentStep = step;
     window.__currentStepIndex = stepIndex || STEP_INDEX[step] || null;
     resetInactivity();
+  };
+
+  // ⭐ Новый API v2: сайт сам устанавливает вариант
+  window.dcSetVariant = function(variant) {
+    const ok = setVariant(variant);
+    if (ok) console.log('[dcTrack] variant set to "' + variant + '"');
+    return ok;
   };
 
   window.dcGetVariant = function() {
@@ -261,6 +282,7 @@
         outcome: 'dropped',
         drop_reason: 'tab_close'
       });
+      if (!e.variant) return; // нет варианта — нет события
       const payload = JSON.stringify({ events: [e] });
       if (navigator.sendBeacon) {
         navigator.sendBeacon(API_URL, new Blob([payload], { type: 'application/json' }));
@@ -281,5 +303,6 @@
     }
   });
 
-  console.log('[dcTrack] initialized v' + VERSION + ' · variant=' + getVariant() + ' · session=' + getSessionId().slice(0, 16));
+  const initVariant = getVariant();
+  console.log('[dcTrack] initialized v' + VERSION + ' · variant=' + (initVariant || '(не установлен — жду dcSetVariant)') + ' · session=' + getSessionId().slice(0, 16));
 })();
