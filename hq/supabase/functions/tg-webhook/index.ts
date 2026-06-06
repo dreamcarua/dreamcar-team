@@ -1101,7 +1101,8 @@ async function handleListenHere(
 ): Promise<void> {
   // Тільки CEO/COO
   if (!tgUser.id) { await tgSend(chatId, "⚠️ TG user не визначено."); return; }
-  const { data: u } = await supabase.from("users").select("id, name, role").eq("tg_chat_id", String(tgUser.id)).maybeSingle();
+  // 06.06.2026 FIX: tg_chat_id у БД це bigint — не кастимо у String, інакше PostgREST eq не співпадає
+  const { data: u } = await supabase.from("users").select("id, name, role").eq("tg_chat_id", tgUser.id).maybeSingle();
   if (!u) { await tgSend(chatId, "🚫 Не привʼязаний як юзер HQ. Спочатку /start у DM.", { silent: true }); return; }
   if (!["ceo", "coo"].includes(u.role)) {
     await tgSend(chatId, `🚫 Команда тільки для CEO/COO. Твоя роль: <b>${escHtml(u.role)}</b>.`, { silent: true });
@@ -1139,7 +1140,8 @@ async function handleListenStop(
   msg: TgMessage,
 ): Promise<void> {
   if (!tgUser.id) { await tgSend(chatId, "⚠️ TG user не визначено."); return; }
-  const { data: u } = await supabase.from("users").select("id, name, role").eq("tg_chat_id", String(tgUser.id)).maybeSingle();
+  // 06.06.2026 FIX: tg_chat_id як bigint
+  const { data: u } = await supabase.from("users").select("id, name, role").eq("tg_chat_id", tgUser.id).maybeSingle();
   if (!u || !["ceo", "coo"].includes(u.role)) {
     await tgSend(chatId, `🚫 Команда тільки для CEO/COO.`, { silent: true });
     return;
@@ -1742,7 +1744,7 @@ async function tryAutoDiscoverUsername(
     const { data: u } = await supabase
       .from("users")
       .select("id, tg_username")
-      .eq("tg_chat_id", String(msg.from.id))
+      .eq("tg_chat_id", msg.from.id)
       .maybeSingle();
     if (!u) return;
     if (!u.tg_username) {
@@ -1800,7 +1802,7 @@ async function forwardToAI(
   const { data: u } = await supabase
     .from("users")
     .select("id, name, role")
-    .eq("tg_chat_id", String(chatId))
+    .eq("tg_chat_id", chatId)
     .maybeSingle();
 
   const payload = {
