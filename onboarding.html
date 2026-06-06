@@ -293,6 +293,7 @@
 <a class="sb-link" data-page="hq">📝 SMM · Публікації</a>
 <a class="sb-link" data-page="projects">📁 Проєкти</a>
 <a class="sb-link" data-page="tasks">✅ Tasks</a>
+<a class="sb-link" data-page="retention">📬 Ретеншн</a>
 <a class="sb-link" data-page="compress">🎬 Креативи</a>
 <a class="sb-link" data-page="autopost">🚀 Автопостинг</a>
 <a class="sb-link" data-page="bot">🤖 TG бот</a>
@@ -682,6 +683,71 @@
 <div class="tip">💡 <b>CEO/COO бачать ВСІ</b> видалені задачі команди (можуть переглядати хто що видаляє). Інші ролі — лише свої.</div>
 <div class="warn">⚠️ Через 30 днів задачі видаляються <b>назавжди</b> через cron — без можливості відновлення.</div>
 </div>
+</section>
+
+<section class="page" data-page="retention">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 04</div><h1>РЕТЕНШН — <span>РОЗСИЛКИ</span> ТА АВТОМАТИЗАЦІЯ</h1><p class="lead">Окремий стіл для планування Email/TG/Push/SMS розсилок. URL: <code>team.dreamcar.ua/retention/</code></p></div>
+
+<div class="block"><h2>💡 Що це робить</h2><p>SMM відповідає за <b>контент-маркетинг</b> у каналах (TG, IG, FB, Threads). РЕТЕНШН — окремий стіл де плануються <b>прямі комунікації з підписниками</b>: email-розсилки, TG-broadcast у клієнтський бот, push-нотифікації, SMS, viber.</p><p>Чому окремо: розсилки мають іншу логіку — сегментація аудиторії, A/B testing, win-back campaigns, transactional flows. Спам vs targeted comms. Метрики open/click vs engagement.</p></div>
+
+<div class="block"><h2>🎬 Канали (Phase 1)</h2><ul>
+<li><b>📧 Email</b> — інтеграція з SendPulse (READ-ONLY у Phase 1: статистика і списки). Сама відправка — через SendPulse Dashboard.</li>
+<li><b>📨 Telegram</b> — broadcast через існуючий <code>@dreamcar_team_bot</code>. Працює <b>авто</b> з 06.06.2026.</li>
+<li><b>🔔 Push</b> — Phase 2 (планується OneSignal).</li>
+<li><b>💬 SMS</b> — Phase 2.</li>
+<li><b>📱 Viber</b> — Phase 2.</li>
+<li><b>📤 Інше</b> — будь-який сторонній канал, manual send.</li>
+</ul></div>
+
+<div class="block"><h2>🔄 Lifecycle розсилки (9 статусів)</h2><ol>
+<li><b>draft</b> — пишеться, ніхто ще не бачить.</li>
+<li><b>review</b> — натиснули "На погодження", approvers отримують TG DM.</li>
+<li><b>approved</b> — всі approvers погодили. Готова до постановки у чергу.</li>
+<li><b>scheduled</b> — у черзі на відправку. cron retention-scheduler picks її коли <code>publish_at &lt;= now()</code>.</li>
+<li><b>sending</b> — у процесі відправки.</li>
+<li><b>sent</b> — відправлено. Видно sent_count.</li>
+<li><b>failed</b> — помилка. Видно external_error.</li>
+<li><b>rework</b> — повернуто на доопрацювання approver-ом.</li>
+<li><b>archived</b> — у архіві.</li>
+</ol></div>
+
+<div class="card accent" data-role="smm,ceo,coo,lead"><div class="who"><span class="role-pill">SMM / CEO / COO</span></div><h4>Як створити розсилку</h4><ol class="steps">
+<li>Відкрити <a href="/retention/">team.dreamcar.ua/retention/</a></li>
+<li>Кнопка <b>+ НОВА РОЗСИЛКА</b></li>
+<li>Канал (Email / Telegram / Push / SMS / Viber / Інше)</li>
+<li>Заголовок (Subject для email), Preview, Body</li>
+<li>Дата і час відправки</li>
+<li>Прикріпити до проєкту (опціонально)</li>
+<li>Сегмент: тариф (Бронза / Срібло / Золото / Платина) + статус (Активний / Потенційний / Відтік / Переможці)</li>
+<li>ID списку SendPulse або chat_id TG broadcast чату</li>
+<li>Призначити Approvers (хто погоджує) і Responsibles (хто виконує)</li>
+<li>💾 ЗБЕРЕГТИ → статус = <i>draft</i></li>
+<li>📤 НА ПОГОДЖЕННЯ → approvers отримують TG DM з ✅/↩</li>
+<li>Після approval — ⏰ ПОСТАВИТИ У ЧЕРГУ → cron підхопить</li>
+</ol></div>
+
+<div class="block"><h2>📊 Аудиторія і сегментація</h2><p>У формі розсилки є <b>фільтри</b>:</p>
+<ul>
+<li><b>Тариф</b>: Бронза (249-999) / Срібло (1499-2999) / Золото (4999+) / Платина (9999)</li>
+<li><b>Статус</b>: Активний / Потенційний (зареєстровані без оплати) / Відтік (купували колись) / Переможці</li>
+</ul>
+<p>Кнопка <b>↻ ОЦІНИТИ</b> у формі дає попередню оцінку розміру аудиторії перед відправкою. Phase 1: показує загальний розмір бази; Phase 2 додамо точну сегментацію.</p>
+</div>
+
+<div class="block"><h2>🎯 Сценарії використання</h2><ul>
+<li><b>Welcome series</b> — для нових учасників (email + TG бот).</li>
+<li><b>Win-back</b> — повернути тих хто давно не купував.</li>
+<li><b>Pre-launch warmup</b> — за 30/14/7 днів до фіналу проєкту (BMW X5 і подальші).</li>
+<li><b>Post-purchase upsell</b> — після оплати тарифу — додаткові пропозиції.</li>
+<li><b>Транзакційні</b> — підтвердження оплати, нагадування про дату фіналу, повідомлення про перемогу.</li>
+</ul></div>
+
+<div class="card warn"><h4>⚠️ Важливо</h4><ul>
+<li>Email send у Phase 1 — manual через SendPulse Dashboard (rule: READ-ONLY у нашій системі).</li>
+<li>Telegram broadcast — працює автоматично, але <b>chat_id</b> у audience_list_id має бути валідним.</li>
+<li>Cron <code>retention-scheduler</code> запускається <b>кожні 5 хв</b> і шипає approved розсилки коли час настав.</li>
+<li>Не використовуй слова "квиток", "лотерея", "розіграш" у текстах — юридичні ризики.</li>
+</ul></div>
 </section>
 
 <section class="page" data-page="compress">

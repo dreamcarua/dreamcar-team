@@ -427,7 +427,38 @@ function openMessageDetail(id){
           <textarea name="notes" rows="2" placeholder="Внутрішні нотатки (не йде підписникам)" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px; font-family:inherit;">${escHtml(m.notes || '')}</textarea>
         </label>
 
-        ${!isNew ? renderApproverSection(m) : ''}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <label>
+            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ПОГОДЖУЮТЬ (multi)</span>
+            <select name="approvers" multiple size="4" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px; font-family:inherit;">
+              ${Store.users.map(u => {
+                const sel = (m._approvers || []).some(a => a.user_id === u.id) ? 'selected' : '';
+                const ico = (m._approvers || []).find(a => a.user_id === u.id);
+                const mark = ico ? (ico.is_approved === true ? ' ✅' : ico.is_approved === false ? ' ❌' : ' ⏳') : '';
+                return `<option value="${u.id}" ${sel}>${escHtml(u.name || u.email)} · ${u.role}${mark}</option>`;
+              }).join('')}
+            </select>
+            <small style="color:var(--ash); font-size:10px;">Ctrl+click для кількох</small>
+          </label>
+          <label>
+            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ВІДПОВІДАЛЬНІ</span>
+            <select name="responsibles" multiple size="4" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px; font-family:inherit;">
+              ${Store.users.map(u => {
+                const sel = (m._responsibles || []).some(r => r.user_id === u.id) ? 'selected' : '';
+                return `<option value="${u.id}" ${sel}>${escHtml(u.name || u.email)} · ${u.role}</option>`;
+              }).join('')}
+            </select>
+            <small style="color:var(--ash); font-size:10px;">Хто виконує — отримує сповіщення</small>
+          </label>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center; padding:10px; background:var(--bg-3); border-radius:6px; font-size:12px;">
+          <span style="color:var(--ash);">📊 АУДИТОРІЯ:</span>
+          <span id="audPreview" style="color:var(--gold); font-weight:700;">${m.audience_count != null ? m.audience_count + ' підписників' : '— оцінка не виконана —'}</span>
+          <button type="button" class="btn" id="btnAudiencePreview" style="padding:4px 10px; font-size:10px;">↻ ОЦІНИТИ</button>
+        </div>
+
+        ${!isNew ? renderHistorySection(m) : ''}
 
         <div style="display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap;">
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -457,6 +488,19 @@ function openMessageDetail(id){
   if (rjBtn) rjBtn.onclick = () => rejectMsg(m.id, overlay);
   const scBtn = document.getElementById('btnSchedule');
   if (scBtn) scBtn.onclick = () => transitionStatus(m.id, 'scheduled', overlay);
+  const aBtn = document.getElementById('btnAudiencePreview');
+  if (aBtn) aBtn.onclick = async () => {
+    aBtn.textContent = '…';
+    const c = await previewAudience(
+      overlay.querySelector('[name=filter_tariff]')?.value,
+      overlay.querySelector('[name=filter_status]')?.value,
+      overlay.querySelector('[name=audience_list_id]')?.value
+    );
+    aBtn.textContent = '↻ ОЦІНИТИ';
+    const p = document.getElementById('audPreview');
+    if (p) p.textContent = c == null ? 'не вдалось оцінити' : `~${c} підписників (Phase 1: вся база)`;
+  };
+  if (!isNew) loadHistory(m.id);
 }
 
 function renderApproverSection(m){
@@ -474,6 +518,50 @@ function renderApproverSection(m){
       <div>${html || '<span style="color:var(--ash); font-size:12px;">— Ніхто ще не призначений —</span>'}</div>
     </div>
   `;
+}
+
+function renderHistorySection(m){
+  return `
+    <details style="background:var(--bg-3); padding:10px; border-radius:6px;">
+      <summary style="cursor:pointer; font-size:11px; color:var(--ash); letter-spacing:0.1em;">📜 ІСТОРІЯ ПОДІЙ</summary>
+      <div id="histList" style="margin-top:10px; font-size:11px; color:#ccc;">Завантажується…</div>
+    </details>
+  `;
+}
+
+async function loadHistory(messageId){
+  const supabase = window.supabase;
+  if (!supabase) return;
+  const { data } = await supabase.from('retention_message_history').select('*').eq('message_id', messageId).order('at', { ascending: false }).limit(50);
+  const el = document.getElementById('histList');
+  if (!el) return;
+  if (!data || !data.length) { el.innerHTML = '<span style="color:var(--ash);">— Подій ще немає —</span>'; return; }
+  el.innerHTML = data.map(h => {
+    const u = Store.users.find(x => x.id === h.actor_id);
+    return `<div style="border-bottom:1px solid var(--line); padding:6px 0;">
+      <span style="color:var(--gold);">${escHtml(h.action)}</span>
+      ${h.detail ? '· ' + escHtml(h.detail) : ''}
+      <span style="float:right; color:var(--ash); font-size:10px;">${fmtDate(h.at)} · ${u ? escHtml(u.name || u.email) : '—'}</span>
+    </div>`;
+  }).join('');
+}
+
+async function previewAudience(filterTariff, filterStatus, audienceListId){
+  // Phase 1: повертаємо приблизну оцінку через RPC або mock.
+  // Поки нема SendPulse — рахуємо з public.users якщо є тариф/статус.
+  const supabase = window.supabase;
+  if (!supabase) return null;
+  try {
+    let q = supabase.from('users').select('id', { count: 'exact', head: true }).is('deleted_at', null);
+    // tariff/user_status — це поля яких ще нема у public.users; для real audience треба окрема таблиця учасників.
+    // Тимчасово: повертаємо count всієї бази як hint.
+    const { count, error } = await q;
+    if (error) throw error;
+    return count;
+  } catch(e) {
+    console.warn('[audience]', e);
+    return null;
+  }
 }
 
 function toLocalDt(iso){
@@ -506,6 +594,7 @@ async function saveForm(form, id, overlay){
     audience_filter,
     notes: (fd.get('notes') || '').trim(),
   };
+  let msgId = id;
   if (id) {
     payload.status = fd.get('status') || undefined;
     const { error } = await supabase.from('retention_messages').update(payload).eq('id', id);
@@ -516,8 +605,39 @@ async function saveForm(form, id, overlay){
     payload.status = 'draft';
     const { data, error } = await supabase.from('retention_messages').insert(payload).select().single();
     if (error) { alert('Insert failed: ' + error.message); return; }
-    await logHistory(data.id, 'created', null);
+    msgId = data.id;
+    await logHistory(msgId, 'created', null);
   }
+  // Sync approvers
+  try {
+    const wantedApp = Array.from(form.querySelectorAll('select[name="approvers"] option:checked')).map(o => o.value);
+    const { data: oldApp } = await supabase.from('retention_message_approvers').select('user_id').eq('message_id', msgId);
+    const oldSet = new Set((oldApp || []).map(x => x.user_id));
+    const newSet = new Set(wantedApp);
+    const toAdd = wantedApp.filter(u => !oldSet.has(u));
+    const toDel = [...oldSet].filter(u => !newSet.has(u));
+    if (toAdd.length) {
+      await supabase.from('retention_message_approvers').insert(toAdd.map(uid => ({ message_id: msgId, user_id: uid })));
+    }
+    if (toDel.length) {
+      await supabase.from('retention_message_approvers').delete().eq('message_id', msgId).in('user_id', toDel);
+    }
+  } catch(e) { console.warn('[approvers sync]', e); }
+  // Sync responsibles
+  try {
+    const wantedResp = Array.from(form.querySelectorAll('select[name="responsibles"] option:checked')).map(o => o.value);
+    const { data: oldResp } = await supabase.from('retention_message_responsibles').select('user_id').eq('message_id', msgId);
+    const oldSet = new Set((oldResp || []).map(x => x.user_id));
+    const newSet = new Set(wantedResp);
+    const toAdd = wantedResp.filter(u => !oldSet.has(u));
+    const toDel = [...oldSet].filter(u => !newSet.has(u));
+    if (toAdd.length) {
+      await supabase.from('retention_message_responsibles').insert(toAdd.map(uid => ({ message_id: msgId, user_id: uid })));
+    }
+    if (toDel.length) {
+      await supabase.from('retention_message_responsibles').delete().eq('message_id', msgId).in('user_id', toDel);
+    }
+  } catch(e) { console.warn('[responsibles sync]', e); }
   if (overlay) overlay.remove();
   window.toast && window.toast('Збережено', 'success');
   await loadAll();
