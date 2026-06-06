@@ -1,32 +1,33 @@
 /* ============================================================
    DreamCar Checkout Tracker — A/B/C testing library
-   06.06.2026 v2.0 — variant приходит снаружи (от сайта), а не считается внутри
+   06.06.2026
+   v2.0 — variant приходит снаружи (от сайта)
+   v2.1 — backward-compat fallback на auto-hash variant
+   v2.2 — dcSetSessionId() + dcSetUser() для merge с utm-tracker
    ============================================================
    Usage:
      <script src="https://team.dreamcar.ua/checkout-tracker/checkout-tracker.js" defer></script>
      <script>
        window.dcTrackerConfig = {
          experimentId: 'upsell_window_1',
-         apiUrl: 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/track-checkout',
          apiKey: '<SUPABASE_ANON_KEY>'
        };
      </script>
 
-     // САЙТ сам решил вариант (по своему split в админке) и передал трекеру:
-     dcSetVariant('A'); // 'control' | 'A' | 'B'   ← обязательно ДО первого dcTrack
+   Public API:
+     dcSetVariant('A'|'B'|'control')    // сайт сам решил какой показать
+     dcGetVariant()                      // вернёт текущий или null до dcSetVariant
+     dcSetSessionId('your_visitor_id')   // merge с своим cookie (например dc_visitor_id)
+     dcGetSessionId()                    // вернёт текущий sticky id
+     dcSetUser('user_id')                // для авторизованных юзеров
+     dcGetUser()
+     dcMarkStepArrival('phone')          // на mount каждого шага
+     dcTrack({step, outcome, ...})       // на любой пользовательский переход
 
-     // Дальше как обычно — события на каждом шаге:
-     dcMarkStepArrival('phone');
-     dcTrack({step:'phone', outcome:'next'});
-     dcTrack({step:'upsell_window_1', outcome:'took', amount_offered:4999});
-     dcTrack({step:'success', outcome:'next', amount_final:4999, tariff_final:'gold'});
-
-   Контракт:
-     - Трекер НЕ назначает вариант сам — это делает сайт.
-     - dcGetVariant() возвращает то что передал сайт через dcSetVariant().
-     - Если dcSetVariant() не вызван — dcGetVariant() возвращает null (не угадывает).
-     - Variant sticky: после первого dcSetVariant() сохраняется в sessionStorage
-       и стабилен при F5 (до закрытия таба или явного dcSetVariant с новым значением).
+   Sticky:
+     - session_id: cookie __dc_sess (30 дней)
+     - variant: sessionStorage (до закрытия таба)
+     - user_id: in-memory (до перезагрузки)
 ============================================================ */
 (function() {
   'use strict';
@@ -36,7 +37,7 @@
   const API_URL = config.apiUrl || 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/track-checkout';
   const API_KEY = config.apiKey || '';
   const EXPERIMENT_ID = config.experimentId || 'upsell_window_1';
-  const VERSION = '2.1.0';
+  const VERSION = '2.2.0';
   const BATCH_SIZE = 5;
   const FLUSH_INTERVAL_MS = 2000;
   const INACTIVITY_MS = 5 * 60 * 1000;
@@ -48,7 +49,13 @@
   let inactivityTimer = null;
 
   // ===== Sticky session =====
+  // v2.2: приоритет источника:
+  //   1) явно установленный через dcSetSessionId() — сохраняется в cookie + window
+  //   2) существующий cookie __dc_sess
+  //   3) auto-generate новый sess_<uuid>
+  let __customSessionId = null;
   function getSessionId() {
+    if (__customSessionId) return __customSessionId;
     const m = document.cookie.match(/__dc_sess=([^;]+)/);
     if (m) return m[1];
     const sid = 'sess_' + (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
@@ -56,6 +63,27 @@
     document.cookie = `__dc_sess=${sid}; path=/; expires=${expires}; SameSite=Lax`;
     return sid;
   }
+
+  function setSessionId(id) {
+    if (!id || typeof id !== 'string') {
+      console.warn('[dcTrack] dcSetSessionId: invalid id', id);
+      return false;
+    }
+    __customSessionId = id;
+    // Также пишем в cookie чтобы было sticky при F5 даже без повторного вызова
+    const expires = new Date(Date.now() + 30 * 24 * 3600 * 1000).toUTCString();
+    document.cookie = `__dc_sess=${id}; path=/; expires=${expires}; SameSite=Lax`;
+    return true;
+  }
+
+  // User ID (для авторизованных юзеров — после login на сайте)
+  let __userId = null;
+  function setUserId(id) {
+    if (!id) { __userId = null; return true; }
+    __userId = String(id);
+    return true;
+  }
+  function getUserId() { return __userId; }
 
   // ===== Variant — приоритет: dcSetVariant() от сайта; fallback: auto-hash =====
   // v2.1: backward-compatible. Если сайт уже вызвал dcSetVariant — используем его.
@@ -183,6 +211,7 @@
     return {
       event_id: eventId,
       session_id: sid,
+      user_id: __userId || input.user_id || null,
       ts: new Date().toISOString(),
       experiment_id: input.experiment_id || EXPERIMENT_ID,
       variant: variant,
@@ -256,6 +285,22 @@
   window.dcGetSessionId = function() {
     return getSessionId();
   };
+
+  // ⭐ v2.2: позволяет сайту мерджить свой visitor_id (из utm-tracker) с нашим session_id
+  // Чтобы не плодить разные id. Если сайт не вызвал — fallback на наш sess_<uuid> как раньше.
+  window.dcSetSessionId = function(id) {
+    const ok = setSessionId(id);
+    if (ok) console.log('[dcTrack] session_id set to "' + id + '"');
+    return ok;
+  };
+
+  // ⭐ v2.2: для авторизованных юзеров — привязать user_id к событиям
+  window.dcSetUser = function(id) {
+    const ok = setUserId(id);
+    if (ok && id) console.log('[dcTrack] user_id set to "' + id + '"');
+    return ok;
+  };
+  window.dcGetUser = function() { return getUserId(); };
 
   // ===== Flush mechanism =====
   function scheduleFlush() {
