@@ -8,6 +8,35 @@
 
 ---
 
+## 06.06.2026 (вечір) — Universal TG notify + Modal/Tables fixes + HQ recovery
+
+### 🚀 TG notify v10 — універсальна нотифікація ВСІМ stakeholders
+- 🚀 **Edge fn `notify-tg` v26→v10 (verify_jwt=false)** — підтримка 3 entities: `publication` (SMM), `retention_message` (РЕТЕНШН), `team_task` (TASKS). Payload format `{entity, id, event, status, old_status}`.
+- 🆕 **На review → DM ВСІМ**: approvers + responsibles + author (deduped). Group chat `-1003933841573` теж отримує. Раніше DM йшов тільки approvers — Олександр і Артем не отримували бо тільки responsibles.
+- 🆕 **Тригери у БД**: `publications_notify_with_dedup()` (оновлений payload), `retention_messages_notify()` (новий), `team_tasks_notify()` (новий — assignee + author + watchers на INSERT/REASSIGN/STATUS).
+- 🔧 **DROP старого тригера** `trg_team_tasks_notify` (дублював через стару чергу — задвоєний DM).
+- 🆕 **tg-webhook v27**: новий `rmappr:<msgId>:y|n` callback handler для retention approve flow (✓ Погодити / ↩ Повернути у TG для розсилок).
+
+### 🔧 Modal overlap fix (cross-system)
+- 🔧 **`brand.dreamcar.ua/assets/global-header.js`** додано CSS override: `.modal-backdrop / .modal-overlay / .dialog-overlay { z-index:10000 !important; padding-top: var(--dc-header-h)+12px }`. Глобал-header (z=999) більше не перекриває модальні вікна у жодній системі.
+- 🔧 **SMM `hq/index.html`** modal-backdrop явно піднято до z=10000 + padding-top 68px (fallback якщо global-header не завантажиться).
+
+### 🔧 Compact tables (Dashboard)
+- 🔧 **`dashboard.dreamcar.ua` головний** — padding td/th `10px 12px → 7px 10px`, font-size `13px → 12.5px`, line-height 1.35. **Заголовок числових колонок right-aligned** (раніше left → великий gap зі числами справа). У `renderTable()` тепер class `num/amount/mono` копіюється з col у `<th>`.
+- 🔧 **`upsell-ab/`** compare-table padding `14px 8px → 8px 10px`, font 12.5px, num cells right-aligned.
+
+### 🔧 SMM modal: повернув кнопку 💾 Зберегти
+- 🔧 У `hq/index.html` була застаріла inline копія `renderCardWorkflowButtons` без кнопки. App-views.js версія мала кнопку, але inline-копія її перевизначала. Видалив дубль повністю (1872 рядки legacy SPA коду, тепер працює через app-core.js + app-views.js modules).
+
+### 🔧 Upsell A/B/C українською (HARD RULE)
+- 🔧 `upsell-ab/index.html`: `<html lang="ru">` → `lang="uk"`, `'дней'` → `'днів'`. Funnel logic переписана для control варіанту (без upsell_window_1 step). Динамічні фільтри Device/UTM source/Tariff підтягуються з реальних `checkout_events` (раніше hardcoded Bronze/Gold).
+
+### 🛡 P0 HQ recovery
+- 🛡 **Git merge conflict markers у `hq/index.html`** — рядки `<<<<<<< Updated upstream / ======= / >>>>>>>` у `<head>` + у `</body>` блоці. SyntaxError → HQ повністю мертвий. Виправлено.
+- 🛡 **Edge fn `retention-scheduler` v2 (verify_jwt=false)** — cron шле без JWT auth, попередньо повертала 401 кожні 5 хв (логи pg_net).
+
+---
+
 ## 06.06.2026 — РЕТЕНШН — нова система розсилок (Phase 1)
 
 ### 🆕 РЕТЕНШН — окремий стіл для Email/TG/Push/SMS/Viber розсилок
