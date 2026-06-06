@@ -26,6 +26,7 @@
 - 🆕 **Global header tab `РЕТЕНШН`** (📬) у `brand.dreamcar.ua/assets/global-header.js`.
 - 🆕 **Onboarding section** `data-page="retention"` з повним описом каналів/lifecycle/use cases.
 - 🆕 **Cross-link**: SMM sidebar (Ретеншн ↗), Projects topbar (📬 РЕТЕНШН), Retention topbar (SMM/TASKS/ПРОЄКТИ).
+- 🔧 **Layout fix (вечір)** — прибрав `body padding-top:60px` + `topbar position:sticky;top:60px` зі всіх систем (HQ/Tasks/Projects/Retention). Global-header.js сам керує padding-top. Прибрав з sidebar SMM "Ретеншн ↗" + "Проєкти ↗" (дублі global header). Прибрав з Projects/Retention topbar cross-links на інші системи. Додав корисні дії: `+ НОВА · КАЛЕНДАР · ПОГОДЖЕННЯ · АНАЛІТИКА · НАЛАШТУВАННЯ` у Retention, `+ НОВИЙ · KANBAN · СПИСОК` у Projects. Cache-bust `?v=20260606b` на global-header.js.
 
 ---
 
