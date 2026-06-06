@@ -10,11 +10,14 @@
 ## TL;DR
 
 1. Подключить `checkout-tracker.js` на checkout страницы (3 строки HTML)
-2. Вставить `dcTrack()` на 7 кроках чекаута (по 1-3 строки на каждый)
-3. **Найти и пофиксить баг:** вариант B имеет 0 событий `took` при 97 оплатах
-4. **Расследовать:** на контроле failure rate 22%, на A/B всего 5-6%
+2. **Вызвать `dcSetVariant('control'|'A'|'B')`** — передать в трекер тот вариант, который ваш split на сайте уже выбрал. Сделать это ДО первого dcTrack.
+3. Вставить `dcTrack()` на 7 кроках чекаута (по 1-3 строки на каждый)
+4. **Найти и пофиксить баг:** вариант B имеет 0 событий `took` при 97 оплатах
+5. **Расследовать:** на контроле failure rate 22%, на A/B всего 5-6%
 
 После этого дашборд оживёт автоматически: https://dashboard.dreamcar.ua/upsell-ab/
+
+⚠ **ВАЖНО v2.0 (07.06.2026):** Трекер больше НЕ назначает вариант сам. Источник истины — ваш split на сайте (ползунок процента в админке). Трекер только принимает готовый вариант через `dcSetVariant()` и собирает события. Это исключает расхождение «трекер думает A, сайт показал B».
 
 ---
 
@@ -51,25 +54,35 @@
 
 После подключения — tracker автоматически:
 - Установит sticky cookie `__dc_sess` (30 дней)
-- Назначит вариант (control/A/B) через хеш session_id (20/40/40)
 - Запишет UTM, device, repeat_visitor
 - Отловит beforeunload, popstate, inactivity (5 мин)
 
-### 2.2. Узнать вариант для рендера UI
+⚠ Трекер сам вариант НЕ назначает — это делает ваш split на сайте.
+
+### 2.2. Передать вариант в трекер
+
+**Сразу после подключения tracker** (либо когда ваш split определил вариант):
 
 ```javascript
-const variant = window.dcGetVariant(); // 'control' | 'A' | 'B'
+// Допустим ваш split (по проценту из админки) решил что показывать:
+const ourSplit = decideVariantFromAdminPanelPercentage();
+// → 'control' | 'A' | 'B'
 
-if (variant === 'control') {
-  // не показывать upsell-окно вообще
-} else if (variant === 'A') {
-  // показать "Возьми Gold за 4999 ₴ вместо Silver за 999 ₴"
-} else if (variant === 'B') {
-  // показать "Возьми 3 пакета Silver вместо 1 со скидкой 20%"
-}
+window.dcSetVariant(ourSplit);
+// → теперь трекер знает в какую ветку записывать события
 ```
 
-⚠ **Variant sticky на 30 дней** — пользователь не должен видеть разные варианты при F5.
+**Контракт:**
+- `dcSetVariant('control'|'A'|'B'|'C')` — обязательно ДО первого `dcTrack()`
+- Variant **sticky** — сохраняется в `sessionStorage`, при F5 не пересчитывается
+- Если хочешь принудительно сменить вариант — просто вызови `dcSetVariant` с новым значением
+- Если `dcSetVariant` не вызван — `dcGetVariant()` вернёт `null` и `dcTrack` будет молча пропускать события с warning в консоли
+
+```javascript
+window.dcGetVariant(); // 'A' | 'B' | 'control' | null
+```
+
+⚠ **Источник истины — ваш сайт.** Если изменишь процент в админке для нового юзера — он попадёт в новую ветку. Старые юзеры со sticky остаются в своей.
 
 ### 2.3. Стрелять события на каждом шаге
 
@@ -289,7 +302,8 @@ GROUP BY variant;
 ## 5. Контрольный list перед деплоем
 
 - [ ] Tracker library подключён в `<head>` checkout страницы
-- [ ] `dcGetVariant()` в консоли возвращает один из `control / A / B`
+- [ ] **`dcSetVariant('A'|'B'|'control')` вызывается до первого dcTrack** ⭐
+- [ ] `dcGetVariant()` в консоли возвращает то что вы передали (а не null)
 - [ ] Variant **sticky** — после F5 тот же
 - [ ] `dcMarkStepArrival` зовётся на каждом из 7 кроках
 - [ ] `dcTrack({outcome: 'next'})` зовётся при переходе далее
@@ -298,6 +312,7 @@ GROUP BY variant;
 - [ ] На success event передаётся `amount_final`, `tariff_final`, `qty_final`
 - [ ] В DB появляются записи (проверить SQL запросом выше)
 - [ ] Дашборд https://dashboard.dreamcar.ua/upsell-ab/ показывает свежие цифры
+- [ ] **Проверь что вариант который записан в БД совпадает с тем что записан в платёж** — это главная проверка чистоты данных
 
 ---
 
@@ -319,7 +334,13 @@ GROUP BY variant;
 → Открой DevTools → Network → POST на `track-checkout`. Должен быть статус 200. Если 401 — проверь `apiKey` в config
 
 **Симптом:** Variant меняется при F5
-→ Cookie `__dc_sess` не записывается. Проверь что домен `dreamcar.ua` (без `localhost`), SameSite=Lax, Secure (только HTTPS)
+→ Cookie `__dc_sess` не записывается. Проверь что домен `dreamcar.ua` (без `localhost`), SameSite=Lax, Secure (только HTTPS). Также проверь что `sessionStorage` доступен (не в incognito без разрешения).
+
+**Симптом:** `dcGetVariant()` возвращает `null` хотя `dcSetVariant('A')` уже вызван
+→ Либо вызывал с неверным значением (не из 'control'/'A'/'B'/'C'/'D'/'E'), либо `sessionStorage` заблокирован. Смотри Console — должен быть warning.
+
+**Симптом:** `dcTrack` ничего не пишет, в Network нет запросов
+→ Скорее всего `dcSetVariant` не вызван. В Console будет warning «variant не установлен — вызови dcSetVariant». Это by design v2: трекер не отправляет события без variant, чтобы не пачкать данные.
 
 **Симптом:** Дашборд показывает 0 везде
 → Materialized view ещё не обновился. Подожди 5 минут или вручную: `REFRESH MATERIALIZED VIEW public.mv_upsell_funnel`
