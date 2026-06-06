@@ -761,6 +761,8 @@ window.addEventListener('ret-ready', async () => {
   Store.route = parseRoute();
   await loadAll();
   setupRealtime();
+  const topNew = document.getElementById('btnNewTop');
+  if (topNew) topNew.onclick = () => openMessageDetail(null);
 });
 
 function setupRealtime(){
