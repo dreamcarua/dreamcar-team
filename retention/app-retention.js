@@ -35,7 +35,18 @@ const Store = window.retStore = {
   route: 'all',
   loading: false,
   selected: null,
+  // 06.06.2026 — повна parity з SMM календарем
+  calView: 'month',           // month | week | day | list | board
+  calDate: new Date(),        // anchor date для navigation
+  search: '',
+  channelFilter: new Set(),   // filter chips
+  statusFilter: new Set(),
 };
+
+function ymd(d){ const dd = new Date(d); const y=dd.getFullYear(); const m=String(dd.getMonth()+1).padStart(2,'0'); const day=String(dd.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function startOfWeek(d){ const r = new Date(d); const dow = (r.getDay() + 6) % 7; r.setDate(r.getDate()-dow); r.setHours(0,0,0,0); return r; }
+function startOfMonth(d){ const r = new Date(d); r.setDate(1); r.setHours(0,0,0,0); return r; }
 
 function tg(role){ return window.retState && window.retState.publicUser && window.retState.publicUser.role === role; }
 function isPriv(){ return window.retState && window.retState.publicUser && ['ceo','coo','lead'].includes(window.retState.publicUser.role); }
@@ -253,59 +264,257 @@ function renderBoard(main){
   main.querySelectorAll('.msg-card').forEach(r => r.onclick = () => openMessageDetail(r.dataset.id));
 }
 
-function renderCalendar(main){
-  const items = Store.messages.filter(m => m.publish_at);
-  const byDay = {};
-  items.forEach(m => {
-    const d = new Date(m.publish_at);
-    const k = d.toISOString().slice(0,10);
-    if (!byDay[k]) byDay[k] = [];
-    byDay[k].push(m);
+// ============================================================
+// CALENDAR — повна parity з SMM (Місяць/Тиждень/День/Список/Дошка)
+// ============================================================
+
+function filteredMessages(){
+  const q = (Store.search || '').toLowerCase().trim();
+  return Store.messages.filter(m => {
+    if (Store.channelFilter.size && !Store.channelFilter.has(m.channel)) return false;
+    if (Store.statusFilter.size && !Store.statusFilter.has(m.status)) return false;
+    if (q && !((m.title||'').toLowerCase().includes(q) || (m.body||'').toLowerCase().includes(q) || (m.preview_text||'').toLowerCase().includes(q))) return false;
+    return true;
   });
-  const today = new Date();
-  const ym = today.getFullYear() * 100 + today.getMonth();
-  const days = [];
-  const startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(startMonth);
-    d.setDate(d.getDate() - d.getDay() + i + 1);
-    days.push(d);
+}
+
+function calRangeLabel(){
+  const d = Store.calDate;
+  const months = ['січень','лютий','березень','квітень','травень','червень','липень','серпень','вересень','жовтень','листопад','грудень'];
+  if (Store.calView === 'month') return `${months[d.getMonth()]} ${d.getFullYear()} р.`;
+  if (Store.calView === 'week') {
+    const ws = startOfWeek(d);
+    const we = addDays(ws, 6);
+    return `${ws.getDate()} ${months[ws.getMonth()].slice(0,3)} — ${we.getDate()} ${months[we.getMonth()].slice(0,3)} ${we.getFullYear()}`;
   }
-  const cells = days.map(d => {
-    const k = d.toISOString().slice(0,10);
-    const dayItems = byDay[k] || [];
-    const inMonth = d.getMonth() === today.getMonth();
-    const isToday = d.toDateString() === today.toDateString();
-    return `
-      <div style="background:${inMonth ? 'var(--bg-2)' : 'var(--bg)'}; border:1px solid ${isToday ? 'var(--red)' : 'var(--line)'}; padding:8px; min-height:100px; border-radius:6px; opacity:${inMonth ? 1 : 0.5};">
-        <div style="font-size:11px; color:${isToday ? 'var(--red)' : 'var(--ash)'}; font-weight:700;">${d.getDate()}</div>
-        <div style="display:flex; flex-direction:column; gap:3px; margin-top:5px;">
-          ${dayItems.slice(0, 4).map(m => {
-            const ch = CH_LABELS[m.channel] || CH_LABELS.other;
-            return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; font-size:10px; padding:3px 5px; background:var(--bg-3); border-radius:3px; border-left:2px solid var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escHtml(m.title)}">${ch.ic} ${escHtml(m.title || '').slice(0, 18)}</div>`;
-          }).join('')}
-          ${dayItems.length > 4 ? `<div style="font-size:10px; color:var(--ash);">+${dayItems.length - 4}…</div>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-  main.innerHTML = `
+  if (Store.calView === 'day') {
+    const dow = ['неділя','понеділок','вівторок','середа','четвер','пʼятниця','субота'];
+    return `${dow[d.getDay()]} · ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  return 'Всі розсилки';
+}
+
+function shiftCalDate(direction){
+  const d = new Date(Store.calDate);
+  if (Store.calView === 'month') d.setMonth(d.getMonth() + direction);
+  else if (Store.calView === 'week') d.setDate(d.getDate() + 7*direction);
+  else d.setDate(d.getDate() + direction);
+  Store.calDate = d;
+  renderMain();
+}
+
+function renderCalendarHeader(){
+  const items = filteredMessages();
+  return `
     <div class="section-head">
-      <h1>📅 Календар розсилок</h1>
-      <div class="actions">
-        <button class="btn" id="btnRefresh">🔄 ОНОВИТИ</button>
+      <h1>📅 Календар розсилок <span style="color:var(--ash); font-size:14px; margin-left:8px;">· ${items.length} ${items.length === 1 ? 'розсилка' : 'розсилок'}</span></h1>
+      <div class="actions" style="flex-wrap:wrap;">
+        <div style="display:flex; gap:4px; background:var(--bg-3); padding:3px; border-radius:6px;">
+          ${['month','week','day','list','board'].map(v => `<button class="btn" data-view="${v}" style="padding:7px 12px; font-size:10px; ${Store.calView===v?'background:var(--red); border-color:var(--red); color:#fff;':'background:transparent; border:none; color:#ccc;'}">${{month:'МІСЯЦЬ',week:'ТИЖДЕНЬ',day:'ДЕНЬ',list:'СПИСОК',board:'ДОШКА'}[v]}</button>`).join('')}
+        </div>
+        <button class="btn" id="btnRefresh">🔄</button>
         <button class="btn primary" id="btnNew">+ НОВА РОЗСИЛКА</button>
       </div>
     </div>
-    <div style="padding:20px 24px;">
-      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; font-size:10px; color:var(--ash); margin-bottom:6px; padding:0 8px;">
-        <div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>НД</div>
+    <div style="padding:14px 24px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-bottom:1px solid var(--line); background:var(--bg-2);">
+      <button class="btn" id="navPrev" style="padding:8px 12px;">←</button>
+      <div style="font-family:'Oswald',sans-serif; font-size:16px; min-width:200px; text-align:center;">${escHtml(calRangeLabel())}</div>
+      <button class="btn" id="navNext" style="padding:8px 12px;">→</button>
+      <button class="btn" id="navToday">СЬОГОДНІ</button>
+      <input id="calSearch" type="search" placeholder="🔍 Пошук розсилки…" value="${escHtml(Store.search)}" style="flex:1 1 200px; min-width:140px; padding:8px 12px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px; font-family:inherit; font-size:12px;">
+      <div style="display:flex; gap:4px; flex-wrap:wrap;">
+        ${ALL_CHANNELS.map(c => {
+          const on = Store.channelFilter.has(c);
+          const lbl = CH_LABELS[c];
+          return `<button class="btn cal-ch" data-ch="${c}" style="padding:6px 10px; font-size:10px; ${on?'background:'+(lbl.cls.includes('blue')?'#60A5FA':lbl.cls.includes('purple')?'#a5b4fc':'var(--red)')+';border-color:transparent;color:#000;':'background:var(--bg-3);'}">${lbl.ic} ${lbl.name}</button>`;
+        }).join('')}
       </div>
-      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px;">${cells}</div>
     </div>
   `;
+}
+
+function bindCalControls(){
+  document.querySelectorAll('[data-view]').forEach(b => b.onclick = (e) => { Store.calView = b.dataset.view; renderMain(); });
+  const np = document.getElementById('navPrev'); if (np) np.onclick = () => shiftCalDate(-1);
+  const nn = document.getElementById('navNext'); if (nn) nn.onclick = () => shiftCalDate(1);
+  const nt = document.getElementById('navToday'); if (nt) nt.onclick = () => { Store.calDate = new Date(); renderMain(); };
+  const s = document.getElementById('calSearch');
+  if (s) {
+    let t = null;
+    s.oninput = () => { clearTimeout(t); t = setTimeout(() => { Store.search = s.value; renderMain(); s.focus(); }, 300); };
+  }
+  document.querySelectorAll('.cal-ch').forEach(b => b.onclick = () => {
+    const c = b.dataset.ch;
+    if (Store.channelFilter.has(c)) Store.channelFilter.delete(c); else Store.channelFilter.add(c);
+    renderMain();
+  });
   bindHeadActions();
-  main.querySelectorAll('.cal-item').forEach(r => r.onclick = () => openMessageDetail(r.dataset.id));
+}
+
+function renderCalendar(main){
+  const v = Store.calView;
+  const items = filteredMessages().filter(m => m.publish_at);
+  const byDay = {};
+  items.forEach(m => {
+    const k = ymd(m.publish_at);
+    if (!byDay[k]) byDay[k] = [];
+    byDay[k].push(m);
+  });
+  Object.values(byDay).forEach(arr => arr.sort((a,b) => new Date(a.publish_at) - new Date(b.publish_at)));
+
+  if (v === 'list')  return renderCalList(main, items);
+  if (v === 'board') return renderBoard(main);
+
+  let bodyHtml = '';
+  if (v === 'month') bodyHtml = renderMonthGrid(byDay);
+  else if (v === 'week') bodyHtml = renderWeekView(byDay);
+  else if (v === 'day') bodyHtml = renderDayView(byDay);
+
+  main.innerHTML = renderCalendarHeader() + `<div style="padding:18px 24px;">${bodyHtml}</div>`;
+  bindCalControls();
+  main.querySelectorAll('.cal-item').forEach(r => r.onclick = (e) => { e.stopPropagation(); openMessageDetail(r.dataset.id); });
+  main.querySelectorAll('.cal-cell-add').forEach(c => c.onclick = (e) => {
+    if (e.target.classList.contains('cal-item')) return;
+    Store._prefillDate = c.dataset.date;
+    openMessageDetail(null);
+  });
+}
+
+function renderMonthGrid(byDay){
+  const d = Store.calDate;
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const dow = (first.getDay() + 6) % 7;
+  const gridStart = addDays(first, -dow);
+  const today = ymd(new Date());
+  const cellsHtml = [];
+  for (let i = 0; i < 42; i++) {
+    const cd = addDays(gridStart, i);
+    const k = ymd(cd);
+    const inMonth = cd.getMonth() === d.getMonth();
+    const isToday = k === today;
+    const dayItems = byDay[k] || [];
+    cellsHtml.push(`
+      <div class="cal-cell-add" data-date="${k}" style="background:${inMonth ? 'var(--bg-2)' : 'var(--bg)'}; border:1px solid ${isToday ? 'var(--red)' : 'var(--line)'}; padding:8px; min-height:110px; border-radius:6px; opacity:${inMonth ? 1 : 0.45}; cursor:pointer;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <span style="font-size:12px; color:${isToday ? 'var(--red)' : 'var(--ash)'}; font-weight:700;">${cd.getDate()}</span>
+          ${dayItems.length ? `<span style="font-size:9px; color:var(--ash);">${dayItems.length}</span>` : ''}
+        </div>
+        <div style="display:flex; flex-direction:column; gap:3px; margin-top:5px;">
+          ${dayItems.slice(0, 4).map(m => calItem(m, 'short')).join('')}
+          ${dayItems.length > 4 ? `<div style="font-size:9px; color:var(--ash);">+${dayItems.length - 4}…</div>` : ''}
+        </div>
+      </div>
+    `);
+  }
+  return `
+    <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; font-size:10px; color:var(--ash); margin-bottom:6px; padding:0 8px; font-weight:700;">
+      <div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>НД</div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px;">${cellsHtml.join('')}</div>
+  `;
+}
+
+function renderWeekView(byDay){
+  const ws = startOfWeek(Store.calDate);
+  const today = ymd(new Date());
+  const cols = [];
+  const dowLabels = ['ПОНЕДІЛОК','ВІВТОРОК','СЕРЕДА','ЧЕТВЕР','ПʼЯТНИЦЯ','СУБОТА','НЕДІЛЯ'];
+  for (let i = 0; i < 7; i++) {
+    const cd = addDays(ws, i);
+    const k = ymd(cd);
+    const items = byDay[k] || [];
+    const isToday = k === today;
+    cols.push(`
+      <div class="cal-cell-add" data-date="${k}" style="background:var(--bg-2); border:1px solid ${isToday ? 'var(--red)' : 'var(--line)'}; padding:10px; min-height:400px; border-radius:6px; cursor:pointer;">
+        <div style="font-size:10px; color:${isToday ? 'var(--red)' : 'var(--ash)'}; font-weight:700; margin-bottom:4px;">${dowLabels[i]}</div>
+        <div style="font-size:18px; font-family:'Oswald',sans-serif; color:${isToday ? 'var(--red)' : '#fff'}; margin-bottom:10px;">${cd.getDate()}</div>
+        <div style="display:flex; flex-direction:column; gap:5px;">${items.map(m => calItem(m, 'medium')).join('')}</div>
+      </div>
+    `);
+  }
+  return `<div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:6px;">${cols.join('')}</div>`;
+}
+
+function renderDayView(byDay){
+  const k = ymd(Store.calDate);
+  const items = byDay[k] || [];
+  if (!items.length) {
+    return `<div class="empty">
+      <div style="font-size:48px;">📅</div>
+      <div>На цей день — жодної розсилки.</div>
+      <button class="btn primary cal-cell-add" data-date="${k}" style="margin-top:14px;">+ Створити на цей день</button>
+    </div>`;
+  }
+  const hourSlots = {};
+  items.forEach(m => {
+    const dt = new Date(m.publish_at);
+    const h = dt.getHours();
+    if (!hourSlots[h]) hourSlots[h] = [];
+    hourSlots[h].push(m);
+  });
+  const rows = [];
+  for (let h = 0; h < 24; h++) {
+    const slot = hourSlots[h] || [];
+    if (!slot.length && h < 6) continue;
+    rows.push(`
+      <div style="display:grid; grid-template-columns:60px 1fr; gap:14px; padding:10px 0; border-bottom:1px solid var(--line);">
+        <div style="color:var(--ash); font-size:12px; font-family:'JetBrains Mono',monospace;">${String(h).padStart(2,'0')}:00</div>
+        <div style="display:flex; flex-direction:column; gap:5px;">${slot.length ? slot.map(m => calItem(m, 'full')).join('') : '<span style="color:#444; font-size:11px;">—</span>'}</div>
+      </div>
+    `);
+  }
+  return `<div>${rows.join('')}</div>`;
+}
+
+function calItem(m, size){
+  const ch = CH_LABELS[m.channel] || CH_LABELS.other;
+  const st = ST_LABELS[m.status] || ST_LABELS.draft;
+  const dt = new Date(m.publish_at);
+  const hh = String(dt.getHours()).padStart(2,'0');
+  const mm = String(dt.getMinutes()).padStart(2,'0');
+  const title = (m.title || '(без назви)');
+  if (size === 'short') {
+    return `<div class="cal-item" data-id="${m.id}" title="${escHtml(title)}" style="cursor:pointer; font-size:10px; padding:3px 5px; background:var(--bg-3); border-radius:3px; border-left:3px solid var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ch.ic} ${escHtml(title).slice(0, 20)}</div>`;
+  }
+  if (size === 'medium') {
+    return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; padding:6px 8px; background:var(--bg-3); border-radius:5px; border-left:3px solid var(--red);">
+      <div style="font-size:10px; color:var(--ash);">${hh}:${mm} ${ch.ic}</div>
+      <div style="font-size:11px; color:#fff; margin-top:2px;">${escHtml(title).slice(0, 50)}</div>
+      <span class="chip ${st.cls}" style="margin-top:4px;">${escHtml(st.name)}</span>
+    </div>`;
+  }
+  return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; padding:10px 12px; background:var(--bg-3); border-radius:6px; border-left:4px solid var(--red); display:flex; gap:10px; align-items:center;">
+    <span class="chip ${ch.cls}">${ch.ic} ${ch.name}</span>
+    <div style="flex:1;">
+      <div style="color:#fff; font-weight:700;">${escHtml(title)}</div>
+      <div style="font-size:11px; color:var(--ash); margin-top:2px;">${escHtml(m.preview_text || '').slice(0,80) || '—'}</div>
+    </div>
+    <span class="chip ${st.cls}">${escHtml(st.name)}</span>
+    <span style="color:var(--ash); font-size:11px;">${hh}:${mm}</span>
+  </div>`;
+}
+
+function renderCalList(main, items){
+  const sorted = items.slice().sort((a,b) => new Date(a.publish_at) - new Date(b.publish_at));
+  main.innerHTML = renderCalendarHeader() + `<div class="list">${
+    sorted.length ? sorted.map(m => {
+      const ch = CH_LABELS[m.channel] || CH_LABELS.other;
+      const st = ST_LABELS[m.status] || ST_LABELS.draft;
+      return `<div class="msg-row" data-id="${m.id}">
+        <span class="chip ${ch.cls}">${ch.ic} ${escHtml(ch.name)}</span>
+        <span class="chip ${st.cls}">${escHtml(st.name)}</span>
+        <div>
+          <div class="msg-row-title">${escHtml(m.title || '(без назви)')}</div>
+          <div class="msg-row-meta">${escHtml(m.preview_text || '').slice(0,120) || '—'}</div>
+        </div>
+        <div class="msg-row-meta">📅 ${fmtDate(m.publish_at)}</div>
+        <div class="msg-row-meta">${m.audience_count != null ? '👥 ' + m.audience_count : '—'}</div>
+        <div class="msg-row-meta">${m.sent_count != null ? '✓ ' + m.sent_count : '—'}</div>
+      </div>`;
+    }).join('') : '<div class="empty">Нічого не знайдено за фільтрами.</div>'
+  }</div>`;
+  bindCalControls();
+  main.querySelectorAll('.msg-row').forEach(r => r.onclick = () => openMessageDetail(r.dataset.id));
 }
 
 function renderTemplates(main){
@@ -334,13 +543,19 @@ function bindHeadActions(){
 function openMessageDetail(id){
   const msg = id ? Store.byId.get(id) : null;
   const isNew = !msg;
+  let defaultPublish = new Date(Date.now() + 24*3600*1000);
+  if (isNew && Store._prefillDate) {
+    const [yy,mm,dd] = Store._prefillDate.split('-').map(Number);
+    defaultPublish = new Date(yy, mm-1, dd, 12, 0, 0);
+    Store._prefillDate = null;
+  }
   const m = msg || {
     channel: 'email',
     title: '',
     preview_text: '',
     body: '',
     status: 'draft',
-    publish_at: new Date(Date.now() + 24*3600*1000).toISOString(),
+    publish_at: defaultPublish.toISOString(),
     audience_filter: {},
     audience_list_id: '',
     project_id: null,
