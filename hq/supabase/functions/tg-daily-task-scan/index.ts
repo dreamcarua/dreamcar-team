@@ -282,23 +282,41 @@ async function scanChat(
     .is("processed_at", null)
     .gte("ts", cutoff);
 
-  // 6. Post у чат
+  // 6. Post у чат — батчимо по 5 задач на повідомлення (TG лімітує inline buttons,
+  // плюс UX краще коли пачка ≤5)
   if (inserted > 0) {
-    const lines = [`🤖 <b>Підсумок дня — потенційні задачі</b>\n`];
-    lines.push(`За день я помітив <b>${inserted}</b> ${inserted === 1 ? "можливу задачу" : "можливі задачі"} що не оформлені у Tasks:\n`);
-    summary.forEach((s, idx) => {
-      const ass = s.assignee_name ? ` (${escHtml(s.assignee_name)})` : "";
-      lines.push(`${idx + 1}. <b>${escHtml(s.title)}</b>${ass}`);
-    });
-    lines.push(`\nНатисни кнопку щоб переглянути і створити, або ігноруй якщо не задача.`);
+    const BATCH_SIZE = 5;
+    const totalBatches = Math.ceil(summary.length / BATCH_SIZE);
+    // Перше (загальне) повідомлення з overview
+    const overviewLines: string[] = [];
+    overviewLines.push(`🤖 <b>Підсумок дня — потенційні задачі</b>\n`);
+    overviewLines.push(`За день я помітив <b>${inserted}</b> ${inserted === 1 ? "можливу задачу" : "можливі задачі"} що не оформлені у Tasks.`);
+    overviewLines.push(`Розбив на ${totalBatches} ${totalBatches === 1 ? "повідомлення" : "повідомлень"} по ${BATCH_SIZE} задач — кнопки нижче.\n`);
+    overviewLines.push(`⚠ Натискати кнопки можуть тільки <b>CEO</b> або <b>COO</b>.`);
+    await tgSendMessage(chat.chat_id, overviewLines.join("\n"), null);
 
-    // Один кнопка-список — посилання на список proposed
-    const keyboard = summary.slice(0, 5).map((s, idx) => [
-      { text: `${idx + 1}. ${s.title.slice(0, 30)} ✅`, callback_data: `taskprop:accept:${s.proposed_id}` },
-      { text: "❌", callback_data: `taskprop:dismiss:${s.proposed_id}` },
-    ]);
-
-    await tgSendMessage(chat.chat_id, lines.join("\n"), keyboard);
+    // Батчі
+    for (let b = 0; b < totalBatches; b++) {
+      const batch = summary.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
+      const startIdx = b * BATCH_SIZE;
+      const lines: string[] = [];
+      lines.push(`📋 <b>Блок ${b + 1}/${totalBatches}</b> · задачі ${startIdx + 1}–${startIdx + batch.length}\n`);
+      batch.forEach((s, idx) => {
+        const realIdx = startIdx + idx + 1;
+        const ass = s.assignee_name ? ` <i>(${escHtml(s.assignee_name)})</i>` : "";
+        lines.push(`<b>${realIdx}.</b> ${escHtml(s.title)}${ass}`);
+      });
+      const keyboard = batch.map((s, idx) => {
+        const realIdx = startIdx + idx + 1;
+        return [
+          { text: `${realIdx}. ${s.title.slice(0, 26)} ✅`, callback_data: `taskprop:accept:${s.proposed_id}` },
+          { text: "❌", callback_data: `taskprop:dismiss:${s.proposed_id}` },
+        ];
+      });
+      await tgSendMessage(chat.chat_id, lines.join("\n"), keyboard);
+      // Маленьку паузу між batch, щоб TG не rate-limit
+      await new Promise(r => setTimeout(r, 250));
+    }
   }
 
   return { chat_id: chat.chat_id, proposed_count: inserted };
