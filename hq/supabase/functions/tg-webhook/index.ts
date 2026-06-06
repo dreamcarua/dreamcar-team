@@ -1374,13 +1374,20 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     const { data: meUser } = await supabase.from("users").select("id,name,role").eq("tg_chat_id", tgUserId).maybeSingle();
     if (!meUser) { await tgAnswerCallback(cb.id, "TG не привʼязано — /start", true); return; }
 
+    // 06.06.2026 — обмеження: лише CEO/COO можуть створювати/відхиляти proposed tasks (Vadym feedback)
+    const isPriv = meUser.role === "ceo" || meUser.role === "coo";
+    if (!isPriv) {
+      await tgAnswerCallback(cb.id, "🔒 Тільки CEO або COO можуть створювати задачі з проактивних пропозицій", true);
+      return;
+    }
+
     const { data: prop } = await supabase
       .from("tg_proposed_tasks")
       .select("*")
       .eq("id", propId)
       .maybeSingle();
     if (!prop) { await tgAnswerCallback(cb.id, "Пропозиція не знайдена", true); return; }
-    // У group чатах будь-який member команди може діяти. У DM (private) — тільки proposer.
+    // У group чатах CEO/COO може діяти на будь-яку. У DM (private) — тільки proposer.
     const isGroupProp = prop.chat_id < 0;
     if (!isGroupProp && prop.proposer_id !== meUser.id) {
       await tgAnswerCallback(cb.id, "Це не твоя пропозиція", true); return;
