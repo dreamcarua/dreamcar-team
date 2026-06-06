@@ -1324,6 +1324,62 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     return;
   }
 
+  // 06.06.2026 — Verify publication callbacks (vrfy:retry / vrfy:resched)
+  if (action === "vrfy") {
+    const sub = parts[1]; // retry | resched
+    const pubId = parts[2];
+    if (!pubId) { await tgAnswerCallback(cb.id, "Bad pub id"); return; }
+
+    const tgUserId = cb.from?.id;
+    if (!tgUserId) { await tgAnswerCallback(cb.id, "TG user не визначено"); return; }
+    const { data: me } = await supabase.from("users").select("id,name,role").eq("tg_chat_id", tgUserId).maybeSingle();
+    if (!me) { await tgAnswerCallback(cb.id, "TG не привʼязано — /start у боті", true); return; }
+
+    if (sub === "retry") {
+      // Скидаємо verified_at щоб verify-publication-ig перевірив ще раз
+      await supabase.from("publications").update({
+        verified_at: null, verified_status: null, verified_evidence_url: null,
+      }).eq("id", pubId);
+      // Викликаємо edge fn негайно
+      try {
+        await fetch("https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/verify-publication-ig", {
+          method: "POST",
+          headers: { "Content-Type":"application/json", "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "" },
+          body: JSON.stringify({ publication_id: pubId }),
+        });
+      } catch(e) { console.error("manual verify call", e); }
+      await tgAnswerCallback(cb.id, "🔁 Перевіряю Instagram…");
+      const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+      if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
+        (msg.text || "") + `\n\n🔁 ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())} запросив повторну перевірку`);
+      return;
+    }
+    if (sub === "resched") {
+      const minutes = parseInt(parts[3] || "60", 10);
+      const { data: pub } = await supabase.from("publications").select("publish_at, title").eq("id", pubId).maybeSingle();
+      if (!pub) { await tgAnswerCallback(cb.id, "Не знайдено", true); return; }
+      const newDate = new Date(new Date(pub.publish_at).getTime() + minutes * 60 * 1000);
+      await supabase.from("publications").update({
+        publish_at: newDate.toISOString(),
+        status: "approved",
+        verified_at: null, verified_status: null, verified_evidence_url: null,
+      }).eq("id", pubId);
+      await supabase.from("publication_history").insert({
+        publication_id: pubId,
+        action: "rescheduled_via_tg",
+        detail: `+${minutes} хв (${(me.name || "?")})`,
+        actor_id: me.id,
+      });
+      await tgAnswerCallback(cb.id, `↻ Перенесено на +${minutes} хв`);
+      const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+      if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
+        (msg.text || "") + `\n\n↻ Перенесено +${minutes} хв · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+      return;
+    }
+    await tgAnswerCallback(cb.id, "Невідома vrfy дія", true);
+    return;
+  }
+
   // 06.06.2026 — Retention message approve callback (rmappr:<msgId>:y|n)
   if (action === "rmappr") {
     const msgId = parts[1]; const decision = parts[2];
