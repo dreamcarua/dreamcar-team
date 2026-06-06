@@ -27,6 +27,11 @@
 - 🆕 **Onboarding section** `data-page="retention"` з повним описом каналів/lifecycle/use cases.
 - 🆕 **Cross-link**: SMM sidebar (Ретеншн ↗), Projects topbar (📬 РЕТЕНШН), Retention topbar (SMM/TASKS/ПРОЄКТИ).
 - 🔧 **Layout fix (вечір)** — прибрав `body padding-top:60px` + `topbar position:sticky;top:60px` зі всіх систем (HQ/Tasks/Projects/Retention). Global-header.js сам керує padding-top. Прибрав з sidebar SMM "Ретеншн ↗" + "Проєкти ↗" (дублі global header). Прибрав з Projects/Retention topbar cross-links на інші системи. Додав корисні дії: `+ НОВА · КАЛЕНДАР · ПОГОДЖЕННЯ · АНАЛІТИКА · НАЛАШТУВАННЯ` у Retention, `+ НОВИЙ · KANBAN · СПИСОК` у Projects. Cache-bust `?v=20260606b` на global-header.js.
+- 🛡 **P0 Session leak fix** — HQ index.html мав hardcoded `<div id='roleName'>Вадим</div><div id='roleTag'>CEO</div>`. До завантаження юзера всі бачили 'Вадим CEO' на ~0.5 сек. Замінив на '…' placeholder. Додав CSS `visibility:hidden` до завантаження + `<meta no-cache/no-store>` на HQ/Tasks/Projects/Retention щоб browser disk cache не залипав.
+- 🆕 **SMM modal: повернув кнопку 💾 Зберегти** — Олександр feedback: звичний UX. Force-flush autosave, залишає модал відкритим, показує toast.
+- 🆕 **РЕТЕНШН календар — повний parity з SMM** — 5 views (Місяць / Тиждень / День / Список / Дошка), навігація ← / → / СЬОГОДНІ, search box, фільтри каналів (toggle), клік на день у Місяці/Тижні → нова розсилка з prefilled датою. Динамічний label "червень 2026 р." / "10 чер — 16 чер 2026" / "понеділок · 06 червня 2026".
+- 🔧 **Dashboard timezone bug P0** — `ymd()` функція використовувала `setHours(0,0,0,0)+toISOString().slice(0,10)`. У CET/CEST (UTC+1/+2) `06.06 00:00 LOCAL` = `05.06 22:00 UTC` → slice → 05.06. "Сьогодні" показував вчорашню дату. Fix: local-форматування `getFullYear/Month/Date`.
+- 🔧 **Dashboard projects dropdown** — `fetchProjectsList()` тягнув з `dashboard_settings.value` (hardcoded список без "IPHONE 17 PRO MAX"). Тепер merge live distinct projects з `dashboard_deals` (90 днів) + settings. Нові проекти підхопляться автоматично.
 
 ---
 
