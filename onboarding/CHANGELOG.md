@@ -8,6 +8,27 @@
 
 ---
 
+## 06.06.2026 — РЕТЕНШН — нова система розсилок (Phase 1)
+
+### 🆕 РЕТЕНШН — окремий стіл для Email/TG/Push/SMS/Viber розсилок
+- 🆕 **Нова сторінка `/retention/`** — повний клон структури SMM але для прямих комунікацій з підписниками. URL: `team.dreamcar.ua/retention/`.
+- 🆕 **DB schema**: `retention_messages` + `retention_message_approvers` + `retention_message_responsibles` + `retention_message_history`. ENUMs: `retention_channel` (email/tg/push/sms/viber/other), `retention_status` (draft/review/approved/scheduled/sending/sent/failed/rework/archived). RLS + indexes.
+- 🆕 **6 каналів** (Email через SendPulse READ-ONLY, Telegram broadcast через `@dreamcar_team_bot`, Push/SMS/Viber/Інше — placeholders для Phase 2).
+- 🆕 **Approval flow як у SMM**: draft → review (approvers DM) → approved (всі ✅) → scheduled → sending → sent / failed. Кнопка ↩ rework з причиною.
+- 🆕 **Sidebar з 4 секціями**: Робочий простір (Всі/Дошка/Календар/Шаблони), Канали (6), Статуси (6), Системи (cross-link на SMM/Tasks/Projects/Analytics).
+- 🆕 **3 views**: List, Board (Kanban 6 колонок по статусам), Calendar (місячний грід з розсилками).
+- 🆕 **Audience filter**: тариф (Бронза/Срібло/Золото/Платина) + статус (Активний/Потенційний/Відтік/Переможці). Кнопка ↻ ОЦІНИТИ показує розмір.
+- 🆕 **Approvers / Responsibles** multi-select у формі, синхронізуються з retention_message_approvers/responsibles.
+- 🆕 **History log** видимий через `📜 ІСТОРІЯ ПОДІЙ` details у формі.
+- 🆕 **Project link**: розсилку можна прикріпити до проєкту (FK на `launches`).
+- 🆕 **Edge function `retention-scheduler`** — кожні 5 хвилин (cron `retention-scheduler-5min`) перевіряє approved/scheduled розсилки з `publish_at <= now()` і шипає. Підтримує `?dry=1` для тестування.
+- 🆕 **TG broadcast** працює автоматично — для каналу `tg` chat_id у `audience_list_id`, body форматується як HTML. Email — заглушка з error message (READ-ONLY rule SendPulse).
+- 🆕 **Global header tab `РЕТЕНШН`** (📬) у `brand.dreamcar.ua/assets/global-header.js`.
+- 🆕 **Onboarding section** `data-page="retention"` з повним описом каналів/lifecycle/use cases.
+- 🆕 **Cross-link**: SMM sidebar (Ретеншн ↗), Projects topbar (📬 РЕТЕНШН), Retention topbar (SMM/TASKS/ПРОЄКТИ).
+
+---
+
 ## 05.06.2026 — TASKS UX upgrade + HQ throttle + Theme
 
 ### 🆕 TASKS — Корзина 30 днів + UI повна перебудова
