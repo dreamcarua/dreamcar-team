@@ -563,6 +563,7 @@ function renderCardWorkflowButtons(p, me) {
   if (p.status === 'rework' && isResp) transitions.push({ to:'review', label:'→ На погодження', cls:'btn-primary' });
   if (p.status === 'approved' && (isResp || isAppr)) transitions.push({ to:'published', label:'🚀 Позначити опублікованою', cls:'btn-success' });
   return `<button class="btn" onclick="Modal.close()">Закрити</button>` +
+    `<button class="btn" id="btnForceSave" title="Зберегти зараз (autosave завжди працює)">💾 Зберегти</button>` +
     transitions.map(t => `<button class="btn ${t.cls}" data-transition="${t.to}">${t.label}</button>`).join('');
 }
 function attachCardHandlers(p) {
@@ -779,6 +780,23 @@ function openCreativePicker(p) {
       autosave(p);
     };
   });
+  // 06.06.2026 — force save кнопка (Олександр feedback: звичний UX)
+  const forceSaveBtn = document.getElementById('btnForceSave');
+  if (forceSaveBtn) forceSaveBtn.onclick = async () => {
+    if (cardAutosaveTimer) { clearTimeout(cardAutosaveTimer); cardAutosaveTimer = null; }
+    const ind = document.getElementById('autosaveInd');
+    const txt = document.getElementById('autosaveText');
+    if (ind) { ind.className = 'autosave saving'; txt.textContent = 'Зберігаю…'; }
+    p.updatedAt = new Date().toISOString();
+    if (p._isNew) { delete p._isNew; }
+    try {
+      await Store.upsertPub(p);
+      if (ind) { ind.className = 'autosave saved'; txt.textContent = '✓ Збережено о ' + fmtTime(new Date()); }
+      toast('Збережено', 'success');
+    } catch(e) {
+      toast('Помилка збереження: ' + (e.message || e), 'error');
+    }
+  };
 }
 function reopenCard(id) { Modal.close(); setTimeout(()=>openCard(id), 100); }
 
