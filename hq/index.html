@@ -2798,6 +2798,7 @@ function renderCardWorkflowButtons(p, me) {
   if (p.status === 'rework' && isResp) transitions.push({ to:'review', label:'→ На погодження', cls:'btn-primary' });
   if (p.status === 'approved' && (isResp || isAppr)) transitions.push({ to:'published', label:'🚀 Позначити опублікованою', cls:'btn-success' });
   return `<button class="btn" onclick="Modal.close()">Закрити</button>` +
+    `<button class="btn" id="btnForceSave" title="Зберегти зараз (autosave завжди працює)">💾 Зберегти</button>` +
     transitions.map(t => `<button class="btn ${t.cls}" data-transition="${t.to}">${t.label}</button>`).join('');
 }
 function attachCardHandlers(p) {
