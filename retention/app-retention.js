@@ -398,8 +398,9 @@ function openMessageDetail(id){
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
           <label>
-            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ID СПИСКУ / ЧАТУ</span>
-            <input name="audience_list_id" value="${escHtml(m.audience_list_id || '')}" placeholder="SendPulse book ID або TG chat_id" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
+            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ID СПИСКУ / ЧАТУ <button type="button" id="loadSpBooks" style="padding:2px 6px; font-size:9px; background:var(--bg-2); border:1px solid var(--steel); color:#ccc; border-radius:3px; cursor:pointer; margin-left:6px;">↻ SP</button></span>
+            <input name="audience_list_id" list="spBooksList" value="${escHtml(m.audience_list_id || '')}" placeholder="SendPulse book ID, TG chat_id, або обери" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
+            <datalist id="spBooksList"></datalist>
           </label>
           <label>
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ФІЛЬТР ТАРИФУ</span>
@@ -501,6 +502,35 @@ function openMessageDetail(id){
     if (p) p.textContent = c == null ? 'не вдалось оцінити' : `~${c} підписників (Phase 1: вся база)`;
   };
   if (!isNew) loadHistory(m.id);
+  const spBtn = document.getElementById('loadSpBooks');
+  if (spBtn) spBtn.onclick = () => loadSendPulseBooks(spBtn);
+}
+
+async function loadSendPulseBooks(btn){
+  if (btn) btn.textContent = '…';
+  try {
+    const supabase = window.supabase;
+    const SUPABASE_URL = 'https://wotghlaehnvxyeacznvv.supabase.co';
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess?.session?.access_token;
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/sendpulse-books-list?op=list&limit=100`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    const dl = document.getElementById('spBooksList');
+    if (!dl) return;
+    if (!Array.isArray(j)) {
+      window.toast && window.toast('SP: ' + JSON.stringify(j).slice(0, 80), 'error');
+      return;
+    }
+    dl.innerHTML = j.map(b => `<option value="${b.id}">${escHtml(b.name)} · ${b.all_email_qty || 0} emails</option>`).join('');
+    window.toast && window.toast(`SP: завантажено ${j.length} списків`, 'success');
+  } catch(e) {
+    window.toast && window.toast('SP not configured: ' + e.message.slice(0, 80), 'error');
+  } finally {
+    if (btn) btn.textContent = '↻ SP';
+  }
 }
 
 function renderApproverSection(m){
