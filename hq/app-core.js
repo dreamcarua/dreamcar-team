@@ -458,11 +458,14 @@ function inferCreativeType(file) {
 }
 
 async function createCreativeRecord(meta) {
-  const id = 'cr_' + uid();
+  // 07.06.2026 FIX (Олександр "фото не грузит"): public.creatives.id тип UUID з default uuid_generate_v4().
+  // Раніше передавали 'cr_xxx' (text) → invalid input syntax for type uuid → INSERT fail silent (toast не показувався у деяких випадках).
+  // Тепер не передаємо id — БД сама згенерує. localId — тимчасовий для optimistic cache, потім замінюється на справжній UUID.
+  const localId = 'tmp_' + uid();
   const previewMap = { photo: '🖼️', video: '🎬', doc: '📄', audio: '🎵' };
   const colorMap   = { photo: '#ff6577', video: '#7ab0ff', doc: '#888', audio: '#fbbf24' };
   const local = {
-    id,
+    id: localId,
     name: meta.name,
     type: meta.type,
     size: humanSize(meta.size_bytes),
@@ -484,7 +487,7 @@ async function createCreativeRecord(meta) {
   }
   const sb = window.supabase;
   const { data, error } = await sb.from('creatives').insert({
-    id,
+    // id НЕ передаємо — Postgres default uuid_generate_v4()
     desk_id: '11111111-1111-1111-1111-111111111111',
     name: meta.name,
     type: meta.type,
@@ -498,9 +501,11 @@ async function createCreativeRecord(meta) {
     console.error('creatives insert:', error);
     toast('Не зберіг у БД', 'error', error.message);
     // rollback кеш
-    Store._data.creatives = Store._data.creatives.filter(c => c.id !== id);
+    Store._data.creatives = Store._data.creatives.filter(c => c.id !== localId);
     throw error;
   }
+  // Replace tmp_ id з реальним UUID з БД
+  local.id = data.id;
   return local;
 }
 
