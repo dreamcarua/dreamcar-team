@@ -423,9 +423,13 @@ Deno.serve(async (req: Request) => {
     const assigneeName = assigneeId ? teamMembers.find((u) => u.id === assigneeId)?.name || null : null;
     console.log("[extract] assignee resolved:", { assigneeId, assigneeName, source: assigneeSource });
 
-    // 6. Підтягнути attachments з buffer (якщо message_id задано)
+    // 6. Підтягнути attachments
+    //    a) priority: з body (передано прямо з tg-webhook trigger handler)
+    //    b) fallback: з buffer (якщо чат був proactive і завантажилось у buffer)
     let attachments: any[] = [];
-    if (input.message_id) {
+    if (Array.isArray((input as any).attachments) && (input as any).attachments.length > 0) {
+      attachments = (input as any).attachments;
+    } else if (input.message_id) {
       const { data: bufRow } = await supabase
         .from("tg_chat_buffer")
         .select("attachments, caption")

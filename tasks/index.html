@@ -1051,26 +1051,26 @@ async function openOverview(task){
   if(task.description){
     body += `<div class="ov-section"><span class="ov-section-label">Опис</span><div class="ov-desc">${escapeHtml(task.description)}</div></div>`;
   }
-  // 07.06.2026 — attachments (фото/документи/відео з Telegram)
-  if(Array.isArray(task.attachments) && task.attachments.length > 0){
-    const atts = task.attachments.map(a => {
-      const t = (a.type || 'file').toLowerCase();
-      const fname = a.file_name || (a.type === 'photo' ? '📷 Фото' : a.type === 'video' ? '🎬 Відео' : a.type === 'voice' ? '🎤 Голосове' : a.type === 'audio' ? '🎵 Аудіо' : a.type === 'document' ? '📄 Документ' : '📎 Файл');
-      const sizeMb = a.size ? ` · ${(a.size/1024/1024).toFixed(1)} MB` : '';
-      if (t === 'photo') {
-        return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-block;width:120px;height:120px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);background:#0a0a0a;background-image:url('${escapeHtml(a.url)}');background-size:cover;background-position:center;text-decoration:none;" title="Відкрити фото"></a>`;
-      }
-      if (t === 'video') {
-        return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;width:120px;height:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;justify-content:center;flex-direction:column;text-decoration:none;color:#ccc;gap:6px;" title="Відкрити відео"><span style="font-size:28px;">🎬</span><span style="font-size:11px;">Відео${sizeMb}</span></a>`;
-      }
-      if (t === 'voice' || t === 'audio') {
-        return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;" title="Прослухати"><span style="font-size:18px;">${t==='voice'?'🎤':'🎵'}</span>${escapeHtml(fname)}${sizeMb}</a>`;
-      }
-      // document
-      return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;" title="Відкрити документ"><span style="font-size:18px;">📄</span>${escapeHtml(fname)}${sizeMb}</a>`;
-    }).join('');
-    body += `<div class="ov-section"><span class="ov-section-label">Прикріплення (${task.attachments.length})</span><div style="display:flex;flex-wrap:wrap;gap:8px;">${atts}</div></div>`;
-  }
+  // 07.06.2026 — attachments (фото/документи/відео з Telegram + manual upload)
+  const attsList = Array.isArray(task.attachments) ? task.attachments : [];
+  const attsHtml = attsList.map((a, idx) => {
+    const t = (a.type || 'file').toLowerCase();
+    const fname = a.file_name || (a.type === 'photo' ? '📷 Фото' : a.type === 'video' ? '🎬 Відео' : a.type === 'voice' ? '🎤 Голосове' : a.type === 'audio' ? '🎵 Аудіо' : a.type === 'document' ? '📄 Документ' : '📎 Файл');
+    const sizeMb = a.size ? ` · ${(a.size/1024/1024).toFixed(1)} MB` : '';
+    const delBtn = `<button data-att-del="${idx}" title="Видалити" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);border:1px solid rgba(227,6,19,0.5);color:#fff;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>`;
+    if (t === 'photo' || t === 'image') {
+      return `<div style="position:relative;display:inline-block;"><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-block;width:120px;height:120px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);background:#0a0a0a;background-image:url('${escapeHtml(a.url)}');background-size:cover;background-position:center;text-decoration:none;" title="${escapeHtml(fname)}"></a>${delBtn}</div>`;
+    }
+    if (t === 'video') {
+      return `<div style="position:relative;display:inline-block;"><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;width:120px;height:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;justify-content:center;flex-direction:column;text-decoration:none;color:#ccc;gap:6px;" title="Відкрити відео"><span style="font-size:28px;">🎬</span><span style="font-size:11px;">Відео${sizeMb}</span></a>${delBtn}</div>`;
+    }
+    if (t === 'voice' || t === 'audio') {
+      return `<div style="position:relative;display:inline-flex;"><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;padding-right:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;"><span style="font-size:18px;">${t==='voice'?'🎤':'🎵'}</span>${escapeHtml(fname)}${sizeMb}</a>${delBtn}</div>`;
+    }
+    return `<div style="position:relative;display:inline-flex;"><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;padding-right:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;"><span style="font-size:18px;">📄</span>${escapeHtml(fname)}${sizeMb}</a>${delBtn}</div>`;
+  }).join('');
+  const uploadBtn = `<button id="taskAttUpload" type="button" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:13px;cursor:pointer;"><span style="font-size:16px;">📎</span>Прикріпити файл</button><input type="file" id="taskAttInput" multiple style="display:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip">`;
+  body += `<div class="ov-section" id="taskAttSection"><span class="ov-section-label">Прикріплення (${attsList.length})</span><div id="taskAttGrid" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">${attsHtml}${uploadBtn}</div><div id="taskAttProgress" style="display:none;margin-top:8px;font-size:12px;color:#ff6577;"></div></div>`;
   // HQ↔Tasks linkage: показати linked publication
   if(task.publication_id){
     const pubUrl = `https://team.dreamcar.ua/hq/#publication/${task.publication_id}`;
@@ -1167,6 +1167,113 @@ async function openOverview(task){
     // reload comments preview
     loadOverviewComments(task.id);
   });
+
+  // 07.06.2026 — Attachments: upload + delete
+  async function refreshOverview(){
+    overviewModal.classList.remove('show');
+    setTimeout(()=>openOverviewModal(task.id), 50);
+  }
+  async function detectAttType(mime){
+    if(!mime) return 'document';
+    if(mime.startsWith('image/')) return 'photo';
+    if(mime.startsWith('video/')) return 'video';
+    if(mime.startsWith('audio/')) return 'audio';
+    return 'document';
+  }
+  document.getElementById('taskAttUpload')?.addEventListener('click', ()=>{
+    document.getElementById('taskAttInput').click();
+  });
+  document.getElementById('taskAttInput')?.addEventListener('change', async (ev)=>{
+    const files = Array.from(ev.target.files || []);
+    if(!files.length) return;
+    const prog = document.getElementById('taskAttProgress');
+    prog.style.display = 'block';
+    const current = Array.isArray(task.attachments) ? [...task.attachments] : [];
+    for(let i=0;i<files.length;i++){
+      const f = files[i];
+      prog.textContent = `Завантаження ${i+1}/${files.length}: ${f.name}…`;
+      if(f.size > 50*1024*1024){
+        toast(`Файл "${f.name}" завеликий (>50MB)`,'error');
+        continue;
+      }
+      const ext = (f.name.split('.').pop()||'bin').toLowerCase();
+      const safeName = f.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(0,80);
+      const objectKey = `${task.id}/${Date.now()}_${i}_${safeName}`;
+      const { data, error } = await supabase.storage.from('task-attachments')
+        .upload(objectKey, f, { contentType: f.type || 'application/octet-stream', upsert: false });
+      if(error){
+        console.error('Upload error:', error);
+        toast(`Помилка завантаження ${f.name}: ${error.message}`,'error');
+        continue;
+      }
+      const { data: urlData } = supabase.storage.from('task-attachments').getPublicUrl(objectKey);
+      current.push({
+        type: await detectAttType(f.type),
+        url: urlData.publicUrl,
+        mime: f.type || null,
+        size: f.size,
+        file_name: f.name,
+        uploaded_by: state.publicUser?.id || null,
+        uploaded_at: new Date().toISOString(),
+      });
+    }
+    // Save у БД
+    const { error: updErr } = await supabase.from('team_tasks').update({ attachments: current }).eq('id', task.id);
+    if(updErr){
+      toast('Не вдалося зберегти прикріплення: '+updErr.message,'error');
+      prog.style.display='none';
+      return;
+    }
+    task.attachments = current;
+    // Update local state
+    const idx = state.tasks.findIndex(t=>t.id===task.id);
+    if(idx>=0) state.tasks[idx].attachments = current;
+    prog.style.display='none';
+    toast(`Прикріплено ${files.length} ${files.length===1?'файл':'файлів'}`,'success');
+    refreshOverview();
+  });
+  document.querySelectorAll('[data-att-del]').forEach(btn=>{
+    btn.addEventListener('click', async (ev)=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const idx = parseInt(btn.getAttribute('data-att-del'),10);
+      const att = (task.attachments||[])[idx];
+      if(!att) return;
+      if(!confirm('Видалити прикріплення?')) return;
+      const current = (task.attachments||[]).filter((_,i)=>i!==idx);
+      const { error } = await supabase.from('team_tasks').update({ attachments: current }).eq('id', task.id);
+      if(error){ toast('Помилка: '+error.message,'error'); return; }
+      // Try delete з Storage (якщо це наш upload — URL містить /task-attachments/)
+      try {
+        if(att.url && att.url.includes('/task-attachments/')){
+          const objectKey = att.url.split('/task-attachments/')[1].split('?')[0];
+          await supabase.storage.from('task-attachments').remove([objectKey]);
+        }
+      } catch(e){ console.warn('Storage delete failed:', e); }
+      task.attachments = current;
+      const tidx = state.tasks.findIndex(t=>t.id===task.id);
+      if(tidx>=0) state.tasks[tidx].attachments = current;
+      toast('Прикріплення видалено','success');
+      refreshOverview();
+    });
+  });
+  // Drag-and-drop у task overview body
+  const ovBody = document.querySelector('#overviewModal .ov-body');
+  if(ovBody && !ovBody.dataset.dndReady){
+    ovBody.dataset.dndReady = '1';
+    ovBody.addEventListener('dragover', (ev)=>{ ev.preventDefault(); ovBody.style.outline = '2px dashed #E30613'; });
+    ovBody.addEventListener('dragleave', ()=>{ ovBody.style.outline = ''; });
+    ovBody.addEventListener('drop', async (ev)=>{
+      ev.preventDefault();
+      ovBody.style.outline = '';
+      const dropped = Array.from(ev.dataTransfer.files || []);
+      if(!dropped.length) return;
+      const dt = new DataTransfer();
+      dropped.forEach(f=>dt.items.add(f));
+      const inp = document.getElementById('taskAttInput');
+      if(inp){ inp.files = dt.files; inp.dispatchEvent(new Event('change')); }
+    });
+  }
+
   document.getElementById('ov-act-edit')?.addEventListener('click', ()=>{
     overviewModal.classList.remove('show');
     openEditModal(task);
