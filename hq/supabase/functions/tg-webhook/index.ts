@@ -1999,62 +1999,70 @@ async function downloadTgAttachments(
   if (msg.voice) {
     items.push({ type: "voice", file_id: msg.voice.file_id, mime: msg.voice.mime_type || "audio/ogg", size: msg.voice.file_size });
   }
+  console.log("[tg-attach] detected items:", items.length, items.map(i => i.type));
   if (items.length === 0) return [];
 
   const TG_BOT_TOKEN_LOCAL = Deno.env.get("TG_BOT_TOKEN") ?? "";
   if (!TG_BOT_TOKEN_LOCAL) {
-    console.warn("[tg-attach] TG_BOT_TOKEN missing");
+    console.error("[tg-attach] TG_BOT_TOKEN missing — cannot download files");
     return [];
   }
   const results: any[] = [];
   for (const item of items) {
     try {
+      console.log("[tg-attach] processing:", item.type, item.file_id);
       // 1. getFile → отримуємо file_path
       const gfResp = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN_LOCAL}/getFile?file_id=${item.file_id}`);
       const gfJson = await gfResp.json();
       if (!gfJson.ok || !gfJson.result?.file_path) {
-        console.warn("[tg-attach] getFile failed:", item.file_id, gfJson);
+        console.error("[tg-attach] getFile failed:", item.file_id, JSON.stringify(gfJson));
         continue;
       }
       const filePath = gfJson.result.file_path;
-      // TG ліміт getFile: 20MB
+      console.log("[tg-attach] got file_path:", filePath, "size:", gfJson.result.file_size);
       if (gfJson.result.file_size && gfJson.result.file_size > 20 * 1024 * 1024) {
-        console.warn("[tg-attach] file too large:", item.file_id);
+        console.error("[tg-attach] file too large:", item.file_id, gfJson.result.file_size);
         continue;
       }
       // 2. Download file content
       const fileResp = await fetch(`https://api.telegram.org/file/bot${TG_BOT_TOKEN_LOCAL}/${filePath}`);
       if (!fileResp.ok) {
-        console.warn("[tg-attach] download failed:", item.file_id);
+        console.error("[tg-attach] download failed:", item.file_id, fileResp.status);
         continue;
       }
-      const blob = await fileResp.blob();
+      const arrayBuf = await fileResp.arrayBuffer();
+      const fileBytes = new Uint8Array(arrayBuf);
+      console.log("[tg-attach] downloaded bytes:", fileBytes.length);
       // 3. Upload у Supabase Storage
       const ext = filePath.split(".").pop() || "bin";
       const objectKey = `${msg.chat.id}/${msg.message_id}_${item.file_id.slice(0, 16)}.${ext}`;
+      const contentType = item.mime || (ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : ext === 'mp4' ? 'video/mp4' : 'application/octet-stream');
       const uploadResp = await supabase.storage
         .from("tg-attachments")
-        .upload(objectKey, blob, { contentType: item.mime || blob.type || "application/octet-stream", upsert: true });
+        .upload(objectKey, fileBytes, { contentType, upsert: true });
       if (uploadResp.error) {
-        console.warn("[tg-attach] upload error:", uploadResp.error);
+        console.error("[tg-attach] upload error:", JSON.stringify(uploadResp.error));
         continue;
       }
+      console.log("[tg-attach] uploaded:", objectKey);
       // 4. Get public URL
       const { data: urlData } = supabase.storage.from("tg-attachments").getPublicUrl(objectKey);
       results.push({
         type: item.type,
         url: urlData.publicUrl,
         file_id: item.file_id,
-        mime: item.mime,
+        mime: contentType,
         size: item.size,
         file_name: item.file_name,
         width: item.width,
         height: item.height,
       });
+      console.log("[tg-attach] SUCCESS — url:", urlData.publicUrl);
     } catch (e) {
-      console.error("[tg-attach] item error:", item.file_id, e);
+      console.error("[tg-attach] item error:", item.file_id, String(e));
     }
   }
+  console.log("[tg-attach] returning", results.length, "items");
   return results;
 }
 

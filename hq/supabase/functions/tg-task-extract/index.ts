@@ -290,6 +290,7 @@ function formatProposalText(
   chatTitle: string,
   sourceText: string,
   isGroup: boolean = false,
+  attachmentsCount: number = 0,
 ): string {
   const lines = [];
   if (isGroup) {
@@ -313,6 +314,9 @@ function formatProposalText(
   if (proposed.priority) {
     const map = { p1: "🔴 P1 (терміново)", p2: "🟡 P2 (важливо)", p3: "🔵 P3 (звичайний)" };
     lines.push(`<b>Пріоритет:</b> ${map[proposed.priority as keyof typeof map] || proposed.priority}`);
+  }
+  if (attachmentsCount > 0) {
+    lines.push(`📎 <b>Прикріплено:</b> ${attachmentsCount} файл${attachmentsCount === 1 ? "" : attachmentsCount < 5 ? "и" : "ів"}`);
   }
   if (!isGroup) {
     // У DM показуємо контекст — у group це reply на сам контекст, не треба дублювати
@@ -498,6 +502,7 @@ Deno.serve(async (req: Request) => {
       chat.chat_title || "Невідомий чат",
       input.text,
       isGroupChat, // для group — скоротити preamble (всі вже у чаті)
+      attachments.length, // 07.06.2026 — показ кількості прикріплень
     );
 
     const keyboard = [
