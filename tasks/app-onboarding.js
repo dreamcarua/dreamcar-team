@@ -462,18 +462,21 @@
     if (!window._tonbChipExitBound) {
       window._tonbChipExitBound = true;
       document.addEventListener('click', function (ev) {
+        // 07.06.2026 FIX v2: capture-phase global handler може заважати модалам
+        // (Олександр: "ни одна кнопка не работает" після клика на 📎 Прикріпити).
+        // 1) Не виконуватись якщо клік ВСЕРЕДИНІ будь-якого модалу
+        if (ev.target.closest('#overviewModal, #taskModal, #prefsModal, .modal-backdrop, .ov-modal-backdrop, .ov-modal, .modal, [role="dialog"]')) return;
         if (location.hash !== '#onboarding') return;
-        var target = ev.target.closest('.chip, #addTaskBtn, #trashBtn, [data-filter]');
+        // 2) Звузити до тільки filter-rad chips з data-filter атрибутом
+        var target = ev.target.closest('.filter-rad .chip[data-filter], #addTaskBtn, #trashBtn');
         if (!target) return;
-        // НЕ виходити якщо клікнули на onb chip (це той самий онбординг)
         if (target.id === 'onbBtn') return;
-        // Прибираємо hash → hashchange handler видалить tonbView і покаже kanban
         history.replaceState(null, '', location.pathname + location.search);
         var view = document.getElementById('tonbView');
         if (view) view.remove();
         var board = document.querySelector('.kanban');
         if (board) board.style.display = '';
-      }, true); // capture phase щоб спрацювати ДО filter handler
+      }, true);
     }
   }
 
