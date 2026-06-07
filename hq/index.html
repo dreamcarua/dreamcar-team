@@ -36,7 +36,7 @@
     --bg-hover: #1f1f33;
     --border: #232338;
     --border-2: #2e2e48;
-    --red: #cc0000;
+    --red: var(--dc-red);
     --red-soft: #ff6577;
     --red-2: #ff9999;
     --red-dim: rgba(204,0,0,0.15);
@@ -186,7 +186,7 @@
   .topbar .role-switch .avatar {
     width: 24px; height: 24px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #cc0000, #ff6577);
+    background: linear-gradient(135deg, var(--dc-red), #ff6577);
     display: flex; align-items: center; justify-content: center;
     font-size: 11px;
     font-weight: 700;
@@ -1307,6 +1307,43 @@
     .cal-day { min-height: 80px; padding: 4px; }
     .cal-card { font-size: 9px; padding: 2px 4px; }
   }
+
+  /* === Sprint 1 UX — Mobile breakpoints (768px tablet, 480px phone) === */
+  @media (max-width: 768px) {
+    .sidebar { width: 50px; }
+    .sidebar .nav-section, .sidebar .filter-label, .nav-item .count { display: none; }
+    .topbar { padding: 8px 12px; gap: 6px; }
+    .topbar .actions, .topbar-actions { flex-wrap: wrap; }
+    .modal { max-width: 95vw; }
+    .modal-body { padding: 14px; }
+    .calendar-grid, .grid-table { font-size: 11px; }
+    .calendar-grid .cal-day { min-height: 60px; }
+  }
+  @media (max-width: 480px) {
+    body { padding-top: 48px; }
+    .app { grid-template-columns: 1fr !important; }
+    .sidebar {
+      width: 100% !important;
+      height: auto !important;
+      position: relative !important;
+      border-right: none !important;
+      border-bottom: 1px solid var(--border, #2a2a2a) !important;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .topbar { flex-wrap: wrap; }
+    .topbar .actions, .topbar-actions { flex: 1 1 100%; justify-content: flex-end; margin-top: 8px; }
+    .modal { max-width: 100vw; max-height: 100vh; border-radius: 0; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr !important; }
+    .calendar-wrap { padding: 8px; }
+    .calendar-grid { grid-template-columns: 1fr; }
+    .calendar-grid .cal-day { min-height: 50px; }
+    table { font-size: 11px; }
+    th, td { padding: 6px 8px !important; }
+    .filter-rad { flex-wrap: wrap; }
+    .btn { padding: 6px 10px; font-size: 11px; }
+    .btn-primary { padding: 8px 12px; }
+  }
 </style>
 </head>
 <body>
@@ -1358,10 +1395,10 @@
   <div class="topbar">
     <div class="breadcrumb" id="breadcrumb">Стіл SMM · <b>Календар</b></div>
     <div class="search">
-      <input type="text" id="globalSearch" placeholder="Шукати публікації, креативи, людей…" />
+      <input type="text"  id="globalSearch" aria-label="Пошук" placeholder="Шукати публікації, креативи, людей…" />
     </div>
     <div class="actions">
-      <div class="bell" id="bellBtn" title="Сповіщення">
+      <div class="bell" role="button" tabindex="0" aria-label="Сповіщення" id="bellBtn" title="Сповіщення">
         🔔<span class="badge" id="bellBadge">3</span>
       </div>
       <button class="role-switch" id="roleSwitch" title="Перемкнути роль (демо)">
@@ -1401,7 +1438,7 @@
 
 <!-- Modal backdrop -->
 <div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal" id="modal"></div>
+  <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
 </div>
 
 <div class="toast-stack" id="toastStack"></div>
