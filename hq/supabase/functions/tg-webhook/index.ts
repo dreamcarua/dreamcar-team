@@ -1901,7 +1901,21 @@ async function handleTaskTrigger(
     .maybeSingle();
   if (!chat || !chat.reactive) return false;
 
-  // Fire-and-forget POST to tg-task-extract з mention info
+  // 07.06.2026: завантажуємо attachments одразу (не покладаючись на buffer — chat може бути не proactive)
+  // Для inline mode беремо attachments з самого msg
+  // Для reply mode — з reply_to_message
+  let attachments: any[] = [];
+  try {
+    if (trigger.mode === "reply" && msg.reply_to_message) {
+      attachments = await downloadTgAttachments(supabase, msg.reply_to_message);
+    } else {
+      attachments = await downloadTgAttachments(supabase, msg);
+    }
+  } catch (e) {
+    console.warn("[task-trigger] attachments download failed:", e);
+  }
+
+  // Fire-and-forget POST to tg-task-extract з mention info + attachments
   try {
     await fetch(`${SUPABASE_URL}/functions/v1/tg-task-extract`, {
       method: "POST",
@@ -1918,6 +1932,7 @@ async function handleTaskTrigger(
         text: trigger.sourceText,
         mention_tg_user_id: trigger.mentionTgUserId,
         mention_username: trigger.mentionUsername,
+        attachments: attachments,
       }),
     });
   } catch (e) {
