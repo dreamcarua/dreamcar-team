@@ -456,6 +456,25 @@
     root.querySelectorAll('button[data-unmark]').forEach(function (btn) {
       btn.onclick = async function () { await unmarkStep(btn.dataset.unmark); renderOnboarding(); renderBanner(); };
     });
+
+    // 07.06.2026 FIX: коли user у #onboarding і клікає на filter chip / add-task / trash —
+    // автоматично виходити з онбордингу, інакше kanban лишається hidden і виглядає як "перекрило все"
+    if (!window._tonbChipExitBound) {
+      window._tonbChipExitBound = true;
+      document.addEventListener('click', function (ev) {
+        if (location.hash !== '#onboarding') return;
+        var target = ev.target.closest('.chip, #addTaskBtn, #trashBtn, [data-filter]');
+        if (!target) return;
+        // НЕ виходити якщо клікнули на onb chip (це той самий онбординг)
+        if (target.id === 'onbBtn') return;
+        // Прибираємо hash → hashchange handler видалить tonbView і покаже kanban
+        history.replaceState(null, '', location.pathname + location.search);
+        var view = document.getElementById('tonbView');
+        if (view) view.remove();
+        var board = document.querySelector('.kanban');
+        if (board) board.style.display = '';
+      }, true); // capture phase щоб спрацювати ДО filter handler
+    }
   }
 
   function hideOnboarding() {
