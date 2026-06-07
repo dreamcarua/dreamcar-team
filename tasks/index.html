@@ -919,6 +919,9 @@ function renderTask(t){
   if(t.recurrence)icons.push('🔁');
   if((t.watchers||[]).length>0)icons.push(`👁 ${t.watchers.length}`);
   if((t.depends_on||[]).length>0)icons.push(`⛓ ${t.depends_on.length}`);
+  // 07.06.2026 — TG attachments
+  const attCount = Array.isArray(t.attachments) ? t.attachments.length : 0;
+  if(attCount > 0) icons.push(`📎 ${attCount}`);
   const sel=state.selected.has(t.id)?' selected':'';
   // 05.06.2026 Phase 1.2: project badge
   const project = t.project_id ? (state.projects||[]).find(p=>p.id===t.project_id) : null;
@@ -1047,6 +1050,26 @@ async function openOverview(task){
   // description
   if(task.description){
     body += `<div class="ov-section"><span class="ov-section-label">Опис</span><div class="ov-desc">${escapeHtml(task.description)}</div></div>`;
+  }
+  // 07.06.2026 — attachments (фото/документи/відео з Telegram)
+  if(Array.isArray(task.attachments) && task.attachments.length > 0){
+    const atts = task.attachments.map(a => {
+      const t = (a.type || 'file').toLowerCase();
+      const fname = a.file_name || (a.type === 'photo' ? '📷 Фото' : a.type === 'video' ? '🎬 Відео' : a.type === 'voice' ? '🎤 Голосове' : a.type === 'audio' ? '🎵 Аудіо' : a.type === 'document' ? '📄 Документ' : '📎 Файл');
+      const sizeMb = a.size ? ` · ${(a.size/1024/1024).toFixed(1)} MB` : '';
+      if (t === 'photo') {
+        return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-block;width:120px;height:120px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);background:#0a0a0a;background-image:url('${escapeHtml(a.url)}');background-size:cover;background-position:center;text-decoration:none;" title="Відкрити фото"></a>`;
+      }
+      if (t === 'video') {
+        return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;width:120px;height:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;justify-content:center;flex-direction:column;text-decoration:none;color:#ccc;gap:6px;" title="Відкрити відео"><span style="font-size:28px;">🎬</span><span style="font-size:11px;">Відео${sizeMb}</span></a>`;
+      }
+      if (t === 'voice' || t === 'audio') {
+        return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;" title="Прослухати"><span style="font-size:18px;">${t==='voice'?'🎤':'🎵'}</span>${escapeHtml(fname)}${sizeMb}</a>`;
+      }
+      // document
+      return `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;" title="Відкрити документ"><span style="font-size:18px;">📄</span>${escapeHtml(fname)}${sizeMb}</a>`;
+    }).join('');
+    body += `<div class="ov-section"><span class="ov-section-label">Прикріплення (${task.attachments.length})</span><div style="display:flex;flex-wrap:wrap;gap:8px;">${atts}</div></div>`;
   }
   // HQ↔Tasks linkage: показати linked publication
   if(task.publication_id){
