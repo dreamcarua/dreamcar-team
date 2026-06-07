@@ -362,6 +362,43 @@
     .ov-body{padding:14px 16px;}
   }
 
+
+  /* === Sprint 1 UX — Mobile breakpoints (768px tablet, 480px phone) === */
+  @media (max-width: 768px) {
+    .sidebar { width: 50px; }
+    .sidebar .nav-section, .sidebar .filter-label, .nav-item .count { display: none; }
+    .topbar { padding: 8px 12px; gap: 6px; }
+    .topbar .actions, .topbar-actions { flex-wrap: wrap; }
+    .modal { max-width: 95vw; }
+    .modal-body { padding: 14px; }
+    .calendar-grid, .grid-table { font-size: 11px; }
+    .calendar-grid .cal-day { min-height: 60px; }
+  }
+  @media (max-width: 480px) {
+    body { padding-top: 48px; }
+    .app { grid-template-columns: 1fr !important; }
+    .sidebar {
+      width: 100% !important;
+      height: auto !important;
+      position: relative !important;
+      border-right: none !important;
+      border-bottom: 1px solid var(--border, #2a2a2a) !important;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .topbar { flex-wrap: wrap; }
+    .topbar .actions, .topbar-actions { flex: 1 1 100%; justify-content: flex-end; margin-top: 8px; }
+    .modal { max-width: 100vw; max-height: 100vh; border-radius: 0; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr !important; }
+    .calendar-wrap { padding: 8px; }
+    .calendar-grid { grid-template-columns: 1fr; }
+    .calendar-grid .cal-day { min-height: 50px; }
+    table { font-size: 11px; }
+    th, td { padding: 6px 8px !important; }
+    .filter-rad { flex-wrap: wrap; }
+    .btn { padding: 6px 10px; font-size: 11px; }
+    .btn-primary { padding: 8px 12px; }
+  }
 </style>
 </head>
 <body>
@@ -371,7 +408,7 @@
   <div class="topbar-actions" id="topbarActions">
     <!-- Desktop кнопки: видно на широких екранах -->
     <a href="/tasks/analytics.html" class="filter-btn desktop-only" title="Analytics dashboard">📊 ANALYTICS</a>
-    <button class="icon-btn desktop-only" id="bellBtn" title="Сповіщення (B)" style="display:none;">🔔<span class="badge" id="bellBadge" style="display:none;">0</span></button>
+    <button class="icon-btn desktop-only"  id="bellBtn" aria-label="Сповіщення" title="Сповіщення (B)" style="display:none;">🔔<span class="badge" id="bellBadge" style="display:none;">0</span></button>
     <button class="icon-btn desktop-only" id="prefsBtn" title="Налаштування" style="display:none;">⚙</button>
     <button class="icon-btn desktop-only" id="helpBtn" title="Гарячі клавіші (?)" style="display:none;">?</button>
     <span id="authChip" class="desktop-only"></span>
