@@ -8,6 +8,19 @@
 
 ---
 
+## 07.06.2026 — Edit modal attachments + TG attachment debug
+
+### 🆕 Tasks edit modal
+- 🆕 **Прикріплення прямо у редагуванні** — у edit-формі задачі додано блок ПРИКРІПЛЕННЯ перед чек-листом: drag-and-drop файлу прямо у вікно, кнопка 📎 Прикріпити, видалення (×) кожного. Раніше було тільки у read-only overview, тепер при створенні/редагуванні теж.
+- 🔧 `state.editAttachments` — окремий буфер під edit form, зберігається у `team_tasks.attachments` при Save.
+
+### 🔧 TG bot proposal
+- 🔧 **Показ `📎 Прикріплено: N файлів`** у proposal text — раніше не було видно чи AI побачив фото.
+- 🔧 **Debug-логи у `downloadTgAttachments`** — додав `console.log` на кожному кроці (items detected → getFile → bytes downloaded → upload key → SUCCESS url) щоб діагностувати чому Storage bucket `tg-attachments` порожній попри 5 спроб з фото.
+- 🔧 Перехід з `blob()` на `arrayBuffer()` + явний `contentType` per-extension — стабільніший upload у Supabase Storage.
+
+---
+
 ## 07.06.2026 — Production Readiness Audit (3 ітерації × 4 агенти)
 
 ### 🛡 Security fixes (P0 з audit iter 1)
