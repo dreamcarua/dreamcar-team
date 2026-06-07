@@ -1592,7 +1592,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     if (prop.state !== "proposed" && prop.state !== "editing") { await tgAnswerCallback(cb.id, "Вже оброблена", true); return; }
 
     if (subAction === "accept") {
-      // INSERT у team_tasks
+      // INSERT у team_tasks (з attachments якщо були)
       const taskInsert: Record<string, unknown> = {
         title: prop.title,
         description: prop.description,
@@ -1602,6 +1602,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
         due_date: prop.due_date,
         created_by: meUser.id,
         tags: ["from-tg"],
+        attachments: prop.attachments || [],
       };
       const { data: createdTask, error: tErr } = await supabase
         .from("team_tasks")
@@ -1951,13 +1952,109 @@ async function tryAutoDiscoverUsername(
   }
 }
 
+// =====================================================================
+// 07.06.2026 — TG file attachments → Supabase Storage
+// =====================================================================
+// Завантажує photo/document/video з Telegram у Supabase Storage bucket tg-attachments.
+// Повертає масив {type, url, file_id, mime, size, file_name?}
+async function downloadTgAttachments(
+  supabase: ReturnType<typeof createClient>,
+  msg: any,
+): Promise<Array<{type:string;url:string;file_id:string;mime?:string;size?:number;file_name?:string;width?:number;height?:number}>> {
+  const items: any[] = [];
+  // Photo: array, беремо найбільше (last)
+  if (msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0) {
+    const largest = msg.photo[msg.photo.length - 1];
+    items.push({ type: "photo", file_id: largest.file_id, size: largest.file_size, width: largest.width, height: largest.height });
+  }
+  if (msg.document) {
+    items.push({ type: "document", file_id: msg.document.file_id, mime: msg.document.mime_type, size: msg.document.file_size, file_name: msg.document.file_name });
+  }
+  if (msg.video) {
+    items.push({ type: "video", file_id: msg.video.file_id, mime: msg.video.mime_type, size: msg.video.file_size, width: msg.video.width, height: msg.video.height });
+  }
+  if (msg.video_note) {
+    items.push({ type: "video", file_id: msg.video_note.file_id, mime: "video/mp4", size: msg.video_note.file_size });
+  }
+  if (msg.audio) {
+    items.push({ type: "audio", file_id: msg.audio.file_id, mime: msg.audio.mime_type, size: msg.audio.file_size, file_name: msg.audio.file_name });
+  }
+  if (msg.voice) {
+    items.push({ type: "voice", file_id: msg.voice.file_id, mime: msg.voice.mime_type || "audio/ogg", size: msg.voice.file_size });
+  }
+  if (items.length === 0) return [];
+
+  const TG_BOT_TOKEN_LOCAL = Deno.env.get("TG_BOT_TOKEN") ?? "";
+  if (!TG_BOT_TOKEN_LOCAL) {
+    console.warn("[tg-attach] TG_BOT_TOKEN missing");
+    return [];
+  }
+  const results: any[] = [];
+  for (const item of items) {
+    try {
+      // 1. getFile → отримуємо file_path
+      const gfResp = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN_LOCAL}/getFile?file_id=${item.file_id}`);
+      const gfJson = await gfResp.json();
+      if (!gfJson.ok || !gfJson.result?.file_path) {
+        console.warn("[tg-attach] getFile failed:", item.file_id, gfJson);
+        continue;
+      }
+      const filePath = gfJson.result.file_path;
+      // TG ліміт getFile: 20MB
+      if (gfJson.result.file_size && gfJson.result.file_size > 20 * 1024 * 1024) {
+        console.warn("[tg-attach] file too large:", item.file_id);
+        continue;
+      }
+      // 2. Download file content
+      const fileResp = await fetch(`https://api.telegram.org/file/bot${TG_BOT_TOKEN_LOCAL}/${filePath}`);
+      if (!fileResp.ok) {
+        console.warn("[tg-attach] download failed:", item.file_id);
+        continue;
+      }
+      const blob = await fileResp.blob();
+      // 3. Upload у Supabase Storage
+      const ext = filePath.split(".").pop() || "bin";
+      const objectKey = `${msg.chat.id}/${msg.message_id}_${item.file_id.slice(0, 16)}.${ext}`;
+      const uploadResp = await supabase.storage
+        .from("tg-attachments")
+        .upload(objectKey, blob, { contentType: item.mime || blob.type || "application/octet-stream", upsert: true });
+      if (uploadResp.error) {
+        console.warn("[tg-attach] upload error:", uploadResp.error);
+        continue;
+      }
+      // 4. Get public URL
+      const { data: urlData } = supabase.storage.from("tg-attachments").getPublicUrl(objectKey);
+      results.push({
+        type: item.type,
+        url: urlData.publicUrl,
+        file_id: item.file_id,
+        mime: item.mime,
+        size: item.size,
+        file_name: item.file_name,
+        width: item.width,
+        height: item.height,
+      });
+    } catch (e) {
+      console.error("[tg-attach] item error:", item.file_id, e);
+    }
+  }
+  return results;
+}
+
 // 05.06.2026 Sprint 2: пушити кожне msg у whitelisted chat у buffer для 18:00 scan
+// 07.06.2026: підтримка photo/document/video → attachments
 async function pushToBuffer(
   supabase: ReturnType<typeof createClient>,
   msg: TgMessage,
 ): Promise<void> {
-  if (!msg.text || msg.text.startsWith("/")) return; // skip commands і non-text
+  // Skip commands
+  if (msg.text?.startsWith("/")) return;
   if (!msg.from?.id) return;
+  // Зберігаємо якщо є text АБО caption АБО будь-який медіа-payload
+  const hasMedia = !!(msg.photo || msg.document || msg.video || msg.video_note || msg.audio || msg.voice);
+  const text = msg.text || (msg as any).caption || "";
+  if (!text && !hasMedia) return; // зовсім порожнє
+
   try {
     // тільки whitelisted з proactive=true
     const { data: chat } = await supabase
@@ -1967,13 +2064,18 @@ async function pushToBuffer(
       .maybeSingle();
     if (!chat || !chat.proactive) return;
 
+    // Завантажуємо attachments (якщо є)
+    const attachments = hasMedia ? await downloadTgAttachments(supabase, msg) : [];
+
     const fullName = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(" ") || msg.from.username || "?";
     await supabase.from("tg_chat_buffer").upsert({
       chat_id: msg.chat.id,
       message_id: msg.message_id,
       user_tg_id: msg.from.id,
       user_name: fullName,
-      text: msg.text,
+      text: text,
+      caption: (msg as any).caption || null,
+      attachments: attachments,
       reply_to: msg.reply_to_message?.message_id || null,
       ts: new Date().toISOString(),
     }, { onConflict: "chat_id,message_id" });
