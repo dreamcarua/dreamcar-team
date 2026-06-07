@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar Onboarding — РЕТЕНШН</title>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=20260607" defer></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Manrope', -apple-system, sans-serif; background: #0A0A0A; color: #fff; min-height: 100vh; line-height: 1.6; }
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
+  .header { border-bottom: 2px solid #E30613; padding-bottom: 22px; margin-bottom: 36px; }
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: 'Oswald', sans-serif; font-size: 42px; font-weight: 700; text-transform: uppercase; line-height: 1.05; }
+  h1 .accent { color: #E30613; }
+  h2 { font-family: 'Oswald', sans-serif; font-size: 24px; text-transform: uppercase; margin: 36px 0 14px; border-left: 4px solid #E30613; padding-left: 12px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: #E30613; }
+  p, li { color: #bbb; font-size: 14px; margin-bottom: 8px; }
+  ul, ol { margin-left: 22px; }
+  a { color: #ff6577; text-decoration: none; }
+  a:hover { color: #fff; text-decoration: underline; }
+  .info-card { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 20px 24px; margin: 16px 0; }
+  .info-card.warning { border-left: 4px solid #fbbf24; }
+  .info-card.critical { border-left: 4px solid #E30613; }
+  .channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 14px 0; }
+  .channel { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; text-align: center; font-size: 13px; }
+  .channel .ico { font-size: 22px; display: block; margin-bottom: 6px; }
+  code { background: #1a1a1a; color: #ff6577; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
+  .status-pipeline { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+  .status-pipeline span { background: #1a1a1a; border: 1px solid #2a2a2a; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+  .status-pipeline span.review { border-color: #fbbf24; color: #fbbf24; }
+  .status-pipeline span.approved { border-color: #4ade80; color: #4ade80; }
+  .status-pipeline span.sent { border-color: #E30613; color: #ff6577; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="kicker">DreamCar · Onboarding · РЕТЕНШН</div>
+    <h1>РЕТЕНШН — <span class="accent">розсилки клієнтам</span></h1>
+    <p style="color:#999;margin-top:12px">Окремий стіл для прямих комунікацій з підписниками. Email через SendPulse, TG broadcast через бот, Push/SMS/Viber — placeholders для Phase 2.</p>
+  </div>
+
+  <h2>Концепція</h2>
+  <p>РЕТЕНШН — це система прямих комунікацій з клієнтською базою DreamCar (~30-40K підписників). На відміну від SMM (публічні пости у соцмережах), тут розсилка йде <b>персонально</b> у канал який юзер обрав: email, TG DM, push notification, SMS.</p>
+  <p>Workflow ідентичний SMM (draft → review → approved → schedule → sent), але призначення різне — повертати клієнтів які раніше купували.</p>
+
+  <h2>Доступ</h2>
+  <p>URL: <a href="https://team.dreamcar.ua/retention/">team.dreamcar.ua/retention/</a></p>
+  <p>Логін: через Telegram OAuth (як в інших системах команди).</p>
+
+  <h2>Канали</h2>
+  <div class="channels">
+    <div class="channel"><span class="ico">📧</span>Email<br><small>через SendPulse</small></div>
+    <div class="channel"><span class="ico">✈️</span>Telegram<br><small>broadcast у канал</small></div>
+    <div class="channel"><span class="ico">🔔</span>Push<br><small>Phase 2</small></div>
+    <div class="channel"><span class="ico">💬</span>SMS<br><small>Phase 2</small></div>
+    <div class="channel"><span class="ico">💜</span>Viber<br><small>Phase 2</small></div>
+    <div class="channel"><span class="ico">🔗</span>Інше<br><small>manual</small></div>
+  </div>
+
+  <h2>Lifecycle розсилки</h2>
+  <div class="status-pipeline">
+    <span>draft</span>→<span class="review">review</span>→<span class="approved">approved</span>→<span>scheduled</span>→<span>sending</span>→<span class="sent">sent</span>
+  </div>
+  <ol>
+    <li><b>draft</b> — створено, тільки заголовок. Тіло можна редагувати.</li>
+    <li><b>review</b> — надіслано на погодження. Approvers отримують DM з кнопками <code>rmappr:y/n</code>.</li>
+    <li><b>approved</b> — всі погодили. Cron <code>retention-scheduler-5min</code> підхоплює коли <code>publish_at &lt;= NOW()</code>.</li>
+    <li><b>scheduled / sending</b> — у процесі відправки.</li>
+    <li><b>sent</b> — успіх. Метрики у БД: sent_count, delivered_count, opened_count, clicked_count.</li>
+    <li><b>failed</b> — error message у <code>external_error</code> колонці.</li>
+    <li><b>rework</b> — повернено на доопрацювання (натиснута ↩ у TG).</li>
+  </ol>
+
+  <h2>3 views</h2>
+  <ul>
+    <li><b>Список</b> — таблиця з фільтрами по статусу/каналу.</li>
+    <li><b>Дошка (Kanban)</b> — 6 колонок по статусам, drag-and-drop.</li>
+    <li><b>Календар</b> — Місяць/Тиждень/День/Список/Дошка (parity з SMM).</li>
+  </ul>
+
+  <h2>Audience filter</h2>
+  <p>Сегментація по тарифу і статусу клієнта:</p>
+  <ul>
+    <li><b>Тариф:</b> Бронза, Срібло, Золото, Платина</li>
+    <li><b>Статус:</b> Активний, Потенційний, Відтік, Переможці</li>
+  </ul>
+  <p>Кнопка <code>↻ ОЦІНИТИ</code> у формі показує реальний розмір сегменту перед запуском.</p>
+
+  <h2>SendPulse integration</h2>
+  <div class="info-card critical">
+    <h3>🔴 HARD RULE: SendPulse READ-ONLY</h3>
+    <p>Жодних змін у SendPulse через API. Тільки GET/list. Live продакшн CRM з ~50K телефонами і email — будь-який accidental DELETE катастрофічний.</p>
+    <p>Розсилка email фактично робиться через SendPulse Dashboard вручну (поки що) — система retention лише показує що готове до відправки.</p>
+  </div>
+
+  <h2>TG broadcast</h2>
+  <p>Канал <code>channel='tg'</code> з <code>audience_list_id</code> = TG chat_id. Edge fn <code>retention-scheduler</code> викликає Bot API <code>sendMessage</code> у вказаний канал.</p>
+
+  <h2>Approvers / Responsibles</h2>
+  <ul>
+    <li><b>Approvers</b> — погоджують перед запуском. Multi-select у формі. policy: all (всі) або any (один достатньо).</li>
+    <li><b>Responsibles</b> — відповідальні за підготовку контенту. Multi-select.</li>
+    <li><b>Author</b> — той хто створив. Зберігається у <code>created_by</code>.</li>
+    <li>Усі троє отримують DM при review/approved/rework через notify-tg v10.</li>
+  </ul>
+
+  <h2>Project link</h2>
+  <p>Розсилку можна прикріпити до <a href="projects.html">проєкту (launch)</a> для аналітики performance розсилки → ROI.</p>
+
+  <h2>Approval flow у TG</h2>
+  <p>Approver отримує DM з кнопками:</p>
+  <ul>
+    <li><b>✓ Погодити</b> (callback <code>rmappr:&lt;id&gt;:y</code>) — інкрементує is_approved=true. Якщо всі погодили — status=approved.</li>
+    <li><b>↩ Повернути</b> (callback <code>rmappr:&lt;id&gt;:n</code>) — status=rework. Approver вказує причину.</li>
+    <li><b>🔗 Відкрити в РЕТЕНШН</b> — лінк на pub у вебі.</li>
+  </ul>
+
+  <h2>Edge functions involved</h2>
+  <ul>
+    <li><code>notify-tg</code> v10 — universal notifier для status changes</li>
+    <li><code>retention-scheduler</code> v2 — cron */5 хв читає approved messages</li>
+    <li><code>tg-webhook</code> — обробляє <code>rmappr:</code> callbacks</li>
+    <li><code>sendpulse-books-list</code> — read-only списки SendPulse</li>
+  </ul>
+
+  <h2>Cron jobs</h2>
+  <ul>
+    <li><code>retention-scheduler-5min</code> — кожні 5 хв (зміщено на :02-:57/5 щоб не колізіювати з autopost)</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+  <h3>Approval не приходить approver-у у TG</h3>
+  <ol>
+    <li>Перевір що approver має <code>tg_chat_id</code> у БД users (натисніть /start боту)</li>
+    <li>Перевір notify-tg logs за 5 хв навколо часу status change</li>
+    <li>Можливо approver заблокував бота — TG поверне 403</li>
+  </ol>
+
+  <h3>Розсилка не пішла у заплановний час</h3>
+  <ol>
+    <li>Перевір <code>retention_messages.status</code> — має бути 'approved' (не 'review')</li>
+    <li>Перевір <code>publish_at &lt;= NOW()</code></li>
+    <li>Перевір <code>net._http_response</code> за останні 15 хв</li>
+    <li>Перевір edge fn logs <code>retention-scheduler</code></li>
+  </ol>
+
+  <h2>Див. також</h2>
+  <ul>
+    <li><a href="hq.html">SMM (HQ Публікації)</a> — публічні пости (інший workflow)</li>
+    <li><a href="sendpulse.html">SendPulse</a> — деталі інтеграції</li>
+    <li><a href="API.md">API.md</a> — Edge functions reference</li>
+    <li><a href="ARCHITECTURE.md">ARCHITECTURE.md</a> — data flow</li>
+  </ul>
+</div>
+</body>
+</html>

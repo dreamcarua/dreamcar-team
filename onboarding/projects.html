@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar Onboarding — ПРОЄКТИ</title>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=20260607" defer></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Manrope', -apple-system, sans-serif; background: #0A0A0A; color: #fff; min-height: 100vh; line-height: 1.6; }
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
+  .header { border-bottom: 2px solid #E30613; padding-bottom: 22px; margin-bottom: 36px; }
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: 'Oswald', sans-serif; font-size: 42px; font-weight: 700; text-transform: uppercase; line-height: 1.05; }
+  h1 .accent { color: #E30613; }
+  h2 { font-family: 'Oswald', sans-serif; font-size: 24px; text-transform: uppercase; margin: 36px 0 14px; border-left: 4px solid #E30613; padding-left: 12px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: #E30613; }
+  p, li { color: #bbb; font-size: 14px; margin-bottom: 8px; }
+  ul, ol { margin-left: 22px; }
+  a { color: #ff6577; text-decoration: none; }
+  a:hover { color: #fff; text-decoration: underline; }
+  code { background: #1a1a1a; color: #ff6577; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
+  .info-card { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 20px 24px; margin: 16px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="kicker">DreamCar · Onboarding · ПРОЄКТИ</div>
+    <h1>ПРОЄКТИ — <span class="accent">запуски (launches)</span></h1>
+    <p style="color:#999;margin-top:12px">Управління запусками: ВОЛЬВО ХС90, BMW X5 Hybrid, iPhone 17 PRO MAX тощо. Винесено з SMM у Phase 1/2 (06.06.2026) у окрему систему.</p>
+  </div>
+
+  <h2>Концепція</h2>
+  <p>ПРОЄКТ = запуск конкретного автомобіля чи призу. Кожен проєкт має life-cycle (анонс → продаж токенів → фінал → переможець) і пов'язані ресурси: публікації, retention розсилки, аналітику, креативи.</p>
+  <p>До Phase 2 запуски лежали всередині SMM як вкладка. Тепер це окрема система щоб не перевантажувати SMM і дати проєкт-менеджеру (Vadym/Vova) виділений простір.</p>
+
+  <h2>Доступ</h2>
+  <p>URL: <a href="https://team.dreamcar.ua/projects/">team.dreamcar.ua/projects/</a></p>
+
+  <h2>Структура БД</h2>
+  <p>Таблиця <code>public.launches</code>. Ключові колонки:</p>
+  <ul>
+    <li><b>id</b> — UUID</li>
+    <li><b>title</b> — назва ("ВОЛЬВО ХС90", "BMW X5 Hybrid")</li>
+    <li><b>code</b> — короткий код ("VOLVO", "BMW_X5", "IPHONE")</li>
+    <li><b>start_at, end_at</b> — період запуску</li>
+    <li><b>status</b> — draft / active / finished / cancelled</li>
+    <li><b>team_lead_id</b> — FK на users (хто веде)</li>
+    <li><b>target_revenue, target_signatures</b> — KPIs</li>
+    <li><b>cover_image_url</b> — обкладинка</li>
+  </ul>
+
+  <h2>Зв'язки з іншими системами</h2>
+  <ul>
+    <li><b>Publications (SMM)</b> — у формі pub є dropdown "Зв'язаний із запуском". FK <code>publications.launch_id</code>.</li>
+    <li><b>Retention messages</b> — теж може бути прив'язана до launch для ROI аналітики.</li>
+    <li><b>Tasks</b> — задача може бути в контексті launch (project_id).</li>
+    <li><b>Dashboard</b> — окрема секція "ROI per project" у дашборді. Materialized view <code>mv_dashboard_projects_stats</code>.</li>
+  </ul>
+
+  <h2>Views</h2>
+  <ul>
+    <li><b>Список</b> — таблиця всіх launches</li>
+    <li><b>Kanban</b> — drag-and-drop по статусам (draft / active / finished)</li>
+    <li><b>Календар</b> — гантт-діаграма по дата діапазонам</li>
+  </ul>
+
+  <h2>Поточні активні запуски</h2>
+  <ul>
+    <li><b>Проєкт #17 — BMW X5 Hybrid</b> (активний, фінал 19.04.2026 о 20:00)</li>
+    <li><b>iPhone 17 PRO MAX</b> (з 06.06.2026, фінал 31.12.2026)</li>
+    <li>Тарифи 249–9 999 грн</li>
+    <li>Instagram: <a href="https://instagram.com/dreamcar.ua">@dreamcar.ua</a></li>
+  </ul>
+
+  <h2>Memory rules для проєктів DreamCar</h2>
+  <div class="info-card">
+    <h3>🔴 Заборонені слова</h3>
+    <p>У контексті DreamCar НЕ використовувати:</p>
+    <ul>
+      <li>"шанс" — юридично трактується як ставка</li>
+      <li>"квиток" — лотерея</li>
+      <li>"лотерея" — ліцензія потрібна</li>
+      <li>"розіграш" — теж лотерея</li>
+    </ul>
+    <p>Замість цього: "запуск", "проєкт", "акція", "челендж", "конкурс", "набір токенів".</p>
+  </div>
+
+  <h2>Cron jobs пов'язані з проєктами</h2>
+  <ul>
+    <li><code>mv-projects-stats-refresh-15min</code> — refresh ROI агрегатів</li>
+  </ul>
+
+  <h2>Команда (березень 2026)</h2>
+  <ul>
+    <li><b>Vadym (CEO)</b> — стратегія, partnership</li>
+    <li><b>Artem (співзасновник)</b> — продукт, dashboard</li>
+    <li><b>Vova</b> — операційка проєктів</li>
+    <li><b>Davyd (COO)</b> — операційний</li>
+    <li><b>Olexandr</b> — SMM lead</li>
+    <li><b>Vira</b> — comms</li>
+  </ul>
+
+  <h2>Див. також</h2>
+  <ul>
+    <li><a href="hq.html">SMM (HQ)</a> — публікації прив'язані до проєктів</li>
+    <li><a href="retention.html">РЕТЕНШН</a> — розсилки клієнтам проєкту</li>
+    <li><a href="dashboard.html">Dashboard</a> — ROI per project</li>
+    <li><a href="ARCHITECTURE.md">ARCHITECTURE.md</a> — data flow</li>
+  </ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar Onboarding — Verify Publication (T+3 хв)</title>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=20260607" defer></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Manrope', sans-serif; background: #0A0A0A; color: #fff; min-height: 100vh; line-height: 1.6; }
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
+  .header { border-bottom: 2px solid #E30613; padding-bottom: 22px; margin-bottom: 36px; }
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: 'Oswald', sans-serif; font-size: 42px; font-weight: 700; text-transform: uppercase; line-height: 1.05; }
+  h1 .accent { color: #E30613; }
+  h2 { font-family: 'Oswald', sans-serif; font-size: 24px; text-transform: uppercase; margin: 36px 0 14px; border-left: 4px solid #E30613; padding-left: 12px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: #E30613; }
+  p, li { color: #bbb; font-size: 14px; margin-bottom: 8px; }
+  ul, ol { margin-left: 22px; }
+  a { color: #ff6577; text-decoration: none; }
+  a:hover { color: #fff; }
+  code { background: #1a1a1a; color: #ff6577; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
+  .info-card { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 20px 24px; margin: 16px 0; }
+  .info-card.success { border-left: 4px solid #4ade80; }
+  .info-card.warning { border-left: 4px solid #fbbf24; }
+  .info-card.critical { border-left: 4px solid #E30613; }
+  .flow-step { background: #141414; border: 1px solid #2a2a2a; border-left: 4px solid #E30613; border-radius: 6px; padding: 14px 18px; margin: 10px 0; }
+  .flow-step .step-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E30613; letter-spacing: 0.15em; text-transform: uppercase; }
+  .flow-step .step-title { font-weight: 700; margin-top: 4px; }
+  pre { background: #1a1a1a; padding: 14px 18px; border-radius: 6px; color: #ccc; font-size: 12px; overflow-x: auto; margin: 14px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="kicker">DreamCar · Onboarding · Verify Publication</div>
+    <h1>Verify Publication — <span class="accent">T+3 хв підтвердження</span></h1>
+    <p style="color:#999;margin-top:12px">Автоматична перевірка через 3 хв після <code>publish_at</code> з manual confirmation у TG. Заміна Instagram Graph API (не вийшло без Business акаунту).</p>
+  </div>
+
+  <h2>Концепція</h2>
+  <p>Через 3 хвилини після запланованого <code>publish_at</code> публікації бот шле повідомлення у group chat і кожному stakeholder (approvers + responsibles + author) з кнопками:</p>
+  <ul>
+    <li><b>✅ Опубліковано</b> — status='published', notify ВСІМ "✓ Підтверджено"</li>
+    <li><b>❌ Не вийшло</b> — алярм у group + DM усім</li>
+    <li><b>↻ Переніс +1 год</b> — publish_at +60min, цикл повторюється</li>
+    <li><b>🔗 Відкрити в SMM</b> — лінк на pub у вебі</li>
+  </ul>
+
+  <h2>Чому manual (не IG API)?</h2>
+  <div class="info-card warning">
+    <h3>🟡 Try-and-fail Instagram Graph API</h3>
+    <p>Спочатку планували авто-перевірку через IG Graph API: бот заходить у @dreamcar.ua, шукає новий пост у вікні <code>publish_at ± 30 хв</code>. <b>Не вийшло</b> бо:</p>
+    <ul>
+      <li>IG @dreamcar.ua — <b>Creator</b> акаунт, не Business</li>
+      <li>Meta Graph API <code>instagram_business_account</code> повертає <code>null</code> для Creator</li>
+      <li>Переключити на Business → втрата Creator-only фіч (Spotlight music)</li>
+      <li>Make.com Instagram trigger — потребує сторонній Anysite ($) або RSSHub (нестабільно)</li>
+    </ul>
+    <p>Manual confirmation у TG — <b>1 клік</b> від команди, 0 залежностей, працює для будь-якої платформи.</p>
+  </div>
+
+  <h2>Як це працює крок-за-кроком</h2>
+
+  <div class="flow-step">
+    <div class="step-num">Step 1 · INSERT/UPDATE</div>
+    <div class="step-title">Pub з'являється/оновлюється з status approved/review/in_work/rework</div>
+    <p>Тригер <code>trg_pub_verify_schedule</code> AFTER INSERT/UPDATE OF status/publish_at автоматично викликає функцію <code>schedule_publication_verify(pub_id, publish_at)</code>.</p>
+  </div>
+
+  <div class="flow-step">
+    <div class="step-num">Step 2 · One-shot cron створено</div>
+    <div class="step-title">У <code>cron.job</code> з'являється запис <code>verify_pub_&lt;uuid&gt;</code></div>
+    <p>Cron expression точно на <code>publish_at + 3 хвилин у UTC</code>. Наприклад для <code>publish_at = 2026-06-10 09:00 UTC</code> → cron <code>3 9 10 6 *</code>.</p>
+  </div>
+
+  <div class="flow-step">
+    <div class="step-num">Step 3 · Cron спрацьовує T+3 хв</div>
+    <div class="step-title">HTTP POST → edge fn <code>verify-publication-ig</code></div>
+    <p>Edge fn перевіряє чи pub ще не verified. Якщо ні — шле message у TG group + DM кожному stakeholder з 4 кнопками.</p>
+  </div>
+
+  <div class="flow-step">
+    <div class="step-num">Step 4 · Команда натискає</div>
+    <div class="step-title">Callback handler у <code>tg-webhook</code> обробляє рішення</div>
+    <ul>
+      <li><code>vrfy:confirm:&lt;id&gt;</code> → status=published + notify-tg fanout ✅</li>
+      <li><code>vrfy:miss:&lt;id&gt;</code> → verified_status=missed + алярм</li>
+      <li><code>vrfy:resched:&lt;id&gt;:60</code> → publish_at += 60min, нова one-shot cron job</li>
+    </ul>
+  </div>
+
+  <div class="flow-step">
+    <div class="step-num">Step 5 · Auto-cleanup</div>
+    <div class="step-title">Cron job видаляється з <code>cron.job</code></div>
+    <p>Edge fn у кінці викликає <code>cron.unschedule(verify_pub_&lt;id&gt;)</code> щоб job не повторювався наступного року на тій же даті.</p>
+  </div>
+
+  <h2>Tригери у БД</h2>
+  <pre>trg_pub_verify_schedule
+  AFTER INSERT OR UPDATE OF status, publish_at, deleted_at, verified_at
+  ON public.publications
+  FOR EACH ROW EXECUTE FUNCTION trg_publications_schedule_verify();
+
+trg_pub_verify_unschedule
+  AFTER DELETE ON public.publications
+  FOR EACH ROW EXECUTE FUNCTION trg_publications_unschedule_verify();
+
+trg_pub_platforms_reschedule
+  AFTER INSERT OR DELETE ON public.publication_platforms
+  FOR EACH ROW EXECUTE FUNCTION trg_pub_platforms_reschedule_verify();</pre>
+
+  <h2>Колонки у publications</h2>
+  <ul>
+    <li><code>verified_at</code> (timestamptz) — коли була підтверджена/відхилена</li>
+    <li><code>verified_status</code> (text) — 'ok', 'missed', 'requested', 'error', 'skipped', 'ok_legacy'</li>
+    <li><code>verified_evidence_url</code> (text) — лінк на пост (IG permalink, якщо є)</li>
+    <li><code>verify_retry_count</code> (int) — скільки разів retried</li>
+  </ul>
+
+  <h2>Що НЕ створює задачу</h2>
+  <div class="info-card success">
+    <p><b>Fix 07.06.2026:</b> якщо pub переходить у approved і її <code>publish_at &lt; NOW() - 1 година</code> — задача "Опублікувати" <b>НЕ створюється</b> (бо публ. фактично вже опублікована, або давно прострочена).</p>
+    <p>Раніше це створювало fake задачі на CEO у Tasks → false-positive notifications.</p>
+  </div>
+
+  <h2>Idempotency</h2>
+  <ul>
+    <li>Якщо pub вже має <code>verified_at IS NOT NULL</code> — edge fn skip'ить</li>
+    <li>Якщо pub вже <code>status='published'</code> — edge fn skip'ить</li>
+    <li>Кнопка ✅ Опубліковано перевіряє <code>pubBefore.status === 'published'</code> перед UPDATE</li>
+  </ul>
+
+  <h2>Edge cases</h2>
+  <h3>Cron спрацював ДО того як хтось натиснув</h3>
+  <p>Якщо T+3 хв минуло, але pub ще не published у БД (наприклад, забули у соцмережі) — алярм автоматично йде у group.</p>
+
+  <h3>Pub видалена між schedule і fire</h3>
+  <p>Тригер DELETE викликає <code>safe_unschedule</code> → cron job видаляється. Якщо вже спрацював — edge fn skip'ить бо pub not found.</p>
+
+  <h3>Publish_at перенесено вручну (UI)</h3>
+  <p>Тригер UPDATE OF publish_at → <code>schedule_publication_verify</code> викликається знов:</p>
+  <ul>
+    <li>Старий cron job видаляється (safe_unschedule)</li>
+    <li>Новий cron job створюється на новий час</li>
+  </ul>
+
+  <h3>Pub без platforms</h3>
+  <p>Тригер `trg_publications_check_platforms` БЛОКУЄ transition у review/approved/published без жодного platform. RAISE EXCEPTION → UI помилка.</p>
+
+  <h2>Troubleshooting</h2>
+  <h3>T+3 хв пройшло, нічого не прилетіло</h3>
+  <ol>
+    <li>Перевір <code>cron.job WHERE jobname = 'verify_pub_&lt;uuid_no_dashes&gt;'</code> — чи створений?</li>
+    <li>Перевір <code>net._http_response</code> навколо T+3 хв — успішний?</li>
+    <li>Перевір edge fn logs <code>verify-publication-ig</code></li>
+    <li>Можливо pub без platforms (треба додати хоча б одну)</li>
+  </ol>
+
+  <h3>Кнопки в TG не реагують</h3>
+  <ol>
+    <li>Перевір що користувач має <code>users.tg_chat_id</code></li>
+    <li>Перевір що edge fn <code>tg-webhook</code> ACTIVE (latest version)</li>
+    <li>Можливо callback_data >64 байт — Telegram ріже</li>
+  </ol>
+
+  <h2>Cron jobs</h2>
+  <ul>
+    <li><code>verify_pub_&lt;uuid&gt;</code> — per-publication one-shot, точно T+3 хв UTC</li>
+  </ul>
+
+  <h2>Edge functions</h2>
+  <ul>
+    <li><code>verify-publication-ig</code> — попри назву (legacy від IG attempt), тепер robить manual TG question</li>
+    <li><code>tg-webhook</code> — обробляє <code>vrfy:confirm</code>, <code>vrfy:miss</code>, <code>vrfy:resched</code>, <code>vrfy:retry</code> callbacks</li>
+    <li><code>notify-tg</code> v10 — fanout після ✅ Опубліковано</li>
+  </ul>
+
+  <h2>Див. також</h2>
+  <ul>
+    <li><a href="hq.html">SMM (HQ)</a> — звідки приходить publish_at</li>
+    <li><a href="tg-bot.html">TG bot</a> — повний список callbacks</li>
+    <li><a href="API.md">API.md</a> — edge fn reference</li>
+    <li><a href="ARCHITECTURE.md">ARCHITECTURE.md</a> — data flow</li>
+  </ul>
+</div>
+</body>
+</html>

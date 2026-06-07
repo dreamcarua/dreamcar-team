@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar Onboarding — TG Bot</title>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=20260607" defer></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Manrope', sans-serif; background: #0A0A0A; color: #fff; min-height: 100vh; line-height: 1.6; }
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
+  .header { border-bottom: 2px solid #E30613; padding-bottom: 22px; margin-bottom: 36px; }
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: 'Oswald', sans-serif; font-size: 42px; font-weight: 700; text-transform: uppercase; line-height: 1.05; }
+  h1 .accent { color: #E30613; }
+  h2 { font-family: 'Oswald', sans-serif; font-size: 24px; text-transform: uppercase; margin: 36px 0 14px; border-left: 4px solid #E30613; padding-left: 12px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: #E30613; }
+  p, li { color: #bbb; font-size: 14px; margin-bottom: 8px; }
+  ul, ol { margin-left: 22px; }
+  a { color: #ff6577; text-decoration: none; }
+  a:hover { color: #fff; }
+  code { background: #1a1a1a; color: #ff6577; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
+  .cmd-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+  .cmd-table th { text-align: left; padding: 10px; background: #1a1a1a; border: 1px solid #2a2a2a; color: #E30613; font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; }
+  .cmd-table td { padding: 10px; border: 1px solid #2a2a2a; color: #ccc; }
+  .cmd-table td code { white-space: nowrap; }
+  .info-card { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 20px 24px; margin: 16px 0; }
+  .info-card.critical { border-left: 4px solid #E30613; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="kicker">DreamCar · Onboarding · Telegram Bot</div>
+    <h1>TG Bot — <span class="accent">@dreamcar_team_bot</span></h1>
+    <p style="color:#999;margin-top:12px">Універсальний бот команди: notify, approvals, AI task extraction, daily digest, voice STT.</p>
+  </div>
+
+  <h2>Прив'язка TG → SMM акаунту</h2>
+  <p>Щоб отримувати DM нотифікації, треба прив'язати TG до свого SMM акаунту:</p>
+  <ol>
+    <li>Відкрий <a href="https://t.me/dreamcar_team_bot">@dreamcar_team_bot</a></li>
+    <li>Натисни Start (або напиши <code>/start</code>)</li>
+    <li>Бот покаже tg_chat_id і інструкцію</li>
+    <li>У SMM (team.dreamcar.ua/hq/) клацни на свій профіль → "Прив'язати TG"</li>
+    <li>Введи код підтвердження</li>
+  </ol>
+
+  <h2>Команди боту</h2>
+  <table class="cmd-table">
+    <thead>
+      <tr><th>Команда</th><th>Що робить</th><th>Хто може</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>/start</code></td><td>Привітання, інструкція прив'язки</td><td>Усі</td></tr>
+      <tr><td><code>/help</code></td><td>Список команд</td><td>Усі</td></tr>
+      <tr><td><code>/me</code></td><td>Інформація про себе (роль, права)</td><td>Зареєстровані</td></tr>
+      <tr><td><code>/today</code></td><td>Що сьогодні: pubs, tasks, retention</td><td>Зареєстровані</td></tr>
+      <tr><td><code>/queue</code></td><td>Черга погоджень для approver</td><td>Approvers</td></tr>
+      <tr><td><code>/late</code></td><td>Прострочені задачі</td><td>Зареєстровані</td></tr>
+      <tr><td><code>/my</code></td><td>Свої задачі (inbox + doing)</td><td>Assignee</td></tr>
+      <tr><td><code>/tasks</code></td><td>Все ще одне — список своїх задач</td><td>Assignee</td></tr>
+      <tr><td><code>/approve</code></td><td>Черга погодження публікацій</td><td>Approvers</td></tr>
+      <tr><td><code>/listen_here</code></td><td>Додати цей груп-чат у whitelist для AI extraction</td><td>CEO/COO</td></tr>
+      <tr><td><code>/listen_stop</code></td><td>Прибрати чат з whitelist</td><td>CEO/COO</td></tr>
+      <tr><td><code>/listen_status</code></td><td>Чи listening цей чат?</td><td>Усі</td></tr>
+      <tr><td><code>/unbind</code></td><td>Від'єднати TG від SMM акаунту</td><td>Усі</td></tr>
+      <tr><td><code>/whoami</code></td><td>Debug — показує tg_chat_id, role</td><td>Усі</td></tr>
+      <tr><td><code>/diag</code></td><td>Diagnostic дамп (тільки CEO)</td><td>CEO</td></tr>
+      <tr><td><code>/chatid</code></td><td>Показати chat_id поточного чату</td><td>Усі</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Inline buttons (callbacks)</h2>
+  <p>Бот шле повідомлення з кнопками. Натискання тригерить callback handler у edge fn <code>tg-webhook</code>:</p>
+
+  <h3>📝 Approval публікації (SMM)</h3>
+  <table class="cmd-table">
+    <tbody>
+      <tr><td><code>appr:&lt;id&gt;:y</code></td><td>✓ Погодити публікацію</td></tr>
+      <tr><td><code>appr:&lt;id&gt;:n</code></td><td>↩ Повернути на доопрацювання</td></tr>
+      <tr><td><code>qappr:&lt;id&gt;:y/n/s</code></td><td>Queue approve (так/ні/пропустити)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>✉️ Approval розсилки (Retention)</h3>
+  <table class="cmd-table">
+    <tbody>
+      <tr><td><code>rmappr:&lt;id&gt;:y</code></td><td>✓ Погодити розсилку</td></tr>
+      <tr><td><code>rmappr:&lt;id&gt;:n</code></td><td>↩ Повернути</td></tr>
+    </tbody>
+  </table>
+
+  <h3>✅ Tasks</h3>
+  <table class="cmd-table">
+    <tbody>
+      <tr><td><code>task:done:&lt;id&gt;</code></td><td>Позначити як done</td></tr>
+      <tr><td><code>task:doing:&lt;id&gt;</code></td><td>Позначити як doing</td></tr>
+      <tr><td><code>task:open:&lt;id&gt;</code></td><td>Відкрити у браузері</td></tr>
+    </tbody>
+  </table>
+
+  <h3>🕒 Verify publication (T+3 хв)</h3>
+  <table class="cmd-table">
+    <tbody>
+      <tr><td><code>vrfy:confirm:&lt;id&gt;</code></td><td>✅ Опубліковано → status=published</td></tr>
+      <tr><td><code>vrfy:miss:&lt;id&gt;</code></td><td>❌ Не вийшло → алярм усім</td></tr>
+      <tr><td><code>vrfy:resched:&lt;id&gt;:60</code></td><td>↻ Перенести +1 год</td></tr>
+      <tr><td><code>vrfy:retry:&lt;id&gt;</code></td><td>🔁 Повторна перевірка (legacy)</td></tr>
+    </tbody>
+  </table>
+  <p>Деталі: <a href="verify-publication.html">verify-publication.html</a></p>
+
+  <h3>🤖 AI Task proposals (з чату)</h3>
+  <table class="cmd-table">
+    <tbody>
+      <tr><td><code>taskprop:accept:&lt;id&gt;</code></td><td>✅ Створити задачу з пропозиції</td></tr>
+      <tr><td><code>taskprop:dismiss:&lt;id&gt;</code></td><td>❌ Не задача</td></tr>
+      <tr><td><code>taskprop:edit_assignee:&lt;id&gt;</code></td><td>👤 Змінити виконавця</td></tr>
+      <tr><td><code>taskprop:edit_due:&lt;id&gt;</code></td><td>📅 Змінити дедлайн</td></tr>
+      <tr><td><code>taskprop:edit_priority:&lt;id&gt;</code></td><td>🔴 Змінити пріоритет</td></tr>
+    </tbody>
+  </table>
+
+  <h2>AI Task extraction з командних чатів</h2>
+  <p>Якщо чат у whitelist (через <code>/listen_here</code>), бот:</p>
+  <ol>
+    <li>Зберігає всі повідомлення у <code>tg_chat_buffer</code> (7 днів)</li>
+    <li>Кожен ранок 09:00 Київ — Claude Haiku scan через <code>tg-daily-task-scan</code></li>
+    <li>Пропозиції задач шлються CEO/COO у DM з кнопками accept/dismiss/edit</li>
+  </ol>
+
+  <h3>Тригер inline створення (миттєво)</h3>
+  <p>Додай <b>📌</b> у кінець повідомлення → бот одразу запропонує створити задачу:</p>
+  <pre style="background:#1a1a1a;padding:12px;border-radius:6px;color:#bbb;font-size:13px">Олександр, перевір контент завтра до 12:00 📌</pre>
+
+  <h2>Voice messages</h2>
+  <p>Бот приймає voice → Whisper STT → текст → AI router. Можна:</p>
+  <ul>
+    <li>Створити задачу (опиши)</li>
+    <li>Спитати про статус</li>
+    <li>Перевести у text для approval</li>
+  </ul>
+
+  <h2>Daily digest</h2>
+  <ul>
+    <li><code>hq-daily-personal-digest</code> о 09:00 Київ — кожному DM з його задачами/публікаціями</li>
+    <li><code>hq-daily-digest</code> о 10:00 Київ — командний загальний</li>
+    <li><code>tg-personal-digest</code> о 09:00 — ще один варіант (legacy)</li>
+  </ul>
+
+  <h2>Group chat для approval</h2>
+  <p>Production group: <code>-1003933841573</code> ("DreamCar SMM"). Усі approvals також шлються туди для transparency.</p>
+  <p>Тестовий: <code>-1002496656144</code></p>
+
+  <h2>Troubleshooting</h2>
+  <h3>Бот не відповідає на /start</h3>
+  <ol>
+    <li>Перевір що <code>tg-webhook</code> ACTIVE: list_edge_functions</li>
+    <li>Перевір webhook: <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getWebhookInfo</code> → pending_update_count = 0?</li>
+    <li>Перевір logs edge fn за останні 5 хв</li>
+  </ol>
+
+  <h3>Callbacks не працюють ("Невідома дія")</h3>
+  <ol>
+    <li>Handler може бути не deployed. Перевір останню версію <code>tg-webhook</code></li>
+    <li>Можливо emoji з variation selector U+FE0F — checkSwitch на старі emoji</li>
+    <li>Logs покажуть який саме callback_data приходить</li>
+  </ol>
+
+  <h3>Команди для CEO/COO заблоковані</h3>
+  <p>Деякі actions (taskprop:accept, listen_here) обмежені до ceo/coo ролей. Перевір <code>users.role</code> у БД.</p>
+
+  <h2>Див. також</h2>
+  <ul>
+    <li><a href="API.md">API.md</a> — tg-webhook повна reference</li>
+    <li><a href="verify-publication.html">verify-publication</a> — T+3min flow</li>
+    <li><a href="audit.html">Audit + Bot commands</a></li>
+  </ul>
+</div>
+</body>
+</html>
