@@ -1833,8 +1833,10 @@ function stripEmojiVariationSelector(s: string): string {
 }
 
 function detectTaskTrigger(msg: TgMessage): TaskTrigger | null {
-  const text = msg.text;
+  // 07.06.2026: підтримка photo/video — у них тексту нема, є caption
+  const text = msg.text || (msg as any).caption;
   if (!text) return null;
+  const entities = msg.entities || (msg as any).caption_entities;
   const trimmed = stripEmojiVariationSelector(text.trim());
   const reply = msg.reply_to_message;
 
@@ -1867,7 +1869,7 @@ function detectTaskTrigger(msg: TgMessage): TaskTrigger | null {
     if (trimmed.endsWith(emoji)) {
       const stripped = trimmed.slice(0, -emoji.length).trim();
       if (stripped.length >= 10) {
-        const mention = extractMention(msg.text, msg.entities);
+        const mention = extractMention(text, entities);
         return {
           sourceText: stripped,
           sourceMsgId: msg.message_id,
@@ -2163,7 +2165,8 @@ Deno.serve(async (req: Request) => {
     tryAutoDiscoverUsername(supabase, msg).catch((e) => console.warn("[tg-discover]", e));
     pushToBuffer(supabase, msg).catch((e) => console.warn("[tg-buffer]", e));
 
-    if (msg.text) {
+    // 07.06.2026: підтримка caption у photo/video — раніше тут пропускали
+    if (msg.text || (msg as any).caption) {
       const trigger = detectTaskTrigger(msg);
       if (trigger) {
         const handled = await handleTaskTrigger(supabase, msg, trigger);
