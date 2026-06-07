@@ -423,6 +423,19 @@ Deno.serve(async (req: Request) => {
     const assigneeName = assigneeId ? teamMembers.find((u) => u.id === assigneeId)?.name || null : null;
     console.log("[extract] assignee resolved:", { assigneeId, assigneeName, source: assigneeSource });
 
+    // 6. Підтягнути attachments з buffer (якщо message_id задано)
+    let attachments: any[] = [];
+    if (input.message_id) {
+      const { data: bufRow } = await supabase
+        .from("tg_chat_buffer")
+        .select("attachments, caption")
+        .eq("chat_id", input.chat_id)
+        .eq("message_id", input.message_id)
+        .maybeSingle();
+      if (bufRow?.attachments && Array.isArray(bufRow.attachments)) {
+        attachments = bufRow.attachments;
+      }
+    }
     // 6. INSERT proposed task
     const { data: proposed, error: insErr } = await supabase
       .from("tg_proposed_tasks")
@@ -440,6 +453,7 @@ Deno.serve(async (req: Request) => {
         due_date: extracted.due_date,
         priority: extracted.priority,
         confidence: extracted.confidence,
+        attachments: attachments,
       })
       .select("id")
       .single();
