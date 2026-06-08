@@ -8,6 +8,15 @@
 
 ---
 
+## 08.06.2026 (вечір) — #192 P0 PROD Dashboard RLS alias-aware
+
+### 🛡 RLS policies — alias-aware migration
+- 🛡 **10 policies переписано на `current_user_has_role()` / `current_user_id()`** (alias-aware helper, fix #189). Стара перевірка `users.auth_id = auth.uid()` НЕ враховувала `user_auth_aliases` UNION → Вадим залогінений через alias `dreamcarua@gmail.com` отримував 0 рядків з `dashboard_deals`/`dashboard_ads_data` → 0 угод по всьому дашборду на 08.06 (хоча в БД 883 угоди / 173,928₴).
+- 🛡 Зачеплені таблиці: `dashboard_deals`, `dashboard_ads_data`, `dashboard_manual_costs`, `dashboard_settings`, `dashboard_utm_mapping`, `dashboard_webhooks`, `dashboard_people_mapping` (SELECT+UPDATE+DELETE), `team_tasks` (UPDATE — додатково через `current_user_id()` для assignee/creator/watchers).
+- 🚀 Migration `rls_alias_aware_dashboard_and_others_192` + `NOTIFY pgrst, 'reload schema'`.
+
+---
+
 ## 08.06.2026 — Dashboard 3-round audit & deep fixes (147+ tasks)
 
 ### Round 1 (P0 audit fixes)
@@ -37,6 +46,9 @@
 
 ### Round 4 (final hardening)
 - 🔧 **`dashboard_hourly_heatmap`** — додано всі 4 фільтри (customer_type, tariff, pay_provider, traffic_type) для full parity.
+
+### Funnel semantic fix (#191)
+- 🔧 **Воронка 2-bar → 3-bar (Замовлення / У обробці / Оплачено)** + перейменування "Ліди"→"Замовлення", "Конверсія"→"Success rate". `dashboard_deals` містить тільки checkout records, не маркетингові ліди — UI labels тепер це чесно показують.
 
 ### TG/notify
 - 🚀 **Auto-close team_tasks при publication.status='published'** — trigger `publication_auto_close_team_task` + backfill. Усуває фейкові "🔥 Завдання прострочено".
