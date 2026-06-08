@@ -58,8 +58,10 @@ async function loadAll(){
   try {
     const [msgs, users, projects, approvers, responsibles] = await Promise.all([
       supabase.from('retention_messages').select('*').is('deleted_at', null).order('publish_at', { ascending: false }).limit(500),
-      supabase.from('users').select('id,name,email,role').is('deleted_at', null),
-      supabase.from('launches').select('id,name,status').is('deleted_at', null).order('starts_at', { ascending: false }).limit(100),
+      // 08.06.2026 Vira fix: users.deleted_at НЕ ІСНУЄ → запит повертав null → dropdowns approvers/responsibles порожні.
+      supabase.from('users').select('id,name,email,role').eq('is_active', true).order('name'),
+      // 08.06.2026 Vira fix: launches не має deleted_at і starts_at (а тільки starts_on).
+      supabase.from('launches').select('id,name,status').order('starts_on', { ascending: false }).limit(100),
       supabase.from('retention_message_approvers').select('*'),
       supabase.from('retention_message_responsibles').select('*'),
     ]);
@@ -550,7 +552,8 @@ function openMessageDetail(id){
     Store._prefillDate = null;
   }
   const m = msg || {
-    channel: 'email',
+    // 08.06.2026 Vira feedback: Telegram by default (раніше email)
+    channel: 'tg',
     title: '',
     preview_text: '',
     body: '',
@@ -590,7 +593,7 @@ function openMessageDetail(id){
           <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ЗАГОЛОВОК / SUBJECT *</span>
           <input name="title" required value="${escHtml(m.title)}" placeholder="Subject email або заголовок TG broadcast" style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
         </label>
-        <label>
+        <label id="lblPreviewText" style="${m.channel === 'tg' ? 'display:none;' : ''}">
           <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">PREVIEW (email preheader)</span>
           <input name="preview_text" value="${escHtml(m.preview_text || '')}" placeholder="Короткий preview що відображається після subject" style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
         </label>
@@ -694,6 +697,22 @@ function openMessageDetail(id){
   document.getElementById('closeDetail').onclick = () => overlay.remove();
 
   document.getElementById('msgForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, isNew ? null : m.id, overlay); };
+
+  // 08.06.2026 Vira: PREVIEW тільки для email; toggle при зміні channel
+  const channelSel = document.querySelector('select[name="channel"]');
+  if (channelSel) channelSel.addEventListener('change', () => {
+    const lbl = document.getElementById('lblPreviewText');
+    if (lbl) lbl.style.display = channelSel.value === 'tg' ? 'none' : '';
+  });
+
+  // 08.06.2026 Vira: якщо Store.users порожній (race / RLS / network) — попередження
+  if (!Store.users.length) {
+    const warn = document.createElement('div');
+    warn.style.cssText = 'background:rgba(245,158,11,0.12);border-left:3px solid #f59e0b;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#fbbf24;';
+    warn.innerHTML = '⚠ Користувачі ще не завантажені. Якщо ПОГОДЖУЮТЬ/ВІДПОВІДАЛЬНІ порожні — закрий модал і відкрий знову (через 2 сек).';
+    const form = document.getElementById('msgForm');
+    if (form) form.insertBefore(warn, form.firstChild);
+  }
   const dBtn = document.getElementById('btnDelete');
   if (dBtn) dBtn.onclick = () => deleteMsg(m.id, overlay);
   const srBtn = document.getElementById('btnSubmitReview');
