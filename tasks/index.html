@@ -1408,7 +1408,17 @@ modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('s
 })();
 
 function openEditModal(task){
+  // 08.06.2026 (Давид feedback) — захист від "Зберігаю…" stuck state.
+  // Скидаємо ВСЕ що стосується save state при відкритті модалки.
   state.editingId=task?.id||null;
+  state._saving = false;
+  const _btn = document.getElementById('saveTaskBtn');
+  if (_btn) {
+    _btn.disabled = false;
+    _btn.style.opacity = '';
+    _btn.textContent = _btn.dataset.origText || 'Зберегти (⌘S)';
+    delete _btn.dataset.origText;
+  }
   document.getElementById('modalTitle').textContent=task?'РЕДАГУВАТИ':'+ НОВЕ ЗАВДАННЯ';
   document.getElementById('f-title').value=task?.title||'';
   document.getElementById('f-description').value=task?.description||'';
@@ -1448,6 +1458,21 @@ async function saveTask(){
   state._saving = true;
   const saveBtn = document.getElementById('saveTaskBtn');
   if(saveBtn){saveBtn.disabled = true; saveBtn.style.opacity='0.6'; saveBtn.dataset.origText = saveBtn.textContent; saveBtn.textContent = '⏳ Зберігаю…';}
+
+  // 08.06.2026 (Давид): safety timeout — якщо save висить >15сек (network stalled,
+  // tab background-throttled тощо), примусово розблоковуємо кнопку
+  const __resetGuard = setTimeout(() => {
+    if (state._saving) {
+      console.warn('[saveTask v3] safety timeout — forced reset after 15s');
+      state._saving = false;
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.style.opacity = '';
+        saveBtn.textContent = saveBtn.dataset.origText || 'Зберегти (⌘S)';
+      }
+      toast('⚠ Збереження довго не відповідає. Спробуй ще раз.','error');
+    }
+  }, 15000);
 
   try {
   console.log('[saveTask v3] start', {editingId: state.editingId, publicUser: state.publicUser?.id, role: state.publicUser?.role});
@@ -1516,8 +1541,14 @@ async function saveTask(){
   loadTasks();
   try { triggerNotifyWorker(); } catch(_){}
   } finally {
+    clearTimeout(__resetGuard);
     state._saving = false;
-    if(saveBtn){saveBtn.disabled = false; saveBtn.style.opacity=''; if(saveBtn.dataset.origText) saveBtn.textContent = saveBtn.dataset.origText;}
+    if(saveBtn){
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = '';
+      if(saveBtn.dataset.origText) saveBtn.textContent = saveBtn.dataset.origText;
+      delete saveBtn.dataset.origText;
+    }
   }
 }
 
