@@ -8,9 +8,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const TG_BOT_TOKEN     = Deno.env.get("TG_BOT_TOKEN") ?? "";
 const TG_GROUP_CHAT_ID = Deno.env.get("DCSMM_GROUP_CHAT_ID") || "-1003933841573";
-// 08.06.2026 Vira feedback: retention notifications мають йти у RETENTION groupchat, не у SMM.
-// Якщо DC_RETENTION_GROUP_CHAT_ID не встановлено — fallback на SMM групу (щоб не loseувати notifications).
-const TG_RETENTION_CHAT_ID = Deno.env.get("DC_RETENTION_GROUP_CHAT_ID") || TG_GROUP_CHAT_ID;
+// 08.06.2026 Vira feedback: retention notifications → окремий RETENTION groupchat.
+// Vira надала chat_id напряму: -1004294474337.
+const TG_RETENTION_CHAT_ID = Deno.env.get("DC_RETENTION_GROUP_CHAT_ID") || "-1004294474337";
 const HQ_WEBHOOK_SECRET = Deno.env.get("HQ_WEBHOOK_SECRET") ?? "";
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("HQ_DB_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
