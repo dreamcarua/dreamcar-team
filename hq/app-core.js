@@ -630,9 +630,21 @@ function SEED() {
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 
 /* ============ App state (in-memory) ============ */
+// 08.06.2026 Mobile fix: default до 'list' на mobile (≤480px) — agenda view зручніший
+// на phone ніж 7-col grid з 42px клітинками. Localstorage memorize choice.
+function _defaultCalMode() {
+  try {
+    const saved = localStorage.getItem('dc.calMode');
+    if (saved) return saved;
+  } catch (e) {}
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    if (window.matchMedia('(max-width: 480px)').matches) return 'list';
+  }
+  return 'month';
+}
 const App = {
   view: 'calendar',
-  calendarMode: 'month', // month | week | day | list
+  calendarMode: _defaultCalMode(),
   calendarDate: new Date(),
   filters: { statuses: new Set(), platforms: new Set() },
   selectedPubs: new Set(),
@@ -867,7 +879,12 @@ function renderCalendar(root) {
   document.getElementById('nextBtn').onclick = () => navCal(1);
   document.getElementById('todayBtn').onclick = () => { App.calendarDate = new Date(); renderCalendar(document.getElementById('main')); };
   document.querySelectorAll('#modeSwitch .btn-segmented').forEach(b => {
-    b.onclick = () => { App.calendarMode = b.dataset.mode; App.selectedPubs.clear(); renderCalendar(document.getElementById('main')); };
+    b.onclick = () => {
+      App.calendarMode = b.dataset.mode;
+      try { localStorage.setItem('dc.calMode', App.calendarMode); } catch(e) {}
+      App.selectedPubs.clear();
+      renderCalendar(document.getElementById('main'));
+    };
   });
   attachPlatformFilterHandlers();
 
