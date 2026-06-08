@@ -630,7 +630,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="dc-shared-storage.js"></script>
+<script src="dc-shared-storage.js?v=20260608b"></script>
 <script type="module">
 const SUPABASE_URL  = 'https://wotghlaehnvxyeacznvv.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
@@ -903,9 +903,60 @@ function filterTasks(tasks){
   return tasks;
 }
 
+// 08.06.2026 (Давид feedback): кольори по виконавцях — щоб не зливалось в одне червоне
+// Кольори підбираються детермінованим хешем від user.id → стабільні для одного юзера.
+// Для CEO Вадима + COO Давида + Артем + Олександр + Vira + Олеся та інших — різні.
+const USER_COLOR_PALETTE = [
+  '#ec4899', // pink — Давид (рожевий request)
+  '#f43f5e', // rose
+  '#f59e0b', // amber — теплий жовтий
+  '#10b981', // emerald
+  '#06b6d4', // cyan
+  '#3b82f6', // blue
+  '#6366f1', // indigo
+  '#8b5cf6', // violet
+  '#a855f7', // purple
+  '#84cc16', // lime
+  '#0ea5e9', // sky
+  '#14b8a6', // teal
+];
+// Hardcoded маппінг для команди (priority over hash) — щоб гарантувати кольори
+const USER_COLOR_OVERRIDES = {
+  // ім'я або email substring → колір
+  'давид':         '#ec4899', // рожевий (Давид request)
+  'david':         '#ec4899',
+  'gennadievich':  '#ec4899',
+  'вадим':         '#06b6d4', // cyan
+  'vadym':         '#06b6d4',
+  'vadim':         '#06b6d4',
+  'gryshyn':       '#06b6d4',
+  'олександр':     '#10b981', // emerald (Саша)
+  'oleksandr':     '#10b981',
+  'sasha':         '#10b981',
+  'артем':         '#f59e0b', // amber
+  'artem':         '#f59e0b',
+  'віра':          '#8b5cf6', // violet
+  'vira':          '#8b5cf6',
+  'олеся':         '#f43f5e', // rose
+  'olesia':        '#f43f5e',
+};
+function userColor(user){
+  if (!user) return '#ef4444';
+  const lower = (user.name || user.email || '').toLowerCase();
+  for (const key in USER_COLOR_OVERRIDES) {
+    if (lower.includes(key)) return USER_COLOR_OVERRIDES[key];
+  }
+  // Hash fallback (детермінований)
+  const id = user.id || user.email || user.name || '';
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = ((h << 5) - h) + id.charCodeAt(i);
+  return USER_COLOR_PALETTE[Math.abs(h) % USER_COLOR_PALETTE.length];
+}
+
 function renderTask(t){
   const user=state.users.find(u=>u.id===t.assignee_id);
   const initials=user?(user.name||user.email||'').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase():'';
+  const userBg = userColor(user);
   const tags=(t.tags||[]).slice(0,3).map(tag=>`<span class="task-tag">${escapeHtml(tag)}</span>`).join('');
   const moreTags=(t.tags||[]).length>3?`<span class="task-tag">+${t.tags.length-3}</span>`:'';
   let dueClass='',dueText='';
@@ -936,7 +987,7 @@ function renderTask(t){
     ${icons.length?`<div class="task-icons">${icons.map(i=>`<span>${i}</span>`).join(' ')}</div>`:''}
     <div class="task-title"><span class="task-priority ${t.priority||'p3'}"></span>${escapeHtml(t.title)}</div>
     <div class="task-meta">
-      ${user?`<div class="task-assignee" title="${escapeHtml(user.name||user.email)}">${initials}</div>`:''}
+      ${user?`<div class="task-assignee" style="background:${userBg};" title="${escapeHtml(user.name||user.email)}">${initials}</div>`:''}
       ${dueText?`<span class="task-due ${dueClass}">${dueText}</span>`:''}
       ${projectBadge}${tags}${moreTags}
     </div>
