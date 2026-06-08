@@ -197,7 +197,8 @@ async function scanChat(
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: msgs } = await supabase
     .from("tg_chat_buffer")
-    .select("message_id, user_tg_id, user_name, text, reply_to, ts")
+    // 08.06.2026: підтягуємо attachments + caption (для прикріплення фото/файлів до proposal)
+    .select("message_id, user_tg_id, user_name, text, reply_to, ts, attachments, caption")
     .eq("chat_id", chat.chat_id)
     .is("processed_at", null)
     .gte("ts", cutoff)
@@ -222,7 +223,7 @@ async function scanChat(
 
   // 4. Resolve assignees + INSERT
   let inserted = 0;
-  const summary: { title: string; assignee_name: string | null; proposed_id: string }[] = [];
+  const summary: { title: string; assignee_name: string | null; proposed_id: string; attachments_count?: number }[] = [];
   for (const t of filtered) {
     const assigneeId = resolveAssignee(t.assignee_hint, teamMembers) || chat.default_assignee_id || null;
     const assigneeName = assigneeId ? teamMembers.find((u) => u.id === assigneeId)?.name || null : null;
@@ -244,9 +245,38 @@ async function scanChat(
     }
     if (!proposerId) continue;
 
-    const sourceText = t.source_message_id
-      ? ((msgs as BufferMsg[]).find((m) => m.message_id === t.source_message_id)?.text || t.title)
-      : t.title;
+    const sourceMsg = t.source_message_id
+      ? (msgs as any[]).find((m) => m.message_id === t.source_message_id)
+      : null;
+    const sourceText = sourceMsg?.text || t.title;
+
+    // 08.06.2026 NEW (Давид): підтягуємо attachments з source message + media-group neighbours
+    // якщо source message це reply на photo/document, або має caption
+    let attachments: any[] = [];
+    if (sourceMsg?.attachments && Array.isArray(sourceMsg.attachments) && sourceMsg.attachments.length) {
+      attachments = sourceMsg.attachments;
+    }
+    // Також перевіряємо сусідні msgs ±2 (TG групує media як окремі повідомлення підряд)
+    if (sourceMsg) {
+      const idx = (msgs as any[]).findIndex((m) => m.message_id === sourceMsg.message_id);
+      if (idx >= 0) {
+        for (let delta = -2; delta <= 2; delta++) {
+          if (delta === 0) continue;
+          const neighbor = (msgs as any[])[idx + delta];
+          if (!neighbor) continue;
+          if (Math.abs(new Date(neighbor.ts).getTime() - new Date(sourceMsg.ts).getTime()) > 30_000) continue;
+          if (neighbor.user_tg_id !== sourceMsg.user_tg_id) continue;
+          if (Array.isArray(neighbor.attachments) && neighbor.attachments.length) {
+            // Уникаємо duplicates за storage_path або url
+            for (const a of neighbor.attachments) {
+              if (!attachments.some((x) => (x.url || x.storage_path) === (a.url || a.storage_path))) {
+                attachments.push(a);
+              }
+            }
+          }
+        }
+      }
+    }
 
     const { data: prop, error: insErr } = await supabase
       .from("tg_proposed_tasks")
@@ -264,13 +294,19 @@ async function scanChat(
         due_date: t.due_date,
         priority: t.priority,
         confidence: t.confidence,
+        attachments: attachments,
       })
       .select("id")
       .single();
 
     if (!insErr && prop) {
       inserted++;
-      summary.push({ title: t.title, assignee_name: assigneeName, proposed_id: prop.id });
+      summary.push({
+        title: t.title,
+        assignee_name: assigneeName,
+        proposed_id: prop.id,
+        attachments_count: attachments.length,
+      });
     }
   }
 
@@ -303,13 +339,21 @@ async function scanChat(
       lines.push(`📋 <b>Блок ${b + 1}/${totalBatches}</b> · задачі ${startIdx + 1}–${startIdx + batch.length}\n`);
       batch.forEach((s, idx) => {
         const realIdx = startIdx + idx + 1;
-        const ass = s.assignee_name ? ` <i>(${escHtml(s.assignee_name)})</i>` : "";
-        lines.push(`<b>${realIdx}.</b> ${escHtml(s.title)}${ass}`);
+        const ass = s.assignee_name ? ` <i>(${escHtml(s.assignee_name)})</i>` : " <i>(не визначено)</i>";
+        // 08.06.2026 NEW (Давид): індикатор 📎 коли attached files
+        const att = s.attachments_count && s.attachments_count > 0
+          ? ` 📎${s.attachments_count}` : "";
+        lines.push(`<b>${realIdx}.</b> ${escHtml(s.title)}${ass}${att}`);
       });
+      // 08.06.2026 NEW (Давид): 3 кнопки на задачу — ✅ Створити, 👤 Змінити виконавця, ❌
+      // Раніше 2 кнопки: accept/dismiss. Додано inline 👤 щоб не ходити у DM edit-flow
+      // коли AI неправильно визначив assignee.
       const keyboard = batch.map((s, idx) => {
         const realIdx = startIdx + idx + 1;
+        const assName = s.assignee_name || "не визначено";
         return [
-          { text: `${realIdx}. ${s.title.slice(0, 26)} ✅`, callback_data: `taskprop:accept:${s.proposed_id}` },
+          { text: `${realIdx}. ${s.title.slice(0, 20)} ✅`, callback_data: `taskprop:accept:${s.proposed_id}` },
+          { text: `👤 ${assName.slice(0, 12)}`, callback_data: `taskprop:assign_inline:${s.proposed_id}` },
           { text: "❌", callback_data: `taskprop:dismiss:${s.proposed_id}` },
         ];
       });

@@ -117,6 +117,55 @@ async function tgAnswerCallback(cbId: string, text: string, alert = false): Prom
   } catch (e) { console.error("tgAnswerCallback threw", e); }
 }
 
+/**
+ * 08.06.2026 BUGFIX (Давид): після accept/dismiss однієї задачі у batch (5 задач, 10 кнопок)
+ * tgEditMessage стирала ВСІ inline buttons → не можна було оброблити решту задач.
+ * Тепер замість editMessageText викликаємо editMessageReplyMarkup і замінюємо тільки 1 row
+ * (2 кнопки конкретної задачі) на новий стан, інші row залишаються активні.
+ */
+async function updateProposalButtons(
+  msg: { chat: { id: number }; message_id: number; reply_markup?: ReplyMarkup },
+  propId: string,
+  newButtons: InlineButton[],
+): Promise<void> {
+  if (!TG_BOT_TOKEN) return;
+  const currentMarkup = msg.reply_markup;
+  if (!currentMarkup || !Array.isArray(currentMarkup.inline_keyboard)) return;
+  // Знаходимо row(и) що містять кнопки з propId і замінюємо їх на newButtons
+  const newKeyboard: InlineButton[][] = [];
+  let replaced = false;
+  for (const row of currentMarkup.inline_keyboard) {
+    const rowHasProp = row.some((b) =>
+      (b.callback_data || "").endsWith(`:${propId}`) ||
+      (b.callback_data || "").includes(`:${propId}:`) ||
+      (b.callback_data || "") === `taskprop:accept:${propId}` ||
+      (b.callback_data || "") === `taskprop:dismiss:${propId}`,
+    );
+    if (rowHasProp && !replaced) {
+      newKeyboard.push(newButtons);
+      replaced = true;
+    } else if (!rowHasProp) {
+      newKeyboard.push(row);
+    }
+    // другий row з тим самим propId (assignee row) — викидаємо
+  }
+  if (!replaced) {
+    // Якщо raw був не знайдений (edge case) — додаємо у кінець
+    newKeyboard.push(newButtons);
+  }
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/editMessageReplyMarkup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        reply_markup: { inline_keyboard: newKeyboard },
+      }),
+    });
+  } catch (e) { console.error("updateProposalButtons threw", e); }
+}
+
 async function tgGetFilePath(fileId: string): Promise<string | null> {
   if (!TG_BOT_TOKEN) return null;
   try {
@@ -1589,7 +1638,83 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     if (!isGroupProp && prop.proposer_id !== meUser.id) {
       await tgAnswerCallback(cb.id, "Це не твоя пропозиція", true); return;
     }
+    // 08.06.2026 BUGFIX: noop callback (для disabled placeholder buttons після dismiss/accept)
+    if (subAction === "noop") {
+      await tgAnswerCallback(cb.id, "Вже оброблено");
+      return;
+    }
+
     if (prop.state !== "proposed" && prop.state !== "editing") { await tgAnswerCallback(cb.id, "Вже оброблена", true); return; }
+
+    // 08.06.2026 NEW (Давид feedback): assign_inline — швидкий вибір assignee прямо у batch
+    // (без переходу у edit mode). Замінює row задачі на список members → user тапає → set + restore buttons
+    if (subAction === "assign_inline") {
+      const { data: members } = await supabase.from("users").select("id, name, role").eq("is_active", true).order("name");
+      // Показуємо тільки виконавців з ролями member/designer/lead/coo (без ceo щоб не самопризначати)
+      const candidates = (members || []).filter((u: { role: string }) => ["member","designer","lead","coo","ceo"].includes(u.role));
+      // 4 кнопки на row максимум, замінюємо row цієї задачі на 2 rows вибору
+      const rows: InlineButton[][] = [];
+      for (let i = 0; i < candidates.length; i += 2) {
+        rows.push(candidates.slice(i, i + 2).map((u: { id: string; name: string }) => ({
+          text: `👤 ${u.name}`,
+          callback_data: `taskprop:setassign_batch:${propId}:${u.id}`,
+        })));
+      }
+      rows.push([{ text: "↩ Назад", callback_data: `taskprop:cancel_assign:${propId}` }]);
+      // Заміна row цієї задачі на rows вибору (інші задачі не чіпаємо)
+      const currentMarkup = msg.reply_markup;
+      if (currentMarkup && Array.isArray(currentMarkup.inline_keyboard)) {
+        const newKb: InlineButton[][] = [];
+        for (const row of currentMarkup.inline_keyboard) {
+          const rowHasProp = row.some((b) => (b.callback_data || "").includes(`:${propId}`));
+          if (rowHasProp) {
+            newKb.push(...rows);  // вставляємо rows вибору замість цього row
+          } else {
+            newKb.push(row);
+          }
+        }
+        await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/editMessageReplyMarkup`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: msg.chat.id, message_id: msg.message_id, reply_markup: { inline_keyboard: newKb } }),
+        });
+      }
+      await tgAnswerCallback(cb.id, "Кому делегувати?");
+      return;
+    }
+
+    if (subAction === "setassign_batch") {
+      const newAssigneeId = parts[3];
+      await supabase.from("tg_proposed_tasks").update({ assignee_id: newAssigneeId }).eq("id", propId);
+      // Отримуємо ім'я для display у відновлених кнопках
+      const { data: newAss } = await supabase.from("users").select("name").eq("id", newAssigneeId).maybeSingle();
+      const titleShort = (prop.title || "").slice(0, 18);
+      const assName = newAss?.name || "—";
+      // Відновлюємо стандартні 3 кнопки (з оновленим assignee у text + 👤 chip)
+      const newButtons: InlineButton[] = [
+        { text: `${titleShort} ✅`, callback_data: `taskprop:accept:${propId}` },
+        { text: `👤 ${assName}`, callback_data: `taskprop:assign_inline:${propId}` },
+        { text: "❌", callback_data: `taskprop:dismiss:${propId}` },
+      ];
+      await updateProposalButtons(msg, propId, newButtons);
+      await tgAnswerCallback(cb.id, `👤 → ${assName}`);
+      return;
+    }
+
+    if (subAction === "cancel_assign") {
+      const titleShort = (prop.title || "").slice(0, 18);
+      const { data: curAss } = prop.assignee_id
+        ? await supabase.from("users").select("name").eq("id", prop.assignee_id).maybeSingle()
+        : { data: null };
+      const assName = curAss?.name || "—";
+      const newButtons: InlineButton[] = [
+        { text: `${titleShort} ✅`, callback_data: `taskprop:accept:${propId}` },
+        { text: `👤 ${assName}`, callback_data: `taskprop:assign_inline:${propId}` },
+        { text: "❌", callback_data: `taskprop:dismiss:${propId}` },
+      ];
+      await updateProposalButtons(msg, propId, newButtons);
+      await tgAnswerCallback(cb.id, "↩");
+      return;
+    }
 
     if (subAction === "accept") {
       // INSERT у team_tasks (з attachments якщо були)
@@ -1619,11 +1744,12 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
         .eq("id", propId);
       await tgAnswerCallback(cb.id, "✅ Створено");
       const tasksUrl = (Deno.env.get("TASKS_URL") || "https://team.dreamcar.ua/tasks") + "/#task=" + createdTask.id;
-      await tgEditMessage(
-        msg.chat.id,
-        msg.message_id,
-        (msg.text || "") + `\n\n✅ <b>Створено</b> · <a href="${tasksUrl}">Відкрити у Tasks</a>`,
-      );
+      // 08.06.2026 BUGFIX (Давид): не використовуємо tgEditMessage бо вона стирає ВСІ inline buttons
+      // інших задач у batch. Замість цього оновлюємо ТІЛЬКИ кнопки цієї задачі (заміна на URL).
+      await updateProposalButtons(msg, propId, [{
+        text: `✅ ${(prop.title || "").slice(0, 30)} · Відкрити`,
+        url: tasksUrl,
+      }]);
       return;
     }
 
@@ -1632,7 +1758,11 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
         .update({ state: "dismissed", decided_at: new Date().toISOString() })
         .eq("id", propId);
       await tgAnswerCallback(cb.id, "❌ Скасовано");
-      await tgEditMessage(msg.chat.id, msg.message_id, (msg.text || "") + `\n\n❌ <b>Не задача</b>`);
+      // 08.06.2026 BUGFIX: лише оновлюємо кнопки цієї задачі — інші лишаються активні
+      await updateProposalButtons(msg, propId, [{
+        text: `❌ ${(prop.title || "").slice(0, 30)} · Не задача`,
+        callback_data: `taskprop:noop:${propId}`,
+      }]);
       return;
     }
 
