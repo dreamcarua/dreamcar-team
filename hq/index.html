@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1293,86 +1293,349 @@
   .backend-indicator.live .dot { background: var(--green); }
   .backend-indicator.demo .dot { background: var(--gold); }
 
-  /* Mobile (basic) */
+  /* ===========================================================
+     08.06.2026 — MOBILE-FIRST REDESIGN (повна перебудова)
+     Архітектура:
+       <900px : sidebar = drawer (off-canvas), topbar тільки burger
+       <768px : tablet — drawer + повноцінний topbar
+       <480px : phone — drawer + bottom-nav + agenda-list для calendar + FAB
+     ============================================================ */
+
+  /* ---- Tablet & smaller: sidebar стає off-canvas drawer ---- */
   @media (max-width: 900px) {
-    .app { grid-template-columns: 60px 1fr; }
-    .sidebar { padding: 12px 6px; }
-    .sidebar .nav-item .label, .sidebar .nav-section, .sidebar .filters { display: none; }
-    .sidebar .nav-item { justify-content: center; padding: 9px 6px; }
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: 52px 1fr;
+      grid-template-areas: "topbar" "main";
+      height: 100vh;
+      min-height: 100vh;
+    }
+    /* Logo області більше нема — переїздить у topbar */
+    .logo { display: none; }
     .logo-text { display: none; }
-    .calendar-wrap, .board-wrap, .library-wrap { padding: 12px 14px; }
+    /* Sidebar = off-canvas drawer */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 84vw;
+      max-width: 320px;
+      z-index: 1500;
+      border-right: 1px solid var(--border);
+      transform: translateX(-100%);
+      transition: transform 240ms cubic-bezier(.2,.8,.3,1);
+      box-shadow: 8px 0 24px rgba(0,0,0,0.4);
+      padding: 14px 12px;
+      overflow-y: auto;
+    }
+    .sidebar.open { transform: translateX(0); }
+    /* Drawer backdrop */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(2px);
+      z-index: 1400;
+      animation: bdFade 200ms ease;
+    }
+    .sidebar-backdrop.open { display: block; }
+    @keyframes bdFade { from { opacity: 0; } to { opacity: 1; } }
+    /* Drawer показує ВСЕ (label, sections, filters) — це повноцінне меню */
+    .sidebar .nav-item .label,
+    .sidebar .nav-section,
+    .sidebar .filters,
+    .sidebar .nav-item .count { display: revert; }
+    .sidebar .nav-item {
+      justify-content: flex-start;
+      padding: 12px 14px;
+      min-height: 44px;       /* iOS touch target */
+      font-size: 14px;
+      gap: 14px;
+    }
+    .sidebar .nav-item .ico { font-size: 18px; }
+    /* Topbar reorganization */
+    .topbar {
+      padding: 0 12px;
+      gap: 10px;
+      height: 52px;
+    }
+    .topbar .search { max-width: 100%; }
+    .topbar .actions { gap: 8px; }
+    .topbar .role-switch {
+      padding: 6px 8px;
+      gap: 6px;
+    }
+    .topbar .role-switch .role-name,
+    .topbar .role-switch .role-tag { display: none; }
+    .topbar .role-switch .avatar { width: 28px; height: 28px; }
+    /* Burger button (toggle drawer) */
+    .topbar-burger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px; height: 40px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .topbar-burger:hover { background: var(--bg-hover); }
+    /* View padding compact */
+    .calendar-wrap, .board-wrap, .library-wrap {
+      padding: 12px 14px 80px;     /* +80px bottom для bottom-nav */
+    }
     .board-cols { grid-template-columns: 1fr; }
     .pub-card-layout { grid-template-columns: 1fr; }
     .form-row, .form-row-3 { grid-template-columns: 1fr; }
-    .cal-day { min-height: 80px; padding: 4px; }
-    .cal-card { font-size: 9px; padding: 2px 4px; }
+    /* Calendar grid: auto-grow rows, не виcне на 100vh */
+    .calendar-grid {
+      height: auto;
+      min-height: auto;
+      grid-template-rows: auto;
+    }
+    .calendar-grid .cal-day { min-height: 88px; padding: 4px 3px; }
+    .calendar-grid .cal-card { font-size: 10px; padding: 2px 4px; }
   }
 
-  /* === Sprint 1 UX — Mobile breakpoints (768px tablet, 480px phone) === */
+  /* ---- Tablet (768px) ---- */
   @media (max-width: 768px) {
-    .sidebar { width: 50px; }
-    .sidebar .nav-section, .sidebar .filter-label, .nav-item .count { display: none; }
-    .topbar { padding: 8px 12px; gap: 6px; }
-    .topbar .actions, .topbar-actions { flex-wrap: wrap; }
-    .modal { max-width: 95vw; }
-    .modal-body { padding: 14px; }
-    .calendar-grid, .grid-table { font-size: 11px; }
-    /* 08.06.2026 Mobile fix: calendar grid auto-grow + більший min-height клітинок
-       Раніше height: calc(100vh - 240px) + overflow:hidden ховало контент клітинок */
-    .calendar-grid {
-      height: auto !important;
-      min-height: auto !important;
-      grid-template-rows: auto !important;  /* rows auto-grow по контенту */
-    }
-    .calendar-grid .cal-day { min-height: 95px; }
-    .calendar-grid .cal-day .cal-card { font-size: 10px; padding: 3px 5px; }
-  }
-  @media (max-width: 480px) {
-    body { padding-top: 48px; }
-    .app { grid-template-columns: 1fr !important; }
-    .sidebar {
-      width: 100% !important;
-      height: auto !important;
-      position: relative !important;
-      border-right: none !important;
-      border-bottom: 1px solid var(--border, #2a2a2a) !important;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .topbar { flex-wrap: wrap; }
-    .topbar .actions, .topbar-actions { flex: 1 1 100%; justify-content: flex-end; margin-top: 8px; }
     .modal { max-width: 100vw; max-height: 100vh; border-radius: 0; }
-    .form-row, .form-row-3 { grid-template-columns: 1fr !important; }
-    .calendar-wrap { padding: 8px; }
-    /* 08.06.2026 Mobile P0: НЕ роблю 1fr (це ламало 7-day grid у вертикаль)
-       Зберігаємо 7 колонок + дозволяємо horizontal scroll якщо ширина не вміщається */
+    .modal-body { padding: 14px; max-height: calc(100vh - 140px); overflow-y: auto; }
+    /* Toast: shrink width */
+    .toast-stack { right: 12px; bottom: 80px; max-width: calc(100vw - 24px); }
+    /* Calendar controls — стек на 2 рядки */
+    .calendar-controls {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .cal-nav .month-label { min-width: auto !important; font-size: 14px; }
+    .cal-nav button { width: 36px; height: 36px; }
+    /* Platform filter — horizontal scroll */
+    .platform-filter {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+    }
+    .platform-filter::-webkit-scrollbar { display: none; }
+    .pf-btn { flex-shrink: 0; min-height: 36px; padding: 7px 12px; }
+  }
+
+  /* ---- Phone (480px) — bottom nav + agenda list + FAB ---- */
+  @media (max-width: 480px) {
+    /* View padding для bottom nav */
+    .calendar-wrap, .board-wrap, .library-wrap { padding: 10px 10px 80px; }
+    /* View header: column stack, compact */
+    .view-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 12px 14px;
+      position: relative;     /* sticky зайвий при коротких header */
+    }
+    .view-header h1 { font-size: 18px; }
+    .view-header .actions { margin-left: 0; flex-wrap: wrap; gap: 6px; width: 100%; }
+    .view-header .actions .btn { min-height: 36px; flex: 1 1 auto; }
+
+    /* Touch targets */
+    .btn { min-height: 40px; padding: 8px 12px; font-size: 13px; }
+    .btn-sm { min-height: 36px; padding: 6px 10px; font-size: 12px; }
+    .btn-primary { min-height: 44px; padding: 10px 16px; }
+
+    /* Topbar — full width search прихований, тільки title + burger + actions */
+    .topbar .search { display: none; }
+    .topbar .breadcrumb { font-size: 14px; max-width: 50vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* CALENDAR — переключаємо grid на agenda-list через CSS body class */
+    /* Default = compact grid 7 cols з smaller cells (≤480) */
     .calendar-grid {
-      grid-template-columns: repeat(7, minmax(52px, 1fr)) !important;
+      grid-template-columns: repeat(7, minmax(42px, 1fr));
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    .calendar-grid .cal-day {
-      min-height: 90px;
-      padding: 4px 3px;
-    }
-    .calendar-grid .cal-weekday {
-      padding: 6px 2px;
-      font-size: 9px;
-      letter-spacing: 0.5px;
-    }
-    .calendar-grid .cal-day .day-num { font-size: 10px; margin-bottom: 2px; }
+    .calendar-grid .cal-day { min-height: 78px; padding: 3px 2px; }
+    .calendar-grid .cal-weekday { padding: 6px 2px; font-size: 8px; letter-spacing: 0.3px; }
+    .calendar-grid .cal-day .day-num { font-size: 11px; margin-bottom: 1px; }
     .calendar-grid .cal-day .cal-card {
-      font-size: 9px;
-      padding: 2px 3px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 9.5px;
+      padding: 2px 4px;
+      border-left-width: 2px;
+      flex-wrap: wrap;
+      gap: 2px;
     }
-    table { font-size: 11px; }
-    th, td { padding: 6px 8px !important; }
-    .filter-rad { flex-wrap: wrap; }
-    .btn { padding: 6px 10px; font-size: 11px; }
-    .btn-primary { padding: 8px 12px; }
+    /* UX fix R7: НЕ ховаємо .time повністю — SMM треба бачити коли publish */
+    .calendar-grid .cal-day .cal-card .time {
+      font-size: 8px;
+      display: inline-block;
+      opacity: 0.7;
+    }
+    .calendar-grid .cal-day .cal-card .platform-icons {
+      font-size: 7px;
+      display: inline-flex;
+    }
+    .calendar-grid .cal-day .cal-card .title {
+      flex: 1 1 100%;
+      font-size: 10px;
+    }
+
+    /* Calendar controls: 3 rows для clarity */
+    .calendar-controls {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .cal-nav {
+      justify-content: center;
+      gap: 8px;
+    }
+    .cal-nav .month-label { font-size: 14px; flex: 1; }
+    .cal-nav button { width: 40px; height: 40px; font-size: 16px; }
+
+    /* Forms */
+    .form-row, .form-row-3 { grid-template-columns: 1fr; gap: 10px; }
+
+    /* Tables compact */
+    .list-table { font-size: 12px; }
+    .list-table th, .list-table td { padding: 8px 10px; }
+
+    /* List view — приховуємо лишні колонки */
+    .list-table .col-platform,
+    .list-table .col-launch { display: none; }
+
+    /* Floating Action Button — Create new */
+    .fab-create {
+      position: fixed;
+      right: 16px;
+      bottom: 76px;      /* над bottom nav */
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--red), var(--red-soft));
+      border: none;
+      color: #fff;
+      font-size: 28px;
+      box-shadow: 0 6px 20px rgba(204,0,0,0.5);
+      cursor: pointer;
+      z-index: 900;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 120ms;
+    }
+    .fab-create:active { transform: scale(0.92); }
+
+    /* Bottom navigation */
+    .bottom-nav {
+      display: flex !important;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+      z-index: 850;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .bottom-nav a {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      color: var(--grey);
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 6px 2px;
+      transition: color 120ms;
+    }
+    .bottom-nav a .bn-ico { font-size: 20px; line-height: 1; }
+    .bottom-nav a.active { color: var(--red-soft); }
+    .bottom-nav a:hover { color: #fff; }
+
+    /* Modal: full-screen + safe area + scrollable body */
+    .modal { max-width: 100vw; max-height: 100vh; border-radius: 0; }
+    .modal-backdrop { padding: 0; align-items: stretch; }
+    /* B2 fix: правильні class names .modal-head / .modal-foot (не -header/-footer) */
+    .modal-head { padding: 14px 16px; position: sticky; top: 0; background: var(--bg-2); z-index: 2; }
+    .modal-body { padding: 14px 16px; max-height: calc(100vh - 140px); }
+    .modal-foot {
+      padding: 12px 16px;
+      position: sticky;
+      bottom: 0;
+      background: var(--bg-2);
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+    .modal-foot .btn { min-height: 44px; }
+
+    /* Toast bottom-positioned above bottom nav (не перекриває FAB right:16+56=72 → toast зліва) */
+    .toast-stack { bottom: 76px; left: 12px; right: 84px; max-width: none; }
+
+    /* UX fix R7: filter discoverability — pill у view-header */
+    .mobile-filter-pill {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--bg-3);
+      border: 1px solid var(--border-2);
+      color: #fff;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 36px;
+    }
+    .mobile-filter-pill .cnt {
+      background: var(--red);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 700;
+    }
+    /* UX fix R7: на phone view хову native створити кнопку у view-header (лишається FAB) */
+    .view-header .actions .btn-create-mobile-hide { display: none; }
+
+    /* Filter chips horizontal scroll */
+    .filter-rad {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .filter-rad::-webkit-scrollbar { display: none; }
+    .filter-rad > * { flex-shrink: 0; }
+
+    /* Drawer-trigger візуальний бейдж для unread */
+    .topbar-burger {
+      position: relative;
+    }
+    .topbar-burger.has-badge::after {
+      content: '';
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 8px; height: 8px;
+      background: var(--red);
+      border-radius: 50%;
+      border: 2px solid var(--bg-2);
+    }
+  }
+
+  /* Bottom nav — ховаємо за дефолтом, показуємо на 480px */
+  .bottom-nav { display: none; }
+  /* Burger — ховаємо за дефолтом */
+  .topbar-burger { display: none; }
+  /* FAB — ховаємо за дефолтом */
+  .fab-create { display: none; }
+  @media (max-width: 900px) {
+    .topbar-burger { display: inline-flex; }
+  }
+  @media (max-width: 480px) {
+    .fab-create { display: flex; }
   }
 </style>
 </head>
@@ -1423,6 +1686,8 @@
   </div>
 
   <div class="topbar">
+    <!-- 08.06.2026 Mobile: burger toggles drawer (visible <900px) -->
+    <button class="topbar-burger" id="drawerBurger" aria-label="Меню" type="button">☰</button>
     <div class="breadcrumb" id="breadcrumb">Стіл SMM · <b>Календар</b></div>
     <div class="search">
       <input type="text"  id="globalSearch" aria-label="Пошук" placeholder="Шукати публікації, креативи, людей…" />
@@ -1440,6 +1705,9 @@
       </button>
     </div>
   </div>
+
+  <!-- 08.06.2026 Mobile: backdrop під sidebar drawer -->
+  <div class="sidebar-backdrop" id="drawerBackdrop" aria-hidden="true"></div>
 
   <aside class="sidebar">
     <div class="nav-section">Робочий простір</div>
@@ -1472,6 +1740,82 @@
 </div>
 
 <div class="toast-stack" id="toastStack"></div>
+
+<!-- 08.06.2026 Mobile: Floating Action Button — створити публікацію -->
+<button class="fab-create" id="fabCreate" aria-label="Створити публікацію" type="button">+</button>
+
+<!-- 08.06.2026 Mobile: Bottom navigation (≤480px) -->
+<nav class="bottom-nav" id="bottomNav" aria-label="Mobile навігація">
+  <a href="#calendar" data-route="calendar"><span class="bn-ico">📅</span><span>Календар</span></a>
+  <a href="#board" data-route="board"><span class="bn-ico">✅</span><span>Дошка</span></a>
+  <a href="#library" data-route="library"><span class="bn-ico">🖼️</span><span>Бібл.</span></a>
+  <a href="#launches" data-route="launches"><span class="bn-ico">🚀</span><span>Запуски</span></a>
+</nav>
+
+<!-- 08.06.2026 Mobile: drawer behavior + bottom nav active sync + FAB action -->
+<script>
+(function mobileBootstrap() {
+  var sidebar = document.querySelector('.sidebar');
+  var burger = document.getElementById('drawerBurger');
+  var backdrop = document.getElementById('drawerBackdrop');
+  var bottomNav = document.getElementById('bottomNav');
+  var fab = document.getElementById('fabCreate');
+
+  function openDrawer() {
+    if (sidebar) sidebar.classList.add('open');
+    if (backdrop) backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  if (burger) burger.addEventListener('click', function (e) {
+    e.preventDefault();
+    if (sidebar && sidebar.classList.contains('open')) closeDrawer(); else openDrawer();
+  });
+  if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+  // Закриваємо drawer при кліку на nav-item (mobile UX)
+  if (sidebar) sidebar.addEventListener('click', function (e) {
+    var t = e.target.closest('a.nav-item');
+    if (t) closeDrawer();
+  });
+  // Esc закриває drawer
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sidebar && sidebar.classList.contains('open')) closeDrawer();
+  });
+  // Resize: якщо вийшли з mobile (>900px) — закриваємо drawer
+  var mq = window.matchMedia('(max-width: 900px)');
+  function onMq() { if (!mq.matches) closeDrawer(); }
+  if (mq.addEventListener) mq.addEventListener('change', onMq);
+
+  // Bottom nav active sync з location.hash
+  function syncBottomNav() {
+    if (!bottomNav) return;
+    var hash = (location.hash || '#calendar').replace(/^#/, '').split('?')[0];
+    bottomNav.querySelectorAll('a').forEach(function (a) {
+      var r = a.dataset.route;
+      a.classList.toggle('active', r === hash);
+    });
+  }
+  window.addEventListener('hashchange', syncBottomNav);
+  syncBottomNav();
+
+  // FAB — створити публікацію (route #publication/new)
+  if (fab) fab.addEventListener('click', function () {
+    // Спочатку шукаємо native кнопку "+ Створити" у view (якщо є) і клікаємо її
+    var createBtn = document.querySelector('[data-action="create-publication"], #createPubBtn, .btn[data-create]');
+    if (createBtn) {
+      createBtn.click();
+      return;
+    }
+    // Fallback: відкриваємо hash для нової публікації
+    location.hash = '#publication/new';
+  });
+})();
+</script>
 
 <script src="app-core.js?v=20260607d" defer></script>
 <script src="app-views.js" defer></script>
