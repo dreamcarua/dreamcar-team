@@ -307,6 +307,7 @@
           ${acts.map(a => `<button class="${a.cls}" data-ov-action="${a.to}">${a.label}</button>`).join('')}
           <button class="ov-btn" data-ov-comment>💬 Коментар</button>
           <span class="ov-foot-spacer"></span>
+          <button class="ov-btn" data-ov-duplicate title="Створити копію публікації з такими ж креативами">📋 Дублювати</button>
           <button class="ov-btn" data-ov-edit>✏ Редагувати</button>
           ${canDelete ? `<button class="ov-btn danger" data-ov-delete>🗑 Видалити</button>` : ''}
         </div>
@@ -377,6 +378,22 @@
       } catch (err) {
         console.error(err);
         if (typeof toast === 'function') toast('Помилка', 'error', err.message || '');
+      }
+    };
+
+    const dupBtn = document.querySelector('[data-ov-duplicate]');
+    if (dupBtn) dupBtn.onclick = async () => {
+      // 09.06.2026 #208: повертаємо функціонал який жив у app-extras.js але прив'язаний до старого .modal-foot
+      try {
+        if (typeof window.duplicatePub === 'function') {
+          window.duplicatePub(id);
+          Modal.close();
+        } else if (typeof toast === 'function') {
+          toast('Функція дублювання тимчасово недоступна', 'error');
+        }
+      } catch (err) {
+        console.error('[ov-duplicate]', err);
+        if (typeof toast === 'function') toast('Помилка дублювання: ' + (err.message || err), 'error');
       }
     };
 
