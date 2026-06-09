@@ -22,8 +22,9 @@
       '  --bg:#fafafa; --bg-1:#fafafa; --bg-2:#ffffff; --bg-3:#f5f5f7; --bg-4:#ececef; --bg-hover:#f0f0f3;',
       '  --coal:#e8e8eb; --graphite:#d4d4d8; --steel:#e1e1e6;',
       '  --border:#e1e1e6; --border-2:#d4d4d8; --line:#ececef;',
-      '  --ash:#5e5e66; --ash-2:#8a8a92; --bone:#0a0a0a;',
-      '  --grey:#5e5e66; --grey-2:#8a8a92;',
+      /* #220: темніші secondary тексти для WCAG AAA контрасту (Vira UX) */
+      '  --ash:#3c3c43; --ash-2:#6b6b73; --bone:#0a0a0a;',
+      '  --grey:#3c3c43; --grey-2:#6b6b73;',
       '  --white:#0a0a0a; --black:#0a0a0a;',
       '  --shadow:0 1px 3px rgba(0,0,0,0.08);',
       '  --card-color:#ffffff; --col-color:#0a0a0a;',
@@ -71,7 +72,16 @@
       /* Themed toggle button itself */
       '.dc-theme-toggle{background:transparent;border:1px solid currentColor;color:inherit;cursor:pointer;padding:6px 10px;border-radius:6px;font-size:14px;line-height:1;}',
       /* Status chips — зберігаємо колір але робимо світлий фон */
-      'html[data-dc-theme="light"] body :is(.chip-status-draft,.chip-status-review,.chip-status-approved,.chip-status-published,.chip-status-rework){background:#ffffff!important;border-width:1.5px;}'
+      'html[data-dc-theme="light"] body :is(.chip-status-draft,.chip-status-review,.chip-status-approved,.chip-status-published,.chip-status-rework){background:#ffffff!important;border-width:1.5px;}',
+      /* #220: Vira UX — sidebar text contrast. Inline color:var(--ash) було #5e5e66 (light) → тепер #3c3c43 (WCAG AAA) */
+      'html[data-dc-theme="light"] body [style*="color:var(--ash"]{color:#3c3c43!important;}',
+      'html[data-dc-theme="light"] body [style*="color:var(--grey"]{color:#3c3c43!important;}',
+      'html[data-dc-theme="light"] body [style*="color:var(--bone"]{color:#0a0a0a!important;}',
+      /* Sidebar nav items + headings — гарантовано темніший текст */
+      'html[data-dc-theme="light"] body :is(.sidebar,.sidebar-section) :is(a,span,div,h1,h2,h3,h4,h5,label){color:#0a0a0a!important;}',
+      'html[data-dc-theme="light"] body .sidebar :is(.section-title,.subtitle,.label,small,.muted){color:#3c3c43!important;}',
+      /* Кількісні badges у sidebar (12, 5, 0) — теж темні */
+      'html[data-dc-theme="light"] body .sidebar :is(.badge,.count,.number){color:#3c3c43!important;opacity:1!important;}'
     ].join('\n');
     document.head.appendChild(st);
   }
