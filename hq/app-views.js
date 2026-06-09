@@ -221,9 +221,15 @@ function renderLibGrid(type, q) {
   grid.innerHTML = cr.map(c => {
     const u = Store.user(c.uploadedBy);
     const dur = c.duration ? `<div class="lt-dur">${formatDur(c.duration)}</div>` : '';
+    // #228 (Олександр UX): library tile — реальний thumbnail замість emoji
+    const libThumb = c.thumbnail_url || c.compressed_url || '';
+    const libIsVideo = c.type === 'video';
+    const libInner = libThumb
+      ? `<img src="${escapeHtml(libThumb)}" alt="" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">${libIsVideo ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.7);">▶</span>' : ''}`
+      : c.preview;
     return `<div class="lib-tile" data-id="${c.id}">
-      <div class="lt-preview" style="background:linear-gradient(135deg, ${c.color}33, transparent)">
-        ${c.preview}
+      <div class="lt-preview" style="position:relative;overflow:hidden;background:linear-gradient(135deg, ${c.color}33, transparent)">
+        ${libInner}
         <div class="lt-type-badge">${c.type}</div>
         ${dur}
       </div>
@@ -252,7 +258,7 @@ function openCreative(id) {
       <button class="close" onclick="Modal.close()">×</button>
     </div>
     <div class="modal-body">
-      <div style="background:linear-gradient(135deg, ${c.color}33, transparent);border:1px solid var(--border);border-radius:10px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:72px;color:#fff;margin-bottom:18px;">${c.preview}</div>
+      <div style="background:#000;border:1px solid var(--border);border-radius:10px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;color:#fff;margin-bottom:18px;overflow:hidden;position:relative;">${c.type === 'video' && (c.compressed_url || c.compressed_url_hevc) ? `<video src="${escapeHtml(c.compressed_url || c.compressed_url_hevc)}" controls playsinline poster="${escapeHtml(c.thumbnail_url || '')}" style="width:100%;height:100%;object-fit:contain;"></video>` : (c.thumbnail_url ? `<img src="${escapeHtml(c.thumbnail_url)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : `<span style="font-size:72px;">${c.preview}</span>`)}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
         <div>
           <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);margin-bottom:8px;font-weight:700;">Інформація</h4>
