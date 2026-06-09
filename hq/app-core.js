@@ -116,6 +116,16 @@ const Store = {
       history: (historyByPub[p.id] || []).map(h => ({ id: h.id, at: h.at, author: h.actor_id, action: h.action, detail: h.detail })),
       createdAt: p.created_at,
       updatedAt: p.updated_at,
+      // #233.7 TG Autopost v2 fields
+      tg_buttons: p.tg_buttons || [],
+      tg_pin: p.tg_pin || false,
+      tg_silent: p.tg_silent || false,
+      tg_disable_preview: p.tg_disable_preview || false,
+      tg_channel_id: p.tg_channel_id || null,
+      tg_countdown_until: p.tg_countdown_until || null,
+      tg_message_id: p.tg_message_id || null,
+      tg_published_channel_id: p.tg_published_channel_id || null,
+      tg_test_log: p.tg_test_log || [],
     }));
 
     this._data = {
@@ -267,6 +277,13 @@ const Store = {
       approver_policy: pub.approverPolicy || 'all',
       deadline_on: pub.deadline || null,
       created_by: this._data.currentUserId,
+      // #233.7 TG Autopost v2 persistence
+      tg_buttons: Array.isArray(pub.tg_buttons) ? pub.tg_buttons : [],
+      tg_pin: !!pub.tg_pin,
+      tg_silent: !!pub.tg_silent,
+      tg_disable_preview: !!pub.tg_disable_preview,
+      tg_channel_id: pub.tg_channel_id || null,
+      tg_countdown_until: pub.tg_countdown_until || null,
     };
     const { error: e1 } = await sb.from('publications').upsert(row);
     if (e1) throw e1;

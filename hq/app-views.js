@@ -461,6 +461,9 @@ function renderCardBody(p) {
           <div id="previewSection">${renderPreviewSection(p)}</div>
         </div>
 
+        <!-- #233.7 TG Autopost v2 секція -->
+        ${(p.platforms||[]).includes('tg') ? renderTgAutopostBlock(p) : ''}
+
         <div class="tabs" id="cardTabs">
           <div class="tab active" data-tab="comments">💬 Коментарі <span style="font-size:10px;color:var(--grey);">(${(p.comments||[]).length})</span></div>
           <div class="tab" data-tab="history">📜 Історія</div>
@@ -515,6 +518,79 @@ function renderCardBody(p) {
     </div>
   `;
 }
+// #233.7 TG Autopost v2 секція у SMM modal — кнопки, опції, preview button
+function renderTgAutopostBlock(p) {
+  const buttons = Array.isArray(p.tg_buttons) ? p.tg_buttons : [];
+  const buttonsHtml = buttons.map((b, idx) => {
+    const safeText = escapeHtml(b.text || '');
+    const safeUrl = escapeHtml(b.url || b.web_app_url || b.callback_data || '');
+    const typeIcon = b.type === 'web_app' ? '📱' : b.type === 'callback' ? '👆' : '🔗';
+    return `<div class="tg-btn-row" data-btn-idx="${idx}" style="display:flex;gap:6px;align-items:center;padding:6px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;">
+      <span style="font-size:11px;color:var(--grey);width:18px;text-align:center;">${idx+1}</span>
+      <span>${typeIcon}</span>
+      <input type="text" data-tg-btn-text="${idx}" value="${safeText}" placeholder="Текст кнопки" style="flex:1;background:var(--bg);border:1px solid var(--border);color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;"/>
+      <input type="text" data-tg-btn-url="${idx}" value="${safeUrl}" placeholder="URL / web_app_url" style="flex:2;background:var(--bg);border:1px solid var(--border);color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;"/>
+      <select data-tg-btn-type="${idx}" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;">
+        <option value="url" ${b.type==='url'?'selected':''}>🔗 URL</option>
+        <option value="web_app" ${b.type==='web_app'?'selected':''}>📱 Web App</option>
+        <option value="callback" ${b.type==='callback'?'selected':''}>👆 Callback</option>
+      </select>
+      <input type="number" data-tg-btn-row="${idx}" value="${b.row != null ? b.row : idx}" min="0" max="20" title="Row (одна row = одна лінія кнопок)" style="width:48px;background:var(--bg);border:1px solid var(--border);color:#fff;padding:3px 4px;border-radius:4px;font-size:11px;text-align:center;"/>
+      <button type="button" data-tg-btn-remove="${idx}" title="Видалити" style="background:transparent;border:none;color:var(--red-soft,#ef4444);cursor:pointer;font-size:14px;width:24px;">✕</button>
+    </div>`;
+  }).join('');
+  const testLog = Array.isArray(p.tg_test_log) ? p.tg_test_log : [];
+  const lastTest = testLog[testLog.length-1];
+  return `
+    <div class="pub-section" id="tgAutopostBlock" style="border:1px solid var(--blue, #3b82f6);border-radius:8px;padding:14px;background:rgba(59,130,246,0.06);">
+      <h4 style="display:flex;align-items:center;justify-content:space-between;">
+        <span>✈️ Telegram автопост — налаштування</span>
+        <button type="button" id="btnTgTestSend" class="btn" style="font-size:11px;padding:6px 12px;background:rgba(59,130,246,0.15);border:1px solid var(--blue,#3b82f6);color:#fff;">🧪 Тест у тестовий канал</button>
+      </h4>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:12px;margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="f_tg_pin" ${p.tg_pin?'checked':''}/>
+          📌 Закріпити після публікації
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="f_tg_silent" ${p.tg_silent?'checked':''}/>
+          🔕 Тиха публікація (без notification)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="f_tg_disable_preview" ${p.tg_disable_preview?'checked':''}/>
+          🚫 Без preview лінків
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--grey);">
+          ⏰ <input type="datetime-local" id="f_tg_countdown_until" value="${p.tg_countdown_until ? new Date(p.tg_countdown_until).toISOString().slice(0,16) : ''}" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:4px;border-radius:4px;font-size:11px;flex:1;"/>
+          <span title="Soft Urgency countdown — заповни щоб {{countdown}} у тексті оновлювалось кожні 5хв">{{countdown}}</span>
+        </label>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <strong style="font-size:11px;color:var(--ash-2,#bbb);text-transform:uppercase;letter-spacing:1px;">Кнопки під постом (${buttons.length})</strong>
+          <button type="button" id="btnTgAddButton" class="btn" style="font-size:11px;padding:4px 10px;">➕ Додати кнопку</button>
+        </div>
+        <div id="tgButtonsList">${buttonsHtml || '<div style="color:var(--grey);font-size:11px;padding:8px;text-align:center;">Кнопок немає. Додай для CTA.</div>'}</div>
+      </div>
+
+      <details style="margin-top:8px;">
+        <summary style="cursor:pointer;font-size:11px;color:var(--grey);">💡 Підказки: spoiler, countdown, web_app, callback</summary>
+        <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:#bbb;margin-top:6px;line-height:1.6;">
+          <p><b>Spoiler (curiosity gap):</b> обгорни текст у <code>&lt;&lt;&lt;Текст-спойлер&gt;&gt;&gt;</code> → у TG буде сірою плашкою. Користувач клікне щоб побачити.</p>
+          <p><b>Countdown (Soft Urgency):</b> постав <code>{{countdown}}</code> у тексті + дату вище → бот оновлюватиме кожні 5хв ("23г 47хв").</p>
+          <p><b>Web App кнопка:</b> URL формату <code>https://t.me/&lt;bot&gt;/&lt;app_name&gt;</code> → відкриває mini-app inline.</p>
+          <p><b>Callback кнопка:</b> для tracking кліків — пише event у tg_button_clicks. Текст у URL поле = ID події.</p>
+          <p><b>Row:</b> кнопки з однаковим row буду на одній лінії (макс 2-3 у row для mobile).</p>
+        </div>
+      </details>
+
+      ${lastTest ? `<div style="margin-top:8px;font-size:11px;color:var(--grey);">Останній тест: ${new Date(lastTest.sent_at).toLocaleString('uk-UA')} → канал ${lastTest.channel_id} ${lastTest.ok ? '✓' : '✕'}</div>` : ''}
+    </div>
+  `;
+}
+
 function renderPreviewSection(p) {
   const cr = (p.creatives || []).map(id => Store.creative(id)).filter(Boolean);
   const firstMedia = cr[0]?.preview || '🚗';
@@ -674,6 +750,96 @@ function attachCardHandlers(p) {
     p.hashtags = hashEl.value.split(/\s+/).filter(Boolean);
     autosave(p);
   };
+
+  // #233.7 TG Autopost v2 — handlers
+  const attachTgHandlers = () => {
+    const tgPin = document.getElementById('f_tg_pin');
+    const tgSilent = document.getElementById('f_tg_silent');
+    const tgPreview = document.getElementById('f_tg_disable_preview');
+    const tgCountdown = document.getElementById('f_tg_countdown_until');
+    if (tgPin) tgPin.onchange = () => { p.tg_pin = tgPin.checked; autosave(p); };
+    if (tgSilent) tgSilent.onchange = () => { p.tg_silent = tgSilent.checked; autosave(p); };
+    if (tgPreview) tgPreview.onchange = () => { p.tg_disable_preview = tgPreview.checked; autosave(p); };
+    if (tgCountdown) tgCountdown.onchange = () => {
+      p.tg_countdown_until = tgCountdown.value ? new Date(tgCountdown.value).toISOString() : null;
+      autosave(p);
+    };
+    const syncButtonsFromUI = () => {
+      const rows = document.querySelectorAll('#tgButtonsList .tg-btn-row');
+      const newButtons = [];
+      rows.forEach(r => {
+        const idx = +r.dataset.btnIdx;
+        const text = r.querySelector(`[data-tg-btn-text="${idx}"]`)?.value || '';
+        const url = r.querySelector(`[data-tg-btn-url="${idx}"]`)?.value || '';
+        const type = r.querySelector(`[data-tg-btn-type="${idx}"]`)?.value || 'url';
+        const row = +r.querySelector(`[data-tg-btn-row="${idx}"]`)?.value || 0;
+        const btn = { text, type, row };
+        if (type === 'url') btn.url = url;
+        else if (type === 'web_app') btn.web_app_url = url;
+        else if (type === 'callback') btn.callback_data = url;
+        newButtons.push(btn);
+      });
+      p.tg_buttons = newButtons;
+      autosave(p);
+    };
+    document.querySelectorAll('#tgButtonsList input, #tgButtonsList select').forEach(el => {
+      el.oninput = syncButtonsFromUI;
+      el.onchange = syncButtonsFromUI;
+    });
+    document.querySelectorAll('[data-tg-btn-remove]').forEach(b => {
+      b.onclick = () => {
+        const idx = +b.dataset.tgBtnRemove;
+        p.tg_buttons = (p.tg_buttons||[]).filter((_, i) => i !== idx);
+        autosave(p);
+        // re-render TG block inline
+        const block = document.getElementById('tgAutopostBlock');
+        if (block) block.outerHTML = renderTgAutopostBlock(p);
+        attachTgHandlers();
+      };
+    });
+    const addBtn = document.getElementById('btnTgAddButton');
+    if (addBtn) addBtn.onclick = () => {
+      p.tg_buttons = [...(p.tg_buttons||[]), { text: 'Нова кнопка', type: 'url', url: 'https://', row: (p.tg_buttons||[]).length }];
+      autosave(p);
+      const block = document.getElementById('tgAutopostBlock');
+      if (block) block.outerHTML = renderTgAutopostBlock(p);
+      attachTgHandlers();
+    };
+    const testBtn = document.getElementById('btnTgTestSend');
+    if (testBtn) testBtn.onclick = async () => {
+      const original = testBtn.textContent;
+      testBtn.disabled = true;
+      testBtn.textContent = '⏳ Відправляю…';
+      try {
+        // Спочатку save актуального state
+        await Store.upsertPub(p);
+        // Викликаємо tg-post-send з test=true
+        const resp = await fetch('https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-post-send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-cron-secret': '5a4b2557c83feaea9ca716f0e99db2efe3841047'
+          },
+          body: JSON.stringify({ publication_id: p.id, test: true, force_channel: '-1003933841573' })
+        });
+        const j = await resp.json();
+        if (j.ok) {
+          toast('✓ Тест відправлено у тестовий канал', 'success');
+          // оновити tg_test_log local
+          if (!Array.isArray(p.tg_test_log)) p.tg_test_log = [];
+          p.tg_test_log.push({ channel_id: '-1003933841573', sent_at: new Date().toISOString(), message_id: j.messageId, ok: true });
+        } else {
+          toast('Помилка тесту: ' + (j.error || 'unknown'), 'error');
+        }
+      } catch (e) {
+        toast('Помилка тесту: ' + (e.message || e), 'error');
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = original;
+      }
+    };
+  };
+  attachTgHandlers();
   const textCount = () => {
     const el = document.getElementById('f_textCount');
     if (el) el.textContent = (document.getElementById('f_text').value||'').length;
