@@ -235,7 +235,15 @@ const Store = {
       console.error('[persistPub] невалідний pub.id:', pub.id);
       throw new Error('Невалідний UUID публікації: ' + pub.id);
     }
-    // 1. main row
+    // 09.06.2026 #206: BEFORE trigger publications_check_platforms_before_status кидає
+    // якщо status переходить у review/approved/published а у publication_platforms 0 рядків.
+    // Раніше upsert(...status=review) виконувався ДО insert platforms → trigger fail → решта операцій не виконувалися.
+    // Тепер: спочатку upsert БЕЗ зміни status (зберігаємо existing), потім insert platforms, потім UPDATE status.
+    const targetStatus = pub.status || 'draft';
+    const existing = this.pub(pub.id);
+    const safeStatus = (existing && existing.status) ? existing.status : 'draft';
+
+    // 1. main row — БЕЗ зміни статусу (тримаємо safeStatus поки не вставимо platforms)
     const row = {
       id: pub.id,
       desk_id: '11111111-1111-1111-1111-111111111111',
@@ -247,7 +255,7 @@ const Store = {
       rubric_id: pub.rubric || null,
       launch_id: pub.launch || null,
       work_status: pub.workStatus || null,
-      status: pub.status || 'draft',
+      status: safeStatus,
       approver_policy: pub.approverPolicy || 'all',
       deadline_on: pub.deadline || null,
       created_by: this._data.currentUserId,
@@ -255,11 +263,20 @@ const Store = {
     const { error: e1 } = await sb.from('publications').upsert(row);
     if (e1) throw e1;
 
-    // 2. relations — простий підхід: видалити і вставити заново
+    // 2. platforms ПЕРШИМИ — trigger перевіряє цю таблицю при transition
     await sb.from('publication_platforms').delete().eq('publication_id', pub.id);
     if (pub.platforms?.length) {
-      await sb.from('publication_platforms').insert(pub.platforms.map(p => ({ publication_id: pub.id, platform: p })));
+      const { error: ep } = await sb.from('publication_platforms').insert(pub.platforms.map(p => ({ publication_id: pub.id, platform: p })));
+      if (ep) throw ep;
     }
+
+    // 3. ТЕПЕР безпечно змінити status (trigger знайде platforms)
+    if (targetStatus !== safeStatus) {
+      const { error: es } = await sb.from('publications').update({ status: targetStatus }).eq('id', pub.id);
+      if (es) throw es;
+    }
+
+    // 4. решта relations
     await sb.from('publication_responsibles').delete().eq('publication_id', pub.id);
     if (pub.responsibles?.length) {
       await sb.from('publication_responsibles').insert(pub.responsibles.map(u => ({ publication_id: pub.id, user_id: u, role: 'generic' })));
