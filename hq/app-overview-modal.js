@@ -338,6 +338,28 @@
       };
     });
 
+    // #227: video lightbox — клік на video thumb → fullscreen player зі звуком
+    document.querySelectorAll('[data-video-url]').forEach(thumb => {
+      thumb.onclick = (e) => {
+        e.stopPropagation();
+        const url = thumb.dataset.videoUrl;
+        if (!url) return;
+        // Створюємо overlay поверх існуючого modal
+        const lb = document.createElement('div');
+        lb.id = 'dc-video-lightbox';
+        lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        lb.innerHTML = `
+          <button style="position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.5);border:1px solid #fff;color:#fff;width:40px;height:40px;border-radius:50%;font-size:18px;cursor:pointer;z-index:1;" title="Закрити (Esc)">✕</button>
+          <video src="${url.replace(/"/g, '&quot;')}" controls autoplay playsinline style="max-width:92vw;max-height:92vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.7);"></video>
+        `;
+        const close = () => { lb.remove(); document.removeEventListener('keydown', escHandler); };
+        const escHandler = (ev) => { if (ev.key === 'Escape') close(); };
+        lb.onclick = (ev) => { if (ev.target === lb || ev.target.tagName === 'BUTTON') close(); };
+        document.addEventListener('keydown', escHandler);
+        document.body.appendChild(lb);
+      };
+    });
+
     // 09.06.2026 #194 — Quick-status chip clicks (CEO/COO only)
     document.querySelectorAll('[data-qs-pub]').forEach(chip => {
       chip.onclick = async () => {
