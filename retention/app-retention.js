@@ -50,6 +50,19 @@ function startOfMonth(d){ const r = new Date(d); r.setDate(1); r.setHours(0,0,0,
 
 function tg(role){ return window.retState && window.retState.publicUser && window.retState.publicUser.role === role; }
 function isPriv(){ return window.retState && window.retState.publicUser && ['ceo','coo','lead'].includes(window.retState.publicUser.role); }
+// 09.06.2026 #194 — Quick-status chip-row для CEO/COO (миттєвий перехід без submit)
+function isCeoCoo(){ return window.retState && window.retState.publicUser && ['ceo','coo'].includes(window.retState.publicUser.role); }
+const RET_QS_STATUSES = [
+  { v:'draft',     lbl:'📝 Draft' },
+  { v:'review',    lbl:'👀 Review' },
+  { v:'approved',  lbl:'✅ Approved' },
+  { v:'scheduled', lbl:'⏰ Scheduled' },
+  { v:'sending',   lbl:'📡 Sending' },
+  { v:'sent',      lbl:'📤 Sent' },
+  { v:'failed',    lbl:'❌ Failed' },
+  { v:'rework',    lbl:'↩ Rework' },
+  { v:'archived',  lbl:'🗄 Archived' }
+];
 
 async function loadAll(){
   Store.loading = true;
@@ -679,6 +692,14 @@ function openMessageDetail(id){
 
         ${!isNew ? renderHistorySection(m) : ''}
 
+        ${!isNew && isCeoCoo() ? `
+        <div class="qs-row-ret" title="CEO/COO: миттєвий перехід у будь-який статус">
+          ${RET_QS_STATUSES.map(s =>
+            `<button type="button" class="qs-chip-ret ${s.v===m.status?'active':''}" data-qs-ret="${s.v}" ${s.v===m.status?'disabled':''}>${s.lbl}</button>`
+          ).join('')}
+        </div>
+        ` : ''}
+
         <div style="display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap;">
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             ${!isNew && isPriv() ? `<button type="button" class="btn" id="btnDelete" style="border-color:var(--red); color:var(--red-soft);">🗑 ВИДАЛИТИ</button>` : ''}
@@ -713,6 +734,16 @@ function openMessageDetail(id){
     const form = document.getElementById('msgForm');
     if (form) form.insertBefore(warn, form.firstChild);
   }
+  // 09.06.2026 #194 — Quick-status chip clicks (CEO/COO only)
+  document.querySelectorAll('[data-qs-ret]').forEach(chip => {
+    chip.onclick = async () => {
+      const to = chip.dataset.qsRet;
+      if (!to || to === m.status) return;
+      chip.disabled = true;
+      await transitionStatus(m.id, to, overlay);
+    };
+  });
+
   const dBtn = document.getElementById('btnDelete');
   if (dBtn) dBtn.onclick = () => deleteMsg(m.id, overlay);
   const srBtn = document.getElementById('btnSubmitReview');
