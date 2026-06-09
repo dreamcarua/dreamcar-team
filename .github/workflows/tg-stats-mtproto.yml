@@ -1,0 +1,34 @@
+name: TG Post Stats (MTProto)
+
+# #243: cron */30хв тягне views/reactions/forwards з MTProto API
+# (TG Bot API не дає цих метрик)
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: tg-stats-mtproto
+  cancel-in-progress: false
+
+jobs:
+  sync-stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r etl/requirements_tg_stats.txt
+      - name: Sync TG post stats
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
+          SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
+          BATCH_SIZE: '50'
+        run: python etl/sync_tg_post_stats.py
