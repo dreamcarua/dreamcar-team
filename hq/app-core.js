@@ -130,6 +130,14 @@ const Store = {
         res: c.width_px && c.height_px ? `${c.width_px}×${c.height_px}` : '—',
         tags: c.tags || [], uploadedBy: c.uploaded_by, uploadedAt: c.uploaded_at,
         preview: previewFor(c.type), color: previewColor(c.type),
+        // 09.06.2026 #209a: thumbnail_url/compressed_url були відсутні у Store.creative(id)
+        // → overview-modal crRow() показував emoji-fallback замість реальної картинки.
+        // Давид: "Не отображают креативи".
+        thumbnail_url: c.thumbnail_url,
+        compressed_url: c.compressed_url,
+        compressed_url_hevc: c.compressed_url_hevc,
+        drive_file_id: c.drive_file_id,
+        compressed_status: c.compressed_status,
       })),
       publications: mappedPubs,
     };
