@@ -1048,8 +1048,18 @@ function openCreativePicker(p) {
       await Store.upsertPub(p);
       if (ind) { ind.className = 'autosave saved'; txt.textContent = '✓ Збережено о ' + fmtTime(new Date()); }
       toast('Збережено', 'success');
-      // #229 (Олександр UX): після save одразу re-render background (календар/board) щоб не треба було reload
-      if (typeof navigate === 'function') navigate();
+      // #229/#247: re-render background view БЕЗ navigate() — bo navigate з route=publication/X
+      // повторно відкриває цю саму modal → handlers перезаписуються → кнопка перестає клікатись.
+      // Робимо tageted re-render тільки головного view.
+      try {
+        const main = document.getElementById('main');
+        if (main && typeof App !== 'undefined' && App.view) {
+          if (App.view === 'calendar' && typeof renderCalendar === 'function') renderCalendar(main);
+          else if (App.view === 'board' && typeof renderBoard === 'function') renderBoard(main);
+          else if (App.view === 'library' && typeof renderLibrary === 'function') renderLibrary(main);
+          else if (App.view === 'launches' && typeof renderLaunches === 'function') renderLaunches(main);
+        }
+      } catch (re) { console.warn('[bg re-render]', re); }
     } catch(e) {
       toast('Помилка збереження: ' + (e.message || e), 'error');
     }
