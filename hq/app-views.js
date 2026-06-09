@@ -698,10 +698,43 @@ function renderCardWorkflowButtons(p, me) {
   if (p.status === 'rework' && isResp) transitions.push({ to:'review', label:'→ На погодження', cls:'btn-primary' });
   if (p.status === 'approved' && (isResp || isAppr)) transitions.push({ to:'published', label:'🚀 Позначити опублікованою', cls:'btn-success' });
   return `<button class="btn" onclick="Modal.close()">Закрити</button>` +
-    `<button class="btn" id="btnForceSave" title="Зберегти зараз (autosave завжди працює)">💾 Зберегти</button>` +
+    `<button class="btn" id="btnForceSave" onclick="window.__hqForceSave && window.__hqForceSave(event)" title="Зберегти зараз (autosave завжди працює)">💾 Зберегти</button>` +
     transitions.map(t => `<button class="btn ${t.cls}" data-transition="${t.to}">${t.label}</button>`).join('');
 }
 function attachCardHandlers(p) {
+  // #250 BULLETPROOF: window.__hqForceSave встановлюється ПЕРШИМ ділом,
+  // ДО будь-якого ризикованого коду. Inline onclick на кнопці викликає це.
+  // Тепер кнопка Зберегти НЕ залежить ні від attachTgHandlers, ні від f_text,
+  // ні від будь-яких null reference exception у решті attachCardHandlers.
+  window.__hqForceSave = async function(ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (typeof cardAutosaveTimer !== 'undefined' && cardAutosaveTimer) {
+      clearTimeout(cardAutosaveTimer); cardAutosaveTimer = null;
+    }
+    const ind = document.getElementById('autosaveInd');
+    const txt = document.getElementById('autosaveText');
+    if (ind && txt) { ind.className = 'autosave saving'; txt.textContent = 'Зберігаю…'; }
+    p.updatedAt = new Date().toISOString();
+    if (p._isNew) { delete p._isNew; }
+    try {
+      await Store.upsertPub(p);
+      if (ind && txt) { ind.className = 'autosave saved'; txt.textContent = '✓ Збережено о ' + fmtTime(new Date()); }
+      if (typeof toast === 'function') toast('Збережено', 'success');
+      try {
+        const main = document.getElementById('main');
+        if (main && typeof App !== 'undefined' && App.view) {
+          if (App.view === 'calendar' && typeof renderCalendar === 'function') renderCalendar(main);
+          else if (App.view === 'board' && typeof renderBoard === 'function') renderBoard(main);
+          else if (App.view === 'library' && typeof renderLibrary === 'function') renderLibrary(main);
+          else if (App.view === 'launches' && typeof renderLaunches === 'function') renderLaunches(main);
+        }
+      } catch (re) { console.warn('[bg re-render]', re); }
+    } catch(e) {
+      if (typeof toast === 'function') toast('Помилка збереження: ' + (e.message || e), 'error');
+      console.error('[__hqForceSave]', e);
+    }
+  };
+
   document.querySelectorAll('#f_platforms .chip').forEach(c => {
     c.onclick = () => {
       const id = c.dataset.platform;
@@ -927,12 +960,16 @@ function attachCardHandlers(p) {
       }
     };
   };
-  attachTgHandlers();
+  // #250: try/catch навколо attachTgHandlers — щоб throw тут НЕ ламав решту handlers
+  try { attachTgHandlers(); } catch (e) { console.error('[attachTgHandlers]', e); }
   const textCount = () => {
     const el = document.getElementById('f_textCount');
-    if (el) el.textContent = (document.getElementById('f_text').value||'').length;
+    const txtEl = document.getElementById('f_text');
+    if (el && txtEl) el.textContent = (txtEl.value||'').length;
   };
-  document.getElementById('f_text').oninput = () => { p.text = document.getElementById('f_text').value; textCount(); autosave(p); };
+  // #250: null guard на f_text — інакше TypeError ламав весь решта attachCardHandlers
+  const fText = document.getElementById('f_text');
+  if (fText) fText.oninput = () => { p.text = fText.value; textCount(); autosave(p); };
 
   document.querySelectorAll('#f_creatives .cs-remove').forEach(rb => {
     rb.onclick = (e) => {
@@ -1071,35 +1108,8 @@ function openCreativePicker(p) {
       autosave(p);
     };
   });
-  // 06.06.2026 — force save кнопка (Олександр feedback: звичний UX)
-  const forceSaveBtn = document.getElementById('btnForceSave');
-  if (forceSaveBtn) forceSaveBtn.onclick = async () => {
-    if (cardAutosaveTimer) { clearTimeout(cardAutosaveTimer); cardAutosaveTimer = null; }
-    const ind = document.getElementById('autosaveInd');
-    const txt = document.getElementById('autosaveText');
-    if (ind) { ind.className = 'autosave saving'; txt.textContent = 'Зберігаю…'; }
-    p.updatedAt = new Date().toISOString();
-    if (p._isNew) { delete p._isNew; }
-    try {
-      await Store.upsertPub(p);
-      if (ind) { ind.className = 'autosave saved'; txt.textContent = '✓ Збережено о ' + fmtTime(new Date()); }
-      toast('Збережено', 'success');
-      // #229/#247: re-render background view БЕЗ navigate() — bo navigate з route=publication/X
-      // повторно відкриває цю саму modal → handlers перезаписуються → кнопка перестає клікатись.
-      // Робимо tageted re-render тільки головного view.
-      try {
-        const main = document.getElementById('main');
-        if (main && typeof App !== 'undefined' && App.view) {
-          if (App.view === 'calendar' && typeof renderCalendar === 'function') renderCalendar(main);
-          else if (App.view === 'board' && typeof renderBoard === 'function') renderBoard(main);
-          else if (App.view === 'library' && typeof renderLibrary === 'function') renderLibrary(main);
-          else if (App.view === 'launches' && typeof renderLaunches === 'function') renderLaunches(main);
-        }
-      } catch (re) { console.warn('[bg re-render]', re); }
-    } catch(e) {
-      toast('Помилка збереження: ' + (e.message || e), 'error');
-    }
-  };
+  // #250: forceSave handler тепер живе у window.__hqForceSave (defined нагорі attachCardHandlers).
+  // Це bulletproof — inline onclick на кнопці викликає його напряму, не залежить від attach order.
 }
 function reopenCard(id) { Modal.close(); setTimeout(()=>openCard(id), 100); }
 
