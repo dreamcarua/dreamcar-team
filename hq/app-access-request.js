@@ -35,12 +35,20 @@
     var sess = await window.supabase.auth.getSession();
     if (!sess.data?.session) return { allowed: true };
     var authId = sess.data.session.user.id;
-    var resp = await window.supabase.from('users').select('id, name').eq('auth_id', authId).maybeSingle();
+    var email = sess.data.session.user.email;
+    // #222 fix: alias-aware check через resolve_user_by_auth RPC.
+    // Старий .eq('auth_id', authId) НЕ враховував user_auth_aliases →
+    // Vadym (CEO, primary auth_id=A) залогінений через alias dreamcarua@gmail.com (auth_id=B) бачив access denied.
+    var resp = await window.supabase.rpc('resolve_user_by_auth', { p_auth_id: authId });
     if (resp.error) {
-      console.warn('checkAccess err:', resp.error);
+      console.warn('checkAccess RPC err:', resp.error);
+      // Fallback на старий шлях якщо RPC не існує (legacy)
+      var fb = await window.supabase.from('users').select('id, name').eq('auth_id', authId).maybeSingle();
+      if (fb.error || !fb.data) return { allowed: false, email: email, authId: authId };
       return { allowed: true };
     }
-    if (!resp.data) return { allowed: false, email: sess.data.session.user.email, authId: authId };
+    var rows = Array.isArray(resp.data) ? resp.data : (resp.data ? [resp.data] : []);
+    if (!rows.length) return { allowed: false, email: email, authId: authId };
     return { allowed: true };
   }
 
