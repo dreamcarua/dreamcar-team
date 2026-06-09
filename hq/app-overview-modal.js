@@ -206,8 +206,13 @@
       const url = c.compressed_url || c.thumbnail_url || c.url || c.thumb_url || c.drive_file_id || '';
       const isVideo = c.type === 'video' || (c.kind === 'video') || /\.(mp4|mov|webm)$/i.test(url);
       if (isVideo) {
-        // Для відео — namesake plate з emoji (HTML5 video не завжди тягне з R2 без CORS у preview)
-        return `<div class="ov-cr-thumb" title="${esc(c.name || 'video')}">${url ? `<video src="${esc(url)}" muted preload="metadata"></video>` : '🎬'}<span class="ov-cr-kind">VIDEO</span></div>`;
+        // #225 (Олександр: 'видно на долю сек при reload'): додав poster з thumbnail_url щоб preview frame показав ВІДРАЗУ. preload=metadata не вантажить кадр без poster. Click → відкриває fullscreen video у новій вкладці.
+        const poster = c.thumbnail_url || c.thumb_url || '';
+        const mediaUrl = c.compressed_url || c.compressed_url_hevc || url;
+        if (poster) {
+          return `<div class="ov-cr-thumb" title="${esc(c.name || 'video')}" data-video-url="${esc(mediaUrl)}" style="cursor:pointer;"><img src="${esc(poster)}" alt="" loading="lazy"><span class="ov-cr-kind">▶ VIDEO</span></div>`;
+        }
+        return `<div class="ov-cr-thumb" title="${esc(c.name || 'video')}">${mediaUrl ? `<video src="${esc(mediaUrl)}" muted preload="metadata"></video>` : '🎬'}<span class="ov-cr-kind">VIDEO</span></div>`;
       }
       return `<div class="ov-cr-thumb" title="${esc(c.name || 'image')}">${url ? `<img src="${esc(url)}" alt="" loading="lazy">` : (c.preview || '🖼')}</div>`;
     }).join('') + (items.length > 8 ? `<div class="ov-cr-thumb">+${items.length-8}</div>` : '');
