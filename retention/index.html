@@ -198,6 +198,30 @@ html, body {
     .btn { padding: 6px 10px; font-size: 11px; }
     .btn-primary { padding: 8px 12px; }
   }
+  /* 09.06.2026 #194 — Quick-status chip-row для CEO/COO */
+  .qs-row-ret {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 10px; margin: 10px 0;
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed var(--line); border-radius: 6px;
+  }
+  .qs-chip-ret {
+    padding: 5px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    border: 1px solid var(--steel); background: transparent;
+    color: var(--bone); cursor: pointer; border-radius: 14px;
+    transition: all 120ms;
+  }
+  .qs-chip-ret:hover:not(:disabled) {
+    border-color: var(--red); color: #fff;
+    background: rgba(227,6,19,0.08);
+  }
+  .qs-chip-ret.active {
+    border-color: var(--red); color: var(--red);
+    background: rgba(227,6,19,0.12); cursor: default;
+    font-family: 'Archivo Black', sans-serif;
+  }
+  .qs-chip-ret:disabled { opacity: 0.85; }
 </style>
 <script src="dc-shared-storage.js"></script>
 <script src="dc-theme.js"></script>
@@ -368,7 +392,7 @@ document.getElementById('signOutBtn').onclick = async (e) => {
 </script>
 
 <!-- Retention app logic -->
-<script src="app-retention.js?v=20260608d" defer></script>
+<script src="app-retention.js?v=20260609a" defer></script>
 
 </body>
 </html>
