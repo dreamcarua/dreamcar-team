@@ -708,7 +708,10 @@ function openMessageDetail(id){
             ${!isNew && m.status === 'review' && isPriv() ? `<button type="button" class="btn" id="btnReject" style="border-color:var(--red); color:var(--red-soft);">↩ НА ДООПРАЦЮВАННЯ</button>` : ''}
             ${!isNew && m.status === 'approved' ? `<button type="button" class="btn" id="btnSchedule" style="border-color:var(--blue); color:var(--blue);">⏰ ПОСТАВИТИ У ЧЕРГУ</button>` : ''}
           </div>
-          <button type="submit" class="btn primary">💾 ЗБЕРЕГТИ</button>
+          <div style="display:flex; gap:8px;">
+            <button type="submit" class="btn">💾 ЗБЕРЕГТИ ЯК ЧЕРНЕТКУ</button>
+            ${(isNew || m.status === 'draft' || m.status === 'rework') ? `<button type="button" class="btn primary" id="btnSaveAndReview" title="Зберегти і одразу відправити approvers'ам на погодження">🚀 ЗБЕРЕГТИ + НА ПОГОДЖЕННЯ</button>` : ''}
+          </div>
         </div>
       </form>
     </div>
@@ -718,6 +721,13 @@ function openMessageDetail(id){
   document.getElementById('closeDetail').onclick = () => overlay.remove();
 
   document.getElementById('msgForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, isNew ? null : m.id, overlay); };
+
+  // #215 (Vira UX): Зберегти + одразу на погодження одним кліком
+  const saveAndReviewBtn = document.getElementById('btnSaveAndReview');
+  if (saveAndReviewBtn) saveAndReviewBtn.onclick = () => {
+    const form = document.getElementById('msgForm');
+    if (form) saveForm(form, isNew ? null : m.id, overlay, { andSubmit: true });
+  };
 
   // 08.06.2026 Vira: PREVIEW тільки для email; toggle при зміні channel
   const channelSel = document.querySelector('select[name="channel"]');
@@ -869,7 +879,7 @@ function toLocalDt(iso){
   } catch(_) { return ''; }
 }
 
-async function saveForm(form, id, overlay){
+async function saveForm(form, id, overlay, opts){
   const supabase = window.supabase;
   if (!supabase) return;
   const me = window.retState && window.retState.publicUser;
@@ -933,6 +943,27 @@ async function saveForm(form, id, overlay){
       await supabase.from('retention_message_responsibles').delete().eq('message_id', msgId).in('user_id', toDel);
     }
   } catch(e) { console.warn('[responsibles sync]', e); }
+  // #215 (Vira UX): andSubmit → переводимо у status='review' тим самим запитом
+  if (opts && opts.andSubmit) {
+    try {
+      // Перевірка approvers перед transition
+      const apprCount = Array.from(form.querySelectorAll('select[name="approvers"] option:checked')).length;
+      if (!apprCount) {
+        window.toast && window.toast('Збережено, але approvers порожні — не можу відправити на погодження', 'warn');
+      } else {
+        const { error: errReview } = await supabase.from('retention_messages').update({ status: 'review' }).eq('id', msgId);
+        if (errReview) {
+          window.toast && window.toast('Збережено, але transition не вдався: ' + errReview.message, 'warn');
+        } else {
+          await logHistory(msgId, 'status_changed', 'draft → review (one-click)');
+          window.toast && window.toast('✓ Збережено і відправлено на погодження', 'success');
+          if (overlay) overlay.remove();
+          await loadAll();
+          return;
+        }
+      }
+    } catch(e) { console.warn('[andSubmit transition]', e); }
+  }
   if (overlay) overlay.remove();
   window.toast && window.toast('Збережено', 'success');
   await loadAll();

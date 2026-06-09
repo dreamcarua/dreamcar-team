@@ -560,8 +560,12 @@ function renderCardWorkflowButtons(p, me) {
   const transitions = [];
   const isResp = (p.responsibles||[]).includes(me.id) || me.role === 'lead';
   const isAppr = (p.approvers||[]).includes(me.id);
-  if (p.status === 'draft' && isResp) transitions.push({ to:'in_work', label:'Взяти в роботу', cls:'btn' });
-  if (p.status === 'in_work' && isResp) transitions.push({ to:'review', label:'→ На погодження', cls:'btn-primary' });
+  if (p.status === 'draft' && isResp) {
+    transitions.push({ to:'in_work', label:'Взяти в роботу', cls:'btn' });
+    // #215 (Vira UX): з draft напряму на погодження — одним кліком (зберегти+відправити)
+    transitions.push({ to:'review', label:'🚀 Зберегти і на погодження', cls:'btn-primary' });
+  }
+  if (p.status === 'in_work' && isResp) transitions.push({ to:'review', label:'🚀 Зберегти і на погодження', cls:'btn-primary' });
   if (p.status === 'review' && isAppr) {
     transitions.push({ to:'approved', label:'✓ Погодити', cls:'btn-success' });
     transitions.push({ to:'rework', label:'↩ Повернути', cls:'btn-warn' });
