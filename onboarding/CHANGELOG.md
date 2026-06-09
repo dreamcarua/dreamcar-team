@@ -8,6 +8,30 @@
 
 ---
 
+## 09.06.2026 (вечір) — AI Analyst екосистема (#210/#211/#212/#213)
+
+### 🆕 #210 Daily AI Analyst v1 → v2
+- 🆕 **Edge fn `daily-ai-analyst` v2** — щодня 18:00 Київ (pg_cron `0 15 * * *`). Збирає deals/ads/upsell + (нове v2) team_tasks/publications/retention metrics + WoW (7-day comparison) + previous_state з `dashboard_settings.ai_analyst_last_state` для оцінки попередніх рекомендацій → Claude Sonnet 4.6 → HTML TG DM Вадиму. Зберігає нові recommendations як JSON у `ai_analyst_last_state` для оцінки наступного дня.
+- 🆕 **System prompt guard:** SRM detected або p>0.1 → НЕ давати "лідера", чесно казати "рекомендація невалідна". Конкретика > вода, мінімум emoji (тільки 🔴 ⚠ ✅ 🎯 як секційні маркери).
+- 🚀 Pg_cron `daily-ai-analyst-1800kyiv` (`0 15 * * *`).
+
+### 🆕 #212 Weekly AI Analyst
+- 🆕 **Edge fn `weekly-ai-analyst` v1** — щонеділі 19:00 Київ (pg_cron `0 16 * * 0`). Глибокий 7-day vs 7-day звіт: revenue/spend/ROAS WoW, byProj concentration, team velocity, SMM/Retention throughput. Стратегічний горизонт рекомендацій (тиждень, не день).
+- 🚀 Pg_cron `weekly-ai-analyst-sunday-1900kyiv` (`0 16 * * 0`).
+- 📖 Перший dry-run підсвітив: MOTORCYCLE = 99.2% revenue concentration (моно-залежність), AUDI E-TRON dead (8 paid → 0₴), ROAS +167% WoW (3.60 vs 1.35) при spend -76.6%.
+
+### 🆕 #213 Anomaly Alerter
+- 🆕 **Edge fn `anomaly-alerter` v1** — кожні 30 хв (pg_cron `*/30 * * * *`). Heuristics: (1) revenue=0 за останні 2 год при today_spend>500₴, (2) yesterday_ROAS / 7day_avg_ROAS < 0.6. Triggered alert → Claude Haiku 4.5 пояснює потенційну причину + перша діагностична дія → TG DM. Dedup 4 год через `dashboard_settings.anomaly_alert_<key>`.
+- 🚀 Pg_cron `anomaly-alerter-30min`.
+
+### 📖 Production AI Analyst коштує (estimate)
+- Daily Sonnet 4.6: ~2500 tokens out × $15/M = $0.04/run × 30 = **$1.2/міс**
+- Weekly Sonnet 4.6: ~2500 tokens out × 4 weeks = **$0.15/міс**
+- Anomaly Haiku 4.5 (rare trigger, ~1× day): **$0.05/міс**
+- **Сумарно: ~$1.40/міс** — еквівалент 30 хв роботи аналітика на день, що приносить інсайти типу AUDI E-TRON 0₴ bug якого я ніколи б не побачив.
+
+---
+
 ## 09.06.2026 — Quick-status chip-row + Onboarding alias-aware
 
 ### 🆕 Quick-status chip-row для CEO/COO (#194 — Davyd request)
