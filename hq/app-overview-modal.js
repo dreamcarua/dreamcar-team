@@ -110,6 +110,29 @@
   .ov-btn.warn:hover { background: #b45309; }
   .ov-btn.danger { color: #ef4444; border-color: #ef4444; }
   .ov-btn.danger:hover { background: #ef4444; color: #fff; }
+  /* 09.06.2026 #194 — Quick-status chip-row для CEO/COO */
+  .qs-row {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 24px;
+    border-top: 1px solid var(--line, #2A2A2A);
+    background: rgba(255,255,255,0.02);
+  }
+  .qs-chip {
+    padding: 5px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    border: 1px solid var(--line, #2A2A2A); background: transparent;
+    color: var(--bone, #ddd); cursor: pointer; border-radius: 14px;
+    transition: all 120ms;
+  }
+  .qs-chip:hover:not(:disabled) {
+    border-color: var(--red, #E30613); color: #fff;
+    background: rgba(227,6,19,0.08);
+  }
+  .qs-chip.active {
+    border-color: var(--red, #E30613); color: var(--red, #E30613);
+    background: rgba(227,6,19,0.12); cursor: default;
+    font-family: 'Archivo Black', sans-serif;
+  }
+  .qs-chip:disabled { opacity: 0.85; }
   @media (max-width: 640px) {
     .ov-modal { max-height: 95vh; }
     .ov-head, .ov-body, .ov-foot { padding-left: 16px; padding-right: 16px; }
@@ -230,6 +253,23 @@
     return acts;
   }
 
+  // 09.06.2026 #194 — Quick-status chip-row для CEO/COO (Давид прохав миттєвий перехід)
+  const PUB_STATUSES = [
+    { v:'draft',     lbl:'📝 Draft' },
+    { v:'in_work',   lbl:'▶ В роботі' },
+    { v:'review',    lbl:'👀 Review' },
+    { v:'approved',  lbl:'✅ Approved' },
+    { v:'published', lbl:'🚀 Published' },
+    { v:'rework',    lbl:'↩ Rework' }
+  ];
+  function quickStatusRow(p, me) {
+    if (!me || !['ceo','coo'].includes(me.role)) return '';
+    const chips = PUB_STATUSES.map(s =>
+      `<button class="qs-chip ${s.v===p.status?'active':''}" data-qs-pub="${s.v}" ${s.v===p.status?'disabled':''}>${s.lbl}</button>`
+    ).join('');
+    return `<div class="qs-row" title="CEO/COO: миттєвий перехід">${chips}</div>`;
+  }
+
   function render(p) {
     const me = Store.currentUser();
     const acts = qActs(p, me);
@@ -262,6 +302,7 @@
           <div class="ov-section"><div class="ov-section-title">Погоджувачі</div><div class="ov-people">${apprRow(p)}</div></div>
           <div class="ov-section"><div class="ov-section-title">Останні коментарі</div>${commRow(p)}</div>
         </div>
+        ${quickStatusRow(p, me)}
         <div class="ov-foot">
           ${acts.map(a => `<button class="${a.cls}" data-ov-action="${a.to}">${a.label}</button>`).join('')}
           <button class="ov-btn" data-ov-comment>💬 Коментар</button>
@@ -287,6 +328,30 @@
         const to = btn.dataset.ovAction;
         if (typeof transitionStatus === 'function') {
           await transitionStatus(p, to, btn);
+        }
+      };
+    });
+
+    // 09.06.2026 #194 — Quick-status chip clicks (CEO/COO only)
+    document.querySelectorAll('[data-qs-pub]').forEach(chip => {
+      chip.onclick = async () => {
+        const to = chip.dataset.qsPub;
+        if (!to || to === p.status) return;
+        chip.disabled = true;
+        // Re-use transitionStatus якщо є; інакше — прямий update
+        if (typeof transitionStatus === 'function') {
+          await transitionStatus(p, to, chip);
+        } else {
+          const sb = window.supabase;
+          if (!sb) { chip.disabled = false; return; }
+          const { error } = await sb.from('publications').update({ status: to, updated_at: new Date().toISOString() }).eq('id', p.id);
+          if (error) {
+            chip.disabled = false;
+            if (typeof toast === 'function') toast(error.message, 'error');
+            return;
+          }
+          if (typeof toast === 'function') toast(`Статус → ${sLabel(to)}`, 'success');
+          Modal.close();
         }
       };
     });
