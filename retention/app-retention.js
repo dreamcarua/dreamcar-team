@@ -585,7 +585,10 @@ function openMessageDetail(id){
     <div style="background:var(--bg-2); border:1px solid var(--steel); border-radius:14px; max-width:760px; width:100%; max-height:90vh; overflow-y:auto; padding:24px; font-family:'JetBrains Mono', monospace;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
         <h2 style="font-family:'Oswald',sans-serif; font-size:20px; letter-spacing:0.05em;">${isNew ? '➕ НОВА РОЗСИЛКА' : '✏️ РОЗСИЛКА'}</h2>
-        <button class="btn" id="closeDetail">✕</button>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span id="msgAutosaveInd" style="font-size:11px; color:var(--ash); min-width:120px; text-align:right;">${isNew ? '⚪ нова — натисни Зберегти' : '✓ збережено'}</span>
+          <button class="btn" id="closeDetail" title="Закрити (всі зміни вже збережено через автосейв)">✕</button>
+        </div>
       </div>
       <form id="msgForm" style="display:flex; flex-direction:column; gap:14px;">
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
@@ -717,10 +720,49 @@ function openMessageDetail(id){
     </div>
   `;
   document.body.appendChild(overlay);
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-  document.getElementById('closeDetail').onclick = () => overlay.remove();
+  // #217 (Vira UX): backdrop click більше НЕ закриває modal без save — захист від втрати даних
+  overlay.onclick = (e) => {
+    if (e.target !== overlay) return;
+    const dirty = overlay.dataset.dirty === '1';
+    if (dirty) {
+      window.toast && window.toast('Не закриваю — є незбережені зміни. Натисни ✕ якщо точно хочеш вийти', 'warn');
+      return;
+    }
+    overlay.remove();
+  };
+  document.getElementById('closeDetail').onclick = () => {
+    const dirty = overlay.dataset.dirty === '1';
+    if (dirty && !confirm('Є незбережені зміни. Точно закрити без збереження?')) return;
+    overlay.remove();
+  };
 
   document.getElementById('msgForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, isNew ? null : m.id, overlay); };
+
+  // #217 (Vira UX): AUTOSAVE при кожній зміні form (тільки для існуючого draft, не для нової)
+  if (!isNew) {
+    const form = document.getElementById('msgForm');
+    const ind = document.getElementById('msgAutosaveInd');
+    let saveTimer = null;
+    const markDirty = () => { overlay.dataset.dirty = '1'; if (ind) { ind.textContent = '⏳ Збереження…'; ind.style.color = 'var(--amber, #f59e0b)'; } };
+    const markSaved = () => { overlay.dataset.dirty = '0'; if (ind) { ind.textContent = '✓ збережено ' + new Date().toLocaleTimeString('uk-UA', { hour:'2-digit', minute:'2-digit' }); ind.style.color = 'var(--green, #10b981)'; } };
+    const markErr  = (msg) => { if (ind) { ind.textContent = '⚠ ' + (msg || 'помилка'); ind.style.color = 'var(--red-soft, #ef4444)'; } };
+    const doAutosave = async () => {
+      try {
+        await saveForm(form, m.id, null, { silent: true });
+        markSaved();
+      } catch(e) { markErr(e && e.message); }
+    };
+    const scheduleAutosave = () => {
+      markDirty();
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(doAutosave, 800);
+    };
+    // Усі input/select/textarea у формі
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+      el.addEventListener('input', scheduleAutosave);
+      el.addEventListener('change', scheduleAutosave);
+    });
+  }
 
   // #215 (Vira UX): Зберегти + одразу на погодження одним кліком
   const saveAndReviewBtn = document.getElementById('btnSaveAndReview');
@@ -963,6 +1005,10 @@ async function saveForm(form, id, overlay, opts){
         }
       }
     } catch(e) { console.warn('[andSubmit transition]', e); }
+  }
+  // #217: silent autosave — не закриваємо overlay і не toast
+  if (opts && opts.silent) {
+    return;
   }
   if (overlay) overlay.remove();
   window.toast && window.toast('Збережено', 'success');
