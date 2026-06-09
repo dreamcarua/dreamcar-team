@@ -263,10 +263,17 @@ const Store = {
     const { error: e1 } = await sb.from('publications').upsert(row);
     if (e1) throw e1;
 
-    // 2. platforms ПЕРШИМИ — trigger перевіряє цю таблицю при transition
+    // 2. platforms ПЕРШИМИ — trigger перевіряє цю таблицю при transition.
+    // 09.06.2026 #207 fix: pkey = (publication_id, platform); race-condition при double-click save
+    // або дублікати у pub.platforms array → unique violation. Використовуємо upsert з onConflict
+    // + dedupe через Set. upsert ідемпотентний — повторні saves не падають.
+    const uniqPlatforms = [...new Set((pub.platforms || []).filter(Boolean))];
     await sb.from('publication_platforms').delete().eq('publication_id', pub.id);
-    if (pub.platforms?.length) {
-      const { error: ep } = await sb.from('publication_platforms').insert(pub.platforms.map(p => ({ publication_id: pub.id, platform: p })));
+    if (uniqPlatforms.length) {
+      const { error: ep } = await sb.from('publication_platforms').upsert(
+        uniqPlatforms.map(p => ({ publication_id: pub.id, platform: p })),
+        { onConflict: 'publication_id,platform', ignoreDuplicates: true }
+      );
       if (ep) throw ep;
     }
 
@@ -276,18 +283,30 @@ const Store = {
       if (es) throw es;
     }
 
-    // 4. решта relations
+    // 4. решта relations (також dedupe + upsert де є composite pkey)
+    const uniqResp = [...new Set((pub.responsibles || []).filter(Boolean))];
     await sb.from('publication_responsibles').delete().eq('publication_id', pub.id);
-    if (pub.responsibles?.length) {
-      await sb.from('publication_responsibles').insert(pub.responsibles.map(u => ({ publication_id: pub.id, user_id: u, role: 'generic' })));
+    if (uniqResp.length) {
+      await sb.from('publication_responsibles').upsert(
+        uniqResp.map(u => ({ publication_id: pub.id, user_id: u, role: 'generic' })),
+        { onConflict: 'publication_id,user_id', ignoreDuplicates: true }
+      );
     }
+    const uniqAppr = [...new Set((pub.approvers || []).filter(Boolean))];
     await sb.from('publication_approvers').delete().eq('publication_id', pub.id);
-    if (pub.approvers?.length) {
-      await sb.from('publication_approvers').insert(pub.approvers.map(u => ({ publication_id: pub.id, user_id: u })));
+    if (uniqAppr.length) {
+      await sb.from('publication_approvers').upsert(
+        uniqAppr.map(u => ({ publication_id: pub.id, user_id: u })),
+        { onConflict: 'publication_id,user_id', ignoreDuplicates: true }
+      );
     }
+    const uniqCreatives = [...new Set((pub.creatives || []).filter(Boolean))];
     await sb.from('creative_publications').delete().eq('publication_id', pub.id);
-    if (pub.creatives?.length) {
-      await sb.from('creative_publications').insert(pub.creatives.map((c, i) => ({ publication_id: pub.id, creative_id: c, sort_order: i })));
+    if (uniqCreatives.length) {
+      await sb.from('creative_publications').upsert(
+        uniqCreatives.map((c, i) => ({ publication_id: pub.id, creative_id: c, sort_order: i })),
+        { onConflict: 'publication_id,creative_id', ignoreDuplicates: true }
+      );
     }
   },
 
