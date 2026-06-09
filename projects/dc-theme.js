@@ -77,6 +77,18 @@
       'html[data-dc-theme="light"] body [style*="color:var(--ash"]{color:#3c3c43!important;}',
       'html[data-dc-theme="light"] body [style*="color:var(--grey"]{color:#3c3c43!important;}',
       'html[data-dc-theme="light"] body [style*="color:var(--bone"]{color:#0a0a0a!important;}',
+      /* #221: Accent тексти на світлій темі — темніші для WCAG AA. amber #f59e0b = 2.4:1 → #a16207 = 5.9:1 */
+      'html[data-dc-theme="light"]{--amber:#a16207;--warning:#a16207;--gold:#a16207;--orange:#c2410c;--green-soft:#047857;--blue-soft:#1e40af;--red-soft:#b91c1c;--info:#1e40af;--success:#047857;--danger:#b91c1c;}',
+      'html[data-dc-theme="light"] body [style*="color:var(--amber"],html[data-dc-theme="light"] body [style*="color:var(--warning"],html[data-dc-theme="light"] body [style*="color:var(--gold"]{color:#a16207!important;}',
+      'html[data-dc-theme="light"] body [style*="color:var(--orange"]{color:#c2410c!important;}',
+      'html[data-dc-theme="light"] body [style*="color:var(--green-soft"],html[data-dc-theme="light"] body [style*="color:var(--success"]{color:#047857!important;}',
+      'html[data-dc-theme="light"] body [style*="color:var(--blue-soft"],html[data-dc-theme="light"] body [style*="color:var(--info"]{color:#1e40af!important;}',
+      'html[data-dc-theme="light"] body [style*="color:var(--red-soft"],html[data-dc-theme="light"] body [style*="color:var(--danger"]{color:#b91c1c!important;}',
+      /* Hex inline accent — теж покрити (legacy hardcoded) */
+      'html[data-dc-theme="light"] body [style*="color:#f59e0b"],html[data-dc-theme="light"] body [style*="color: #f59e0b"],html[data-dc-theme="light"] body [style*="color:#fbbf24"]{color:#a16207!important;}',
+      'html[data-dc-theme="light"] body [style*="color:#10b981"],html[data-dc-theme="light"] body [style*="color: #10b981"]{color:#047857!important;}',
+      'html[data-dc-theme="light"] body [style*="color:#3b82f6"],html[data-dc-theme="light"] body [style*="color: #3b82f6"]{color:#1e40af!important;}',
+      'html[data-dc-theme="light"] body [style*="color:#ef4444"],html[data-dc-theme="light"] body [style*="color: #ef4444"]{color:#b91c1c!important;}',
       /* Sidebar nav items + headings — гарантовано темніший текст */
       'html[data-dc-theme="light"] body :is(.sidebar,.sidebar-section) :is(a,span,div,h1,h2,h3,h4,h5,label){color:#0a0a0a!important;}',
       'html[data-dc-theme="light"] body .sidebar :is(.section-title,.subtitle,.label,small,.muted){color:#3c3c43!important;}',
