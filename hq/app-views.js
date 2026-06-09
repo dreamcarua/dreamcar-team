@@ -943,7 +943,9 @@ function attachCardHandlers(p) {
         clearTimeout(timeoutId);
         const j = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
         if (resp.ok && j.ok) {
-          toast('✓ Тест відправлено у DreamCar SMM (msg #' + (j.messageId || '?') + ')', 'success');
+          let m = '✓ Тест відправлено у DreamCar SMM (msg #' + (j.messageId || '?') + ', media: ' + (j.mediaCount||0) + ')';
+          if (j.sizeWarnings?.length) m += '\n⚠ ' + j.sizeWarnings.join('; ');
+          toast(m, j.sizeWarnings?.length ? 'warn' : 'success');
         } else {
           toast('❌ Помилка тесту: ' + (j.error || `HTTP ${resp.status}`), 'error');
         }
