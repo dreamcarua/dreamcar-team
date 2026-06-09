@@ -541,30 +541,52 @@ function renderTgAutopostBlock(p) {
   }).join('');
   const testLog = Array.isArray(p.tg_test_log) ? p.tg_test_log : [];
   const lastTest = testLog[testLog.length-1];
+  // #248: datetime-local показуємо як LOCAL time (не .toISOString() = UTC!)
+  const cdLocal = (() => {
+    if (!p.tg_countdown_until) return '';
+    const d = new Date(p.tg_countdown_until);
+    if (isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  })();
   return `
-    <div class="pub-section" id="tgAutopostBlock" style="border:1px solid var(--blue, #3b82f6);border-radius:8px;padding:14px;background:rgba(59,130,246,0.06);">
-      <h4 style="display:flex;align-items:center;justify-content:space-between;">
-        <span>✈️ Telegram автопост — налаштування</span>
-        <button type="button" id="btnTgTestSend" class="btn" style="font-size:11px;padding:6px 12px;background:rgba(59,130,246,0.15);border:1px solid var(--blue,#3b82f6);color:#fff;">🧪 Тест у тестовий канал</button>
-      </h4>
+    <div class="pub-section" id="tgAutopostBlock" style="border:1px solid var(--blue, #3b82f6);border-radius:10px;padding:16px;background:rgba(59,130,246,0.05);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;">
+        <h4 style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;letter-spacing:0.5px;">
+          <span>✈️ TELEGRAM АВТОПОСТ</span>
+        </h4>
+        <button type="button" id="btnTgTestSend" class="btn" style="font-size:12px;padding:8px 14px;background:rgba(59,130,246,0.2);border:1px solid var(--blue,#3b82f6);color:#fff;border-radius:6px;font-weight:600;">🧪 Тест → @dreamcar_test</button>
+      </div>
 
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:12px;margin-bottom:12px;">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="f_tg_pin" ${p.tg_pin?'checked':''}/>
-          📌 Закріпити після публікації
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="f_tg_silent" ${p.tg_silent?'checked':''}/>
-          🔕 Тиха публікація (без notification)
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="f_tg_disable_preview" ${p.tg_disable_preview?'checked':''}/>
-          🚫 Без preview лінків
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--grey);">
-          ⏰ <input type="datetime-local" id="f_tg_countdown_until" value="${p.tg_countdown_until ? new Date(p.tg_countdown_until).toISOString().slice(0,16) : ''}" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:4px;border-radius:4px;font-size:11px;flex:1;"/>
-          <span title="Soft Urgency countdown — заповни щоб {{countdown}} у тексті оновлювалось кожні 5хв">{{countdown}}</span>
-        </label>
+      <!-- БЛОК 1: Опції публікації -->
+      <div style="margin-bottom:14px;padding:10px;background:var(--bg-3);border-radius:6px;border:1px solid var(--border);">
+        <div style="font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚙ Опції постингу</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px;border-radius:4px;${p.tg_pin?'background:rgba(59,130,246,0.15);':''}">
+            <input type="checkbox" id="f_tg_pin" ${p.tg_pin?'checked':''}/>
+            <span>📌 Закріпити</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px;border-radius:4px;${p.tg_silent?'background:rgba(59,130,246,0.15);':''}">
+            <input type="checkbox" id="f_tg_silent" ${p.tg_silent?'checked':''}/>
+            <span>🔕 Тиха публікація</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px;border-radius:4px;${p.tg_disable_preview?'background:rgba(59,130,246,0.15);':''}">
+            <input type="checkbox" id="f_tg_disable_preview" ${p.tg_disable_preview?'checked':''}/>
+            <span>🚫 Без preview лінків</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- БЛОК 2: Countdown (soft urgency) -->
+      <div style="margin-bottom:14px;padding:10px;background:var(--bg-3);border-radius:6px;border:1px solid var(--border);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:1px;">⏰ Countdown (для <code style="background:var(--bg);padding:1px 4px;border-radius:3px;font-size:10px;">{{countdown}}</code> у тексті)</div>
+          ${p.tg_countdown_until ? `<button type="button" id="btnTgClearCountdown" style="background:transparent;border:1px solid var(--border);color:var(--grey);padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer;">Очистити</button>` : ''}
+        </div>
+        <input type="datetime-local" id="f_tg_countdown_until" value="${cdLocal}" placeholder="Дата і час до якого тривати countdown" style="width:100%;background:var(--bg);border:1px solid var(--border);color:#fff;padding:8px;border-radius:5px;font-size:12px;"/>
+        <div style="font-size:10px;color:var(--grey);margin-top:6px;line-height:1.5;">
+          Bot оновлюватиме <code style="background:var(--bg);padding:1px 4px;border-radius:3px;">{{countdown}}</code> у тексті кожні 5хв ("23г 47хв"). Залиш порожнім — без countdown.
+        </div>
       </div>
 
       <div style="margin-bottom:8px;">
@@ -761,8 +783,17 @@ function attachCardHandlers(p) {
     if (tgSilent) tgSilent.onchange = () => { p.tg_silent = tgSilent.checked; autosave(p); };
     if (tgPreview) tgPreview.onchange = () => { p.tg_disable_preview = tgPreview.checked; autosave(p); };
     if (tgCountdown) tgCountdown.onchange = () => {
+      // datetime-local value у LOCAL time → new Date(...) інтерпретує як local → toISOString() = correct UTC
       p.tg_countdown_until = tgCountdown.value ? new Date(tgCountdown.value).toISOString() : null;
       autosave(p);
+    };
+    // #248: Clear countdown button
+    const clearCd = document.getElementById('btnTgClearCountdown');
+    if (clearCd) clearCd.onclick = () => {
+      p.tg_countdown_until = null;
+      if (tgCountdown) tgCountdown.value = '';
+      autosave(p);
+      clearCd.style.display = 'none';
     };
     const syncButtonsFromUI = () => {
       const rows = document.querySelectorAll('#tgButtonsList .tg-btn-row');
@@ -848,8 +879,10 @@ function attachCardHandlers(p) {
       const original = testBtn.textContent;
       testBtn.disabled = true;
       testBtn.textContent = '⏳ Відправляю…';
+      // #248: AbortController timeout 25s — щоб кнопка ніколи не висла назавжди
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), 25000);
       try {
-        // P1-6: Validation перед send
         const errs = [];
         (p.tg_buttons || []).forEach((b, i) => {
           if (!b.text || b.text.length === 0) errs.push(`Кнопка ${i+1}: текст обов'язковий`);
@@ -861,30 +894,33 @@ function attachCardHandlers(p) {
           toast('Виправ кнопки:\n' + errs.join('\n'), 'error');
           return;
         }
-        // Спочатку save актуального state
         await Store.upsertPub(p);
-        // P0-1: JWT auth (не hardcoded secret!)
         const sess = window.supabase ? await window.supabase.auth.getSession() : null;
         const token = sess?.data?.session?.access_token;
         if (!token) { toast('Потрібен логін для тесту', 'error'); return; }
-        // Викликаємо tg-post-send з test=true через JWT (server перевіряє role ceo/coo/lead)
         const resp = await fetch('https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-post-send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ publication_id: p.id, test: true })
+          body: JSON.stringify({ publication_id: p.id, test: true }),
+          signal: ctrl.signal
         });
-        const j = await resp.json();
-        if (j.ok) {
-          toast('✓ Тест відправлено у тестовий канал', 'success');
-          // P1-5: Edge fn пише tg_test_log сам — не пушимо локально (інакше дубль при reload)
+        clearTimeout(timeoutId);
+        const j = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        if (resp.ok && j.ok) {
+          toast('✓ Тест відправлено у @dreamcar_test (msg #' + (j.messageId || '?') + ')', 'success');
         } else {
-          toast('Помилка тесту: ' + (j.error || 'unknown'), 'error');
+          toast('❌ Помилка тесту: ' + (j.error || `HTTP ${resp.status}`), 'error');
         }
       } catch (e) {
-        toast('Помилка тесту: ' + (e.message || e), 'error');
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') {
+          toast('⏱ Тайм-аут 25с — edge function не відповіла. Перевір TG_BOT_TOKEN.', 'error');
+        } else {
+          toast('Помилка тесту: ' + (e.message || e), 'error');
+        }
       } finally {
         testBtn.disabled = false;
         testBtn.textContent = original;
