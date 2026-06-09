@@ -35,7 +35,10 @@
   // ---- 2. Register Service Worker ----
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('service-worker.js', { scope: '/dreamcar-team/hq/' })
+      // #228 fix: scope був hardcoded '/dreamcar-team/hq/' що НЕ match script path (на team.dreamcar.ua скрипт лежить у /hq/).
+      // Браузер відмовляв з: "scope '/dreamcar-team/hq/' is not under the max scope allowed ('/hq/')".
+      // Не передаємо scope — браузер сам використає directory скрипта як scope.
+      navigator.serviceWorker.register('service-worker.js')
         .then(function (reg) {
           console.log('%cDreamCar HQ PWA %c· SW registered', 'color:#4ade80;font-weight:700;', 'color:#888;', reg.scope);
           reg.addEventListener('updatefound', function () {
