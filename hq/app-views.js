@@ -786,24 +786,62 @@ function attachCardHandlers(p) {
       el.oninput = syncButtonsFromUI;
       el.onchange = syncButtonsFromUI;
     });
-    document.querySelectorAll('[data-tg-btn-remove]').forEach(b => {
-      b.onclick = () => {
-        const idx = +b.dataset.tgBtnRemove;
-        p.tg_buttons = (p.tg_buttons||[]).filter((_, i) => i !== idx);
-        autosave(p);
-        // re-render TG block inline
-        const block = document.getElementById('tgAutopostBlock');
-        if (block) block.outerHTML = renderTgAutopostBlock(p);
-        attachTgHandlers();
-      };
-    });
-    const addBtn = document.getElementById('btnTgAddButton');
-    if (addBtn) addBtn.onclick = () => {
-      p.tg_buttons = [...(p.tg_buttons||[]), { text: 'Нова кнопка', type: 'url', url: 'https://', row: (p.tg_buttons||[]).length }];
+    // P0-2 fix: targeted DOM update тільки #tgButtonsList — не виносимо весь #tgAutopostBlock
+    const reRenderButtonsOnly = () => {
+      const list = document.getElementById('tgButtonsList');
+      if (!list) return;
+      const counter = document.querySelector('#tgAutopostBlock h4 strong');
+      if (counter) counter.textContent = `Кнопки під постом (${(p.tg_buttons||[]).length})`;
+      // Re-render тільки content
+      const buttons = Array.isArray(p.tg_buttons) ? p.tg_buttons : [];
+      list.innerHTML = buttons.map((b, idx) => {
+        const safeText = escapeHtml(b.text || '');
+        const safeUrl = escapeHtml(b.url || b.web_app_url || b.callback_data || '');
+        const typeIcon = b.type === 'web_app' ? '📱' : b.type === 'callback' ? '👆' : '🔗';
+        return `<div class="tg-btn-row" data-btn-idx="${idx}" style="display:flex;gap:6px;align-items:center;padding:6px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;">
+          <span style="font-size:11px;color:var(--grey);width:18px;text-align:center;">${idx+1}</span>
+          <span>${typeIcon}</span>
+          <input type="text" data-tg-btn-text="${idx}" value="${safeText}" placeholder="Текст кнопки" style="flex:1;background:var(--bg);border:1px solid var(--border);color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;"/>
+          <input type="text" data-tg-btn-url="${idx}" value="${safeUrl}" placeholder="URL / web_app_url" style="flex:2;background:var(--bg);border:1px solid var(--border);color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;"/>
+          <select data-tg-btn-type="${idx}" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;">
+            <option value="url" ${b.type==='url'?'selected':''}>🔗 URL</option>
+            <option value="web_app" ${b.type==='web_app'?'selected':''}>📱 Web App</option>
+            <option value="callback" ${b.type==='callback'?'selected':''}>👆 Callback</option>
+          </select>
+          <input type="number" data-tg-btn-row="${idx}" value="${b.row != null ? b.row : idx}" min="0" max="20" style="width:48px;background:var(--bg);border:1px solid var(--border);color:#fff;padding:3px 4px;border-radius:4px;font-size:11px;text-align:center;"/>
+          <button type="button" data-tg-btn-remove="${idx}" style="background:transparent;border:none;color:var(--red-soft,#ef4444);cursor:pointer;font-size:14px;width:24px;">✕</button>
+        </div>`;
+      }).join('') || '<div style="color:var(--grey);font-size:11px;padding:8px;text-align:center;">Кнопок немає. Додай для CTA.</div>';
+      // Re-attach handlers тільки для нових inputs/buttons
+      list.querySelectorAll('input, select').forEach(el => {
+        el.oninput = syncButtonsFromUI;
+        el.onchange = syncButtonsFromUI;
+      });
+      list.querySelectorAll('[data-tg-btn-remove]').forEach(b => { b.onclick = removeBtnHandler; });
+    };
+    const removeBtnHandler = (e) => {
+      const idx = +e.currentTarget.dataset.tgBtnRemove;
+      p.tg_buttons = (p.tg_buttons||[]).filter((_, i) => i !== idx);
       autosave(p);
-      const block = document.getElementById('tgAutopostBlock');
-      if (block) block.outerHTML = renderTgAutopostBlock(p);
-      attachTgHandlers();
+      reRenderButtonsOnly();
+    };
+    document.querySelectorAll('[data-tg-btn-remove]').forEach(b => { b.onclick = removeBtnHandler; });
+
+    const addBtn = document.getElementById('btnTgAddButton');
+    if (addBtn) addBtn.onclick = async () => {
+      // P2-10: loading state — анти-double-click
+      if (addBtn.disabled) return;
+      addBtn.disabled = true;
+      const orig = addBtn.textContent;
+      addBtn.textContent = '…';
+      try {
+        p.tg_buttons = [...(p.tg_buttons||[]), { text: 'Нова кнопка', type: 'url', url: 'https://', row: (p.tg_buttons||[]).length }];
+        await Store.upsertPub(p);
+        reRenderButtonsOnly();
+      } finally {
+        addBtn.disabled = false;
+        addBtn.textContent = orig;
+      }
     };
     const testBtn = document.getElementById('btnTgTestSend');
     if (testBtn) testBtn.onclick = async () => {
@@ -811,23 +849,37 @@ function attachCardHandlers(p) {
       testBtn.disabled = true;
       testBtn.textContent = '⏳ Відправляю…';
       try {
+        // P1-6: Validation перед send
+        const errs = [];
+        (p.tg_buttons || []).forEach((b, i) => {
+          if (!b.text || b.text.length === 0) errs.push(`Кнопка ${i+1}: текст обов'язковий`);
+          else if (b.text.length > 64) errs.push(`Кнопка ${i+1}: текст макс 64 символи`);
+          if (b.type === 'url' && b.url && !b.url.startsWith('https://')) errs.push(`Кнопка ${i+1}: URL має починатись з https://`);
+          if (b.type === 'web_app' && b.web_app_url && !b.web_app_url.match(/^https:\/\/t\.me\/[^\/]+\/.+/)) errs.push(`Кнопка ${i+1}: web_app має бути https://t.me/<bot>/<app>`);
+        });
+        if (errs.length) {
+          toast('Виправ кнопки:\n' + errs.join('\n'), 'error');
+          return;
+        }
         // Спочатку save актуального state
         await Store.upsertPub(p);
-        // Викликаємо tg-post-send з test=true
+        // P0-1: JWT auth (не hardcoded secret!)
+        const sess = window.supabase ? await window.supabase.auth.getSession() : null;
+        const token = sess?.data?.session?.access_token;
+        if (!token) { toast('Потрібен логін для тесту', 'error'); return; }
+        // Викликаємо tg-post-send з test=true через JWT (server перевіряє role ceo/coo/lead)
         const resp = await fetch('https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-post-send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-cron-secret': '5a4b2557c83feaea9ca716f0e99db2efe3841047'
+            'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ publication_id: p.id, test: true, force_channel: '-1003933841573' })
+          body: JSON.stringify({ publication_id: p.id, test: true })
         });
         const j = await resp.json();
         if (j.ok) {
           toast('✓ Тест відправлено у тестовий канал', 'success');
-          // оновити tg_test_log local
-          if (!Array.isArray(p.tg_test_log)) p.tg_test_log = [];
-          p.tg_test_log.push({ channel_id: '-1003933841573', sent_at: new Date().toISOString(), message_id: j.messageId, ok: true });
+          // P1-5: Edge fn пише tg_test_log сам — не пушимо локально (інакше дубль при reload)
         } else {
           toast('Помилка тесту: ' + (j.error || 'unknown'), 'error');
         }
