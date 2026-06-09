@@ -8,7 +8,45 @@
 
 ---
 
-## 08.06.2026 (вечір) — #192 P0 PROD Dashboard RLS alias-aware
+## 09.06.2026 — Quick-status chip-row + Onboarding alias-aware
+
+### 🆕 Quick-status chip-row для CEO/COO (#194 — Davyd request)
+- 🆕 **Tasks / SMM / Retention** — компактний рядок chip-кнопок у деталях задачі/публікації/розсилки. Один клік = миттєвий перехід у будь-який статус без submit form. Тільки `ceo`/`coo`; решта ролей — standard step-by-step flow.
+- 🆕 **Tasks** 5 статусів: 📥 Inbox / ⚙ Doing / 👀 Review / 🚧 Blocked / ✅ Done. У `openOverview` action area.
+- 🆕 **SMM** 6 статусів: 📝 Draft / ▶ In Work / 👀 Review / ✅ Approved / 🚀 Published / ↩ Rework. Над `ov-foot` у publication overview, реюзає `transitionStatus()`.
+- 🆕 **Retention** 9 статусів: Draft / Review / Approved / Scheduled / Sending / Sent / Failed / Rework / Archived. У message modal, повний enum coverage.
+- 🚀 Cache bust `retention/app-retention.js` v=20260608d → v=20260609a. SMM/Tasks live після `17a8e34`.
+- 📖 Commits: `29c81c8c` (SMM), `912e427f` (Retention CSS), `ee96c936` (Retention JS), `1724970..17a8e34` (Tasks).
+
+### 🛡 #199 P0 Onboarding кнопки fix (Davyd report)
+**Корінь #1 — 3 RLS policies на `users` UPDATE не alias-aware:**
+- 🛡 `users_update_own_onboarding`, `users_update_own_tg`, `users: update by CEO/COO or self` — переписав з `auth_id = auth.uid()` на `current_user_id() = id` (alias-aware helper, той самий клас бага що #189/#192).
+- 🛡 **Хто страждав:** Вадим (CEO з aliases `vg@sneco.ua` + `dreamcarua@gmail.com`) — будь-який UPDATE на власний `users` record falsь → `markStep` silently fail → кнопки онбордингу "не реагували".
+
+**Корінь #2 — `resolve_user_by_auth` RPC повертала subset колонок:**
+- 🛡 DROP + CREATE з додаванням `onboarding_steps` + `onboarding_completed_at` до returned TABLE schema. Стара версія повертала тільки 7 колонок (`id, name, email, role, auth_id, tg_chat_id, is_active`).
+- 🛡 **Це бомба часу:** frontend `state.publicUser.onboarding_steps = undefined` → онбординг рендерив усі steps як not-done → перший клік `markStep('workflow')` робив `stored={workflow:true}` → UPDATE **перетирав** Давидові 8 існуючих keys!
+- 📖 HQ онбординг працював через workaround `hq/app-user-fields-fix.js` (окремий SELECT). Tasks/Retention/Projects того workaround не мали → universal bug. Мій fix у RPC робить workaround непотрібним.
+- 🚀 Migrations `users_update_policies_alias_aware_199`, `resolve_user_by_auth_include_onboarding_199_v2`.
+
+### 📖 Documentation
+- 📖 Створено feedback memory про pitfall `resolve_user_by_auth` subset + JSON-spread overwrite (`auto-memory/feedback_*`).
+
+---
+
+## 09.06.2026 (ранок) — #192/#193 P0 PROD: Dashboard 0 угод + ETL misclassification
+
+### 🛡 #192 Dashboard 0 угод (RLS alias-aware, друга хвиля)
+- 🛡 **10 policies на dashboard_* + team_tasks** переписано на `current_user_has_role()` / `current_user_id()`. Перша хвиля (#189) фіксила helpers, але самi policies на `dashboard_deals`, `dashboard_ads_data`, `dashboard_manual_costs`, `dashboard_settings`, `dashboard_utm_mapping`, `dashboard_webhooks`, `dashboard_people_mapping` (×3), `team_tasks` (update_member) ще мали прямий `auth_id=auth.uid()`. Вадим бачив 0 рядків з усього дашборду.
+
+### 🔧 #193 ETL deal_project misclassification (1094 deals)
+- 🔧 **Backfill 1094 misclassified deals:** 744 IPHONE→AUDI E-TRON, 320 MOTO→AUDI E-TRON, 30 IPHONE→MOTORCYCLE. ETL upstream (Make.com) для `event_type='new'` (pending) ставив `deal_project='AUDI E-TRON'` як default fallback замість парсити `deal_name` (`DCI-iphone-*`, `DCI-moto-*`).
+- 🔧 **BEFORE INSERT/UPDATE trigger `tg_deals_normalize_project`** — парсить `raw_payload->>'deal_name'` на DCI-prefix і нормалізує `project` атомарно у БД. ILIKE замість regex `\b` (який у Postgres не word boundary — повертає false).
+- 🔧 **Funnel semantic fix (#191):** Воронка 2-bar → 3-bar (Замовлення / У обробці / Оплачено). UI labels: "Ліди"→"Замовлення", "Конверсія"→"Success rate" + threshold 5%→70%.
+
+---
+
+## 08.06.2026 (вечір) — #192 P0 PROD Dashboard RLS alias-aware (перша хвиля)
 
 ### 🛡 RLS policies — alias-aware migration
 - 🛡 **10 policies переписано на `current_user_has_role()` / `current_user_id()`** (alias-aware helper, fix #189). Стара перевірка `users.auth_id = auth.uid()` НЕ враховувала `user_auth_aliases` UNION → Вадим залогінений через alias `dreamcarua@gmail.com` отримував 0 рядків з `dashboard_deals`/`dashboard_ads_data` → 0 угод по всьому дашборду на 08.06 (хоча в БД 883 угоди / 173,928₴).
