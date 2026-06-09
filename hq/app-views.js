@@ -351,8 +351,14 @@ function newPubObject(forDate) {
   const dt = forDate ? new Date(forDate) : new Date();
   dt.setHours(12, 0, 0, 0);
   const ceoUser = Store.users().find(u => u.role === 'ceo');
+  // 09.06.2026 #201 P0 FIX: був 'p_' + uid() — це local random string, не UUID.
+  // При save _persistPub() валідація `uuidRe.test(pub.id)` fails → alert "Невалідний UUID".
+  // crypto.randomUUID() — browser API на всіх modern браузерах; fallback тільки для legacy.
+  const realUuid = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : ('p_' + uid()); // legacy fallback — save буде fail, але мінімум UI не зламається
   return {
-    id: 'p_' + uid(),
+    id: realUuid,
     title: '',
     dateTime: dt.toISOString(),
     platforms: [],
