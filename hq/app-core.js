@@ -1066,6 +1066,7 @@ function renderWeek(start, pubs) {
     const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
     const cards = dayPubs.map(p => `
       <div class="week-card s-${p.status}" data-id="${p.id}">
+        ${p.contentType ? `<div class="wc-ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
         <div class="wc-time">${fmtTime(p.dateTime)}</div>
         <div class="wc-title">${escapeHtml(p.title)}</div>
         <div class="wc-meta">${platformIcons(p.platforms)} · <span class="status ${p.status}" style="font-size:8px;padding:1px 5px;">${STATUS_BY_ID[p.status].label}</span></div>
