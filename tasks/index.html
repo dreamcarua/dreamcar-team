@@ -344,6 +344,12 @@
   .ov-btn.danger{border-color:var(--danger);color:var(--danger);}
   .ov-btn.danger:hover{background:var(--danger);color:#fff;}
   .ov-btn-icon{padding:9px 11px;}
+  /* 09.06.2026 #194 — Quick-status chip-row для CEO/COO */
+  .qs-row{display:flex;flex-wrap:wrap;gap:6px;width:100%;padding:0 0 10px 0;margin:0 0 10px 0;border-bottom:1px dashed var(--line);justify-content:flex-start;}
+  .qs-chip{padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;border:1px solid var(--steel);background:transparent;color:var(--bone);cursor:pointer;border-radius:14px;transition:all 120ms;}
+  .qs-chip:hover:not(:disabled){border-color:var(--red);color:#fff;background:rgba(227,6,19,0.08);}
+  .qs-chip.active{border-color:var(--red);color:var(--red);background:rgba(227,6,19,0.12);cursor:default;font-family:'Archivo Black',sans-serif;}
+  .qs-chip:disabled{opacity:0.85;}
   .ov-comment-form{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
   .ov-comment-form.show{display:block;}
   .ov-comment-form textarea{width:100%;background:var(--black);border:1px solid var(--steel);color:var(--white);padding:8px 10px;font-family:'Manrope',sans-serif;font-size:13px;min-height:60px;resize:vertical;outline:none;}
@@ -1167,9 +1173,27 @@ async function openOverview(task){
   const me = state.publicUser?.id;
   const isCreator = task.created_by === me;
   const isAdmin = state.publicUser?.role && ['ceo','coo','lead'].includes(state.publicUser.role);
+  // 09.06.2026 #194 — Quick-status chip-row для CEO/COO (Давид прохав: переходити одразу у будь-який статус)
+  const isCeoCoo = state.publicUser?.role && ['ceo','coo'].includes(state.publicUser.role);
+  const ALL_STATUSES = [
+    { v:'inbox',   lbl:'📥 Inbox' },
+    { v:'doing',   lbl:'⚙ Doing' },
+    { v:'review',  lbl:'👀 Review' },
+    { v:'blocked', lbl:'🚧 Blocked' },
+    { v:'done',    lbl:'✅ Done' }
+  ];
   const NEXT = { inbox:'doing', doing:'review', review:'done', done:null };
   const nextStatus = NEXT[task.status];
   const nextLabel = { doing:'⚙ У роботу', review:'👀 На рев\'ю', done:'✅ Завершити' }[nextStatus];
+
+  // Quick-status chip-row (тільки CEO/COO)
+  let quickStatusRow = '';
+  if (isCeoCoo) {
+    const chips = ALL_STATUSES.map(s =>
+      `<button class="qs-chip ${s.v===task.status?'active':''}" data-qs="${s.v}" ${s.v===task.status?'disabled':''}>${s.lbl}</button>`
+    ).join('');
+    quickStatusRow = `<div class="qs-row" title="CEO/COO: миттєвий перехід у будь-який статус">${chips}</div>`;
+  }
 
   let actions = '';
   if(nextStatus){
@@ -1181,7 +1205,19 @@ async function openOverview(task){
   actions += `<button class="ov-btn" id="ov-act-comment">💬 Коментар</button>`;
   actions += `<button class="ov-btn" id="ov-act-edit">✏ Редагувати</button>`;
   if(isCreator || isAdmin) actions += `<button class="ov-btn-icon ov-btn danger" id="ov-act-delete" title="Видалити">🗑</button>`;
-  document.getElementById('ov-actions').innerHTML = actions;
+  document.getElementById('ov-actions').innerHTML = quickStatusRow + actions;
+
+  // bind quick-status chips (CEO/COO only)
+  document.querySelectorAll('.qs-chip').forEach(el => el.addEventListener('click', async () => {
+    const newStatus = el.dataset.qs;
+    if (!newStatus || newStatus === task.status) return;
+    el.disabled = true;
+    const {error} = await supabase.from('team_tasks').update({status:newStatus, updated_at:new Date().toISOString()}).eq('id',task.id);
+    if(error){ toast(error.message,'error'); el.disabled = false; return; }
+    toast(`Статус → ${STATUS_LBL[newStatus]||newStatus}`,'success');
+    triggerNotifyWorker();
+    overviewModal.classList.remove('show');
+  }));
 
   // bind actions
   document.getElementById('ov-act-next')?.addEventListener('click', async()=>{
