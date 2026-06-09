@@ -325,7 +325,7 @@ function renderCalendarHeader(){
       <h1>📅 Календар розсилок <span style="color:var(--ash); font-size:14px; margin-left:8px;">· ${items.length} ${items.length === 1 ? 'розсилка' : 'розсилок'}</span></h1>
       <div class="actions" style="flex-wrap:wrap;">
         <div style="display:flex; gap:4px; background:var(--bg-3); padding:3px; border-radius:6px;">
-          ${['month','week','day','list','board'].map(v => `<button class="btn" data-view="${v}" style="padding:7px 12px; font-size:10px; ${Store.calView===v?'background:var(--red); border-color:var(--red); color:#fff;':'background:transparent; border:none; color:#ccc;'}">${{month:'МІСЯЦЬ',week:'ТИЖДЕНЬ',day:'ДЕНЬ',list:'СПИСОК',board:'ДОШКА'}[v]}</button>`).join('')}
+          ${/* #226: прибрав 'list' і 'board' — дублюють sidebar (Vadym UX) */ ['month','week','day'].map(v => `<button class="btn" data-view="${v}" style="padding:7px 12px; font-size:10px; ${Store.calView===v?'background:var(--red); border-color:var(--red); color:#fff;':'background:transparent; border:none; color:#ccc;'}">${{month:'МІСЯЦЬ',week:'ТИЖДЕНЬ',day:'ДЕНЬ'}[v]}</button>`).join('')}
         </div>
         <button class="btn" id="btnRefresh">🔄</button>
         <button class="btn primary" id="btnNew">+ НОВА РОЗСИЛКА</button>
