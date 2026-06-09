@@ -996,6 +996,7 @@ function renderMonth(d, pubs) {
     const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
     const cards = dayPubs.slice(0,3).map(p => `
       <div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${escapeHtml(p.title)}">
+        ${p.contentType ? `<div class="ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
         <span class="time">${fmtTime(p.dateTime)}</span>
         ${platformIcons(p.platforms)}
         <span class="title">${escapeHtml(p.title)}</span>

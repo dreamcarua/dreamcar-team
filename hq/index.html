@@ -654,6 +654,20 @@
   .cal-card.urgent-yellow { box-shadow: inset 0 0 0 1px var(--gold); }
   .cal-card.urgent-red { box-shadow: inset 0 0 0 1px var(--red); animation: pulse 1.5s ease-in-out infinite; }
   .cal-card.missed { background: rgba(204,0,0,0.15); }
+  /* #229 (Олександр): плашка типу контенту над карткою у календарі */
+  .cal-card { flex-wrap: wrap; align-items: stretch; padding: 0 0 4px; }
+  .cal-card .ctype-badge {
+    display: block; width: 100%;
+    background: rgba(255,255,255,0.08);
+    color: var(--ash-2, #BBB);
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    padding: 2px 6px; margin-bottom: 3px;
+    text-transform: uppercase; text-align: left;
+    border-radius: 3px 3px 0 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cal-card .time, .cal-card .title { padding-left: 6px; }
+  .cal-card .title { padding-right: 6px; }
   @keyframes pulse {
     0%, 100% { box-shadow: inset 0 0 0 1px var(--red); }
     50% { box-shadow: inset 0 0 0 1px var(--red), 0 0 8px rgba(204,0,0,0.4); }
@@ -1832,7 +1846,7 @@
 </script>
 
 <script src="app-core.js?v=20260609b" defer></script>
-<script src="app-views.js?v=20260609f" defer></script>
+<script src="app-views.js?v=20260609g" defer></script>
 <!-- 09.06.2026 #207/#208/#209: loader chain (app-locks → app-extras → ...) на production не стартувала.
      Через це app-overview-modal.js, app-extras.js, app-duplicate-to.js НЕ завантажувались.
      Олександр і Давид бачили старий edit modal без кнопки Дублювати + без креативів у preview.

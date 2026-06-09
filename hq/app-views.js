@@ -830,6 +830,8 @@ function openCreativePicker(p) {
       await Store.upsertPub(p);
       if (ind) { ind.className = 'autosave saved'; txt.textContent = '✓ Збережено о ' + fmtTime(new Date()); }
       toast('Збережено', 'success');
+      // #229 (Олександр UX): після save одразу re-render background (календар/board) щоб не треба було reload
+      if (typeof navigate === 'function') navigate();
     } catch(e) {
       toast('Помилка збереження: ' + (e.message || e), 'error');
     }
