@@ -555,7 +555,7 @@ function renderTgAutopostBlock(p) {
         <h4 style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;letter-spacing:0.5px;">
           <span>✈️ TELEGRAM АВТОПОСТ</span>
         </h4>
-        <button type="button" id="btnTgTestSend" class="btn" style="font-size:12px;padding:8px 14px;background:rgba(59,130,246,0.2);border:1px solid var(--blue,#3b82f6);color:#fff;border-radius:6px;font-weight:600;">🧪 Тест → @dreamcar_test</button>
+        <button type="button" id="btnTgTestSend" class="btn" title="Чат DreamCar SMM (6 учасників) — приватна група команди для тестових постів" style="font-size:12px;padding:8px 14px;background:rgba(59,130,246,0.2);border:1px solid var(--blue,#3b82f6);color:#fff;border-radius:6px;font-weight:600;">🧪 Тест → DreamCar SMM</button>
       </div>
 
       <!-- БЛОК 1: Опції публікації -->
@@ -910,7 +910,7 @@ function attachCardHandlers(p) {
         clearTimeout(timeoutId);
         const j = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
         if (resp.ok && j.ok) {
-          toast('✓ Тест відправлено у @dreamcar_test (msg #' + (j.messageId || '?') + ')', 'success');
+          toast('✓ Тест відправлено у DreamCar SMM (msg #' + (j.messageId || '?') + ')', 'success');
         } else {
           toast('❌ Помилка тесту: ' + (j.error || `HTTP ${resp.status}`), 'error');
         }
