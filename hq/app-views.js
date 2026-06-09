@@ -331,6 +331,21 @@ function openCard(id) {
   `);
   attachCardHandlers(p);
   Modal.onClose = () => { if (cardAutosaveTimer) clearTimeout(cardAutosaveTimer); };
+  // #219 (Vira UX): backdrop click guard — не закривати поки autosave у "Зберігаю…"
+  // АБО якщо це нова публікація що ще не збережена в БД
+  setTimeout(() => {
+    const bd = document.getElementById('modalBackdrop');
+    if (!bd) return;
+    bd.onclick = (e) => {
+      if (e.target !== bd) return;
+      const ind = document.getElementById('autosaveInd');
+      const isSaving = ind && ind.classList.contains('saving');
+      const isNew = p && p._isNew;
+      if (isSaving) { toast('Зачекай, ще зберігаю…', 'warn'); return; }
+      if (isNew) { toast('Нова публікація — натисни 💾 Зберегти перед закриттям', 'warn'); return; }
+      Modal.close();
+    };
+  }, 0);
 }
 function deadlineFromDate(dt) {
   const d = new Date(dt);
