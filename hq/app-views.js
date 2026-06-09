@@ -438,7 +438,13 @@ function renderCardBody(p) {
           <div class="creative-strip" id="f_creatives">
             ${(p.creatives||[]).map(cid => {
               const c = Store.creative(cid); if (!c) return '';
-              return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}">${c.preview}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
+              // #225 (Олександр UX): показуємо реальний thumbnail замість emoji preview
+              const thumb = c.thumbnail_url || c.compressed_url || '';
+              const isVideo = c.type === 'video' || /\.(mp4|mov|webm)$/i.test(thumb);
+              const inner = thumb
+                ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;">${isVideo ? '<span style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:2px 4px;border-radius:3px;font-family:JetBrains Mono,monospace;">▶ VIDEO</span>' : ''}`
+                : (c.preview || (isVideo ? '🎬' : '🖼'));
+              return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}" style="position:relative;overflow:hidden;">${inner}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
             }).join('')}
             <div class="cs-add" id="addCreativeBtn">+</div>
           </div>
