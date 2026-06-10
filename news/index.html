@@ -186,6 +186,23 @@ function md(text){
 }
 
 async function loadMe(){
+  // #300: SSO bridge від HQ — приймаємо #sso=base64(json) ДО getSession.
+  // У TG WebView / mobile Safari localStorage НЕ shared між /hq/ та /news/ навіть з cookie storage,
+  // тому HQ передає сесію через URL fragment при auto-redirect.
+  try {
+    const ssoMatch = location.hash.match(/#sso=([^&]+)/);
+    if (ssoMatch) {
+      const decoded = JSON.parse(atob(decodeURIComponent(ssoMatch[1])));
+      if (decoded.access_token && decoded.refresh_token) {
+        await sb.auth.setSession({
+          access_token: decoded.access_token,
+          refresh_token: decoded.refresh_token,
+        });
+        console.log('[sso] Session bridged from HQ →', location.pathname);
+      }
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  } catch(e) { console.warn('[sso] bridge fail:', e); }
   // #298: ВИКОРИСТАТИ getSession() (читає зі storage без network) — як у retention/
   // НЕ auto-redirect на /hq/ якщо немає сесії — показуємо login gate (інакше loop)
   let session = null;
