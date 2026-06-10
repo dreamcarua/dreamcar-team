@@ -344,12 +344,13 @@
   .ov-btn.danger{border-color:var(--danger);color:var(--danger);}
   .ov-btn.danger:hover{background:var(--danger);color:#fff;}
   .ov-btn-icon{padding:9px 11px;}
-  /* 09.06.2026 #194 — Quick-status chip-row для CEO/COO */
-  .qs-row{display:flex;flex-wrap:wrap;gap:6px;width:100%;padding:0 0 10px 0;margin:0 0 10px 0;border-bottom:1px dashed var(--line);justify-content:flex-start;}
-  .qs-chip{padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;border:1px solid var(--steel);background:transparent;color:var(--bone);cursor:pointer;border-radius:14px;transition:all 120ms;}
-  .qs-chip:hover:not(:disabled){border-color:var(--red);color:#fff;background:rgba(227,6,19,0.08);}
-  .qs-chip.active{border-color:var(--red);color:var(--red);background:rgba(227,6,19,0.12);cursor:default;font-family:'Archivo Black',sans-serif;}
-  .qs-chip:disabled{opacity:0.85;}
+  /* 09.06.2026 #194 / 10.06.2026 #263 — Quick-status chip-row для CEO/COO (тимлід UX) */
+  .qs-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ash);margin:0 0 6px 0;width:100%;}
+  .qs-row{display:flex;flex-wrap:wrap;gap:8px;width:100%;padding:0 0 12px 0;margin:0 0 12px 0;border-bottom:1px dashed var(--line);justify-content:flex-start;}
+  .qs-chip{padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;border:1px solid var(--steel);background:transparent;color:var(--bone);cursor:pointer;border-radius:16px;transition:all 120ms;font-weight:600;}
+  .qs-chip:hover:not(:disabled){border-color:var(--red);color:#fff;background:rgba(227,6,19,0.15);transform:translateY(-1px);}
+  .qs-chip.active{border-color:var(--red);color:var(--red);background:rgba(227,6,19,0.18);cursor:default;font-family:'Archivo Black',sans-serif;}
+  .qs-chip:disabled{opacity:0.95;}
   .ov-comment-form{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
   .ov-comment-form.show{display:block;}
   .ov-comment-form textarea{width:100%;background:var(--black);border:1px solid var(--steel);color:var(--white);padding:8px 10px;font-family:'Manrope',sans-serif;font-size:13px;min-height:60px;resize:vertical;outline:none;}
@@ -1186,17 +1187,18 @@ async function openOverview(task){
   const nextStatus = NEXT[task.status];
   const nextLabel = { doing:'⚙ У роботу', review:'👀 На рев\'ю', done:'✅ Завершити' }[nextStatus];
 
-  // Quick-status chip-row (тільки CEO/COO)
+  // 09.06.2026 #194 / 10.06.2026 #263 — Quick-status chip-row для CEO/COO (тимлід прохав знов)
   let quickStatusRow = '';
   if (isCeoCoo) {
     const chips = ALL_STATUSES.map(s =>
       `<button class="qs-chip ${s.v===task.status?'active':''}" data-qs="${s.v}" ${s.v===task.status?'disabled':''}>${s.lbl}</button>`
     ).join('');
-    quickStatusRow = `<div class="qs-row" title="CEO/COO: миттєвий перехід у будь-який статус">${chips}</div>`;
+    quickStatusRow = `<div class="qs-label">🎯 Перенести у статус:</div><div class="qs-row" title="CEO/COO: миттєвий перехід у будь-який статус">${chips}</div>`;
   }
 
   let actions = '';
-  if(nextStatus){
+  // #263: НЕ показуємо redundant "next-status" button для CEO/COO бо chip-row покриває всі статуси
+  if(nextStatus && !isCeoCoo){
     actions += `<button class="ov-btn ${nextStatus==='done'?'success':'primary'}" id="ov-act-next">${nextLabel}</button>`;
   }
   if(task.status !== 'inbox' && task.status !== 'done'){
