@@ -1,36 +1,179 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="uk" style="background:#0A0A0A;color-scheme:dark;">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INFO — DreamCar Team</title>
-<!-- #308 (10.06.2026 Vadym): orgchart → dashboard з 4 блоків.
-     Старий повний orgchart переїхав у /orgchart-full.html. -->
-<script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610c" defer></script>
+<title>INFO — DreamCar Team Hub</title>
+<meta name="description" content="DreamCar Team Hub — Tasks · SMM · Retention · Projects · Onboarding · Dashboard. Структура команди, новини, регламенти, аудиторія.">
+<!-- #317 (10.06.2026 Vadym): merged index.html hero + tools grid → INFO. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610d" defer></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0a0a0a; --bg-2: #131318; --bg-3: #1a1a22;
-    --border: #2a2a35; --text: #f2f2f5; --grey: #8a8a92; --grey-2: #b4b4bc;
-    --red: #E30613; --red-soft: #ff3344;
+    --black: #0A0A0A; --coal: #141414; --graphite: #1F1F1F; --steel: #2A2A2A;
+    --line: #2A2A2A; --ash: #888; --bone: #DDDDDD; --white: #FFFFFF;
+    --red: #E30613; --red-deep: #B8050F; --red-soft: #ff3344;
+    --bg: var(--black); --bg-2: var(--coal); --bg-3: var(--graphite);
+    --border: var(--line); --text: var(--white); --grey: var(--ash); --grey-2: var(--bone);
   }
   html[data-dc-theme="light"] {
     --bg: #f5f5f7; --bg-2: #ffffff; --bg-3: #fafafc;
     --border: #e1e1e6; --text: #0a0a0a; --grey: #6e6e76; --grey-2: #3a3a40;
   }
-  body { font-family: 'Manrope', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; max-width: 1400px; margin: 0 auto; }
-  .page-title { font-size: 22px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; color: var(--text); }
-  .page-sub { font-size: 13px; color: var(--grey); margin-bottom: 28px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
-  .card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; min-height: 260px; }
-  .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .card-title { font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text); }
-  .card-title .icon { margin-right: 6px; }
-</content>
-</invoke>
-  .card-counter { font-size: 11px; color: var(--grey); background: var(--bg-3); padding: 3px 8px; border-radius: 10px; border: 1px solid var(--border); }
-  .card-body { flex: 1; }
-  .open-btn { margin-top: 14px; align-self: flex-start; background: var(--red); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: background 0.15s; }
+  body {
+    font-family: 'Manrope', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--red); color: #fff; }
+
+
+  /* ============ HERO ============ */
+  .hero {
+    padding: 64px 32px 48px;
+    background:
+      radial-gradient(ellipse at 70% 30%, rgba(227,6,19,0.18) 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    position: relative; overflow: hidden;
+  }
+  html[data-dc-theme="light"] .hero {
+    background:
+      radial-gradient(ellipse at 70% 30%, rgba(227,6,19,0.10) 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--graphite) 1px, transparent 1px),
+      linear-gradient(90deg, var(--graphite) 1px, transparent 1px);
+    background-size: 60px 60px; opacity: 0.12; pointer-events: none;
+  }
+  html[data-dc-theme="light"] .hero::before { opacity: 0.05; }
+  .hero-inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 2; }
+  .hero-top {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.22em;
+    color: var(--red); margin-bottom: 16px;
+  }
+  .hero-title {
+    font-family: 'Oswald', 'Bebas Neue', sans-serif;
+    font-weight: 700; font-size: clamp(40px, 7vw, 84px);
+    line-height: 0.95; color: var(--text);
+    margin-bottom: 16px; letter-spacing: -0.01em;
+  }
+  .hero-title .red { color: var(--red); }
+  .hero-sub {
+    font-size: 17px; color: var(--grey-2);
+    line-height: 1.55; max-width: 680px;
+  }
+  .hero-meta {
+    margin-top: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.18em; color: var(--grey);
+  }
+
+  /* ============ SECTION WRAP ============ */
+  .section {
+    max-width: 1280px; margin: 0 auto;
+    padding: 40px 32px;
+  }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.22em;
+    color: var(--red); margin-bottom: 8px;
+  }
+  .section-h2 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700; font-size: 26px;
+    color: var(--text); margin-bottom: 24px;
+    letter-spacing: 0.01em;
+  }
+
+  /* ============ TOOLS GRID — 2 ряди по 4 ============ */
+  .tools {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 900px) { .tools { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .tools { grid-template-columns: 1fr; } }
+  .tile {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 18px 16px;
+    text-decoration: none; color: var(--text);
+    transition: all 0.18s ease;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; gap: 8px;
+    min-height: 130px;
+  }
+  .tile::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(227,6,19,0.06));
+    opacity: 0; transition: opacity 0.18s;
+    pointer-events: none;
+  }
+  .tile:hover {
+    border-color: var(--red);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(227,6,19,0.15);
+  }
+  .tile:hover::after { opacity: 1; }
+  .tile-icon {
+    font-size: 24px; line-height: 1;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-3); border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .tile-title {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700; font-size: 18px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text);
+  }
+  .tile-desc {
+    font-size: 12px; color: var(--grey);
+    line-height: 1.4; flex: 1;
+  }
+  .tile-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.15em;
+    color: var(--grey); text-transform: lowercase;
+    margin-top: 4px;
+  }
+  .tile-badge {
+    position: absolute; top: 12px; right: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.1em;
+    padding: 2px 7px; border-radius: 4px;
+    background: var(--red); color: #fff;
+  }
+  .tile-badge.ext { background: var(--bg-3); color: var(--grey-2); border: 1px solid var(--border); }
+
+
+  /* ============ INFO BLOCKS GRID (4 cards) ============ */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 16px;
+  }
+  .info-card {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+    display: flex; flex-direction: column; min-height: 260px;
+  }
+  .info-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .info-card-title { font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text); }
+  .info-card-title .icon { margin-right: 6px; }
+  .info-card-counter { font-size: 11px; color: var(--grey); background: var(--bg-3); padding: 3px 8px; border-radius: 10px; border: 1px solid var(--border); }
+  .info-card-body { flex: 1; }
+  .open-btn { margin-top: 14px; align-self: flex-start; background: var(--red); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: background 0.15s; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; }
   .open-btn:hover { background: var(--red-soft); }
   .loading, .empty { color: var(--grey); font-size: 13px; padding: 12px 0; }
   .err { color: var(--red-soft); font-size: 12px; padding: 12px 0; }
@@ -47,7 +190,7 @@
   .reg-chip:hover .count { background: rgba(255,255,255,0.25); color: #fff; }
   .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .kpi-tile { background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; text-align: center; }
-  .kpi-val { font-size: 22px; font-weight: 700; color: var(--red); line-height: 1; margin-bottom: 4px; }
+  .kpi-val { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 700; color: var(--red); line-height: 1; margin-bottom: 4px; }
   .kpi-label { font-size: 10px; color: var(--grey); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.3; }
   .kpi-update { font-size: 10px; color: var(--grey); text-align: center; margin-top: 8px; }
   .org-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
@@ -58,66 +201,165 @@
   .org-card { background: var(--bg-3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 11px; line-height: 1.4; min-width: 95px; text-align: center; }
   .org-card .role { font-size: 9px; color: var(--grey); text-transform: uppercase; letter-spacing: 0.4px; }
   .org-card .name { font-weight: 700; color: var(--text); margin-top: 2px; }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); max-width: 1280px; margin: 0 auto; }
+
+  @media (max-width: 720px) {
+    .hero { padding: 48px 20px 32px; }
+    .section { padding: 32px 20px; }
+  }
 </style>
 </head>
 <body>
 
-<div class="page-title">ℹ️ INFO — Команда і оновлення</div>
-<div class="page-sub">Структура команди, останні новини, регламенти, аудиторія</div>
 
-<div class="grid">
-
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title"><span class="icon">🏢</span> Структура команди</div>
-      <span class="card-counter" id="orgCount">4 ключових</span>
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">/// TEAM HUB · ВНУТРІШНІ СИСТЕМИ · КОНФІДЕНЦІЙНО</div>
+    <h1 class="hero-title">УСЯ КОМАНДА.<br>В <span class="red">ОДНОМУ МІСЦІ.</span></h1>
+    <p class="hero-sub">
+      Projects, Tasks, SMM, Retention, Onboarding, Dashboard — операційні системи DreamCar. Закритий доступ для команди через Google або Telegram.
+    </p>
+    <div class="hero-meta">
+      DREAMCAR · EST. 2016 · 10 РОКІВ · 17 АВТО · 500K+ СПІЛЬНОТА
     </div>
-    <div class="card-body">
-      <div class="org-row level-1">
-        <div class="org-card"><div class="role">CEO</div><div class="name">Вадим</div></div>
-        <div class="org-card"><div class="role">Co-founder</div><div class="name">Артем</div></div>
+  </div>
+</section>
+
+<!-- TOOLS — 2 ряди по 4 -->
+<section class="section">
+  <div class="section-label">/// 🚀 ІНСТРУМЕНТИ КОМАНДИ</div>
+  <h2 class="section-h2">УСІ СИСТЕМИ</h2>
+  <div class="tools">
+
+    <a href="https://brand.dreamcar.ua/" target="_blank" rel="noopener" class="tile">
+      <span class="tile-badge ext">↗</span>
+      <div class="tile-icon">📘</div>
+      <div class="tile-title">BRAND</div>
+      <div class="tile-desc">Брендбук, voice, post generator, examples.</div>
+      <div class="tile-meta">/// brand.dreamcar.ua</div>
+    </a>
+
+    <a href="/projects/" class="tile">
+      <div class="tile-icon">📁</div>
+      <div class="tile-title">PROJECTS</div>
+      <div class="tile-desc">Запуски авто-розіграшів, тайм-лайн, ROI.</div>
+      <div class="tile-meta">/// /projects/</div>
+    </a>
+
+    <a href="/tasks/" class="tile">
+      <div class="tile-icon">✅</div>
+      <div class="tile-title">TASKS</div>
+      <div class="tile-desc">Inbox · Doing · Review · Done. Дедлайни, виконавці.</div>
+      <div class="tile-meta">/// /tasks/</div>
+    </a>
+
+    <a href="/hq/" class="tile">
+      <div class="tile-icon">🎯</div>
+      <div class="tile-title">SMM</div>
+      <div class="tile-desc">Календар публікацій, креативи, TG автопостинг.</div>
+      <div class="tile-meta">/// /hq/</div>
+    </a>
+
+    <a href="/retention/" class="tile">
+      <div class="tile-icon">📬</div>
+      <div class="tile-title">RETENTION</div>
+      <div class="tile-desc">Email, TG, push, viber. Сегменти, approval, розсилки.</div>
+      <div class="tile-meta">/// /retention/</div>
+    </a>
+
+    <a href="/onboarding.html" class="tile">
+      <div class="tile-icon">🚀</div>
+      <div class="tile-title">ONBOARDING</div>
+      <div class="tile-desc">Введення нових — інструменти, проекти, перший місяць.</div>
+      <div class="tile-meta">/// /onboarding.html</div>
+    </a>
+
+    <a href="/orgchart.html" class="tile" style="border-color:var(--red);">
+      <span class="tile-badge">YOU ARE HERE</span>
+      <div class="tile-icon">ℹ️</div>
+      <div class="tile-title">INFO</div>
+      <div class="tile-desc">Команда, новини, регламенти, аудиторія DreamCar.</div>
+      <div class="tile-meta">/// /orgchart.html</div>
+    </a>
+
+    <a href="https://dashboard.dreamcar.ua/" target="_blank" rel="noopener" class="tile">
+      <span class="tile-badge ext">↗</span>
+      <div class="tile-icon">📊</div>
+      <div class="tile-title">DASHBOARD</div>
+      <div class="tile-desc">ROI, угоди, воронка, UTM, кампанії, A/B.</div>
+      <div class="tile-meta">/// dashboard.dreamcar.ua</div>
+    </a>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- INFO BLOCKS — 4 cards (Структура / Новини / Регл / Аудиторія) -->
+<section class="section">
+  <div class="section-label">/// 👥 КОНТЕКСТ І АПДЕЙТИ</div>
+  <h2 class="section-h2">КОМАНДА І ОНОВЛЕННЯ</h2>
+  <div class="info-grid">
+
+    <div class="info-card">
+      <div class="info-card-head">
+        <div class="info-card-title"><span class="icon">🏢</span> Структура команди</div>
+        <span class="info-card-counter">4 ключових</span>
       </div>
-      <div class="org-connector"></div>
-      <div class="org-row level-2">
-        <div class="org-card"><div class="role">COO</div><div class="name">Давид</div></div>
+      <div class="info-card-body">
+        <div class="org-row level-1">
+          <div class="org-card"><div class="role">CEO</div><div class="name">Вадим</div></div>
+          <div class="org-card"><div class="role">Co-founder</div><div class="name">Артем</div></div>
+        </div>
+        <div class="org-connector"></div>
+        <div class="org-row level-2">
+          <div class="org-card"><div class="role">COO</div><div class="name">Давид</div></div>
+        </div>
+        <div class="org-connector"></div>
+        <div class="org-row level-3">
+          <div class="org-card"><div class="role">Head of SMM</div><div class="name">Олександр</div></div>
+          <div class="org-card"><div class="role">Head of Retention</div><div class="name">Віра</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--grey);text-align:center;margin-top:8px;">+ підрядники / спостерігачі</div>
       </div>
-      <div class="org-connector"></div>
-      <div class="org-row level-3">
-        <div class="org-card"><div class="role">Head of SMM</div><div class="name">Олександр</div></div>
-        <div class="org-card"><div class="role">Head of Retention</div><div class="name">Віра</div></div>
+      <a class="open-btn" href="/orgchart-full.html" target="_blank">Повна схема →</a>
+    </div>
+
+    <div class="info-card">
+      <div class="info-card-head">
+        <div class="info-card-title"><span class="icon">📢</span> Новини</div>
+        <span class="info-card-counter" id="newsCount">—</span>
       </div>
-      <div style="font-size:11px;color:var(--grey);text-align:center;margin-top:8px;">+ підрядники / спостерігачі</div>
+      <div class="info-card-body" id="newsBody"><div class="loading">Завантажую…</div></div>
+      <a class="open-btn" href="/news/">Усі новини →</a>
     </div>
-    <a class="open-btn" href="/orgchart-full.html" target="_blank">Відкрити повну схему →</a>
-  </div>
 
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title"><span class="icon">📢</span> Новини</div>
-      <span class="card-counter" id="newsCount">—</span>
+    <div class="info-card">
+      <div class="info-card-head">
+        <div class="info-card-title"><span class="icon">📋</span> Регламенти</div>
+        <span class="info-card-counter" id="regCount">—</span>
+      </div>
+      <div class="info-card-body" id="regBody"><div class="loading">Завантажую…</div></div>
+      <a class="open-btn" href="/regulations/">Усі регламенти →</a>
     </div>
-    <div class="card-body" id="newsBody"><div class="loading">Завантажую…</div></div>
-    <a class="open-btn" href="/news/">Усі новини →</a>
-  </div>
 
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title"><span class="icon">📋</span> Регламенти</div>
-      <span class="card-counter" id="regCount">—</span>
+    <div class="info-card">
+      <div class="info-card-head">
+        <div class="info-card-title"><span class="icon">📊</span> Аудиторія DreamCar</div>
+        <span class="info-card-counter" id="surveyCount">—</span>
+      </div>
+      <div class="info-card-body" id="surveyBody"><div class="loading">Завантажую…</div></div>
+      <a class="open-btn" href="/survey.html">Розгорнути аналітику →</a>
     </div>
-    <div class="card-body" id="regBody"><div class="loading">Завантажую…</div></div>
-    <a class="open-btn" href="/regulations/">Усі регламенти →</a>
-  </div>
 
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title"><span class="icon">📊</span> Аудиторія DreamCar</div>
-      <span class="card-counter" id="surveyCount">—</span>
-    </div>
-    <div class="card-body" id="surveyBody"><div class="loading">Завантажую…</div></div>
-    <a class="open-btn" href="/survey.html">Розгорнути аналітику →</a>
   </div>
+</section>
 
+<div style="text-align:center; padding: 32px 16px 48px; color:var(--grey); font-size:10px; font-family:'JetBrains Mono', monospace; letter-spacing:0.18em;">
+  DREAMCAR · TEAM HUB · CONFIDENTIAL · 2026
 </div>
 
 <script type="module">
@@ -125,85 +367,40 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const SUPABASE_URL='https://wotghlaehnvxyeacznvv.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
-
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
-function stripMd(text){
-  if (!text) return '';
-  return String(text).replace(/[#*`_~>\[\]]/g, '').replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
-}
+function stripMd(t){if(!t)return '';return String(t).replace(/[#*`_~>\[\]]/g,'').replace(/\n+/g,' ').replace(/\s+/g,' ').trim();}
 const KIND_LBL={news:'📰 Новина',announcement:'📢 Анонс',promo:'🎁 Акція',plan:'📋 План',system:'⚙ Системне'};
 
-// News
-(async () => {
-  try {
-    const { data, error } = await sb.from('team_news')
-      .select('id,kind,title,body_md,created_at')
-      .is('deleted_at', null)
-      .order('pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(5);
-    if (error) throw error;
-    const body = document.getElementById('newsBody');
-    document.getElementById('newsCount').textContent = (data || []).length + ' постів';
-    if (!data || !data.length) { body.innerHTML = '<div class="empty">Ще немає новин.</div>'; return; }
-    body.innerHTML = data.map(n => `
-      <div class="news-item">
-        <div class="news-kind">${esc(KIND_LBL[n.kind] || n.kind || '')}</div>
-        <div class="news-title">${esc(n.title || '(без заголовка)')}</div>
-        ${n.body_md ? `<div class="news-preview">${esc(stripMd(n.body_md))}</div>` : ''}
-        <div class="news-date">${new Date(n.created_at).toLocaleDateString('uk',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>
-      </div>
-    `).join('');
-  } catch (e) {
-    document.getElementById('newsBody').innerHTML = '<div class="err">Помилка: ' + esc(e.message) + '</div>';
-  }
-})();
+(async()=>{try{
+  const {data,error}=await sb.from('team_news').select('id,kind,title,body_md,created_at').is('deleted_at',null).order('pinned',{ascending:false}).order('created_at',{ascending:false}).limit(5);
+  if(error)throw error;
+  const body=document.getElementById('newsBody');
+  document.getElementById('newsCount').textContent=(data||[]).length+' постів';
+  if(!data||!data.length){body.innerHTML='<div class="empty">Ще немає новин.</div>';return;}
+  body.innerHTML=data.map(n=>`<div class="news-item"><div class="news-kind">${esc(KIND_LBL[n.kind]||n.kind||'')}</div><div class="news-title">${esc(n.title||'(без заголовка)')}</div>${n.body_md?`<div class="news-preview">${esc(stripMd(n.body_md))}</div>`:''}<div class="news-date">${new Date(n.created_at).toLocaleDateString('uk',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>`).join('');
+}catch(e){document.getElementById('newsBody').innerHTML='<div class="err">Помилка: '+esc(e.message)+'</div>';}})();
 
-// Regulations
-(async () => {
-  try {
-    const { data, error } = await sb.from('regulations').select('category').is('deleted_at', null);
-    if (error) throw error;
-    const counts = {};
-    (data || []).forEach(r => { const cat = r.category || 'Без категорії'; counts[cat] = (counts[cat] || 0) + 1; });
-    const cats = Object.keys(counts).sort();
-    document.getElementById('regCount').textContent = (data || []).length + ' документів';
-    const body = document.getElementById('regBody');
-    if (!cats.length) { body.innerHTML = '<div class="empty">Ще немає регламентів.</div>'; return; }
-    body.innerHTML = '<div class="chip-list">' + cats.map(cat => `
-      <a class="reg-chip" href="/regulations/#cat=${encodeURIComponent(cat)}">
-        <span>${esc(cat)}</span><span class="count">${counts[cat]}</span>
-      </a>`).join('') + '</div>';
-  } catch (e) {
-    document.getElementById('regBody').innerHTML = '<div class="err">Помилка: ' + esc(e.message) + '</div>';
-  }
-})();
+(async()=>{try{
+  const {data,error}=await sb.from('regulations').select('category').is('deleted_at',null);
+  if(error)throw error;
+  const counts={};(data||[]).forEach(r=>{const c=r.category||'Без категорії';counts[c]=(counts[c]||0)+1;});
+  const cats=Object.keys(counts).sort();
+  document.getElementById('regCount').textContent=(data||[]).length+' документів';
+  const body=document.getElementById('regBody');
+  if(!cats.length){body.innerHTML='<div class="empty">Ще немає регламентів.</div>';return;}
+  body.innerHTML='<div class="chip-list">'+cats.map(c=>`<a class="reg-chip" href="/regulations/#cat=${encodeURIComponent(c)}"><span>${esc(c)}</span><span class="count">${counts[c]}</span></a>`).join('')+'</div>';
+}catch(e){document.getElementById('regBody').innerHTML='<div class="err">Помилка: '+esc(e.message)+'</div>';}})();
 
-// Survey — це опитування КЛІЄНТІВ (1500+ відповідей), не команди.
-// Тягнемо meta з /survey.html (single source of truth), не з Supabase.
-(async () => {
-  try {
-    const r = await fetch('/survey.html', { cache: 'no-cache' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const html = await r.text();
-    // Витягуємо meta block (з SURVEY_DATA = { "meta": {...} })
-    const m = html.match(/"meta":\s*(\{[\s\S]*?\})/);
-    if (!m) throw new Error('meta not found у survey.html');
-    const meta = JSON.parse(m[1]);
-    document.getElementById('surveyCount').textContent = (meta.totalResponses || 0).toLocaleString('uk') + ' відповідей';
-    document.getElementById('surveyBody').innerHTML = `
-      <div class="kpi-grid">
-        <div class="kpi-tile"><div class="kpi-val">${(meta.totalResponses || 0).toLocaleString('uk')}</div><div class="kpi-label">Відповідей</div></div>
-        <div class="kpi-tile"><div class="kpi-val">${meta.loyalPct || 0}%</div><div class="kpi-label">Лояльна аудиторія</div></div>
-        <div class="kpi-tile"><div class="kpi-val">${meta.regularPlayersPct || 0}%</div><div class="kpi-label">Регулярні гравці</div></div>
-        <div class="kpi-tile"><div class="kpi-val">${meta.haveCarPct || 0}%</div><div class="kpi-label">Мають авто</div></div>
-      </div>
-      ${meta.lastUpdated ? `<div class="kpi-update">Оновлено ${esc(meta.lastUpdated)}</div>` : ''}
-    `;
-  } catch (e) {
-    document.getElementById('surveyBody').innerHTML = '<div class="err">Не вдалось витягти meta: ' + esc(e.message) + '</div>';
-  }
-})();
+(async()=>{try{
+  const r=await fetch('/survey.html',{cache:'no-cache'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const html=await r.text();
+  const m=html.match(/"meta":\s*(\{[\s\S]*?\})/);
+  if(!m)throw new Error('meta not found');
+  const meta=JSON.parse(m[1]);
+  document.getElementById('surveyCount').textContent=(meta.totalResponses||0).toLocaleString('uk')+' відповідей';
+  document.getElementById('surveyBody').innerHTML=`<div class="kpi-grid"><div class="kpi-tile"><div class="kpi-val">${(meta.totalResponses||0).toLocaleString('uk')}</div><div class="kpi-label">Відповідей</div></div><div class="kpi-tile"><div class="kpi-val">${meta.loyalPct||0}%</div><div class="kpi-label">Лояльна аудиторія</div></div><div class="kpi-tile"><div class="kpi-val">${meta.regularPlayersPct||0}%</div><div class="kpi-label">Регулярні гравці</div></div><div class="kpi-tile"><div class="kpi-val">${meta.haveCarPct||0}%</div><div class="kpi-label">Мають авто</div></div></div>${meta.lastUpdated?`<div class="kpi-update">Оновлено ${esc(meta.lastUpdated)}</div>`:''}`;
+}catch(e){document.getElementById('surveyBody').innerHTML='<div class="err">Не вдалось витягти meta: '+esc(e.message)+'</div>';}})();
 </script>
 
 </body>
