@@ -17,6 +17,7 @@ on:
       - 'dashboard/**'
       - 'brand-book/**'
       - '_headers'
+  workflow_dispatch:
 
 concurrency:
   group: auto-cache-bust
@@ -63,16 +64,22 @@ jobs:
         env:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add hq/index.html tasks/index.html projects/index.html retention/index.html dashboard/index.html brand-book/index.html 2>/dev/null || true
-            git commit -m "🤖 auto cache bust v=$VERSION [skip ci]"
-            git push
-            echo "::notice::Committed cache bust"
-          else
-            echo "::notice::No changes — nothing to commit"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Stage всі змінені index.html по одному (skip якщо файл не існує)
+          for f in hq/index.html tasks/index.html projects/index.html retention/index.html dashboard/index.html brand-book/index.html; do
+            if [ -f "$f" ]; then
+              git add "$f" || true
+            fi
+          done
+          # Перевірити чи staging має зміни — якщо ні, тихо вийти
+          if git diff --cached --quiet; then
+            echo "::notice::No version changes — nothing to commit"
+            exit 0
           fi
+          git commit -m "🤖 auto cache bust v=$VERSION [skip ci]"
+          git push
+          echo "::notice::Committed cache bust"
 
       - name: Cloudflare cache purge (edge invalidation)
         env:
