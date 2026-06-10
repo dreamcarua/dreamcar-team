@@ -8,6 +8,29 @@
 
 ---
 
+## 10.06.2026 (вечір) — #322+#323+#324+#325 (4 задачі одним пушем)
+
+### SMM (#322 P0)
+- 🔧 tg-post-send v14: чіткі коди помилок 401 (`token_expired` / `getuser_error:*` / `no_user_in_token` / `rpc_error:*` / `no_user_row_for_auth_id:*` / `role_blocked:<role>` / `no_auth_header` / `catch:*`)
+- 🔧 hq/app-views.js (test button): auto `refreshSession()` + retry один раз якщо 401 reason починається з `token_expired`/`getuser_error`/`no_user_in_token`. Toast тепер показує конкретну причину.
+
+### SMM (#323 P0)
+- 🔧 hq/app-ai-copy.js + hq/app-templates.js: AI/Template modal `z-index 300 → 2000`. Раніше модалки відкривались ПІД publication modal (z-index 1241/1383/1500) — Vadym не міг їх побачити.
+
+### team.dreamcar.ua (#324)
+- 🔧 orgchart-full.html:
+  - "КАРТА ВЛАДИ" → "ЗОНИ ВІДПОВІДАЛЬНОСТІ" (Vadym: менш пафосно)
+  - Прибрав пункт у escalation про Артема як партнера/підлеглого (засновник = партнер за замовчуванням, не треба окремо обумовлювати)
+  - Повернув на Level 3 третю карточку: **#06 Head of TECH · IT** (Олександр + команда). Зараз 3 Heads: SMM, Retention, TECH
+- 🔧 info.html: 3-я карточка Head of TECH у org-row Level 3
+
+### SMM (#325)
+- 🗑 /hq/#launches видалено з UI (повністю замінено `/projects/` після Phase 2):
+  - hq/index.html — прибрав sidebar nav-item + bottom-nav '🚀 Запуски'
+  - hq/app-core.js — route `launches` → `location.replace('/projects/')`
+  - Прибрав `navCntLaunches` counter
+  - `Store.launches()` залишився (data shared з publication form dropdown — там вибір проекту з тих самих 6 launches)
+
 ## 10.06.2026 (день) — #302 P0 /news/ + /regulations/ NO AUTH
 
 🛡 **#302 P0** Сторінки **повністю відкриті**, без авторизації
