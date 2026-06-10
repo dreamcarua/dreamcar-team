@@ -305,6 +305,27 @@
   .ov-badge.status-doing{background:rgba(245,158,11,0.18);color:var(--warning);}
   .ov-badge.status-review{background:rgba(227,6,19,0.18);color:var(--red);}
   .ov-badge.status-done{background:rgba(16,185,129,0.18);color:var(--success);}
+  /* 10.06.2026 #269 (Давид): pending-review highlight + verified мутаризація */
+  .task.pending-review{
+    border:2px solid #ffc107 !important;
+    background:linear-gradient(135deg, rgba(255,193,7,0.08), rgba(255,193,7,0.03)) !important;
+    box-shadow:0 0 0 2px rgba(255,193,7,0.15);
+    animation:pendingPulse 2.5s ease-in-out infinite;
+  }
+  .task.pending-review::before{
+    content:'⏳';position:absolute;top:6px;right:6px;font-size:14px;opacity:0.9;
+  }
+  .task.verified{
+    opacity:0.45 !important;
+    filter:grayscale(85%);
+  }
+  .task.verified .task-title{
+    text-decoration:line-through;color:var(--ash) !important;
+  }
+  @keyframes pendingPulse{
+    0%,100%{box-shadow:0 0 0 2px rgba(255,193,7,0.15);}
+    50%{box-shadow:0 0 0 4px rgba(255,193,7,0.30);}
+  }
   .ov-badge.p1{background:rgba(220,38,38,0.2);color:var(--danger);}
   .ov-badge.p2{background:rgba(245,158,11,0.2);color:var(--warning);}
   .ov-badge.p3{background:rgba(59,130,246,0.2);color:var(--info);}
@@ -563,6 +584,14 @@
       <select id="watchersAdd" style="width:100%;"><option value="">— обрати спостерігача —</option></select>
     </div>
     <div class="field"><label for="f-tags">МІТКИ (через кому)</label><input type="text" id="f-tags" placeholder="hq, dreamcar, x5, brand" aria-label="Мітки задачі через кому"></div>
+    <!-- 10.06.2026 #269 (Давид): "Потребує перевірки" - 2-stage done -->
+    <div class="field" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,193,7,0.07);border:1px solid rgba(255,193,7,0.25);border-radius:8px;">
+      <input type="checkbox" id="f-requires-review" style="width:18px;height:18px;cursor:pointer;accent-color:#ffc107;" aria-label="Потребує перевірки">
+      <label for="f-requires-review" style="cursor:pointer;margin:0;font-size:13px;line-height:1.4;">
+        <b>🔍 Потребує перевірки</b><br>
+        <span style="color:var(--ash);font-size:11px;">Коли виконавець закриє — задача залишиться виділеною, доки ти не натиснеш "Закрити" у Tasks або TG</span>
+      </label>
+    </div>
     <div class="field">
       <label>ПРИКРІПЛЕННЯ <span id="editAttCount" style="color:var(--ash);font-weight:normal;"></span></label>
       <div id="editAttGrid" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:48px;"></div>
@@ -987,10 +1016,21 @@ function renderTask(t){
   const attCount = Array.isArray(t.attachments) ? t.attachments.length : 0;
   if(attCount > 0) icons.push(`📎 ${attCount}`);
   const sel=state.selected.has(t.id)?' selected':'';
+  // 10.06.2026 #269 (Давид): візуальний state для done задач:
+  //   - verified (закрита постановником або auto) → 'verified' клас (сіра + перекреслена)
+  //   - pending review (потребує перевірки, ще не закрита) → 'pending-review' (виділена жовтим)
+  let dcls = '';
+  if (t.status === 'done') {
+    if (t.verified_at) dcls += ' verified';
+    else if (t.requires_review) dcls += ' pending-review';
+  }
+  if (t.requires_review && !t.verified_at && t.status === 'done') {
+    icons.unshift('🔍 Перевірити');
+  }
   // 05.06.2026 Phase 1.2: project badge
   const project = t.project_id ? (state.projects||[]).find(p=>p.id===t.project_id) : null;
   const projectBadge = project ? `<span class="task-tag" style="background:${escapeHtml(project.color||'#1a1a1a')};color:#fff;border:1px solid rgba(255,255,255,0.1);" title="${escapeHtml(project.name)}">📁 ${escapeHtml(project.code||project.name.slice(0,8))}</span>` : '';
-  return `<div class="task${sel}" draggable="true" data-id="${t.id}">
+  return `<div class="task${sel}${dcls}" draggable="true" data-id="${t.id}">
     ${icons.length?`<div class="task-icons">${icons.map(i=>`<span>${i}</span>`).join(' ')}</div>`:''}
     <div class="task-title"><span class="task-priority ${t.priority||'p3'}"></span>${escapeHtml(t.title)}</div>
     <div class="task-meta">
@@ -1204,6 +1244,18 @@ async function openOverview(task){
   if(task.status !== 'inbox' && task.status !== 'done'){
     actions += `<button class="ov-btn warn" id="ov-act-back">← На крок назад</button>`;
   }
+  // 10.06.2026 #269 (Давид): кнопка "Закрити задачу" — для creator коли done + requires_review + не verified
+  const isPendingReview = task.status === 'done' && task.requires_review && !task.verified_at;
+  if (isPendingReview && (isCreator || isCeoCoo)) {
+    actions += `<button class="ov-btn success" id="ov-act-close" style="background:#ffc107;border-color:#ffc107;color:#000;font-weight:600;">🔒 Закрити задачу</button>`;
+  }
+  // Show "verified" badge у footer якщо verified
+  if (task.status === 'done' && task.verified_at) {
+    const vUser = state.users.find(u => u.id === task.verified_by);
+    actions += `<span style="display:inline-flex;align-items:center;gap:6px;color:#888;font-size:12px;padding:0 8px;"><span>✓</span>Перевірено${vUser?(' ('+escapeHtml(vUser.name||'?')+')'):''}</span>`;
+  } else if (isPendingReview) {
+    actions += `<span style="display:inline-flex;align-items:center;gap:6px;color:#ffc107;font-size:12px;padding:0 8px;font-weight:600;"><span>⏳</span>Очікує перевірки постановника</span>`;
+  }
   actions += `<button class="ov-btn" id="ov-act-comment">💬 Коментар</button>`;
   actions += `<button class="ov-btn" id="ov-act-edit">✏ Редагувати</button>`;
   if(isCreator || isAdmin) actions += `<button class="ov-btn-icon ov-btn danger" id="ov-act-delete" title="Видалити">🗑</button>`;
@@ -1235,6 +1287,20 @@ async function openOverview(task){
     const bs = BACK[task.status]; if(!bs) return;
     const {error} = await supabase.from('team_tasks').update({status:bs,updated_at:new Date().toISOString()}).eq('id',task.id);
     if(!error){toast('Повернуто','success');triggerNotifyWorker();overviewModal.classList.remove('show');}
+  });
+  // 10.06.2026 #269 (Давид): "Закрити задачу" — постановник підтверджує виконання
+  document.getElementById('ov-act-close')?.addEventListener('click', async () => {
+    const btn = document.getElementById('ov-act-close');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Закриваю…'; }
+    const { data, error } = await supabase.rpc('team_task_close_verified', { p_task_id: task.id });
+    if (error || (data && data.ok === false)) {
+      toast('Помилка: ' + (error?.message || data?.err || 'unknown'), 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '🔒 Закрити задачу'; }
+      return;
+    }
+    toast('✅ Задачу закрито', 'success');
+    triggerNotifyWorker();
+    overviewModal.classList.remove('show');
   });
   document.getElementById('ov-act-comment')?.addEventListener('click', ()=>{
     document.getElementById('ov-comment-form').classList.add('show');
@@ -1519,6 +1585,9 @@ function openEditModal(task){
   document.getElementById('f-project').value=task?.project_id||'';
   document.getElementById('f-estimated').value=task?.estimated_h||'';
   document.getElementById('f-tags').value=(task?.tags||[]).join(', ');
+  // #269 (Давид): "Потребує перевірки"
+  const _fRR = document.getElementById('f-requires-review');
+  if (_fRR) _fRR.checked = !!task?.requires_review;
   document.getElementById('deleteTaskBtn').style.display=task?'inline-block':'none';
   // subtasks
   state.subtasks=Array.isArray(task?.subtasks)?JSON.parse(JSON.stringify(task.subtasks)):[];
@@ -1587,6 +1656,7 @@ async function saveTask(){
     project_id:document.getElementById('f-project').value||null,
     estimated_h:parseFloat(document.getElementById('f-estimated').value)||null,
     tags:document.getElementById('f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+    requires_review: !!(document.getElementById('f-requires-review')?.checked),  // #269 Давид
     subtasks:state.subtasks||[],
     watchers:state.watchers||[],
     attachments:state.editAttachments||[],
