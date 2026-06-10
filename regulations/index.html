@@ -159,8 +159,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const SUPABASE_URL='https://wotghlaehnvxyeacznvv.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2NjEyNTYsImV4cCI6MjA1NDIzNzI1Nn0.HMG-r9w9TQqPM5OYAlOOFiKWZ-VIKE0kuJg6Bc-3wd0';
 
-// #293: dc-shared-storage уже підключений у <head> синхронно
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true,autoRefreshToken:true,storageKey:'sb-dreamcar-hq-auth-token'}});
+// #293/#294: dc-shared-storage підключений у <head> + ПЕРЕДАТИ як storage у createClient
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    storageKey: 'sb-dreamcar-hq-auth-token',
+    storage: window.dcStorage,
+    detectSessionInUrl: true
+  }
+});
 
 let me=null, regs=[], currentCat='', currentId=null;
 
