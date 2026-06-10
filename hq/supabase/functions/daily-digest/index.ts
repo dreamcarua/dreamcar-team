@@ -51,9 +51,16 @@ interface PubRow {
 function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+// #330 HARD RULE: Europe/Kyiv для всіх timestamp у нотифікаціях
 function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("uk-UA", {
+      timeZone: "Europe/Kyiv",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    }).format(d);
+  } catch { return ""; }
 }
 function todayBoundsKyiv(): { startIso: string; endIso: string; dateLabel: string } {
   const now = new Date();

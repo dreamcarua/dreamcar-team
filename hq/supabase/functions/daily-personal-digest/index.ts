@@ -123,13 +123,19 @@ async function buildPersonalDigest(supabase: ReturnType<typeof createClient>, us
   lines.push(`☀️ <b>Ранковий дайджест · ${dateLabel}</b>`);
   lines.push(`<b>${escHtml(user.name || "")}</b> · ${escHtml(user.role || "")}\n`);
 
+  // #330 HARD RULE: Europe/Kyiv для всіх timestamp у нотифікаціях
+  const kyivT = (iso: string) => new Intl.DateTimeFormat("uk-UA", {
+    timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit", hour12: false
+  }).format(new Date(iso));
+  const kyivDT = (iso: string) => new Intl.DateTimeFormat("uk-UA", {
+    timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false
+  }).format(new Date(iso)).replace(",", "");
+
   // Сьогодні
   if (todayPubs && todayPubs.length > 0) {
     lines.push(`📅 <b>Сьогодні (${todayPubs.length})</b>`);
     for (const p of todayPubs.slice(0, 6)) {
-      const d = new Date(p.publish_at);
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const t = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const t = kyivT(p.publish_at);
       const plats = (platformsByPub[p.id] || []).join("/") || "—";
       lines.push(`${STATUS_EMOJI[p.status] || "•"} <code>${t}</code> · ${escHtml(p.title)} · ${plats}`);
     }
@@ -141,10 +147,7 @@ async function buildPersonalDigest(supabase: ReturnType<typeof createClient>, us
   if (queue.length > 0) {
     lines.push(`✅ <b>Чекає твого погодження (${queue.length})</b>`);
     for (const p of queue.slice(0, 5)) {
-      const d = new Date(p.publish_at);
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      lines.push(`👀 <code>${dateStr}</code> · ${escHtml(p.title)}`);
+      lines.push(`👀 <code>${kyivDT(p.publish_at)}</code> · ${escHtml(p.title)}`);
     }
     if (queue.length > 5) lines.push(`<i>... ще ${queue.length - 5}</i>`);
     lines.push(`<i>Тисни /queue або /approve для швидкого погодження</i>\n`);
@@ -154,10 +157,7 @@ async function buildPersonalDigest(supabase: ReturnType<typeof createClient>, us
   if (myActive.length > 0) {
     lines.push(`📋 <b>Твої активні (${myActive.length})</b>`);
     for (const p of myActive.slice(0, 5)) {
-      const d = new Date(p.publish_at);
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      lines.push(`${STATUS_EMOJI[p.status] || "•"} <code>${dateStr}</code> · ${escHtml(p.title)} · ${STATUS_LABEL[p.status]}`);
+      lines.push(`${STATUS_EMOJI[p.status] || "•"} <code>${kyivDT(p.publish_at)}</code> · ${escHtml(p.title)} · ${STATUS_LABEL[p.status]}`);
     }
     if (myActive.length > 5) lines.push(`<i>... /my для повного списку</i>`);
     lines.push("");
