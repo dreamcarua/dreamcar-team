@@ -82,15 +82,31 @@ async function tgSendVideo(chatId: string|number, videoUrl: string, caption: str
 
 // ---------- Format helpers ----------
 function escHtml(s: string): string { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+// #330 (11.06.2026 HARD RULE): ВСЕ форматування дат → Europe/Kyiv.
+// Deno default TZ = UTC, тому getHours() повертало UTC замість Київ.
+// 17:00 Київ зберігається у БД як 14:00 UTC → notify показував 14:00.
 function fmtDt(iso: string|null|undefined): string {
   if (!iso) return "";
-  const d = new Date(iso); const pad = (n:number) => String(n).padStart(2,"0");
-  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("uk-UA", {
+      timeZone: "Europe/Kyiv",
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    }).format(d).replace(",", "");
+  } catch { return iso; }
 }
 function fmtD(iso: string|null|undefined): string {
   if (!iso) return "";
-  const d = new Date(iso); const pad = (n:number) => String(n).padStart(2,"0");
-  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("uk-UA", {
+      timeZone: "Europe/Kyiv",
+      day: "2-digit", month: "2-digit", year: "numeric"
+    }).format(d);
+  } catch { return iso; }
 }
 
 // ---------- Keyboards ----------

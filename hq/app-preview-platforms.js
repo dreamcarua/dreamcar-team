@@ -83,14 +83,38 @@
     s = String(s);
     return s.startsWith('http://') || s.startsWith('https://') || s.startsWith('blob:') || s.startsWith('data:');
   }
+  // #328.2: scan DOM для свіжо доданих креативів (поки p.creatives ще stale)
+  function scanDomCreativeIds() {
+    var ids = [];
+    try {
+      // Шукаємо у поточному модалі/edit area data-creative-id або data-cid
+      var sel = '[data-creative-id], [data-cid]';
+      // Виключаємо preview section
+      document.querySelectorAll(sel).forEach(function(el){
+        if (el.closest && el.closest('#previewSection')) return;
+        var id = el.getAttribute('data-creative-id') || el.getAttribute('data-cid');
+        if (id && ids.indexOf(id) < 0) ids.push(id);
+      });
+    } catch(_){}
+    return ids;
+  }
   // Збираємо media (фото/відео) у формат {kind, src, name, emoji, color}
   function collectMedia(p) {
-    var ids = p.creatives || [];
+    var ids = (p && p.creatives) ? p.creatives.slice() : [];
+    // Fallback: якщо у Store пусто — спробуй DOM (свіжо доданий креатив ще не у Store)
+    if (!ids.length) {
+      var domIds = scanDomCreativeIds();
+      if (domIds.length) ids = domIds;
+    }
     var out = [];
     ids.forEach(function(id){
       var c;
       try { c = Store.creative(id); } catch(_){}
-      if (!c) return;
+      if (!c) {
+        // ID є, але Store ще не має — show placeholder
+        out.push({ kind: 'photo', src: '', name: '(оновлюється…)', emoji: '⏳', color: '#888', status: 'pending' });
+        return;
+      }
       var kind = c.type === 'video' ? 'video' : 'photo';
       // Шукаємо реальний URL — НЕ preview emoji
       var src = '';
@@ -561,6 +585,40 @@
       return '<div class="dcpv">Помилка рендерингу превью: ' + esc(e.message) + '</div>';
     }
   };
+
+  // #328.2: force re-render preview коли DOM креативів змінюється у едиторі
+  // (свіжо доданий креатив ще не у Store, треба перерендерити після завантаження)
+  if ('MutationObserver' in window) {
+    var lastCreativesSnapshot = '';
+    var rerenderTimer = null;
+    function snapshotCreatives() {
+      var ids = scanDomCreativeIds();
+      return ids.sort().join(',');
+    }
+    function triggerRerender() {
+      var section = document.getElementById('previewSection');
+      if (!section || !section.dataset.activePlat) return;
+      // Викликаємо installTabs з app-preview-tabs.js (через таймер як robust)
+      clearTimeout(window.__hqPTTimer);
+      window.__hqPTTimer = setTimeout(function(){
+        // Тригернемо rerender: prevent same-check
+        var attr = section.dataset.activePlat;
+        // Force innerHTML clear через прибирання hq-prev-tabs щоб installTabs знов відпрацював
+        var head = section.querySelector('.hq-prev-tabs');
+        if (head) head.remove();
+        // app-preview-tabs.js installTabs підхопить через свій MO
+      }, 20);
+    }
+    var mo2 = new MutationObserver(function(){
+      var cur = snapshotCreatives();
+      if (cur !== lastCreativesSnapshot) {
+        lastCreativesSnapshot = cur;
+        clearTimeout(rerenderTimer);
+        rerenderTimer = setTimeout(triggerRerender, 100);
+      }
+    });
+    mo2.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-creative-id', 'data-cid'] });
+  }
 
   console.log('%cDreamCar HQ Preview v2 %c· pixel-perfect TG/IG/TT/TH/YT/FB (#328)',
     'color:#10b981;font-weight:700;', 'color:#888;');
