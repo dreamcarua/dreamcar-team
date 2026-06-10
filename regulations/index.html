@@ -6,6 +6,8 @@
 <title>Регламенти — DreamCar Team</title>
 <script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610a" defer></script>
 <link rel="stylesheet" href="../assets/dc-theme.css?v=20260610a">
+<!-- #293: dc-shared-storage СИНХРОННО ПЕРЕД module -->
+<script src="/projects/dc-shared-storage.js"></script>
 <style>
   :root {
     --bg:#0a0a0a; --bg-2:#141414; --bg-3:#1f1f1f; --border:rgba(255,255,255,0.08);
@@ -157,8 +159,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const SUPABASE_URL='https://wotghlaehnvxyeacznvv.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2NjEyNTYsImV4cCI6MjA1NDIzNzI1Nn0.HMG-r9w9TQqPM5OYAlOOFiKWZ-VIKE0kuJg6Bc-3wd0';
 
-// dc-shared-storage для cross-app SSO
-import('/projects/dc-shared-storage.js').catch(()=>{});
+// #293: dc-shared-storage уже підключений у <head> синхронно
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true,autoRefreshToken:true,storageKey:'sb-dreamcar-hq-auth-token'}});
 
 let me=null, regs=[], currentCat='', currentId=null;
@@ -197,7 +198,13 @@ function md(text){
 const CAT_LBL={general:'📌 Загальні',sop:'📘 SOP',checklist:'☑ Чек-лист',policy:'⚖ Політика',procedure:'🔧 Процедура'};
 
 async function loadMe(){
-  const {data:{user}} = await sb.auth.getUser();
+  // #293: дочекатися можливого відновлення сесії з shared storage (retry 3 рази по 300мс)
+  let user = null;
+  for (let i = 0; i < 3; i++) {
+    const {data} = await sb.auth.getUser();
+    if (data?.user) { user = data.user; break; }
+    if (i < 2) await new Promise(r => setTimeout(r, 300));
+  }
   if(!user){location.href='/hq/?next='+encodeURIComponent(location.pathname);return null;}
   const {data} = await sb.rpc('resolve_user_by_auth',{p_auth_id:user.id});
   return Array.isArray(data)?data[0]:data;
