@@ -166,6 +166,13 @@ let me=null, regs=[], currentCat='', currentId=null;
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
 
 // Super-simple markdown → HTML
+// #283: scheme whitelist для links (XSS protection — заборона javascript:/data:/vbscript:)
+function safeUrl(u){
+  if (!u) return '#';
+  const url = String(u).trim();
+  if (/^(https?:\/\/|mailto:|tel:|\/|#)/i.test(url)) return url;
+  return '#';
+}
 function md(text){
   if(!text)return '';
   let html = esc(text);
@@ -175,7 +182,7 @@ function md(text){
   html = html.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   html = html.replace(/\*(.+?)\*/g,'<i>$1</i>');
   html = html.replace(/`(.+?)`/g,'<code>$1</code>');
-  html = html.replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank">$1</a>');
+  html = html.replace(/\[(.+?)\]\((.+?)\)/g, (_m,t,u) => `<a href="${safeUrl(u)}" target="_blank" rel="noopener noreferrer">${t}</a>`);
   // unordered lists
   html = html.replace(/^[\-\*] (.+)$/gm,'<li>$1</li>');
   html = html.replace(/(<li>.*?<\/li>\n?)+/gs,m=>'<ul>'+m+'</ul>');
@@ -232,7 +239,8 @@ window.openView = function(id){
   document.getElementById('vTitle').textContent = r.title;
   document.getElementById('vBody').innerHTML = md(r.body_md);
   const f = document.getElementById('vFile');
-  if(r.file_url){f.href=r.file_url;f.style.display='inline';}else{f.style.display='none';}
+  // #283: validate file_url scheme (XSS protection)
+  if(r.file_url){f.href=safeUrl(r.file_url);f.style.display='inline';}else{f.style.display='none';}
   const isAdmin = me && ['ceo','coo','lead'].includes(me.role);
   document.getElementById('vEditBtn').style.display = isAdmin?'inline-block':'none';
   document.getElementById('vDelBtn').style.display = isAdmin?'inline-block':'none';

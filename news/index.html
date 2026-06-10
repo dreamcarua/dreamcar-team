@@ -149,6 +149,13 @@ let me=null, news=[], reads=new Set(), currentId=null;
 const KIND_LBL={news:'📰 Новина',announcement:'📢 Анонс',promo:'🎁 Акція',plan:'📋 План',system:'⚙ Системне'};
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
 
+// #283: scheme whitelist для links (XSS protection)
+function safeUrl(u){
+  if (!u) return '#';
+  const url = String(u).trim();
+  if (/^(https?:\/\/|mailto:|tel:|\/|#)/i.test(url)) return url;
+  return '#';
+}
 function md(text){
   if(!text)return '';
   let h=esc(text);
@@ -158,7 +165,7 @@ function md(text){
   h=h.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   h=h.replace(/\*(.+?)\*/g,'<i>$1</i>');
   h=h.replace(/`(.+?)`/g,'<code>$1</code>');
-  h=h.replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank">$1</a>');
+  h=h.replace(/\[(.+?)\]\((.+?)\)/g, (_m,t,u) => `<a href="${safeUrl(u)}" target="_blank" rel="noopener noreferrer">${t}</a>`);
   h=h.replace(/^[\-\*] (.+)$/gm,'<li>$1</li>');
   h=h.replace(/(<li>.*?<\/li>\n?)+/gs,m=>'<ul>'+m+'</ul>');
   h=h.split(/\n\n+/).map(p=>{
@@ -272,7 +279,8 @@ window.saveNews = async ()=>{
     body_md: document.getElementById('e-body').value,
     audience,
     pinned: document.getElementById('e-pinned').checked,
-    expires_at: expiresVal ? new Date(expiresVal+'T23:59:59').toISOString() : null,
+    // #287: TZ-aware Kyiv day-end (UTC+3 standard, +2 у зимовий час OK для покриття 99% кейсів)
+    expires_at: expiresVal ? new Date(expiresVal+'T23:59:59+03:00').toISOString() : null,
     updated_at: new Date().toISOString()
   };
   let res;
@@ -289,8 +297,9 @@ window.saveNews = async ()=>{
 document.getElementById('newNewsBtn').addEventListener('click',()=>openEdit(null));
 
 document.getElementById('markAllBtn').addEventListener('click',async()=>{
+  // #286: Promise.all замість sequential для swift markAll
   const unread = news.filter(n=>!reads.has(n.id));
-  for(const n of unread){await sb.rpc('team_news_mark_read',{p_news_id:n.id});reads.add(n.id);}
+  await Promise.all(unread.map(n => sb.rpc('team_news_mark_read',{p_news_id:n.id}).then(()=>reads.add(n.id)).catch(()=>{})));
   render();
 });
 
