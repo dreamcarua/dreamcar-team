@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Новини — DreamCar Team</title>
 <script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610a" defer></script>
-<link rel="stylesheet" href="../assets/dc-theme.css?v=20260610a">
-<!-- #293: dc-shared-storage СИНХРОННО ПЕРЕД module — інакше Supabase client створюється до custom storage adapter і ламається SSO між /hq/ і /news/ -->
+<!-- #298: видалив посилання на dc-theme.css — файл не існує, 404 спам у console -->
+<!-- dc-shared-storage СИНХРОННО ПЕРЕД module для SSO -->
 <script src="/projects/dc-shared-storage.js"></script>
 <style>
   :root {
@@ -186,16 +186,41 @@ function md(text){
 }
 
 async function loadMe(){
-  // #293: дочекатися можливого відновлення сесії з shared storage (retry 3 рази по 300мс)
-  let user = null;
+  // #298: ВИКОРИСТАТИ getSession() (читає зі storage без network) — як у retention/
+  // НЕ auto-redirect на /hq/ якщо немає сесії — показуємо login gate (інакше loop)
+  let session = null;
   for (let i = 0; i < 3; i++) {
-    const {data} = await sb.auth.getUser();
-    if (data?.user) { user = data.user; break; }
+    const { data } = await sb.auth.getSession();
+    if (data?.session?.user) { session = data.session; break; }
     if (i < 2) await new Promise(r => setTimeout(r, 300));
   }
-  if(!user){location.href='/hq/?next='+encodeURIComponent(location.pathname);return null;}
-  const {data} = await sb.rpc('resolve_user_by_auth',{p_auth_id:user.id});
-  return Array.isArray(data)?data[0]:data;
+  if (!session) {
+    // Показуємо login gate замість auto-redirect (інакше loop з /hq/)
+    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;font-family:Manrope,sans-serif;color:#fff;background:#0a0a0a;">
+      <div style="max-width:400px;">
+        <h2 style="font-size:20px;margin-bottom:12px;">🔒 Потрібен вхід</h2>
+        <p style="color:#888;margin-bottom:20px;">Увійди через HQ щоб переглянути новини команди.</p>
+        <a href="/hq/?next=${encodeURIComponent(location.pathname)}" style="display:inline-block;background:#E30613;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Перейти у HQ</a>
+      </div></div>`;
+    return null;
+  }
+  const userId = session.user.id;
+  // Try RPC, fallback на direct select
+  let pu = null;
+  try {
+    const rpc = await sb.rpc('resolve_user_by_auth', { p_auth_id: userId });
+    pu = (rpc.data && (Array.isArray(rpc.data) ? rpc.data[0] : rpc.data)) || null;
+  } catch (_) {}
+  if (!pu) {
+    const { data: directPu } = await sb.from('users').select('id,name,email,role,tg_chat_id,is_active').eq('auth_id', userId).maybeSingle();
+    pu = directPu;
+  }
+  if (!pu) {
+    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;color:#fff;background:#0a0a0a;font-family:Manrope,sans-serif;">
+      <div><h2>⚠ Профіль не знайдено</h2><p style="color:#888;">Для ${session.user.email}. Звернись до CEO.</p></div></div>`;
+    return null;
+  }
+  return pu;
 }
 
 async function loadAll(){
