@@ -323,14 +323,18 @@ HDR_PREFIX=""
 case "$SRC_COLOR_TRANSFER" in
   arib-std-b67|smpte2084|bt2020-10|bt2020-12)
     echo "::warning::HDR detected (transfer=$SRC_COLOR_TRANSFER, primaries=$SRC_COLOR_PRIMARIES, pix=$SRC_PIX_FMT) — applying tone mapping HDR → SDR Rec.709"
-    # Hable tone mapping — natural look, well-balanced highlights
-    HDR_PREFIX="zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,"
+    # #291: Mobius tone mapping (краще ніж Hable для HLG iPhone — менш washed look, кращі midtones)
+    # + eq filter для відновлення saturation/contrast після tone mapping (вирівнює "blah" вигляд)
+    # npl=250 — типова peak luminance для HLG iPhone (Hable використовував 100 — занадто темно)
+    # eq: saturation 1.2, contrast 1.05, gamma 0.95 — natural look максимально близько до оригіналу
+    HDR_PREFIX="zscale=t=linear:npl=250,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0:peak=10,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,eq=saturation=1.2:contrast=1.05:gamma=0.95,"
     ;;
   *)
     case "$SRC_COLOR_PRIMARIES" in
       bt2020)
         echo "::warning::Wide gamut detected (primaries=$SRC_COLOR_PRIMARIES) — converting Rec.2020 → Rec.709"
-        HDR_PREFIX="zscale=p=bt709:m=bt709:r=tv,format=yuv420p,"
+        # #291: + saturation boost для bt2020 → bt709 (компенсуємо обрізання gamut)
+        HDR_PREFIX="zscale=p=bt709:m=bt709:r=tv,format=yuv420p,eq=saturation=1.15:contrast=1.03,"
         ;;
       *)
         echo "Source colors: SDR Rec.709 (transfer=$SRC_COLOR_TRANSFER, primaries=$SRC_COLOR_PRIMARIES) — no tone mapping"
