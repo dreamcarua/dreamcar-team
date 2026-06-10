@@ -1403,6 +1403,11 @@ const Auth = {
   },
 
   async signInGoogle() {
+    // #265: зберегти ?next= щоб після OAuth round-trip повернутися куди йшов (Tasks/Projects/Retention)
+    try {
+      const nextParam = new URLSearchParams(location.search).get('next');
+      if (nextParam) sessionStorage.setItem('dc_auth_next', nextParam);
+    } catch (_) {}
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: location.origin + location.pathname }
@@ -1595,6 +1600,25 @@ async function boot() {
 
   renderRoleBadge();
   renderSidebarFilters();
+  // #265: post-login return URL fix — Tasks/Projects/Retention redirect on /hq/?next=
+  // Після успішного auth перевіряємо чи юзер мав `?next=` параметр або sessionStorage state
+  try {
+    let returnTo = new URLSearchParams(location.search).get('next');
+    if (!returnTo) {
+      try { returnTo = sessionStorage.getItem('dc_auth_next'); } catch(_) {}
+    }
+    if (returnTo && /^\/(tasks|projects|retention|brand)(\/|$)/.test(returnTo)) {
+      try { sessionStorage.removeItem('dc_auth_next'); } catch(_) {}
+      console.log('[auth] return-to:', returnTo);
+      location.replace(returnTo);
+      return; // Не продовжуємо HQ boot — переходимо у target app
+    }
+    // Cleanup ?next= з URL якщо ми тут залишаємось (інакше при повторному login буде redirect)
+    if (returnTo && location.search.includes('next=')) {
+      const cleanUrl = location.pathname + location.hash;
+      window.history.replaceState(null, '', cleanUrl);
+    }
+  } catch (e) { console.warn('[auth return-to]', e); }
   if (!location.hash) location.hash = '#calendar';
   navigate();
 }
