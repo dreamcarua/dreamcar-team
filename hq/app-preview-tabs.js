@@ -29,6 +29,21 @@
     d.textContent = s;
     return d.innerHTML;
   }
+  // #258: TG HTML format parser — дозволені TG-теги розпарсуємо, все інше escape
+  function tgFmt(raw) {
+    if (!raw) return '';
+    var s = String(raw).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var tags = ['b','strong','i','em','u','s','strike','del','code','pre','tg-spoiler','blockquote','br'];
+    tags.forEach(function(t){
+      s = s.replace(new RegExp('&lt;' + t + '&gt;', 'gi'), '<' + t + '>')
+           .replace(new RegExp('&lt;\\/' + t + '&gt;', 'gi'), '</' + t + '>');
+    });
+    s = s.replace(/&lt;a\s+href=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi, function(_, url, txt){
+      return '<a href="' + url.replace(/"/g,'&quot;') + '" target="_blank" rel="noopener" style="color:#3390ec;">' + txt + '</a>';
+    });
+    s = s.replace(/&lt;&lt;&lt;([\s\S]+?)&gt;&gt;&gt;/g, '<tg-spoiler>$1</tg-spoiler>');
+    return s;
+  }
 
   function getCurrentPub() {
     if (window.__hqCurrentPub) return window.__hqCurrentPub;
@@ -82,7 +97,8 @@
     var firstMedia = cr[0] ? cr[0].preview : pdef.icon;
     var firstColor = cr[0] ? (cr[0].color || pdef.color) : pdef.color;
 
-    var txt = escapeText(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
+    // #258: tgFmt замість escapeText — рендеримо TG HTML теги (<b>/<i>/<u>/<s>/<code>/<pre>/<tg-spoiler>/<blockquote>/<a>)
+    var txt = tgFmt(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
     var hashLine = (p.hashtags || []).map(function (h) { return h.startsWith('#') ? h : '#' + h; }).join(' ');
     var hashHtml = hashLine
       ? '<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">' + escapeText(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>') + '</div>'
