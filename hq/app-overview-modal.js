@@ -174,6 +174,20 @@
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+  // #257: TG HTML format — parse дозволені TG теги. Те ж що app-views.js tgFormatToHtml.
+  function tgFmt(raw) {
+    if (!raw) return '';
+    let s = String(raw).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const tags = ['b','strong','i','em','u','s','strike','del','code','pre','tg-spoiler','blockquote','br'];
+    tags.forEach(t => {
+      s = s.replace(new RegExp(`&lt;${t}&gt;`, 'gi'), `<${t}>`)
+           .replace(new RegExp(`&lt;\\/${t}&gt;`, 'gi'), `</${t}>`);
+    });
+    s = s.replace(/&lt;a\s+href=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi,
+      (_, url, txt) => `<a href="${url.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:#3390ec;">${txt}</a>`);
+    s = s.replace(/&lt;&lt;&lt;([\s\S]+?)&gt;&gt;&gt;/g, '<tg-spoiler>$1</tg-spoiler>');
+    return s.replace(/\n/g, '<br>');
+  }
   function sLabel(s) { return (typeof STATUS_BY_ID !== 'undefined' && STATUS_BY_ID[s]?.label) || s || '—'; }
   function dueCls(p) {
     if (!p.deadline) return '';
@@ -284,7 +298,7 @@
       <div class="ov-modal">
         <div class="ov-head">
           <div class="ov-title-wrap">
-            <h2>${esc(p.title || '(без назви)')}</h2>
+            <h2>${tgFmt(p.title || '(без назви)')}</h2>
             <div class="ov-badges">
               <span class="ov-badge status-${p.status}">${esc(sLabel(p.status))}</span>
               ${p.dateTime ? `<span class="ov-badge">${esc(fmtDT(p.dateTime))}</span>` : ''}
@@ -299,7 +313,7 @@
           <div class="ov-section"><div class="ov-section-title">Майданчики</div><div class="ov-tags">${platRow(p)}</div></div>
           <div class="ov-section">
             <div class="ov-section-title">Текст</div>
-            <div class="ov-text">${esc(p.text || '(порожньо)')}</div>
+            <div class="ov-text">${tgFmt(p.text || '(порожньо)')}</div>
             ${(p.hashtags && p.hashtags.length) ? `<div class="ov-tags" style="margin-top:8px;">${p.hashtags.map(h => `<span class="ov-tag">${esc(h.startsWith('#') ? h : '#' + h)}</span>`).join('')}</div>` : ''}
           </div>
           <div class="ov-section"><div class="ov-section-title">Креативи</div><div class="ov-creatives">${crRow(p)}</div></div>
