@@ -8,6 +8,16 @@
 
 ---
 
+## 10.06.2026 (день) — #297 SMM creative thumbnail emoji fix
+
+### 🔧 #297 SMM publication modal — креативи показували 🖼/🎬 emoji замість thumbnail
+- **Root cause:** Store кеш для creatives застарівав поки modal відкрита. Realtime refresh (`_refreshAfterChange`) має guard `if (modalBackdrop.open) return` (рядок 173 app-core.js) — щоб не переривати autosave. Але це означало: якщо compress worker записав `thumbnail_url` у DB поки юзер мав modal відкритою — JS Store не дізнавався, `Store.creative(cid).thumbnail_url === null` → render fall through на emoji.
+- 🔧 **`hq/app-core.js`** — нова `Store.refreshCreatives(ids)`: targeted SELECT по конкретних IDs (`.in('id', ids)`), patch-имо thumbnail_url/compressed_url/compressed_status/name/type/width/height у локальний cache. Returns `true` якщо хоч щось змінилось.
+- 🔧 **`hq/app-views.js`** — рендер creative-strip винесено у `renderCreativeStripItems(ids)` для переюзу. Нова `refreshCreativeStrip(p)` викликається з `openCard()` після `attachCardHandlers(p)`: робить forced fetch + якщо є зміни — re-render тільки `.cs-item` всередині `#f_creatives` (зберігає `+` add button) + re-bind cs-remove handlers.
+- 🚀 Cache bust автомат через GH Action Cloudflare purge.
+
+---
+
 ## 10.06.2026 (ранок) — #296 SMM AI/Template buttons defensive binding
 
 ### 🔧 #296 SMM publication modal — кнопки `✨ AI` і `📋 З шаблону` не реагували на клік
