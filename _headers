@@ -3,6 +3,7 @@
 # КОЖЕН раз), JS/CSS = immutable (cache forever, версія у URL вирішує).
 # Це усуває потребу робити hard reload після кожного deploy — нова версія
 # index.html завжди свіжа, нові script URLs автоматично завантажуються.
+# (touch для trigger auto-cache-bust workflow тестування)
 
 # Index.html кожного app — NO-CACHE (завжди revalidate, edge bypass)
 /hq/
