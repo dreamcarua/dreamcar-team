@@ -881,7 +881,7 @@ function navigate() {
   if (route === 'calendar') { bc.innerHTML = 'Стіл SMM · <b>Календар</b>'; renderCalendar(main); }
   else if (route === 'board') { bc.innerHTML = 'Стіл SMM · <b>Дошка погоджень</b>'; renderBoard(main); }
   else if (route === 'library') { bc.innerHTML = 'Стіл SMM · <b>Бібліотека креативів</b>'; renderLibrary(main); }
-  else if (route === 'launches') { bc.innerHTML = 'Стіл SMM · <b>Запуски</b>'; renderLaunches(main); }
+  else if (route === 'launches') { location.replace('/projects/'); return; }
   else if (route === 'publication' && args[0]) { openCard(args[0]); }
   else { bc.innerHTML = 'Стіл SMM · <b>Календар</b>'; renderCalendar(main); }
   updateNavCounts();
@@ -896,7 +896,6 @@ function updateNavCounts() {
   const board = pubs.filter(p => p.status === 'review' && (p.approvers || []).includes(me.id)).length;
   document.getElementById('navCntBoard').textContent = board;
   document.getElementById('navCntLibrary').textContent = Store.creatives().length;
-  document.getElementById('navCntLaunches').textContent = Store.launches().length;
 }
 
 /* ============ Sidebar filters ============ */

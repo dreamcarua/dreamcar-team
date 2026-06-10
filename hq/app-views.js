@@ -1087,24 +1087,51 @@ function attachCardHandlers(p) {
           return;
         }
         await Store.upsertPub(p);
-        const sess = window.supabase ? await window.supabase.auth.getSession() : null;
-        const token = sess?.data?.session?.access_token;
+        // #322 (10.06.2026): auto-refresh JWT якщо expired + детальна помилка 401
+        async function getToken() {
+          const sess = window.supabase ? await window.supabase.auth.getSession() : null;
+          return sess?.data?.session?.access_token || null;
+        }
+        async function callSend(token) {
+          return await fetch('https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-post-send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ publication_id: p.id, test: true }),
+            signal: ctrl.signal
+          });
+        }
+        let token = await getToken();
         if (!token) { toast('Потрібен логін для тесту', 'error'); return; }
-        const resp = await fetch('https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-post-send', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ publication_id: p.id, test: true }),
-          signal: ctrl.signal
-        });
+        let resp = await callSend(token);
+        // #322: якщо 401 з причиною token_expired — refresh + retry один раз
+        if (resp.status === 401) {
+          const peek = await resp.clone().json().catch(() => ({}));
+          const reason = String(peek.reason || '');
+          if (reason.startsWith('token_expired') || reason.startsWith('getuser_error') || reason === 'no_user_in_token') {
+            console.log('[tg-test] 401 reason=' + reason + ' → refreshSession + retry');
+            try {
+              await window.supabase.auth.refreshSession();
+              token = await getToken();
+              if (token) resp = await callSend(token);
+            } catch (e) {
+              console.warn('[tg-test] refreshSession fail', e);
+            }
+          }
+        }
         clearTimeout(timeoutId);
         const j = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
         if (resp.ok && j.ok) {
           let m = '✓ Тест відправлено у DreamCar SMM (msg #' + (j.messageId || '?') + ', media: ' + (j.mediaCount||0) + ')';
           if (j.sizeWarnings?.length) m += '\n⚠ ' + j.sizeWarnings.join('; ');
           toast(m, j.sizeWarnings?.length ? 'warn' : 'success');
+        } else if (resp.status === 401) {
+          const r = j.reason || 'unknown';
+          let hint = '';
+          if (r.startsWith('token_expired')) hint = 'Сесія застаріла. Перезавантаж сторінку (Cmd+R) і спробуй ще раз.';
+          else if (r.startsWith('role_blocked')) hint = `Твоя роль "${j.role || '?'}" не має доступу до тест-відправки (потрібно CEO/COO/Lead).`;
+          else if (r.startsWith('no_user_row_for_auth_id')) hint = 'Користувача не знайдено в команді. Звернися до Vadym.';
+          else hint = 'Причина: ' + r;
+          toast('❌ Помилка авторизації. ' + hint, 'error');
         } else {
           toast('❌ Помилка тесту: ' + (j.error || `HTTP ${resp.status}`), 'error');
         }
