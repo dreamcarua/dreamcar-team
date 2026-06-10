@@ -1,8 +1,73 @@
 # Cloudflare Pages _headers
-# Cross-Origin Isolation для SharedArrayBuffer → ffmpeg.wasm (відео-compression)
-# credentialless = дозволяє external resources БЕЗ Cross-Origin-Resource-Policy
-# (наш fallback для Supabase, esm.sh, brand.dreamcar.ua, etc — вони не мають CORP)
+# #266 (10.06.2026): Auto cache control. Index.html = no-cache (browser revalidate
+# КОЖЕН раз), JS/CSS = immutable (cache forever, версія у URL вирішує).
+# Це усуває потребу робити hard reload після кожного deploy — нова версія
+# index.html завжди свіжа, нові script URLs автоматично завантажуються.
 
+# Index.html кожного app — NO-CACHE (завжди revalidate, edge bypass)
+/hq/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/hq/index.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/tasks/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/tasks/index.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/projects/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/projects/index.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/retention/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/retention/index.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/dashboard/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/dashboard/index.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/brand-book/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+# JS/CSS — immutable, browser cache forever (версія у URL змінюється — вирішує)
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.png
+  Cache-Control: public, max-age=31536000, immutable
+/*.jpg
+  Cache-Control: public, max-age=31536000, immutable
+/*.jpeg
+  Cache-Control: public, max-age=31536000, immutable
+/*.svg
+  Cache-Control: public, max-age=31536000, immutable
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
+# Cross-Origin Isolation для SharedArrayBuffer → ffmpeg.wasm
 /hq/*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentialless
