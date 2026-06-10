@@ -185,68 +185,20 @@ function md(text){
   return h;
 }
 
-async function loadMe(){
-  // #300: SSO bridge від HQ — приймаємо #sso=base64(json) ДО getSession.
-  // У TG WebView / mobile Safari localStorage НЕ shared між /hq/ та /news/ навіть з cookie storage,
-  // тому HQ передає сесію через URL fragment при auto-redirect.
-  try {
-    const ssoMatch = location.hash.match(/#sso=([^&]+)/);
-    if (ssoMatch) {
-      const decoded = JSON.parse(atob(decodeURIComponent(ssoMatch[1])));
-      if (decoded.access_token && decoded.refresh_token) {
-        await sb.auth.setSession({
-          access_token: decoded.access_token,
-          refresh_token: decoded.refresh_token,
-        });
-        console.log('[sso] Session bridged from HQ →', location.pathname);
-      }
-      history.replaceState(null, '', location.pathname + location.search);
-    }
-  } catch(e) { console.warn('[sso] bridge fail:', e); }
-  // #298: ВИКОРИСТАТИ getSession() (читає зі storage без network) — як у retention/
-  // НЕ auto-redirect на /hq/ якщо немає сесії — показуємо login gate (інакше loop)
-  let session = null;
-  for (let i = 0; i < 3; i++) {
-    const { data } = await sb.auth.getSession();
-    if (data?.session?.user) { session = data.session; break; }
-    if (i < 2) await new Promise(r => setTimeout(r, 300));
-  }
-  if (!session) {
-    // Показуємо login gate замість auto-redirect (інакше loop з /hq/)
-    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;font-family:Manrope,sans-serif;color:#fff;background:#0a0a0a;">
-      <div style="max-width:400px;">
-        <h2 style="font-size:20px;margin-bottom:12px;">🔒 Потрібен вхід</h2>
-        <p style="color:#888;margin-bottom:20px;">Увійди через HQ щоб переглянути новини команди.</p>
-        <a href="/hq/?next=${encodeURIComponent(location.pathname)}" style="display:inline-block;background:#E30613;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Перейти у HQ</a>
-      </div></div>`;
-    return null;
-  }
-  const userId = session.user.id;
-  // Try RPC, fallback на direct select
-  let pu = null;
-  try {
-    const rpc = await sb.rpc('resolve_user_by_auth', { p_auth_id: userId });
-    pu = (rpc.data && (Array.isArray(rpc.data) ? rpc.data[0] : rpc.data)) || null;
-  } catch (_) {}
-  if (!pu) {
-    const { data: directPu } = await sb.from('users').select('id,name,email,role,tg_chat_id,is_active').eq('auth_id', userId).maybeSingle();
-    pu = directPu;
-  }
-  if (!pu) {
-    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;color:#fff;background:#0a0a0a;font-family:Manrope,sans-serif;">
-      <div><h2>⚠ Профіль не знайдено</h2><p style="color:#888;">Для ${session.user.email}. Звернись до CEO.</p></div></div>`;
-    return null;
-  }
-  return pu;
-}
+// #302: ПОВНІСТЮ БЕЗ АВТОРИЗАЦІЇ — сторінка публічно відкрита.
+// Прибрав loadMe / SSO bridge / login gate / mark-as-read / admin features.
+// Vadym: «Видали все, що стосується авторизації цих сторінок. Хай вони будуть відкриті повністю.»
+async function loadMe(){ return null; }
 
 async function loadAll(){
-  const [{data:n},{data:r}] = await Promise.all([
-    sb.from('team_news').select('*').is('deleted_at',null).order('pinned',{ascending:false}).order('created_at',{ascending:false}),
-    sb.from('team_news_reads').select('news_id').eq('user_id',me?.id||'00000000-0000-0000-0000-000000000000')
-  ]);
+  // #302: anon-friendly — тільки публічний SELECT, без read-tracking
+  const {data:n, error} = await sb.from('team_news').select('*').is('deleted_at',null).order('pinned',{ascending:false}).order('created_at',{ascending:false});
+  if(error){
+    document.getElementById('feed').innerHTML='<div class="empty"><h3>Помилка завантаження</h3><p>'+esc(error.message)+'</p></div>';
+    return;
+  }
   news = n||[];
-  reads = new Set((r||[]).map(x=>x.news_id));
+  reads = new Set(); // ніхто не залогінений → нічого не прочитано
   render();
 }
 
@@ -255,10 +207,10 @@ function render(){
   const badge = document.getElementById('unreadBadge');
   if(unreadCount){badge.textContent=unreadCount;badge.style.display='inline-block';}else{badge.style.display='none';}
   if(!news.length){
-    document.getElementById('feed').innerHTML='<div class="empty"><h3>Поки порожньо</h3><p>'+(me&&['ceo','coo','lead'].includes(me.role)?'Натисни <b>+ Новий пост</b>':'Новини зʼявляться тут коли керівництво опублікує.')+'</p></div>';
+    document.getElementById('feed').innerHTML='<div class="empty"><h3>Поки порожньо</h3><p>Новини зʼявляться тут коли керівництво опублікує.</p></div>';
     return;
   }
-  const isAdmin = me && ['ceo','coo','lead'].includes(me.role);
+  const isAdmin = false; // #302: no auth
   const html = news.map(n=>{
     const unread = !reads.has(n.id);
     return `<div class="news-card ${unread?'unread':''} ${n.pinned?'pinned':''}" data-id="${n.id}">
@@ -282,8 +234,7 @@ function render(){
 }
 
 async function markRead(id){
-  await sb.rpc('team_news_mark_read',{p_news_id:id});
-  reads.add(id); render();
+  // #302: noop (без авторизації не можемо позначати прочитання)
 }
 
 async function delNews(id){
@@ -362,11 +313,7 @@ document.getElementById('markAllBtn').addEventListener('click',async()=>{
 });
 
 (async()=>{
-  me = await loadMe();
-  if(!me)return;
-  if(['ceo','coo','lead'].includes(me.role)){
-    document.getElementById('newNewsBtn').style.display='inline-block';
-  }
+  // #302: без auth — одразу loadAll
   await loadAll();
 })();
 </script>
