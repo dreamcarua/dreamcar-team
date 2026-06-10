@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Новини — DreamCar Team</title>
+<script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610a" defer></script>
+<link rel="stylesheet" href="../assets/dc-theme.css?v=20260610a">
+<style>
+  :root {
+    --bg:#0a0a0a; --bg-2:#141414; --bg-3:#1f1f1f; --border:rgba(255,255,255,0.08);
+    --fg:#fff; --ash:#888; --steel:#aaa; --dc:#E30613; --accent:#ffc107;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--fg);font-family:'Manrope',-apple-system,sans-serif;min-height:100vh;}
+  .container{max-width:900px;margin:0 auto;padding:24px 20px;}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin:60px 0 24px;flex-wrap:wrap;}
+  .page-head h1{font-size:32px;font-weight:800;letter-spacing:-0.5px;}
+  .page-head .sub{color:var(--ash);font-size:13px;margin-top:6px;}
+  .btn{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg-2);color:var(--fg);cursor:pointer;font-size:13px;transition:all .15s;}
+  .btn:hover{background:var(--bg-3);border-color:rgba(255,255,255,0.2);}
+  .btn.primary{background:var(--dc);border-color:var(--dc);font-weight:600;}
+  .btn.primary:hover{background:#c20510;}
+  .feed{display:flex;flex-direction:column;gap:14px;}
+  .news-card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;transition:all .2s;}
+  .news-card:hover{border-color:rgba(255,255,255,0.15);}
+  .news-card.unread{border-left:3px solid var(--dc);background:linear-gradient(135deg, rgba(227,6,19,0.04), var(--bg-2));}
+  .news-card.pinned{border-left:3px solid var(--accent);}
+  .news-card .pin{position:absolute;top:14px;right:14px;color:var(--accent);font-size:14px;}
+  .news-card .unread-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dc);margin-right:8px;}
+  .news-kind{display:inline-block;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}
+  .news-kind.news{background:rgba(59,130,246,0.15);color:#60a5fa;}
+  .news-kind.announcement{background:rgba(227,6,19,0.15);color:#ff6577;}
+  .news-kind.promo{background:rgba(245,158,11,0.15);color:#fbbf24;}
+  .news-kind.plan{background:rgba(168,85,247,0.15);color:#c084fc;}
+  .news-kind.system{background:rgba(107,114,128,0.2);color:#9ca3af;}
+  .news-title{font-size:18px;font-weight:700;margin-bottom:10px;line-height:1.3;}
+  .news-body{color:#ddd;font-size:14px;line-height:1.7;}
+  .news-body h1,.news-body h2,.news-body h3{margin:14px 0 8px;font-weight:700;}
+  .news-body h1{font-size:18px;} .news-body h2{font-size:16px;} .news-body h3{font-size:14px;}
+  .news-body p{margin:8px 0;}
+  .news-body ul,.news-body ol{margin:8px 0 8px 22px;}
+  .news-body code{background:var(--bg-3);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);}
+  .news-body a{color:#60a5fa;text-decoration:none;border-bottom:1px solid rgba(96,165,250,0.3);}
+  .news-meta{display:flex;justify-content:space-between;align-items:center;color:var(--ash);font-size:11px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+  .news-meta .actions{display:flex;gap:10px;}
+  .news-meta button{background:none;border:none;color:var(--ash);cursor:pointer;font-size:11px;padding:4px 8px;border-radius:4px;}
+  .news-meta button:hover{background:var(--bg-3);color:#fff;}
+  .empty{text-align:center;padding:60px 20px;color:var(--ash);}
+  .empty h3{font-size:18px;margin-bottom:8px;color:#fff;}
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--bg-2);border:1px solid var(--border);border-radius:14px;max-width:700px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
+  .modal-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .modal-head h2{font-size:18px;font-weight:700;}
+  .modal-body{padding:20px 24px;overflow-y:auto;flex:1;}
+  .modal-body label{display:block;color:var(--ash);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin:12px 0 6px;font-weight:600;}
+  .modal-body input,.modal-body select,.modal-body textarea{width:100%;background:var(--bg-3);border:1px solid var(--border);color:#fff;padding:10px 12px;border-radius:8px;font-size:14px;font-family:inherit;}
+  .modal-body textarea{min-height:200px;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;}
+  .modal-body .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .modal-body .aud{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .aud label{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:#fff;margin:0;text-transform:none;letter-spacing:0;}
+  .aud label.on{background:var(--dc);border-color:var(--dc);}
+  .aud input{display:none;}
+  .modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+  .close-x{background:none;border:none;color:var(--ash);font-size:24px;cursor:pointer;padding:4px 10px;border-radius:6px;}
+  .close-x:hover{background:var(--bg-3);color:#fff;}
+  @media (max-width:640px){
+    .container{padding:16px 12px;} .page-head h1{font-size:24px;}
+    .modal-body .row{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>📢 Новини <span id="unreadBadge" style="display:none;font-size:14px;background:var(--dc);padding:3px 10px;border-radius:12px;vertical-align:middle;"></span></h1>
+      <div class="sub">Анонси, акції, плани проєктів, важливі оновлення системи</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="markAllBtn">✓ Все прочитано</button>
+      <button class="btn primary" id="newNewsBtn" style="display:none;">+ Новий пост</button>
+    </div>
+  </div>
+
+  <div class="feed" id="feed">
+    <div class="empty"><h3>⏳ Завантаження...</h3></div>
+  </div>
+</div>
+
+<!-- Editor Modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="editTitle">Новий пост</h2>
+      <button class="close-x" onclick="closeEdit()">×</button>
+    </div>
+    <div class="modal-body">
+      <label>Заголовок</label>
+      <input type="text" id="e-title" placeholder="Вийшло оновлення системи — нові фічі">
+      <div class="row">
+        <div>
+          <label>Тип</label>
+          <select id="e-kind">
+            <option value="news">📰 Новина</option>
+            <option value="announcement">📢 Анонс</option>
+            <option value="promo">🎁 Акція / план подарунків</option>
+            <option value="plan">📋 План проєкту</option>
+            <option value="system">⚙ Системне</option>
+          </select>
+        </div>
+        <div>
+          <label>Закінчується (опц.)</label>
+          <input type="date" id="e-expires">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#fff;margin-top:14px;">
+        <input type="checkbox" id="e-pinned" style="width:18px;height:18px;accent-color:#ffc107;"> 📌 Закріпити зверху
+      </label>
+      <label>Аудиторія (хто бачить)</label>
+      <div class="aud" id="audChips">
+        <label><input type="checkbox" value="ceo" checked> CEO</label>
+        <label><input type="checkbox" value="coo" checked> COO</label>
+        <label><input type="checkbox" value="lead" checked> Lead</label>
+        <label><input type="checkbox" value="member" checked> Member</label>
+        <label><input type="checkbox" value="designer" checked> Designer</label>
+      </div>
+      <label>Текст (Markdown — # ## *bold* списки)</label>
+      <textarea id="e-body" placeholder="## Що нового&#10;..."></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeEdit()">Скасувати</button>
+      <button class="btn primary" id="saveBtn" onclick="saveNews()">💾 Опублікувати</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+const SUPABASE_URL='https://wotghlaehnvxyeacznvv.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2NjEyNTYsImV4cCI6MjA1NDIzNzI1Nn0.HMG-r9w9TQqPM5OYAlOOFiKWZ-VIKE0kuJg6Bc-3wd0';
+
+import('/projects/dc-shared-storage.js').catch(()=>{});
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true,autoRefreshToken:true,storageKey:'sb-dreamcar-hq-auth-token'}});
+
+let me=null, news=[], reads=new Set(), currentId=null;
+const KIND_LBL={news:'📰 Новина',announcement:'📢 Анонс',promo:'🎁 Акція',plan:'📋 План',system:'⚙ Системне'};
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
+
+function md(text){
+  if(!text)return '';
+  let h=esc(text);
+  h=h.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  h=h.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  h=h.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  h=h.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  h=h.replace(/\*(.+?)\*/g,'<i>$1</i>');
+  h=h.replace(/`(.+?)`/g,'<code>$1</code>');
+  h=h.replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank">$1</a>');
+  h=h.replace(/^[\-\*] (.+)$/gm,'<li>$1</li>');
+  h=h.replace(/(<li>.*?<\/li>\n?)+/gs,m=>'<ul>'+m+'</ul>');
+  h=h.split(/\n\n+/).map(p=>{
+    if(/^<(h1|h2|h3|ul|ol|pre)/.test(p))return p;
+    return '<p>'+p.replace(/\n/g,'<br>')+'</p>';
+  }).join('\n');
+  return h;
+}
+
+async function loadMe(){
+  const {data:{user}} = await sb.auth.getUser();
+  if(!user){location.href='/hq/?next='+encodeURIComponent(location.pathname);return null;}
+  const {data} = await sb.rpc('resolve_user_by_auth',{p_auth_id:user.id});
+  return Array.isArray(data)?data[0]:data;
+}
+
+async function loadAll(){
+  const [{data:n},{data:r}] = await Promise.all([
+    sb.from('team_news').select('*').is('deleted_at',null).order('pinned',{ascending:false}).order('created_at',{ascending:false}),
+    sb.from('team_news_reads').select('news_id').eq('user_id',me?.id||'00000000-0000-0000-0000-000000000000')
+  ]);
+  news = n||[];
+  reads = new Set((r||[]).map(x=>x.news_id));
+  render();
+}
+
+function render(){
+  const unreadCount = news.filter(n=>!reads.has(n.id)).length;
+  const badge = document.getElementById('unreadBadge');
+  if(unreadCount){badge.textContent=unreadCount;badge.style.display='inline-block';}else{badge.style.display='none';}
+  if(!news.length){
+    document.getElementById('feed').innerHTML='<div class="empty"><h3>Поки порожньо</h3><p>'+(me&&['ceo','coo','lead'].includes(me.role)?'Натисни <b>+ Новий пост</b>':'Новини зʼявляться тут коли керівництво опублікує.')+'</p></div>';
+    return;
+  }
+  const isAdmin = me && ['ceo','coo','lead'].includes(me.role);
+  const html = news.map(n=>{
+    const unread = !reads.has(n.id);
+    return `<div class="news-card ${unread?'unread':''} ${n.pinned?'pinned':''}" data-id="${n.id}">
+      ${n.pinned?'<div class="pin">📌</div>':''}
+      <div class="news-kind ${n.kind}">${unread?'<span class="unread-dot"></span>':''}${esc(KIND_LBL[n.kind]||n.kind)}</div>
+      <div class="news-title">${esc(n.title)}</div>
+      <div class="news-body">${md(n.body_md)}</div>
+      <div class="news-meta">
+        <span>📅 ${new Date(n.created_at).toLocaleDateString('uk',{day:'2-digit',month:'2-digit',year:'numeric'})} · 👥 ${(n.audience||[]).length} ролей</span>
+        <div class="actions">
+          ${unread?`<button data-mark="${n.id}">✓ Прочитав</button>`:''}
+          ${isAdmin?`<button data-edit="${n.id}">✏</button> <button data-del="${n.id}" style="color:#ff6577;">🗑</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('feed').innerHTML=html;
+  document.querySelectorAll('[data-mark]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();markRead(b.dataset.mark);}));
+  document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();openEdit(b.dataset.edit);}));
+  document.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();delNews(b.dataset.del);}));
+}
+
+async function markRead(id){
+  await sb.rpc('team_news_mark_read',{p_news_id:id});
+  reads.add(id); render();
+}
+
+async function delNews(id){
+  if(!confirm('Видалити пост?'))return;
+  await sb.from('team_news').update({deleted_at:new Date().toISOString()}).eq('id',id);
+  await loadAll();
+}
+
+function openEdit(id){
+  currentId = id;
+  if(id){
+    const n = news.find(x=>x.id===id); if(!n)return;
+    document.getElementById('editTitle').textContent='Редагувати пост';
+    document.getElementById('e-title').value=n.title;
+    document.getElementById('e-kind').value=n.kind;
+    document.getElementById('e-expires').value=n.expires_at?n.expires_at.split('T')[0]:'';
+    document.getElementById('e-pinned').checked=!!n.pinned;
+    document.getElementById('e-body').value=n.body_md||'';
+    const aud=new Set(n.audience||[]);
+    document.querySelectorAll('#audChips input').forEach(c=>{c.checked=aud.has(c.value);updateAudChip(c);});
+  }else{
+    document.getElementById('editTitle').textContent='Новий пост';
+    document.getElementById('e-title').value='';
+    document.getElementById('e-kind').value='news';
+    document.getElementById('e-expires').value='';
+    document.getElementById('e-pinned').checked=false;
+    document.getElementById('e-body').value='';
+    document.querySelectorAll('#audChips input').forEach(c=>{c.checked=true;updateAudChip(c);});
+  }
+  document.getElementById('editModal').classList.add('show');
+}
+
+function updateAudChip(c){c.closest('label').classList.toggle('on',c.checked);}
+
+document.querySelectorAll('#audChips input').forEach(c=>{
+  updateAudChip(c);
+  c.addEventListener('change',()=>updateAudChip(c));
+});
+
+window.closeEdit = ()=>document.getElementById('editModal').classList.remove('show');
+
+window.saveNews = async ()=>{
+  const title=document.getElementById('e-title').value.trim();
+  if(!title){alert('Введи заголовок');return;}
+  const audience=[...document.querySelectorAll('#audChips input:checked')].map(c=>c.value);
+  if(!audience.length){alert('Обери хоча б 1 роль');return;}
+  const expiresVal = document.getElementById('e-expires').value;
+  const data = {
+    title,
+    kind: document.getElementById('e-kind').value,
+    body_md: document.getElementById('e-body').value,
+    audience,
+    pinned: document.getElementById('e-pinned').checked,
+    expires_at: expiresVal ? new Date(expiresVal+'T23:59:59').toISOString() : null,
+    updated_at: new Date().toISOString()
+  };
+  let res;
+  if(currentId){
+    res = await sb.from('team_news').update(data).eq('id',currentId);
+  }else{
+    data.created_by = me?.id;
+    res = await sb.from('team_news').insert(data);
+  }
+  if(res.error){alert('Помилка: '+res.error.message);return;}
+  closeEdit(); await loadAll();
+};
+
+document.getElementById('newNewsBtn').addEventListener('click',()=>openEdit(null));
+
+document.getElementById('markAllBtn').addEventListener('click',async()=>{
+  const unread = news.filter(n=>!reads.has(n.id));
+  for(const n of unread){await sb.rpc('team_news_mark_read',{p_news_id:n.id});reads.add(n.id);}
+  render();
+});
+
+(async()=>{
+  me = await loadMe();
+  if(!me)return;
+  if(['ceo','coo','lead'].includes(me.role)){
+    document.getElementById('newNewsBtn').style.display='inline-block';
+  }
+  await loadAll();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Регламенти — DreamCar Team</title>
+<script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610a" defer></script>
+<link rel="stylesheet" href="../assets/dc-theme.css?v=20260610a">
+<style>
+  :root {
+    --bg:#0a0a0a; --bg-2:#141414; --bg-3:#1f1f1f; --border:rgba(255,255,255,0.08);
+    --fg:#fff; --ash:#888; --steel:#aaa; --dc:#E30613; --accent:#ffc107;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--fg);font-family:'Manrope',-apple-system,sans-serif;min-height:100vh;}
+  .container{max-width:1200px;margin:0 auto;padding:24px 20px;}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin:60px 0 24px;flex-wrap:wrap;}
+  .page-head h1{font-size:32px;font-weight:800;letter-spacing:-0.5px;}
+  .page-head .sub{color:var(--ash);font-size:13px;margin-top:6px;}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;}
+  .btn{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg-2);color:var(--fg);cursor:pointer;font-size:13px;transition:all .15s;}
+  .btn:hover{background:var(--bg-3);border-color:rgba(255,255,255,0.2);}
+  .btn.primary{background:var(--dc);border-color:var(--dc);font-weight:600;}
+  .btn.primary:hover{background:#c20510;}
+  .cat-chip{padding:6px 14px;border-radius:20px;background:var(--bg-2);border:1px solid var(--border);color:var(--ash);cursor:pointer;font-size:12px;font-weight:500;}
+  .cat-chip:hover{color:#fff;border-color:rgba(255,255,255,0.2);}
+  .cat-chip.active{background:var(--dc);color:#fff;border-color:var(--dc);}
+  .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+  .reg-card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .2s;position:relative;}
+  .reg-card:hover{border-color:rgba(255,255,255,0.2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+  .reg-card.pinned{border-left:3px solid var(--accent);}
+  .reg-card .pin{position:absolute;top:12px;right:12px;color:var(--accent);font-size:14px;}
+  .reg-cat{display:inline-block;padding:3px 10px;border-radius:4px;background:rgba(227,6,19,0.15);color:#ff6577;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
+  .reg-cat.sop{background:rgba(59,130,246,0.15);color:#60a5fa;}
+  .reg-cat.checklist{background:rgba(16,185,129,0.15);color:#34d399;}
+  .reg-cat.policy{background:rgba(168,85,247,0.15);color:#c084fc;}
+  .reg-cat.procedure{background:rgba(245,158,11,0.15);color:#fbbf24;}
+  .reg-title{font-size:16px;font-weight:600;margin-bottom:8px;line-height:1.3;}
+  .reg-snippet{color:var(--ash);font-size:12px;line-height:1.5;max-height:48px;overflow:hidden;}
+  .reg-meta{display:flex;gap:12px;color:var(--ash);font-size:11px;margin-top:12px;}
+  .empty{text-align:center;padding:60px 20px;color:var(--ash);}
+  .empty h3{font-size:18px;margin-bottom:8px;color:#fff;}
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--bg-2);border:1px solid var(--border);border-radius:14px;max-width:900px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
+  .modal-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .modal-head h2{font-size:20px;font-weight:700;}
+  .modal-body{padding:24px;overflow-y:auto;flex:1;line-height:1.7;}
+  .modal-body h1,.modal-body h2,.modal-body h3{margin:18px 0 10px;font-weight:700;}
+  .modal-body h1{font-size:22px;} .modal-body h2{font-size:18px;} .modal-body h3{font-size:15px;}
+  .modal-body p{margin:10px 0;color:#ddd;}
+  .modal-body ul,.modal-body ol{margin:10px 0 10px 24px;}
+  .modal-body li{margin:5px 0;color:#ddd;}
+  .modal-body code{background:var(--bg-3);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);}
+  .modal-body pre{background:var(--bg-3);padding:14px;border-radius:8px;overflow-x:auto;margin:12px 0;}
+  .modal-body a{color:#60a5fa;text-decoration:none;border-bottom:1px solid rgba(96,165,250,0.3);}
+  .modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  .close-x{background:none;border:none;color:var(--ash);font-size:24px;cursor:pointer;padding:4px 10px;border-radius:6px;}
+  .close-x:hover{background:var(--bg-3);color:#fff;}
+  /* Editor */
+  .editor input,.editor select,.editor textarea{width:100%;background:var(--bg-3);border:1px solid var(--border);color:#fff;padding:10px 12px;border-radius:8px;font-size:14px;font-family:inherit;}
+  .editor textarea{min-height:300px;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;}
+  .editor label{display:block;color:var(--ash);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px;font-weight:600;}
+  .editor .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:640px){
+    .container{padding:16px 12px;} .page-head h1{font-size:24px;} .list{grid-template-columns:1fr;}
+    .editor .row{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>📋 Регламенти</h1>
+      <div class="sub">Перелік внутрішніх процесів, чек-листів та політик команди DreamCar</div>
+    </div>
+    <button class="btn primary" id="newRegBtn" style="display:none;">+ Новий регламент</button>
+  </div>
+
+  <div class="toolbar" id="catFilters">
+    <button class="cat-chip active" data-cat="">Всі</button>
+    <button class="cat-chip" data-cat="general">📌 Загальні</button>
+    <button class="cat-chip" data-cat="sop">📘 SOP</button>
+    <button class="cat-chip" data-cat="checklist">☑ Чек-листи</button>
+    <button class="cat-chip" data-cat="policy">⚖ Політики</button>
+    <button class="cat-chip" data-cat="procedure">🔧 Процедури</button>
+  </div>
+
+  <div class="list" id="regList">
+    <div class="empty"><h3>⏳ Завантаження...</h3></div>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div class="modal-bg" id="viewModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="vTitle">—</h2>
+      <button class="close-x" onclick="closeView()">×</button>
+    </div>
+    <div class="modal-body" id="vBody">—</div>
+    <div class="modal-foot">
+      <div>
+        <a id="vFile" href="#" target="_blank" style="display:none;color:#60a5fa;font-size:13px;">📥 Завантажити файл</a>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="vEditBtn" style="display:none;" onclick="editCurrent()">✏ Редагувати</button>
+        <button class="btn" id="vDelBtn" style="display:none;" onclick="deleteCurrent()" style="color:#ff6577;">🗑 Видалити</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Editor Modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="editTitle">Новий регламент</h2>
+      <button class="close-x" onclick="closeEdit()">×</button>
+    </div>
+    <div class="modal-body editor">
+      <label>Назва</label>
+      <input type="text" id="e-title" placeholder="Як працює онбординг нової людини">
+      <div class="row">
+        <div>
+          <label>Категорія</label>
+          <select id="e-cat">
+            <option value="general">📌 Загальні</option>
+            <option value="sop">📘 SOP</option>
+            <option value="checklist">☑ Чек-лист</option>
+            <option value="policy">⚖ Політика</option>
+            <option value="procedure">🔧 Процедура</option>
+          </select>
+        </div>
+        <div>
+          <label>Файл (PDF/doc, опційно)</label>
+          <input type="url" id="e-file" placeholder="https://...">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="e-pinned" style="width:18px;height:18px;accent-color:#ffc107;"> 📌 Закріпити зверху
+      </label>
+      <label>Тіло регламенту (Markdown — # ## *bold* списки)</label>
+      <textarea id="e-body" placeholder="## Мета регламенту&#10;..."></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeEdit()">Скасувати</button>
+      <button class="btn primary" id="saveBtn" onclick="saveReg()">💾 Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+const SUPABASE_URL='https://wotghlaehnvxyeacznvv.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2NjEyNTYsImV4cCI6MjA1NDIzNzI1Nn0.HMG-r9w9TQqPM5OYAlOOFiKWZ-VIKE0kuJg6Bc-3wd0';
+
+// dc-shared-storage для cross-app SSO
+import('/projects/dc-shared-storage.js').catch(()=>{});
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true,autoRefreshToken:true,storageKey:'sb-dreamcar-hq-auth-token'}});
+
+let me=null, regs=[], currentCat='', currentId=null;
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
+
+// Super-simple markdown → HTML
+function md(text){
+  if(!text)return '';
+  let html = esc(text);
+  html = html.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  html = html.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  html = html.replace(/\*(.+?)\*/g,'<i>$1</i>');
+  html = html.replace(/`(.+?)`/g,'<code>$1</code>');
+  html = html.replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank">$1</a>');
+  // unordered lists
+  html = html.replace(/^[\-\*] (.+)$/gm,'<li>$1</li>');
+  html = html.replace(/(<li>.*?<\/li>\n?)+/gs,m=>'<ul>'+m+'</ul>');
+  // paragraphs
+  html = html.split(/\n\n+/).map(p=>{
+    if(/^<(h1|h2|h3|ul|ol|pre)/.test(p))return p;
+    return '<p>'+p.replace(/\n/g,'<br>')+'</p>';
+  }).join('\n');
+  return html;
+}
+
+const CAT_LBL={general:'📌 Загальні',sop:'📘 SOP',checklist:'☑ Чек-лист',policy:'⚖ Політика',procedure:'🔧 Процедура'};
+
+async function loadMe(){
+  const {data:{user}} = await sb.auth.getUser();
+  if(!user){location.href='/hq/?next='+encodeURIComponent(location.pathname);return null;}
+  const {data} = await sb.rpc('resolve_user_by_auth',{p_auth_id:user.id});
+  return Array.isArray(data)?data[0]:data;
+}
+
+async function loadAll(){
+  const {data,error} = await sb.from('regulations').select('*').is('deleted_at',null).order('pinned',{ascending:false}).order('updated_at',{ascending:false});
+  if(error){console.error(error);document.getElementById('regList').innerHTML='<div class="empty"><h3>Помилка</h3><p>'+esc(error.message)+'</p></div>';return;}
+  regs = data||[];
+  render();
+}
+
+function render(){
+  const filtered = currentCat ? regs.filter(r=>r.category===currentCat) : regs;
+  if(!filtered.length){
+    document.getElementById('regList').innerHTML='<div class="empty"><h3>Поки порожньо</h3><p>'+(me&&['ceo','coo','lead'].includes(me.role)?'Натисни <b>+ Новий регламент</b> щоб створити перший.':'Регламенти зʼявляться тут коли керівництво їх додасть.')+'</p></div>';
+    return;
+  }
+  const html = filtered.map(r=>{
+    const snippet = (r.body_md||'').replace(/[#*`>\[\]]/g,'').slice(0,140);
+    return `<div class="reg-card ${r.pinned?'pinned':''}" data-id="${r.id}">
+      ${r.pinned?'<div class="pin">📌</div>':''}
+      <div class="reg-cat ${r.category}">${esc(CAT_LBL[r.category]||r.category)}</div>
+      <div class="reg-title">${esc(r.title)}</div>
+      <div class="reg-snippet">${esc(snippet)}${snippet.length>=140?'…':''}</div>
+      <div class="reg-meta">
+        <span>📅 ${new Date(r.updated_at).toLocaleDateString('uk',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
+        ${r.file_url?'<span>📎 файл</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('regList').innerHTML=html;
+  document.querySelectorAll('.reg-card').forEach(c=>c.addEventListener('click',()=>openView(c.dataset.id)));
+}
+
+window.openView = function(id){
+  const r = regs.find(x=>x.id===id); if(!r)return;
+  currentId = id;
+  document.getElementById('vTitle').textContent = r.title;
+  document.getElementById('vBody').innerHTML = md(r.body_md);
+  const f = document.getElementById('vFile');
+  if(r.file_url){f.href=r.file_url;f.style.display='inline';}else{f.style.display='none';}
+  const isAdmin = me && ['ceo','coo','lead'].includes(me.role);
+  document.getElementById('vEditBtn').style.display = isAdmin?'inline-block':'none';
+  document.getElementById('vDelBtn').style.display = isAdmin?'inline-block':'none';
+  document.getElementById('viewModal').classList.add('show');
+};
+window.closeView = ()=>document.getElementById('viewModal').classList.remove('show');
+
+window.editCurrent = ()=>{
+  const r = regs.find(x=>x.id===currentId); if(!r)return;
+  closeView();
+  document.getElementById('editTitle').textContent='Редагувати регламент';
+  document.getElementById('e-title').value = r.title;
+  document.getElementById('e-cat').value = r.category;
+  document.getElementById('e-file').value = r.file_url||'';
+  document.getElementById('e-pinned').checked = !!r.pinned;
+  document.getElementById('e-body').value = r.body_md||'';
+  document.getElementById('editModal').classList.add('show');
+};
+
+window.deleteCurrent = async ()=>{
+  if(!confirm('Видалити регламент назавжди?'))return;
+  await sb.from('regulations').update({deleted_at:new Date().toISOString()}).eq('id',currentId);
+  closeView(); await loadAll();
+};
+
+document.getElementById('newRegBtn').addEventListener('click',()=>{
+  currentId = null;
+  document.getElementById('editTitle').textContent='Новий регламент';
+  document.getElementById('e-title').value='';
+  document.getElementById('e-cat').value='general';
+  document.getElementById('e-file').value='';
+  document.getElementById('e-pinned').checked=false;
+  document.getElementById('e-body').value='';
+  document.getElementById('editModal').classList.add('show');
+});
+
+window.closeEdit = ()=>document.getElementById('editModal').classList.remove('show');
+
+window.saveReg = async ()=>{
+  const title = document.getElementById('e-title').value.trim();
+  if(!title){alert('Введи назву');return;}
+  const data = {
+    title,
+    category: document.getElementById('e-cat').value,
+    file_url: document.getElementById('e-file').value.trim()||null,
+    pinned: document.getElementById('e-pinned').checked,
+    body_md: document.getElementById('e-body').value,
+    updated_at: new Date().toISOString()
+  };
+  let res;
+  if(currentId){
+    res = await sb.from('regulations').update(data).eq('id',currentId);
+  }else{
+    data.created_by = me?.id;
+    res = await sb.from('regulations').insert(data);
+  }
+  if(res.error){alert('Помилка: '+res.error.message);return;}
+  closeEdit(); await loadAll();
+};
+
+document.querySelectorAll('.cat-chip').forEach(c=>c.addEventListener('click',()=>{
+  document.querySelectorAll('.cat-chip').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active');
+  currentCat = c.dataset.cat;
+  render();
+}));
+
+(async()=>{
+  me = await loadMe();
+  if(!me)return;
+  if(['ceo','coo','lead'].includes(me.role)){
+    document.getElementById('newRegBtn').style.display='inline-block';
+  }
+  await loadAll();
+})();
+</script>
+</body>
+</html>
