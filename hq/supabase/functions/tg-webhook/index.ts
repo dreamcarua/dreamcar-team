@@ -527,7 +527,7 @@ async function handleReworkCallback(
     const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
     await tgEditMessage(msg.chat.id, msg.message_id,
       `${result.longLabel}\n\n` +
-      `<i>${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}</i>\n\n` +
+      `<i>${escHtml(me.name || "?")} · ${kyivShortT(now)}</i>\n\n` +
       `📌 «${escHtml(pub.title)}»`,
       undefined,
     );
@@ -667,13 +667,32 @@ async function getQueueForUser(supabase: ReturnType<typeof createClient>, userId
     .sort((a, b) => new Date(a.publish_at).getTime() - new Date(b.publish_at).getTime());
 }
 
+// #330 HARD RULE: Europe/Kyiv для всіх timestamp у нотифікаціях
+function kyivShortDT(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("uk-UA", {
+      timeZone: "Europe/Kyiv",
+      day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    }).format(d).replace(",", "");
+  } catch { return ""; }
+}
+function kyivShortT(iso: string | Date): string {
+  try {
+    const d = iso instanceof Date ? iso : new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("uk-UA", {
+      timeZone: "Europe/Kyiv",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    }).format(d);
+  } catch { return ""; }
+}
 function formatPubForQueue(p: { id: string; title: string; publish_at: string }, position: number, total: number): string {
-  const d = new Date(p.publish_at);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   return `📋 <b>Черга погоджень</b> · ${position}/${total}\n\n` +
     `«${escHtml(p.title)}»\n` +
-    `🕐 ${dateStr}\n\n` +
+    `🕐 ${kyivShortDT(p.publish_at)}\n\n` +
     `<i>Тисни кнопку щоб погодити / повернути / пропустити</i>`;
 }
 
@@ -948,7 +967,7 @@ async function handleToday(supabase: ReturnType<typeof createClient>, chatId: nu
     const d = new Date(p.publish_at);
     const pad = (n: number) => String(n).padStart(2, "0");
     const plats = (byPub[p.id] || []).map(x => PLATFORM_NAMES[x] || x).join("/") || "—";
-    lines.push(`${STATUS_EMOJI[p.status] || "•"} <code>${pad(d.getHours())}:${pad(d.getMinutes())}</code> · <a href="${HQ_URL}#publication/${p.id}">${escHtml(p.title)}</a> · ${plats}`);
+    lines.push(`${STATUS_EMOJI[p.status] || "•"} <code>${kyivShortT(d.toISOString())}</code> · <a href="${HQ_URL}#publication/${p.id}">${escHtml(p.title)}</a> · ${plats}`);
   }
   await tgSend(chatId, lines.join("\n"));
 }
@@ -963,7 +982,7 @@ async function handleQueue(supabase: ReturnType<typeof createClient>, chatId: nu
   for (const p of queue) {
     const d = new Date(p.publish_at);
     const pad = (n: number) => String(n).padStart(2, "0");
-    const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const dateStr = `${kyivShortDT(d.toISOString())}`;
     lines.push(`👀 <code>${dateStr}</code> · <a href="${HQ_URL}#publication/${p.id}">${escHtml(p.title)}</a>`);
   }
   lines.push(`\n<i>Для швидкого погодження — /approve</i>`);
@@ -991,7 +1010,7 @@ async function handleLate(supabase: ReturnType<typeof createClient>, chatId: num
     for (const p of missed.slice(0, 8)) {
       const d = new Date(p.publish_at);
       const pad = (n: number) => String(n).padStart(2, "0");
-      const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const dateStr = `${kyivShortDT(d.toISOString())}`;
       lines.push(`• <code>${dateStr}</code> · <a href="${HQ_URL}#publication/${p.id}">${escHtml(p.title)}</a> · ${STATUS_LABEL[p.status]}`);
     }
     lines.push("");
@@ -1001,7 +1020,7 @@ async function handleLate(supabase: ReturnType<typeof createClient>, chatId: num
     for (const p of urgent.slice(0, 8)) {
       const d = new Date(p.publish_at);
       const pad = (n: number) => String(n).padStart(2, "0");
-      const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const dateStr = `${kyivShortDT(d.toISOString())}`;
       lines.push(`• <code>${dateStr}</code> · <a href="${HQ_URL}#publication/${p.id}">${escHtml(p.title)}</a> · ${STATUS_LABEL[p.status]}`);
     }
   }
@@ -1028,7 +1047,7 @@ async function handleMy(supabase: ReturnType<typeof createClient>, chatId: numbe
   for (const p of items) {
     const d = new Date(p.publish_at);
     const pad = (n: number) => String(n).padStart(2, "0");
-    const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const dateStr = `${kyivShortDT(d.toISOString())}`;
     lines.push(`${STATUS_EMOJI[p.status] || "•"} <code>${dateStr}</code> · <a href="${HQ_URL}#publication/${p.id}">${escHtml(p.title)}</a> · ${STATUS_LABEL[p.status]}`);
   }
   await tgSend(chatId, lines.join("\n"));
@@ -1364,7 +1383,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
 
     const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
     await tgEditMessage(msg.chat.id, msg.message_id,
-      (msg.text || "") + `\n\n${result.longLabel} · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+      (msg.text || "") + `\n\n${result.longLabel} · ${escHtml(me.name || "?")} · ${kyivShortT(now)}`);
     return;
   }
 
@@ -1416,7 +1435,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       await tgAnswerCallback(cb.id, "✅ Підтверджено · status=published");
       const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
       if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
-        (msg.text || "") + `\n\n✅ <b>Опубліковано</b> · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+        (msg.text || "") + `\n\n✅ <b>Опубліковано</b> · ${escHtml(me.name || "?")} · ${kyivShortT(now)}`);
       return;
     }
     if (sub === "miss") {
@@ -1452,7 +1471,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       await tgAnswerCallback(cb.id, "🚨 Алярм надіслано команді");
       const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
       if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
-        (msg.text || "") + `\n\n❌ <b>Збій</b> · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+        (msg.text || "") + `\n\n❌ <b>Збій</b> · ${escHtml(me.name || "?")} · ${kyivShortT(now)}`);
       return;
     }
     if (sub === "retry") {
@@ -1471,7 +1490,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       await tgAnswerCallback(cb.id, "🔁 Перевіряю Instagram…");
       const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
       if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
-        (msg.text || "") + `\n\n🔁 ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())} запросив повторну перевірку`);
+        (msg.text || "") + `\n\n🔁 ${escHtml(me.name || "?")} · ${kyivShortT(now)} запросив повторну перевірку`);
       return;
     }
     if (sub === "resched") {
@@ -1493,7 +1512,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       await tgAnswerCallback(cb.id, `↻ Перенесено на +${minutes} хв`);
       const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
       if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
-        (msg.text || "") + `\n\n↻ Перенесено +${minutes} хв · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+        (msg.text || "") + `\n\n↻ Перенесено +${minutes} хв · ${escHtml(me.name || "?")} · ${kyivShortT(now)}`);
       return;
     }
     await tgAnswerCallback(cb.id, "Невідома vrfy дія", true);
@@ -1531,7 +1550,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       await tgAnswerCallback(cb.id, "↩ Повернуто на доопрацювання");
       const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
       if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
-        (msg.text || "") + `\n\n↩ Повернуто · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+        (msg.text || "") + `\n\n↩ Повернуто · ${escHtml(me.name || "?")} · ${kyivShortT(now)}`);
       return;
     }
 
@@ -1564,7 +1583,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     }
     const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
     if (msg.text) await tgEditMessage(msg.chat.id, msg.message_id,
-      (msg.text || "") + `\n\n✓ Погодив · ${escHtml(me.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}` + (allDone ? " · <b>Усе погоджено</b>" : ""));
+      (msg.text || "") + `\n\n✓ Погодив · ${escHtml(me.name || "?")} · ${kyivShortT(now)}` + (allDone ? " · <b>Усе погоджено</b>" : ""));
     return;
   }
 
@@ -1603,7 +1622,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
     await tgAnswerCallback(cb.id, label);
     const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
     await tgEditMessage(msg.chat.id, msg.message_id,
-      (msg.text || "") + `\n\n${label} · ${escHtml(meUser.name || "?")} · ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+      (msg.text || "") + `\n\n${label} · ${escHtml(meUser.name || "?")} · ${kyivShortT(now)}`);
     return;
   }
 

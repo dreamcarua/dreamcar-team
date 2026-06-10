@@ -35,10 +35,17 @@ const HQ_URL = "https://dreamcarua.github.io/dreamcar-team/hq/";
 function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+// #330 (11.06.2026 HARD RULE): всі дати у Europe/Kyiv (GMT+3 літом / GMT+2 зимою)
 function fmtDateTime(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("uk-UA", {
+      timeZone: "Europe/Kyiv",
+      day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    }).format(d).replace(",", "");
+  } catch { return iso; }
 }
 
 async function tgSend(chatId: number | string, text: string, opts: Record<string, unknown> = {}): Promise<void> {
