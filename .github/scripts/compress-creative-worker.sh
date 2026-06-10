@@ -397,8 +397,11 @@ ffmpeg -y -v error -stats -i "$INPUT" \
   -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
   -movflags +faststart -pix_fmt yuv420p \
   -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
-  -metadata:s:v:0 rotate=0 \
   "$OUTPUT"
+  # #292: видалив -metadata:s:v:0 rotate=0
+  # ffmpeg 6.x autorotate=on автоматично обертає фрейми ПЕРЕД scale,
+  # тому output вже physical-rotated. Force-strip rotation tag не потрібен
+  # і призводив до mismatch між container metadata і реальним output → quadratic TG preview.
 
 OUT_SIZE=$(stat -c%s "$OUTPUT")
 
