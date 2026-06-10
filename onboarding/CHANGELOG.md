@@ -8,6 +8,15 @@
 
 ---
 
+## 10.06.2026 (день) — #301 P0 КАТАСТРОФА Color full rollback
+
+🔧 **#301 P0** Compress worker — повний rollback HDR tone mapping
+- **Vadym:** «Кольоропередача жахлива. Катастрофа.»
+- **Викинуто:** #256 Hable, #291 Mobius+eq saturation/contrast/gamma, bt2020→bt709 converter, -color_primaries/trc/colorspace/range bt709 force.
+- **Залишилось:** чистий H.264 high\@4.1 2-pass + scale. Source pixels 1:1, без жодного color filter.
+- **Retry:** 5 останніх відео заново у черзі (compress workflow перекодує без tone mapping).
+- Commit: 576625e
+
 ## 10.06.2026 (день) — #300 P0 /news/ + /regulations/ SSO bridge
 
 🛡 **#300 P0** `/news/` і `/regulations/` — login loop повторно (4-й раз сьогодні)
