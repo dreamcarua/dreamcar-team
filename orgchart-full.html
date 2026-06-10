@@ -1,349 +1,459 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="uk" style="background:#0A0A0A;color-scheme:dark;">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DreamCar — Організаційна структура</title>
+<title>TEAM STRUCTURE — DreamCar Team Hub</title>
+<meta name="description" content="DreamCar — повна організаційна структура команди. Засновники · COO · Heads · Розподіл повноважень.">
+<!-- #319 (10.06.2026 Vadym): redesign у DreamCar racing-plate style. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610e" defer></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --black: #0A0A0A; --coal: #141414; --graphite: #1F1F1F; --steel: #2A2A2A;
+    --line: #2A2A2A; --ash: #888; --bone: #DDDDDD; --white: #FFFFFF;
+    --red: #E30613; --red-deep: #B8050F; --red-soft: #ff3344;
+    --gold: #F59E0B; --gold-deep: #B45309;
+    --blue: #60A5FA; --blue-deep: #2563EB;
+    --green: #10B981;
+  }
   body {
-    font-family: 'Manrope', sans-serif;
-    background: #0f0f1a;
-    color: #fff;
-    padding: 32px 24px;
-    min-height: 100vh;
+    font-family: 'Manrope', system-ui, sans-serif;
+    background: var(--black); color: var(--white);
+    min-height: 100vh; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--red); color: #fff; }
+
+  /* HERO */
+  .hero {
+    padding: 56px 32px 40px; position: relative; overflow: hidden;
+    background:
+      radial-gradient(ellipse at 75% 30%, rgba(227,6,19,0.18) 0%, transparent 60%),
+      linear-gradient(180deg, var(--black) 0%, var(--coal) 100%);
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--graphite) 1px, transparent 1px),
+      linear-gradient(90deg, var(--graphite) 1px, transparent 1px);
+    background-size: 60px 60px; opacity: 0.12; pointer-events: none;
+  }
+  .hero-inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 2; }
+  .hero-top {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.22em;
+    color: var(--red); margin-bottom: 12px;
+  }
+  .hero-title {
+    font-family: 'Oswald', sans-serif; font-weight: 700;
+    font-size: clamp(36px, 6vw, 64px);
+    line-height: 0.95; letter-spacing: -0.01em;
+    margin-bottom: 12px;
+  }
+  .hero-title .red { color: var(--red); }
+  .hero-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; color: var(--ash);
+  }
+  .hero-meta .sep { color: var(--steel); margin: 0 8px; }
+  .hero-meta .ok { color: var(--green); }
+
+  /* LEGEND */
+  .legend {
+    max-width: 1280px; margin: 0 auto;
+    padding: 24px 32px 8px;
+    display: flex; gap: 24px; flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.12em;
+    color: var(--ash); text-transform: uppercase;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-dot { width: 10px; height: 10px; border: 1px solid; }
+  .dot-founder { background: rgba(227,6,19,0.3); border-color: var(--red); }
+  .dot-coo { background: rgba(245,158,11,0.3); border-color: var(--gold); }
+  .dot-head { background: rgba(96,165,250,0.3); border-color: var(--blue); }
+
+  /* TREE */
+  .tree {
+    max-width: 1280px; margin: 0 auto;
+    padding: 24px 32px 40px;
+  }
+  .level-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.22em;
+    color: var(--ash); margin: 28px 0 14px;
+    text-align: center;
+  }
+  .level-label .num { color: var(--red); font-weight: 700; }
+
+  .row {
+    display: flex; gap: 16px;
+    justify-content: center; flex-wrap: wrap;
   }
 
-  .header { text-align: center; margin-bottom: 40px; }
-  .header h1 { font-size: 26px; font-weight: 700; color: #cc0000; letter-spacing: 2px; text-transform: uppercase; }
-  .header p { color: #999; font-size: 13px; margin-top: 6px; }
-
-  .legend { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
-  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ccc; }
-  .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
-  .dot-founder { background: #7a1a1a; }
-  .dot-ops     { background: #1a3a7a; }
-  .dot-ok      { background: #1a7a4a; }
-  .dot-warn    { background: #b37a00; }
-
-  .tree { display: flex; flex-direction: column; align-items: center; max-width: 1200px; margin: 0 auto; }
-  .connector-down { width: 2px; height: 28px; background: #333; margin: 0 auto; }
-
-  .card {
-    border-radius: 10px; padding: 16px 18px;
-    min-width: 195px; max-width: 230px;
-    border: 1px solid rgba(255,255,255,0.08);
-    position: relative; transition: transform 0.15s;
+  /* CONNECTOR */
+  .connector-down {
+    width: 1px; height: 36px;
+    background: linear-gradient(180deg, var(--steel) 0%, var(--steel) 50%, transparent 100%);
+    margin: 4px auto;
+    position: relative;
   }
-  .card:hover { transform: translateY(-2px); }
-
-  .card-founder  { background: #1a0000; border-color: #cc0000; }
-  .card-founder2 { background: #1a0800; border-color: #993300; }
-  .card-ops      { background: #0a0f1f; border-color: #2255bb; }
-  .card-ok       { background: #0f2e1e; border-color: #1a7a4a; }
-  .card-warn     { background: #2a1f00; border-color: #cc8800; }
-
-  .card-status {
-    font-size: 9px; font-weight: 700; letter-spacing: 1px;
-    text-transform: uppercase; padding: 2px 7px; border-radius: 3px;
-    display: inline-block; margin-bottom: 8px;
-  }
-  .status-founder  { background: #660000; color: #ff6666; }
-  .status-founder2 { background: #552200; color: #ffaa66; }
-  .status-ops      { background: #0a2255; color: #7ab0ff; }
-  .status-ok       { background: #1a7a4a; color: #7fffc4; }
-  .status-warn     { background: #664400; color: #ffcc66; }
-
-  .card-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; line-height: 1.3; }
-  .card-subtitle { font-size: 10px; color: #aaa; font-style: italic; margin-bottom: 10px; line-height: 1.4; }
-
-  .card-person {
-    font-size: 12px; font-weight: 600; padding: 5px 10px;
-    border-radius: 5px; margin-bottom: 6px; display: inline-block;
-  }
-  .person-founder  { background: #3d0a0a; color: #ff9999; }
-  .person-founder2 { background: #3d1500; color: #ffbb88; }
-  .person-ops      { background: #0a1a44; color: #7ab0ff; }
-  .person-ok       { background: #0a3d20; color: #4ade80; }
-  .person-warn     { background: #3d2900; color: #fbbf24; }
-
-  .card-functions { margin-top: 8px; list-style: none; }
-  .card-functions li {
-    font-size: 10px; color: #999; padding: 1px 0 1px 10px;
-    position: relative; line-height: 1.5;
-  }
-  .card-functions li::before { content: '▸'; position: absolute; left: 0; color: #555; font-size: 8px; top: 3px; }
-
-  .card-note {
-    margin-top: 8px; font-size: 10px; color: #888;
-    background: rgba(255,255,255,0.04); border-radius: 4px;
-    padding: 5px 8px; line-height: 1.4; border-left: 2px solid #444;
+  .connector-down::before {
+    content: '◆'; position: absolute; left: 50%;
+    top: 14px; transform: translateX(-50%);
+    color: var(--red); font-size: 8px;
   }
 
-  .dual-role-badge {
-    display: inline-block; font-size: 9px; font-weight: 700;
-    background: #0a0f1f; border: 1px dashed #2255bb;
-    color: #7ab0ff; padding: 3px 8px; border-radius: 4px;
-    margin-top: 6px; letter-spacing: 0.5px;
+  /* RACING-PLATE CARD */
+  .plate {
+    background: var(--coal);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 18px 20px;
+    min-width: 260px; max-width: 320px;
+    position: relative;
+    transition: transform 0.18s, box-shadow 0.18s;
+    overflow: hidden;
+  }
+  .plate:hover { transform: translateY(-2px); }
+
+  /* Top accent strip */
+  .plate::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: currentColor; opacity: 0.9;
   }
 
-  .founders-row { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; }
-  .card-founder  .card-title { font-size: 14px; color: #ff6666; }
-  .card-founder2 .card-title { font-size: 14px; color: #ffaa66; }
-
-  .coo-row { display: flex; justify-content: center; }
-  .card-ops .card-title { font-size: 14px; color: #7ab0ff; }
-
-  .scope-divider { border-top: 1px solid #1a2a4a; margin: 10px 0 8px; }
-  .scope-label { font-size: 9px; color: #5577aa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-  .not-scope { font-size: 10px; color: #555; font-style: italic; line-height: 1.5; padding-left: 10px; }
-
-  .exec-grid { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; width: 100%; }
-
-  .coord-note {
-    font-size: 11px; color: #444; text-align: center;
-    padding: 2px 16px; font-style: italic;
+  /* Racing tape stripe (decorative diagonals) */
+  .plate::after {
+    content: ''; position: absolute;
+    top: 0; right: 0; width: 60px; height: 60px;
+    background:
+      repeating-linear-gradient(135deg,
+        currentColor 0 2px,
+        transparent 2px 8px);
+    opacity: 0.04; pointer-events: none;
   }
 
-  .gap-summary { margin-top: 48px; max-width: 900px; margin-left: auto; margin-right: auto; }
-  .gap-summary h2 { text-align: center; font-size: 16px; color: #cc0000; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; }
-  .gap-table { width: 100%; border-collapse: collapse; }
-  .gap-table th {
-    background: #1a0000; color: #ff9999; font-size: 11px;
-    text-transform: uppercase; letter-spacing: 1px;
-    padding: 10px 14px; text-align: left; border-bottom: 1px solid #330000;
+  .plate-num {
+    position: absolute; top: 14px; right: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--ash); opacity: 0.7;
   }
-  .gap-table td { padding: 10px 14px; font-size: 12px; border-bottom: 1px solid #1e1e2e; vertical-align: top; line-height: 1.5; }
-  .gap-table tr:nth-child(odd)  td { background: #13131f; }
-  .gap-table tr:nth-child(even) td { background: #0f0f1a; }
-  .priority-medium { color: #fbbf24; font-weight: 700; }
-  .priority-low    { color: #6ee7b7; font-weight: 700; }
-  .priority-done   { color: #4ade80; font-weight: 700; }
-
-  .authority-section { margin-top: 40px; max-width: 980px; margin-left: auto; margin-right: auto; }
-  .authority-section h2 { text-align: center; font-size: 16px; color: #2255bb; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; }
-  .authority-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-  .authority-block { border-radius: 10px; padding: 18px 20px; }
-  .auth-vadym { background: #1a0000; border: 1px solid #cc0000; }
-  .auth-artem { background: #1a0800; border: 1px solid #993300; }
-  .auth-coo   { background: #0a0f1f; border: 1px solid #2255bb; }
-  .authority-block h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .auth-vadym h3 { color: #ff6666; }
-  .auth-artem h3 { color: #ffaa66; }
-  .auth-coo   h3 { color: #7ab0ff; }
-  .authority-block ul { list-style: none; }
-  .authority-block li {
-    font-size: 12px; color: #ccc; padding: 4px 0 4px 14px;
-    position: relative; line-height: 1.5;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+  .plate-role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: currentColor; opacity: 0.85;
+    margin-bottom: 6px;
   }
-  .authority-block li:last-child { border-bottom: none; }
-  .authority-block li::before { position: absolute; left: 0; top: 5px; font-size: 9px; content: '◆'; }
-  .auth-vadym li::before { color: #cc0000; }
-  .auth-artem li::before { color: #993300; }
-  .auth-coo   li::before { color: #2255bb; }
-
-  .escalation-box {
-    margin-top: 12px; background: #111; border: 1px solid #222;
-    border-radius: 8px; padding: 14px 18px; font-size: 12px; color: #888; line-height: 1.8;
+  .plate-name {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700; font-size: 32px; line-height: 1;
+    color: var(--white); letter-spacing: 0.02em;
+    text-transform: uppercase; margin-bottom: 4px;
   }
-  .escalation-box strong { color: #aaa; }
-  .artem-note {
-    margin-top: 10px; padding-top: 10px;
-    border-top: 1px solid #1e1e1e; color: #7ab0ff; font-size: 11px; line-height: 1.7;
+  .plate-sub {
+    font-size: 12px; color: var(--bone);
+    margin-bottom: 14px; line-height: 1.4;
+  }
+  .plate-functions {
+    list-style: none; padding: 0; margin: 0;
+    border-top: 1px solid var(--steel);
+    padding-top: 12px;
+  }
+  .plate-functions li {
+    font-size: 11px; color: var(--bone);
+    padding: 4px 0 4px 14px; position: relative;
+    line-height: 1.4;
+  }
+  .plate-functions li::before {
+    content: ''; position: absolute;
+    left: 0; top: 11px; width: 6px; height: 1px;
+    background: currentColor; opacity: 0.6;
+  }
+  .plate-note {
+    margin-top: 12px; padding: 8px 10px;
+    background: var(--graphite); border-left: 2px solid currentColor;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--bone); line-height: 1.45;
+    letter-spacing: 0.02em;
   }
 
-  .next-steps { margin-top: 32px; max-width: 900px; margin-left: auto; margin-right: auto; background: #0a1a2a; border: 1px solid #1a3a5a; border-radius: 10px; padding: 20px 24px; }
-  .next-steps h3 { color: #60a5fa; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
-  .next-steps ol { padding-left: 20px; }
-  .next-steps li { color: #ccc; font-size: 12px; padding: 4px 0; line-height: 1.6; }
-  .next-steps li strong { color: #fff; }
+  /* TIER colors */
+  .plate.t-founder { color: var(--red); border-color: var(--red); }
+  .plate.t-founder { background: linear-gradient(135deg, rgba(227,6,19,0.10) 0%, var(--coal) 60%); }
+  .plate.t-founder .plate-name { color: #fff; }
 
-  .divider { width: 100%; height: 1px; background: linear-gradient(to right, transparent, #333, transparent); margin: 40px 0; }
+  .plate.t-coo { color: var(--gold); border-color: var(--gold); }
+  .plate.t-coo { background: linear-gradient(135deg, rgba(245,158,11,0.10) 0%, var(--coal) 60%); }
+  .plate.t-coo { min-width: 340px; max-width: 460px; }
 
-  @media (max-width: 900px) {
-    .authority-grid { grid-template-columns: 1fr; }
-    .exec-grid { flex-direction: column; align-items: center; }
-    .card { max-width: 340px; min-width: 280px; }
-    .founders-row { gap: 16px; }
+  .plate.t-head { color: var(--blue); border-color: var(--blue); }
+  .plate.t-head { background: linear-gradient(135deg, rgba(96,165,250,0.08) 0%, var(--coal) 60%); }
+
+  /* AUTHORITY SECTION */
+  .authority {
+    max-width: 1280px; margin: 0 auto;
+    padding: 32px 32px 24px;
+  }
+  .auth-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.22em;
+    color: var(--red); margin-bottom: 8px;
+  }
+  .auth-h2 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700; font-size: 26px;
+    letter-spacing: 0.01em; margin-bottom: 20px;
+  }
+  .auth-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 900px) { .auth-grid { grid-template-columns: 1fr; } }
+  .auth-card {
+    background: var(--coal); border: 1px solid var(--line);
+    border-radius: 4px; padding: 18px 20px;
+    position: relative;
+  }
+  .auth-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: currentColor;
+  }
+  .auth-card.a-vadym { color: var(--red); }
+  .auth-card.a-artem { color: #FB923C; }
+  .auth-card.a-david { color: var(--gold); }
+  .auth-card h3 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700; font-size: 16px;
+    color: var(--white); letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .auth-card .auth-role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: currentColor; margin-bottom: 12px;
+  }
+  .auth-card ul { list-style: none; padding: 0; margin: 0; }
+  .auth-card li {
+    font-size: 11px; color: var(--bone);
+    padding: 4px 0 4px 14px; position: relative;
+    line-height: 1.4;
+  }
+  .auth-card li::before {
+    content: ''; position: absolute;
+    left: 0; top: 11px; width: 6px; height: 1px;
+    background: currentColor; opacity: 0.6;
+  }
+
+  .escalation {
+    max-width: 1280px; margin: 24px auto 0;
+    padding: 20px 24px;
+    background: var(--graphite); border-left: 3px solid var(--red);
+    border-radius: 4px;
+    font-size: 13px; color: var(--bone); line-height: 1.55;
+  }
+  .escalation strong { color: var(--white); font-weight: 700; }
+  .escalation .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em;
+    color: var(--red); text-transform: uppercase;
+    display: block; margin-bottom: 6px;
+  }
+
+  .footer-meta {
+    max-width: 1280px; margin: 32px auto 0;
+    padding: 24px 32px 48px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em;
+    color: var(--ash);
+    border-top: 1px solid var(--line);
+  }
+
+  @media (max-width: 720px) {
+    .hero { padding: 40px 20px 28px; }
+    .tree, .authority { padding: 16px 20px; }
+    .plate { min-width: 100%; max-width: 100%; }
+    .plate.t-coo { min-width: 100%; max-width: 100%; }
+    .plate-name { font-size: 26px; }
   }
 </style>
-<link rel="stylesheet" href="/assets/brand-tokens.css">
-<script src="/hq/config.js" defer></script>
-<script src="/assets/auth-guard.js" defer></script>
 </head>
 <body>
 
-<div class="header">
-  <h1>DreamCar.ua — Організаційна структура</h1>
-  <p>Поточний стан команди · Розподіл повноважень · Квітень 2026</p>
-</div>
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">/// TEAM STRUCTURE · ОРГАНІЗАЦІЙНА КАРТА</div>
+    <h1 class="hero-title">КОМАНДА. <span class="red">КАРТА ВЛАДИ.</span></h1>
+    <div class="hero-meta">
+      <span>DREAMCAR · EST. 2016</span>
+      <span class="sep">·</span>
+      <span>4 КЛЮЧОВИХ + ПІДРЯДНИКИ</span>
+      <span class="sep">·</span>
+      <span class="ok">● АКТИВНА</span>
+      <span class="sep">·</span>
+      <span>ОНОВЛЕНО 10.06.2026</span>
+    </div>
+  </div>
+</section>
 
+<!-- LEGEND -->
 <div class="legend">
   <div class="legend-item"><div class="legend-dot dot-founder"></div> Засновник</div>
-  <div class="legend-item"><div class="legend-dot dot-ops"></div> Операційний директор</div>
-  <div class="legend-item"><div class="legend-dot dot-ok"></div> Заповнено, працює</div>
-  <div class="legend-item"><div class="legend-dot dot-warn"></div> Є, потребує KPI / уточнення</div>
+  <div class="legend-item"><div class="legend-dot dot-coo"></div> COO (операційна ланка)</div>
+  <div class="legend-item"><div class="legend-dot dot-head"></div> Head of [department]</div>
 </div>
 
+<!-- TREE -->
 <div class="tree">
 
-  <!-- LEVEL 1: FOUNDERS -->
-  <div class="founders-row">
+  <!-- LEVEL 1 -->
+  <div class="level-label">/// <span class="num">LEVEL 01</span> · ЗАСНОВНИКИ</div>
 
-    <div class="card card-founder" style="min-width:230px; max-width:265px;">
-      <div class="card-status status-founder">Засновник · CEO</div>
-      <div class="card-title">Стратегія і розвиток</div>
-      <div class="card-subtitle">Фокус — масштабування, вихід з операційки</div>
-      <span class="card-person person-founder">Вадим</span>
-      <ul class="card-functions">
+  <div class="row">
+
+    <div class="plate t-founder">
+      <span class="plate-num">#01</span>
+      <div class="plate-role">CEO · Co-founder</div>
+      <div class="plate-name">Вадим</div>
+      <div class="plate-sub">Стратегія · IT · Фінанси</div>
+      <ul class="plate-functions">
         <li>Стратегія і пріоритети проекту</li>
         <li>Договори з підрядниками, постачальниками, партнерами</li>
         <li>Фінанси: бюджет, виплати, інвестиції</li>
         <li>IT-архітектура і технічні рішення</li>
         <li>Meta / Facebook Ads (тимчасово)</li>
-        <li>Найм і звільнення (фінальне рішення)</li>
-        <li>Всі рішення що змінюють напрямок або ризики</li>
+        <li>Найм і звільнення — фінальне рішення</li>
       </ul>
-      <div class="card-note">⚑ Маркетинг-планування — поки спільно з Артемом і Давідом</div>
+      <div class="plate-note">⚑ Маркетинг-планування — спільно з Артемом і Давидом</div>
     </div>
 
-    <div class="card card-founder2" style="min-width:230px; max-width:265px;">
-      <div class="card-status status-founder2">Засновник · Продукт і контент</div>
-      <div class="card-title">Контент та фізичні операції</div>
-      <div class="card-subtitle">Призи, переможці, відео-продакшн</div>
-      <span class="card-person person-founder2">Артем</span>
-      <ul class="card-functions">
+    <div class="plate t-founder">
+      <span class="plate-num">#02</span>
+      <div class="plate-role">Co-founder · Контент і Продукт</div>
+      <div class="plate-name">Артем</div>
+      <div class="plate-sub">Контент · Призи · Юридика по авто</div>
+      <ul class="plate-functions">
         <li>Стратегічні рішення по контенту і продукту</li>
         <li>Вибір авто та призів для проектів</li>
-        <li>Відео, Reels, Stories, прямі ефіри</li>
+        <li>Reels · Stories · Прямі ефіри · YouTube</li>
         <li>Купівля і організація передачі призів</li>
         <li>Юридика: договори по авто, оформлення переможців</li>
         <li>Офіційна комунікація з переможцями</li>
-        <li>Пост-проектний звіт (за регламентом Давіда)</li>
       </ul>
-      <div class="dual-role-badge">🔵 Операційна координація — через Давіда</div>
+      <div class="plate-note">↳ Операційна координація через Давида (COO)</div>
     </div>
 
   </div>
 
   <div class="connector-down"></div>
-  <div class="coord-note">Давід отримує вектор від засновників — забезпечує виконання</div>
-  <div class="connector-down"></div>
 
-  <!-- LEVEL 2: COO -->
-  <div class="coo-row">
-    <div class="card card-ops" style="min-width:350px; max-width:440px;">
-      <div class="card-status status-ops">Операційний директор</div>
-      <div class="card-title">Процеси · Координація · Запуски</div>
-      <div class="card-subtitle">З'єднує засновників з виконавчою командою</div>
-      <span class="card-person person-ops">Давід</span>
-      <ul class="card-functions">
+  <!-- LEVEL 2 -->
+  <div class="level-label">/// <span class="num">LEVEL 02</span> · ОПЕРАЦІЙНА ЛАНКА</div>
+
+  <div class="row">
+    <div class="plate t-coo">
+      <span class="plate-num">#03</span>
+      <div class="plate-role">COO · Операційний Директор</div>
+      <div class="plate-name">Давид</div>
+      <div class="plate-sub">Процеси · Координація · Запуски · Звітність</div>
+      <ul class="plate-functions">
         <li>Операційні процеси та SOP для кожного проекту</li>
         <li>Проектне планування: таймлайн, дедлайни, контрольні точки</li>
-        <li>Брифи і задачі для Артема — після погодження засновників</li>
-        <li>Постановка задач і контроль виконання: Володимир, Віра, Олександр</li>
+        <li>Брифи для Heads і Артема — після погодження засновників</li>
+        <li>Постановка задач і контроль виконання (Олександр, Віра)</li>
         <li>Контент-план і маркетинг-планування (спільно з Вадимом)</li>
         <li>Звітність перед засновниками після кожного проекту</li>
-        <li>Регламенти, шаблони, SOP, онбординг нових людей</li>
-        <li>Оперативне вирішення питань без ескалації до засновників</li>
+        <li>Регламенти, шаблони, онбординг нових людей</li>
+        <li>Оперативне вирішення без ескалації до засновників</li>
       </ul>
-      <div class="scope-divider"></div>
-      <div class="scope-label">Не входить у зону відповідальності</div>
-      <div class="not-scope">Стратегічні рішення · Фінанси / юридика · Meta Ads · IT-архітектура · Вибір авто та призів</div>
+      <div class="plate-note">⊘ Не входить: стратегія · фінанси · юридика · вибір авто · IT-архітектура</div>
     </div>
   </div>
 
   <div class="connector-down"></div>
 
-  <!-- LEVEL 3: Execution -->
-  <div class="exec-grid">
+  <!-- LEVEL 3 -->
+  <div class="level-label">/// <span class="num">LEVEL 03</span> · HEADS OF DEPARTMENTS</div>
 
-    <div class="card card-warn">
-      <div class="card-status status-warn">🟡 Потрібні KPI</div>
-      <div class="card-title">Telegram + TikTok Ads</div>
-      <div class="card-subtitle">Два чітких канали відповідальності</div>
-      <span class="card-person person-warn">Володимир</span>
-      <ul class="card-functions">
-        <li>Ведення Telegram реклами</li>
-        <li>Звіти по Telegram рекламі</li>
-        <li>TikTok Ads — налаштування і оптимізація</li>
-        <li>Звіт по TikTok Ads після кожного проекту</li>
+  <div class="row">
+
+    <div class="plate t-head">
+      <span class="plate-num">#04</span>
+      <div class="plate-role">Head of SMM</div>
+      <div class="plate-name">Олександр</div>
+      <div class="plate-sub">SMM-напрям: контент, креативи, публікація</div>
+      <ul class="plate-functions">
+        <li>Контент-план SMM (TG · IG · TikTok · YouTube)</li>
+        <li>Створення креативів і відео-нарізок під проект</li>
+        <li>Публікація постів за календарем (SMM-стіл)</li>
+        <li>Оперативне реагування на коментарі і запитання</li>
+        <li>Дотримання брендбуку: ToV, візуал, hashtags</li>
+        <li>Звітування по reach · engagement · CTR</li>
       </ul>
-      <div class="card-note">⚠️ Перший тест: KPI + бриф від Давіда на проект #17</div>
+      <div class="plate-note">↳ Брифи і ToV — від Давида. Архів креативів — у SMM. Брендбук — у BRAND.</div>
     </div>
 
-    <div class="card card-ok">
-      <div class="card-status status-ok">🟢 Заповнено</div>
-      <div class="card-title">Ретеншн та CRM</div>
-      <div class="card-subtitle">Email, Telegram-бот, Viber, SMS</div>
-      <span class="card-person person-ok">Віра</span>
-      <ul class="card-functions">
-        <li>Email-розсилки (серії і разові)</li>
-        <li>Telegram чатбот і push-сповіщення</li>
+    <div class="plate t-head">
+      <span class="plate-num">#05</span>
+      <div class="plate-role">Head of Retention</div>
+      <div class="plate-name">Віра</div>
+      <div class="plate-sub">CRM · Email · TG-бот · Viber · SMS</div>
+      <ul class="plate-functions">
+        <li>Email-розсилки: серії і разові кампанії (SendPulse)</li>
+        <li>Telegram чатбот, push-сповіщення</li>
         <li>Viber / SMS кампанії</li>
-        <li>База учасників і сегментація (CRM)</li>
+        <li>База учасників, сегментація CRM</li>
+        <li>А/В тести каналів і креативів ретеншну</li>
+        <li>Звіти по open · CTR · revenue по каналах</li>
       </ul>
-      <div class="card-note">✅ Працює стабільно. Брифи та календар — від Давіда</div>
-    </div>
-
-    <div class="card card-ok">
-      <div class="card-status status-ok">🟢 Заповнено</div>
-      <div class="card-title">Технології</div>
-      <div class="card-subtitle">Сайт, API, аналітика, автоматизація</div>
-      <span class="card-person person-ok">Олександр</span>
-      <ul class="card-functions">
-        <li>Розробка і підтримка сайту</li>
-        <li>API та інтеграції</li>
-        <li>Система видачі номерків / токенів</li>
-        <li>Дашборди і статистика</li>
-      </ul>
-      <div class="card-note">✅ Операційні задачі — від Давіда. Технічні рішення — від Вадима</div>
-    </div>
-
-    <div class="card card-ok">
-      <div class="card-status status-ok">🟢 Заповнено</div>
-      <div class="card-title">SMM · контент і публікація</div>
-      <div class="card-subtitle">Соцмережі: Telegram, Instagram, TikTok, YouTube</div>
-      <span class="card-person person-ok">Олександр</span>
-      <ul class="card-functions">
-        <li>Створення контенту під задачу проекту (тексти, креативи, відео-нарізки)</li>
-        <li>Публікація постів за календарем HQ (Telegram-канал, Instagram, TikTok, YouTube)</li>
-        <li>Оперативне реагування на коментарі і запитання у соцмережах</li>
-        <li>Дотримання брендбуку: tone of voice, візуальний стиль, hashtag-стратегія</li>
-        <li>Звітування по результатам публікацій (reach, engagement, CTR)</li>
-      </ul>
-      <div class="card-note">✅ Брифи і ToV — від Давіда / брендбук. Архів креативів — у HQ.</div>
+      <div class="plate-note">↳ Брифи і календар — від Давида. Approval flow → RETENTION-стіл.</div>
     </div>
 
   </div>
+
 </div>
 
-<div class="divider"></div>
+<!-- AUTHORITY -->
+<section class="authority">
+  <div class="auth-label">/// ⚖ POWER MAP · ХТО ЩО ВИРІШУЄ</div>
+  <h2 class="auth-h2">РОЗПОДІЛ ПОВНОВАЖЕНЬ</h2>
 
-<!-- ZONE OF AUTHORITY -->
-<div class="authority-section">
-  <h2>Розподіл повноважень</h2>
-  <div class="authority-grid">
+  <div class="auth-grid">
 
-    <div class="authority-block auth-vadym">
-      <h3>🔴 Вадим — CEO</h3>
+    <div class="auth-card a-vadym">
+      <div class="auth-role">CEO · Засновник</div>
+      <h3>Вадим</h3>
       <ul>
         <li>Стратегічне бачення і напрямок</li>
         <li>Фінанси: бюджет, виплати, інвестиції</li>
         <li>Договори: підрядники, постачальники, партнери</li>
         <li>IT-архітектура і технічні пріоритети</li>
         <li>Meta Ads (тимчасово)</li>
-        <li>Найм і звільнення (фінальне рішення)</li>
-        <li>Рішення що змінюють напрямок або ризики</li>
+        <li>Найм / звільнення — фінальне рішення</li>
+        <li>Все що змінює напрямок або ризики</li>
       </ul>
     </div>
 
-    <div class="authority-block auth-artem">
-      <h3>🟠 Артем — Засновник</h3>
+    <div class="auth-card a-artem">
+      <div class="auth-role">Co-founder</div>
+      <h3>Артем</h3>
       <ul>
         <li>Стратегічні рішення по контенту і продукту</li>
-        <li>Вибір авто та призів (фінальне рішення)</li>
+        <li>Вибір авто та призів — фінальне рішення</li>
         <li>Юридика: договори по авто, оформлення переможців</li>
         <li>Офіційна комунікація з переможцями</li>
         <li>Все що стосується фізичного продукту</li>
@@ -352,13 +462,14 @@
       </ul>
     </div>
 
-    <div class="authority-block auth-coo">
-      <h3>🔵 Давід — COO</h3>
+    <div class="auth-card a-david">
+      <div class="auth-role">COO</div>
+      <h3>Давид</h3>
       <ul>
         <li>Операційні процеси та регламенти</li>
         <li>Таймлайн і план кожного проекту</li>
         <li>Постановка задач і контроль виконання</li>
-        <li>Брифи для Артема — після погодження</li>
+        <li>Брифи для Heads і Артема — після погодження</li>
         <li>Контент-план і маркетинг-планування</li>
         <li>Оперативне вирішення без ескалації</li>
         <li>Операційні витрати в межах бюджету</li>
@@ -367,22 +478,20 @@
 
   </div>
 
-  <div class="escalation-box">
-    <strong>Принцип ескалації:</strong> Давід самостійно вирішує все операційне. До засновників виноситься: бюджет поза лімітом · зміна пріоритетів проекту · юридика і фінанси · конфлікти в команді · рішення поза межами поточного проекту.
-    <div class="artem-note">
-      <strong>Щодо Артема:</strong> як засновник він є партнером Давіда, а не підлеглим. Брифи і дедлайни для Артема Давід ставить після спільного погодження (Вадим — Артем — Давід). Контроль виконання — одна з ключових функцій Давіда.
-    </div>
+  <div class="escalation">
+    <span class="mono">/// ESCALATION PROTOCOL</span>
+    <strong>Давид</strong> самостійно вирішує все операційне. До засновників виноситься:
+    бюджет поза лімітом · зміна пріоритетів проекту · юридика і фінанси · конфлікти в команді · рішення поза межами поточного проекту.
+    <br><br>
+    <strong>Щодо Артема:</strong> як засновник — партнер Давида, а не підлеглий.
+    Брифи і дедлайни для Артема Давид ставить після спільного погодження (Вадим — Артем — Давид).
+    Контроль виконання — одна з ключових функцій Давида.
   </div>
+</section>
+
+<div class="footer-meta">
+  DREAMCAR · TEAM STRUCTURE v3.0 · CONFIDENTIAL · 10.06.2026
 </div>
 
-<div class="divider"></div>
-
-<!-- #316: видалив застарілі картки 'Поточні питання' (checklist.html — всі 6 питань закриті) і 'Онбординг Давіда' (вже не актуально). -->
-
-<div style="text-align:center; margin-top:40px; color:#444; font-size:11px;">
-  DreamCar.ua — Організаційна структура v2.2 — Квітень 2026 — Конфіденційно
-</div>
-
-<script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
 </body>
 </html>
