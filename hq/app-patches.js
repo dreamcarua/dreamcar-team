@@ -233,8 +233,24 @@
     var color = (first && first.color) || '#E30613';
     return 'background: linear-gradient(135deg, ' + color + '33, var(--bg-2));';
   }
+  // #258: TG HTML parser — дозволені теги розпарсуємо, все інше escape (XSS-safe)
+  function tgFmt(raw) {
+    if (!raw) return '';
+    var s = String(raw).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var tags = ['b','strong','i','em','u','s','strike','del','code','pre','tg-spoiler','blockquote','br'];
+    tags.forEach(function(t){
+      s = s.replace(new RegExp('&lt;' + t + '&gt;', 'gi'), '<' + t + '>')
+           .replace(new RegExp('&lt;\\/' + t + '&gt;', 'gi'), '</' + t + '>');
+    });
+    s = s.replace(/&lt;a\s+href=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi, function(_, url, txt){
+      return '<a href="' + url.replace(/"/g,'&quot;') + '" target="_blank" rel="noopener" style="color:#3390ec;">' + txt + '</a>';
+    });
+    s = s.replace(/&lt;&lt;&lt;([\s\S]+?)&gt;&gt;&gt;/g, '<tg-spoiler>$1</tg-spoiler>');
+    return s;
+  }
   function previewText(p) {
-    var txt = escapeHtml(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
+    // #258: replace escapeHtml → tgFmt — TG-теги (b/i/u/s/code/pre/tg-spoiler/blockquote/a) рендеряться
+    var txt = tgFmt(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
     var hashLine = (p.hashtags || []).map(function (h) { return h.indexOf('#') === 0 ? h : '#' + h; }).join(' ');
     var hashHtml = hashLine ? '<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">' + escapeHtml(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>') + '</div>' : '';
     return { txt: txt, hashHtml: hashHtml };
