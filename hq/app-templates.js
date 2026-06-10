@@ -30,7 +30,7 @@
     css.textContent =
       '.hq-tpl-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: var(--bg-3); border: 1px solid var(--border); color: #fff; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 8px; transition: background 0.15s; }' +
       '.hq-tpl-btn:hover { background: var(--bg-hover); border-color: var(--red); }' +
-      '.hq-tpl-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }' +
+      '.hq-tpl-modal { position: fixed !important; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 20000 !important; display: flex; align-items: center; justify-content: center; padding: 20px; }' +
       '.hq-tpl-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }' +
       '.hq-tpl-card h2 { font-size: 16px; color: #fff; margin-bottom: 14px; font-weight: 800; }' +
       '.hq-tpl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }' +
