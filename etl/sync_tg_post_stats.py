@@ -35,15 +35,26 @@ from telethon.tl.types import Message, ReactionCount, ReactionEmoji, ReactionCus
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 log = logging.getLogger(__name__)
 
-API_ID = int(os.environ.get('TG_API_ID', '0'))
-API_HASH = os.environ.get('TG_API_HASH', '')
-SESSION_STRING = os.environ.get('TG_SESSION_STRING', '')
+# #313: graceful skip коли MTProto secrets не виставлені.
+# Раніше int('') кидав ValueError → workflow failed → email spam кожні 30хв.
+_api_id_raw = os.environ.get('TG_API_ID', '').strip()
+API_HASH = os.environ.get('TG_API_HASH', '').strip()
+SESSION_STRING = os.environ.get('TG_SESSION_STRING', '').strip()
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
 SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
 BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '50'))
 
-if not all([API_ID, API_HASH, SESSION_STRING, SUPABASE_URL, SERVICE_KEY]):
-    log.error("Missing ENV: TG_API_ID/TG_API_HASH/TG_SESSION_STRING/SUPABASE_URL/SUPABASE_SERVICE_KEY")
+if not (_api_id_raw and API_HASH and SESSION_STRING):
+    log.warning("[#313] MTProto secrets не налаштовані (TG_API_ID/TG_API_HASH/TG_SESSION_STRING). Skip без помилки.")
+    log.warning("Щоб увімкнути — додай 3 secrets у Settings → Secrets → Actions:")
+    log.warning("  1. TG_API_ID — з https://my.telegram.org → API development tools")
+    log.warning("  2. TG_API_HASH — там же")
+    log.warning("  3. TG_SESSION_STRING — через Telethon StringSession (див README)")
+    sys.exit(0)  # exit 0 = success, щоб GH не показував failure
+
+API_ID = int(_api_id_raw)
+if not (SUPABASE_URL and SERVICE_KEY):
+    log.error("Missing SUPABASE_URL / SUPABASE_SERVICE_KEY у workflow env")
     sys.exit(1)
 
 
