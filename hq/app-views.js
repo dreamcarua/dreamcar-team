@@ -613,13 +613,35 @@ function renderTgAutopostBlock(p) {
   `;
 }
 
+// #255: TG HTML format parser — sanitize і render TG-supported tags. WYSIWYG preview.
+function tgFormatToHtml(raw) {
+  if (!raw) return '';
+  // 1. Escape ВСЕ небезпечне ПЕРШИМ ділом
+  let s = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // 2. Розпарсити SAFE TG HTML теги — повертаємо їх назад з escaped версії
+  const allowedTags = ['b','strong','i','em','u','s','strike','del','code','pre','tg-spoiler','blockquote','br'];
+  allowedTags.forEach(tag => {
+    const open = new RegExp(`&lt;${tag}&gt;`, 'gi');
+    const close = new RegExp(`&lt;\\/${tag}&gt;`, 'gi');
+    s = s.replace(open, `<${tag}>`).replace(close, `</${tag}>`);
+  });
+  // 3. <a href="..."> — особлива обробка (з attribute escape)
+  s = s.replace(/&lt;a\s+href=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi, (_, url, txt) => {
+    const safeUrl = url.replace(/"/g, '&quot;');
+    return `<a href="${safeUrl}" target="_blank" rel="noopener" style="color:#3390ec;text-decoration:none;">${txt}</a>`;
+  });
+  // 4. <<<spoiler>>> shorthand → <tg-spoiler>
+  s = s.replace(/&lt;&lt;&lt;([\s\S]+?)&gt;&gt;&gt;/g, '<tg-spoiler>$1</tg-spoiler>');
+  // 5. Hashtags + @mentions автолінк
+  s = s.replace(/(^|\s)(#[\p{L}\p{N}_]+)/gu, '$1<span class="pv-hash">$2</span>');
+  s = s.replace(/(^|\s)(@[\w_]{2,})/g, '$1<span class="pv-hash">$2</span>');
+  return s;
+}
+
 function renderPreviewSection(p) {
   const cr = (p.creatives || []).map(id => Store.creative(id)).filter(Boolean);
-  const firstMedia = cr[0]?.preview || '🚗';
-  const firstColor = cr[0]?.color || '#E30613';
-  const txt = escapeHtml(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
   const hashLine = (p.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');
-  const hashHtml = hashLine ? `<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">${escapeHtml(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>')}</div>` : '';
+  const hashHtml = hashLine ? `<div style="margin-top:8px;color:#3390ec;font-size:13px;">${tgFormatToHtml(hashLine)}</div>` : '';
 
   const showIg = p.platforms.includes('ig');
   const showTg = p.platforms.includes('tg');
@@ -627,24 +649,92 @@ function renderPreviewSection(p) {
     return `<div style="color:var(--grey);font-size:12px;padding:8px 0;">Оберіть Instagram або Telegram у майданчиках — побачите прев'ю.</div>`;
   }
 
+  // #255: Build title+text as TG sees it (HTML parsed)
+  const titleHtml = p.title ? `<b>${tgFormatToHtml(p.title).replace(/<\/?b>/g,'')}</b>` : '';
+  const bodyHtml = p.text ? tgFormatToHtml(p.text) : (p.title ? '' : '<i style="color:var(--grey)">(пусто)</i>');
+
+  // #255: Media rendering — REAL <img>/<video> with PRESERVED aspect ratio
+  function renderMediaForPlatform(plat) {
+    if (!cr.length) {
+      return `<div class="pv-empty" style="aspect-ratio:1.7/1;background:linear-gradient(135deg,#1a1a1f,#0a0a0d);display:flex;align-items:center;justify-content:center;color:var(--grey);font-size:36px;">🚗</div>`;
+    }
+    if (cr.length === 1) {
+      const c = cr[0];
+      const url = c.thumbnail_url || c.compressed_url || c.preview;
+      if (c.type === 'video') {
+        return `<div class="pv-single" style="position:relative;background:#000;">
+          <video src="${url}" style="display:block;width:100%;max-height:520px;object-fit:contain;background:#000;" muted playsinline></video>
+          <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.65);border-radius:50%;width:54px;height:54px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;pointer-events:none;">▶</div>
+        </div>`;
+      }
+      return `<div class="pv-single" style="background:#000;">
+        <img src="${url}" style="display:block;width:100%;max-height:520px;object-fit:contain;background:#000;" alt=""/>
+      </div>`;
+    }
+    // Album 2-10 — TG grid layout
+    const items = cr.slice(0, 10);
+    const cols = items.length === 2 ? 2 : items.length === 3 ? 3 : 2;
+    const cells = items.map((c, i) => {
+      const url = c.thumbnail_url || c.compressed_url || c.preview;
+      const isVid = c.type === 'video';
+      const more = i === 9 && cr.length > 10 ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600;">+${cr.length-10}</div>` : '';
+      return `<div style="position:relative;background:#0a0a0d;aspect-ratio:1;overflow:hidden;">
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover;" alt=""/>
+        ${isVid ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);color:#fff;font-size:24px;text-shadow:0 0 8px #000;pointer-events:none;">▶</div>' : ''}
+        ${more}
+      </div>`;
+    }).join('');
+    return `<div class="pv-album" style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:2px;background:#000;">${cells}</div>`;
+  }
+
+  // #255: TG buttons render (як у TG: inline_keyboard for single, caption_links for album)
+  const buttons = Array.isArray(p.tg_buttons) ? p.tg_buttons : [];
+  const isAlbum = cr.length >= 2;
+  const renderTgButtons = () => {
+    if (!buttons.length) return '';
+    if (isAlbum) {
+      // Album: рендеримо як HTML посилання у caption (точно як edge fn робить)
+      const links = buttons.map((b, idx) => {
+        const text = (b.text || `Кнопка ${idx+1}`).slice(0, 64);
+        if (b.type === 'url' && b.url) return `🔗 <a href="${b.url}" target="_blank" style="color:#3390ec;">${tgFormatToHtml(text)}</a>`;
+        if (b.type === 'web_app' && b.web_app_url) return `📱 <a href="${b.web_app_url}" target="_blank" style="color:#3390ec;">${tgFormatToHtml(text)}</a>`;
+        return '';
+      }).filter(Boolean).join('<br>');
+      return links ? `<div style="margin-top:10px;font-size:13px;line-height:1.6;">${links}</div>` : '';
+    }
+    // Single: inline_keyboard як справжні TG кнопки
+    const rows = {};
+    buttons.forEach((b, idx) => {
+      const row = b.row ?? idx;
+      if (!rows[row]) rows[row] = [];
+      const icon = b.type === 'web_app' ? '📱' : b.type === 'callback' ? '👆' : '';
+      rows[row].push(`<div style="flex:1;background:#3390ec;color:#fff;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:500;text-align:center;cursor:default;">${icon} ${tgFormatToHtml((b.text || 'Кнопка').slice(0, 64))}</div>`);
+    });
+    const rowsHtml = Object.keys(rows).sort((a,b) => +a - +b).map(k => `<div style="display:flex;gap:4px;">${rows[k].join('')}</div>`).join('<div style="height:4px;"></div>');
+    return `<div style="padding:10px 12px 12px;background:#17212b;">${rowsHtml}</div>`;
+  };
+
   const igCard = !showIg ? '' : `
     <div class="preview-card ig">
       <div class="pv-head">
         <div class="pv-avatar">DC</div>
         <div><div class="pv-name">dreamcar.ua</div><div class="pv-handle">Sponsored</div></div>
       </div>
-      <div class="pv-media" style="background: linear-gradient(135deg, ${firstColor}33, var(--bg-2))">${firstMedia}</div>
+      ${renderMediaForPlatform('ig')}
       <div class="pv-actions">♥ &nbsp; 💬 &nbsp; ↗ &nbsp; <span style="margin-left:auto">🔖</span></div>
-      <div class="pv-text"><b>dreamcar.ua</b> ${txt || '<i style="color:var(--grey)">(пусто)</i>'}${hashHtml}</div>
+      <div class="pv-text"><b>dreamcar.ua</b> ${bodyHtml}${hashHtml}</div>
     </div>`;
   const tgCard = !showTg ? '' : `
-    <div class="preview-card tg">
-      <div class="pv-head">
-        <div class="pv-avatar">DC</div>
-        <div><div class="pv-name">Dream Car</div><div class="pv-handle">@dreamcar_ua · ${fmtDate(new Date())} ${fmtTime(p.dateTime)}</div></div>
+    <div class="preview-card tg" style="background:#17212b;">
+      <div class="pv-head" style="background:#242f3d;border-bottom:1px solid #1c2733;">
+        <div class="pv-avatar" style="background:linear-gradient(135deg,#3390ec,#1c79c2);">DC</div>
+        <div><div class="pv-name" style="color:#fff;">DreamCar</div><div class="pv-handle" style="color:#8696a6;">✈️ @dreamcar_ua</div></div>
       </div>
-      <div class="pv-media tg" style="background: linear-gradient(135deg, ${firstColor}33, var(--bg-2))">${firstMedia}</div>
-      <div class="pv-text">${txt || '<i style="color:var(--grey)">(пусто)</i>'}${hashHtml}</div>
+      ${renderMediaForPlatform('tg')}
+      <div class="pv-text" style="padding:12px;color:#fff;background:#17212b;">
+        ${titleHtml ? `${titleHtml}<br><br>` : ''}${bodyHtml}${hashHtml}
+      </div>
+      ${renderTgButtons()}
     </div>`;
 
   return `<div class="preview-row">${igCard}${tgCard}</div>`;
