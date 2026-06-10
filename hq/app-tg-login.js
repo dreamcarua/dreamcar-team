@@ -101,6 +101,7 @@
     'app-char-counter.js',
     'app-calendar-dots.js',
     'app-preview-tabs.js',
+    'app-preview-platforms.js',  // #328: pixel-perfect per-platform render
     'app-duplicate-to.js',
     'app-library-bulk.js',
     'app-uxr.js',

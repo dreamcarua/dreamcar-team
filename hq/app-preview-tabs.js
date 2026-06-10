@@ -91,22 +91,7 @@
     var pdef = PLATFORMS.find(function (x) { return x.id === plat; });
     if (!pdef) return '';
 
-    var cr = (p.creatives || []).map(function (id) {
-      try { return Store.creative(id); } catch (_) { return null; }
-    }).filter(Boolean);
-    var firstMedia = cr[0] ? cr[0].preview : pdef.icon;
-    var firstColor = cr[0] ? (cr[0].color || pdef.color) : pdef.color;
-
-    // #258: tgFmt замість escapeText — рендеримо TG HTML теги (<b>/<i>/<u>/<s>/<code>/<pre>/<tg-spoiler>/<blockquote>/<a>)
-    var txt = tgFmt(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
-    var hashLine = (p.hashtags || []).map(function (h) { return h.startsWith('#') ? h : '#' + h; }).join(' ');
-    var hashHtml = hashLine
-      ? '<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">' + escapeText(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>') + '</div>'
-      : '';
-
     var dtVal = platformDateLocalInput(p, plat);
-
-    // Datetime picker для цієї платформи
     var dtPicker = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
       '<label style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);font-weight:700;">⏰ Час для ' + pdef.name + ':</label>' +
       '<input type="datetime-local" class="hq-prev-time" data-plat="' + plat + '" value="' + dtVal + '" ' +
@@ -115,6 +100,23 @@
       'style="background:transparent;border:1px solid var(--border);color:var(--grey);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">⟲ як основна</button>' +
       '</div>';
 
+    // #328: pixel-perfect per-platform render з app-preview-platforms.js
+    if (typeof window.__hqRenderPlatformV2 === 'function') {
+      var v2 = window.__hqRenderPlatformV2(p, plat);
+      if (v2) return dtPicker + v2;
+    }
+
+    // Fallback (старий generic render) — якщо v2 ще не загрузився
+    var cr = (p.creatives || []).map(function (id) {
+      try { return Store.creative(id); } catch (_) { return null; }
+    }).filter(Boolean);
+    var firstMedia = cr[0] ? cr[0].preview : pdef.icon;
+    var firstColor = cr[0] ? (cr[0].color || pdef.color) : pdef.color;
+    var txt = tgFmt(p.text || '').replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="pv-hash">$1</span>');
+    var hashLine = (p.hashtags || []).map(function (h) { return h.startsWith('#') ? h : '#' + h; }).join(' ');
+    var hashHtml = hashLine
+      ? '<div style="margin-top:6px;color:var(--blue-soft);font-size:11px;">' + escapeText(hashLine).replace(/(#\S+)/g, '<span class="pv-hash">$1</span>') + '</div>'
+      : '';
     var isVertical = plat === 'tg' || plat === 'yt';
     var card = '<div class="preview-card ' + plat + '" style="max-width:380px;margin:0 auto;">' +
       '<div class="pv-head" style="background:linear-gradient(180deg,' + pdef.color + '20,transparent);">' +
