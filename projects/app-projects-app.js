@@ -90,7 +90,9 @@
       measure: '📊 Вимірюємо', completed: '✅ Завершено', archived: '📦 Архів',
     })[s] || s;
   }
-  var STATUSES = ['idea', 'planning', 'active', 'measure', 'completed', 'archived'];
+  // 10.06.2026 #270 (Давид): порядок старе → теперішнє → майбутнє
+  // Архів/Завершено (минуле) ЗЛІВА, Активний/Вимірюємо (теперішнє) ЦЕНТР, Підготовка/Ідея (майбутнє) СПРАВА
+  var STATUSES = ['archived', 'completed', 'active', 'measure', 'planning', 'idea'];
 
   function getCurrentUser() { return (window.appState && window.appState.publicUser) || null; }
   function isAdmin() {
