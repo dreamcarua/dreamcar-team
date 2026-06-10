@@ -1000,13 +1000,36 @@
   }
   .preview-card .pv-name { font-weight: 700; color: #fff; font-size: 12px; }
   .preview-card .pv-handle { color: var(--grey); font-size: 10px; }
-  .preview-card .pv-media {
-    aspect-ratio: 1;
-    background: linear-gradient(135deg, var(--bg-4), var(--bg-2));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 48px;
+  /* #255: NO fixed aspect-ratio — preserve original media ratio (як у TG) */
+  .preview-card .pv-single img,
+  .preview-card .pv-single video {
+    display: block; width: 100%; max-height: 520px;
+    object-fit: contain; background: #000;
   }
-  .preview-card .pv-media.tg { aspect-ratio: 16/9; font-size: 40px; }
+  .preview-card .pv-album img { width: 100%; height: 100%; object-fit: cover; }
+  .preview-card .pv-text tg-spoiler {
+    background: rgba(255,255,255,0.15); color: transparent;
+    border-radius: 3px; padding: 0 2px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .preview-card .pv-text tg-spoiler:hover { color: inherit; background: transparent; }
+  .preview-card .pv-text b { color: #fff; font-weight: 700; }
+  .preview-card .pv-text i { font-style: italic; }
+  .preview-card .pv-text u { text-decoration: underline; }
+  .preview-card .pv-text s { text-decoration: line-through; }
+  .preview-card .pv-text code {
+    background: rgba(255,255,255,0.08); padding: 1px 5px;
+    border-radius: 4px; font-family: ui-monospace, monospace; font-size: 12px;
+  }
+  .preview-card .pv-text pre {
+    background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px;
+    overflow-x: auto; font-family: ui-monospace, monospace; font-size: 12px;
+    margin: 6px 0;
+  }
+  .preview-card .pv-text blockquote {
+    border-left: 3px solid #3390ec; padding-left: 10px;
+    margin: 6px 0; color: rgba(255,255,255,0.85);
+  }
   .preview-card .pv-actions { padding: 8px 12px; display: flex; gap: 14px; font-size: 14px; color: var(--grey); border-top: 1px solid var(--border); }
   .preview-card .pv-text {
     padding: 8px 12px 12px;
@@ -1857,7 +1880,7 @@
 </script>
 
 <script src="app-core.js?v=20260609b" defer></script>
-<script src="app-views.js?v=20260610i" defer></script>
+<script src="app-views.js?v=20260610j" defer></script>
 <!-- 09.06.2026 #207/#208/#209: loader chain (app-locks → app-extras → ...) на production не стартувала.
      Через це app-overview-modal.js, app-extras.js, app-duplicate-to.js НЕ завантажувались.
      Олександр і Давид бачили старий edit modal без кнопки Дублювати + без креативів у preview.
