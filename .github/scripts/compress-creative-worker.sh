@@ -284,7 +284,7 @@ IN_MB=$(awk "BEGIN{printf \"%.1f\", $IN_SIZE/1024/1024}")
 echo "Downloaded: $IN_SIZE bytes (${IN_MB} MB)"
 
 PROBE=$(ffprobe -v error -select_streams v:0 \
-  -show_entries stream=width,height,r_frame_rate,duration,color_space,color_transfer,color_primaries,pix_fmt \
+  -show_entries stream=width,height,r_frame_rate,duration,color_space,color_transfer,color_primaries,pix_fmt:stream_tags=rotate:stream_side_data=rotation \
   -show_entries format=duration \
   -of json "$INPUT")
 SRC_W=$(echo "$PROBE" | jq -r '.streams[0].width')
@@ -292,7 +292,28 @@ SRC_H=$(echo "$PROBE" | jq -r '.streams[0].height')
 DURATION=$(echo "$PROBE" | jq -r '.format.duration // .streams[0].duration' | awk '{printf "%.2f", $1}')
 SRC_FPS_RAW=$(echo "$PROBE" | jq -r '.streams[0].r_frame_rate')
 SRC_FPS=$(echo "$SRC_FPS_RAW" | awk -F'/' '{ if ($2 > 0) printf "%.2f", $1/$2; else printf "%.2f", $1 }')
-echo "Source: ${SRC_W}×${SRC_H} @ ${SRC_FPS}fps, ${DURATION}s"
+
+# #260 (10.06.2026): iPhone aspect ratio fix — rotation metadata detection
+# iPhone знімає video у landscape pixels + rotation matrix у side_data.
+# Без proper handling: scale filter застосовується до raw pixels → у виході
+# залишається landscape з втраченою rotation tag → TG показує перевернутий aspect.
+SRC_ROTATION=$(echo "$PROBE" | jq -r '
+  (.streams[0].side_data_list[]? | select(.rotation) | .rotation) //
+  (.streams[0].tags.rotate? // 0) // 0
+' | head -1)
+# Normalize: ffprobe displaymatrix повертає -90 для 90° clockwise, +90 для counterclockwise
+SRC_ROT_ABS=$(awk "BEGIN{r=$SRC_ROTATION; if(r<0)r=-r; print int(r)%360}")
+echo "Source: ${SRC_W}×${SRC_H} @ ${SRC_FPS}fps, ${DURATION}s, rotation=${SRC_ROTATION}° (abs=${SRC_ROT_ABS}°)"
+
+# Якщо rotation 90 або 270 — logical W/H перевернуто
+# Для scale calculation ми хочемо logical dimensions (як TG їх побачить після autorotate)
+LOGICAL_W=$SRC_W
+LOGICAL_H=$SRC_H
+if [ "$SRC_ROT_ABS" = "90" ] || [ "$SRC_ROT_ABS" = "270" ]; then
+  LOGICAL_W=$SRC_H
+  LOGICAL_H=$SRC_W
+  echo "::warning::Rotation detected — logical dimensions ${LOGICAL_W}×${LOGICAL_H} (swapped from container ${SRC_W}×${SRC_H})"
+fi
 
 # #256: HDR detection + tone mapping chain (iPhone Pro знімає HLG за замовч → TG не tone-map)
 SRC_COLOR_TRANSFER=$(echo "$PROBE" | jq -r '.streams[0].color_transfer // ""')
@@ -336,11 +357,14 @@ elif [ "$VIDEO_KBPS" -ge 1000 ]; then MAX_LONG=854
 else MAX_LONG=640
 fi
 
-if [ "$SRC_W" -ge "$SRC_H" ]; then SRC_LONG=$SRC_W; else SRC_LONG=$SRC_H; fi
+# #260: Використовуємо LOGICAL dimensions (після rotation) для рішень про size
+if [ "$LOGICAL_W" -ge "$LOGICAL_H" ]; then SRC_LONG=$LOGICAL_W; else SRC_LONG=$LOGICAL_H; fi
 if [ "$SRC_LONG" -lt "$MAX_LONG" ]; then MAX_LONG=$SRC_LONG; fi
 
+# scale filter використовує iw/ih (post-rotation pixels) — ffmpeg autorotate розгортає
+# raw landscape pixels у logical portrait ПЕРЕД filter graph (з v5.x), тому iw/ih = LOGICAL
 SCALE_FILTER="${HDR_PREFIX}scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
-echo "Target longest side: ${MAX_LONG}px (orig=${SRC_LONG}), aspect preserved"
+echo "Target longest side: ${MAX_LONG}px (orig logical=${SRC_LONG}), aspect preserved"
 [ -n "$HDR_PREFIX" ] && echo "HDR→SDR tone mapping ENABLED"
 
 # v2: preset veryslow + advanced tuning
@@ -369,6 +393,7 @@ ffmpeg -y -v error -stats -i "$INPUT" \
   -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
   -movflags +faststart -pix_fmt yuv420p \
   -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
+  -metadata:s:v:0 rotate=0 \
   "$OUTPUT"
 
 OUT_SIZE=$(stat -c%s "$OUTPUT")

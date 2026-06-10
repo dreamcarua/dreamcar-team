@@ -444,12 +444,22 @@ function renderCardBody(p) {
           <div class="creative-strip" id="f_creatives">
             ${(p.creatives||[]).map(cid => {
               const c = Store.creative(cid); if (!c) return '';
-              // #225 (Олександр UX): показуємо реальний thumbnail замість emoji preview
+              // #225 + #262 (Олександр UX): показуємо реальний thumbnail замість emoji
+              // #262: якщо thumbnail+compressed ще не готові — show placeholder з compress status
               const thumb = c.thumbnail_url || c.compressed_url || '';
               const isVideo = c.type === 'video' || /\.(mp4|mov|webm)$/i.test(thumb);
-              const inner = thumb
-                ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;">${isVideo ? '<span style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:2px 4px;border-radius:3px;font-family:JetBrains Mono,monospace;">▶ VIDEO</span>' : ''}`
-                : (c.preview || (isVideo ? '🎬' : '🖼'));
+              // Show pending placeholder з info про compress status замість сухого emoji
+              const compressStatus = (c.compressed_status || '').toLowerCase();
+              const isPending = !thumb && compressStatus && compressStatus !== 'failed';
+              let inner;
+              if (thumb) {
+                inner = `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;">${isVideo ? '<span style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:2px 4px;border-radius:3px;font-family:JetBrains Mono,monospace;">▶ VIDEO</span>' : ''}`;
+              } else if (isPending) {
+                // #262: pending compression — animated placeholder з info
+                inner = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);color:#888;font-size:10px;text-align:center;padding:6px;gap:4px;"><span style="font-size:24px;animation:spin 2s linear infinite;">⏳</span><span>обробка...</span></div>`;
+              } else {
+                inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:#666;">${isVideo ? '🎬' : '🖼'}</div>`;
+              }
               return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}" style="position:relative;overflow:hidden;">${inner}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
             }).join('')}
             <div class="cs-add" id="addCreativeBtn">+</div>
