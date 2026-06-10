@@ -8,6 +8,33 @@
 
 ---
 
+## 10.06.2026 (ранок) — #267 + #268 TG task notify v6 + Creator notifications
+
+### 🆕 #267 TG task notify — формат з ID + Project + Duplicate detection
+- 🆕 **`team-tasks-notify` v6** — кожне TG-повідомлення про задачу містить:
+  - `<code>#abc12345</code>` — короткий 8-char task ID (для копіювання у код/коментарі)
+  - Project emoji + назва (📱 iPhone 17 PRO MAX / 🏍 Мото / 🚗 BMW X5 Hybrid / 🛻 HUMMER / 🎬 DreamCar CONTENT) через lookup `public.projects`
+  - **⚠ Можливий дубль** — fuzzy text similarity через `pg_trgm` (threshold 0.4, поріг 40% збігу заголовку з іншою відкритою задачею)
+- 🆕 RPC `find_similar_open_task(p_task_id, p_title, p_threshold)` — повертає найбільш схожу не-done не-deleted задачу.
+- 🛡 `CREATE EXTENSION pg_trgm WITH SCHEMA extensions` — для similarity().
+
+### 🆕 #268 Постановник (creator) — TG нотифікації status/comment/done
+**Раніше: creator (created_by) НЕ отримував жодної події.** Зараз:
+- 🆕 **Trigger `team_tasks_notify_trigger`** оновлений — при `status_changed` додає `created_by` як recipient (якщо ≠ assignee і ≠ watcher і ≠ current_user_id).
+- 🆕 **Окремий kind `creator_done`** — коли assignee закрив (status → done) і creator ≠ assignee: спецформат "🎉 Готово! Твою задачу виконано". Кнопка "👀 Відкрити задачу".
+- 🆕 **Trigger `team_task_comments_notify_trigger`** оновлений — `created_by` як recipient для коментарів (з seen-dedupe щоб не дублювати з mention/watcher).
+- 🆕 Edge fn `formatMessage` — префікс "**Постановнику:**" для `status_changed` / `comment` якщо recipient = created_by (видно що це твоя задача, не власна робота).
+- 🚀 Migration: `creator_notifications_20260610` + `creator_notifications_triggers_20260610` + `creator_comment_notifications_20260610` + `enable_pg_trgm_for_dup_check`.
+- 📖 ENUM `team_task_notify_kind` додано value `creator_done`.
+
+### 📋 Backlog — Davyd проєктні правки (10.06.2026)
+- 📖 **#269 BIG** — "Потребує перевірки" галочка при постановці + 2-stage done (verified_by_creator). DB: requires_review + verified_at/verified_by + UI signal "сіра+перекреслена" або "виділена очікує перевірки".
+- 📖 **#270** — Архів змінити порядок: старе ліворуч, теперішнє центр, майбутнє праворуч.
+- 📖 **#271 BIG** — `/regulations/` нова сторінка з регламентами/чек-листами (download).
+- 📖 **#272 BIG** — `/news/` Новини/Анонси (план проекту, акції, звернення CEO).
+
+---
+
 ## 10.06.2026 (ніч) — TG Autopost v2 (BIG #233) + AI ranok + SMM polish
 
 ### 🆕 #233 BIG TG Autopost v2 — instant + buttons + AI engage + analytics
