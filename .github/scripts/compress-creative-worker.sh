@@ -284,7 +284,7 @@ IN_MB=$(awk "BEGIN{printf \"%.1f\", $IN_SIZE/1024/1024}")
 echo "Downloaded: $IN_SIZE bytes (${IN_MB} MB)"
 
 PROBE=$(ffprobe -v error -select_streams v:0 \
-  -show_entries stream=width,height,r_frame_rate,duration \
+  -show_entries stream=width,height,r_frame_rate,duration,color_space,color_transfer,color_primaries,pix_fmt \
   -show_entries format=duration \
   -of json "$INPUT")
 SRC_W=$(echo "$PROBE" | jq -r '.streams[0].width')
@@ -293,6 +293,30 @@ DURATION=$(echo "$PROBE" | jq -r '.format.duration // .streams[0].duration' | aw
 SRC_FPS_RAW=$(echo "$PROBE" | jq -r '.streams[0].r_frame_rate')
 SRC_FPS=$(echo "$SRC_FPS_RAW" | awk -F'/' '{ if ($2 > 0) printf "%.2f", $1/$2; else printf "%.2f", $1 }')
 echo "Source: ${SRC_W}×${SRC_H} @ ${SRC_FPS}fps, ${DURATION}s"
+
+# #256: HDR detection + tone mapping chain (iPhone Pro знімає HLG за замовч → TG не tone-map)
+SRC_COLOR_TRANSFER=$(echo "$PROBE" | jq -r '.streams[0].color_transfer // ""')
+SRC_COLOR_PRIMARIES=$(echo "$PROBE" | jq -r '.streams[0].color_primaries // ""')
+SRC_PIX_FMT=$(echo "$PROBE" | jq -r '.streams[0].pix_fmt // ""')
+HDR_PREFIX=""
+case "$SRC_COLOR_TRANSFER" in
+  arib-std-b67|smpte2084|bt2020-10|bt2020-12)
+    echo "::warning::HDR detected (transfer=$SRC_COLOR_TRANSFER, primaries=$SRC_COLOR_PRIMARIES, pix=$SRC_PIX_FMT) — applying tone mapping HDR → SDR Rec.709"
+    # Hable tone mapping — natural look, well-balanced highlights
+    HDR_PREFIX="zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,"
+    ;;
+  *)
+    case "$SRC_COLOR_PRIMARIES" in
+      bt2020)
+        echo "::warning::Wide gamut detected (primaries=$SRC_COLOR_PRIMARIES) — converting Rec.2020 → Rec.709"
+        HDR_PREFIX="zscale=p=bt709:m=bt709:r=tv,format=yuv420p,"
+        ;;
+      *)
+        echo "Source colors: SDR Rec.709 (transfer=$SRC_COLOR_TRANSFER, primaries=$SRC_COLOR_PRIMARIES) — no tone mapping"
+        ;;
+    esac
+    ;;
+esac
 
 # v2: Target = 99% of budget, не 91% undershoot
 EFFECTIVE_BUDGET=$((TARGET_BUDGET_BYTES * TARGET_FILL_PCT / 100))
@@ -315,8 +339,9 @@ fi
 if [ "$SRC_W" -ge "$SRC_H" ]; then SRC_LONG=$SRC_W; else SRC_LONG=$SRC_H; fi
 if [ "$SRC_LONG" -lt "$MAX_LONG" ]; then MAX_LONG=$SRC_LONG; fi
 
-SCALE_FILTER="scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
+SCALE_FILTER="${HDR_PREFIX}scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
 echo "Target longest side: ${MAX_LONG}px (orig=${SRC_LONG}), aspect preserved"
+[ -n "$HDR_PREFIX" ] && echo "HDR→SDR tone mapping ENABLED"
 
 # v2: preset veryslow + advanced tuning
 X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset veryslow -tune film"
@@ -343,6 +368,7 @@ ffmpeg -y -v error -stats -i "$INPUT" \
   -pass 2 -passlogfile "$PASS_LOG" \
   -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
   -movflags +faststart -pix_fmt yuv420p \
+  -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
   "$OUTPUT"
 
 OUT_SIZE=$(stat -c%s "$OUTPUT")
@@ -362,6 +388,7 @@ if [ "$OUT_SIZE" -gt "$TARGET_BUDGET_BYTES" ]; then
     -pass 2 -passlogfile "$PASS_LOG" \
     -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
     -movflags +faststart -pix_fmt yuv420p \
+    -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
     "$OUTPUT"
   OUT_SIZE=$(stat -c%s "$OUTPUT")
   VIDEO_KBPS=$RETRY_KBPS
