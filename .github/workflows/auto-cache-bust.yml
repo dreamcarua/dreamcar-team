@@ -26,7 +26,8 @@ jobs:
   bust:
     runs-on: ubuntu-latest
     # ВАЖЛИВО: не реагувати на власні коміти cache-bust (бо нескінченний цикл)
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '🤖 auto cache bust')"
+    # Не reагувати тільки на власні auto-generated commits (точна фраза 'auto cache bust v=')
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'auto cache bust v=')"
     permissions:
       contents: write
     steps:
