@@ -8,6 +8,15 @@
 
 ---
 
+## 10.06.2026 (день) — #302 P0 /news/ + /regulations/ NO AUTH
+
+🛡 **#302 P0** Сторінки **повністю відкриті**, без авторизації
+- **Vadym:** «Видали все, що стосується авторизації. Хай будуть відкриті повністю.»
+- **RLS:** anon SELECT відкритий (team_news_read_public + regulations_read_public).
+- **Frontend:** видалено loadMe / SSO bridge / getSession / login gate / markRead / admin UI.
+- **Init:** одразу loadAll(), без if(!me)return.
+- Commit: 64523d7
+
 ## 10.06.2026 (день) — #301 P0 КАТАСТРОФА Color full rollback
 
 🔧 **#301 P0** Compress worker — повний rollback HDR tone mapping
