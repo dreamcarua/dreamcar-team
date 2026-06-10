@@ -463,12 +463,36 @@ async function storageUpload(file, pub) {
 
 async function uploadCreativeFile(file, pub) {
   if (!file) return;
-  if (file.size > 50 * 1024 * 1024) { // 50 MB на MVP — пізніше підвищимо
+  if (file.size > 50 * 1024 * 1024) {
     toast('Файл великий (>50 MB)', 'warn', 'Скоро додам прямий upload у R2/Drive для великих файлів.');
     if (file.size > 100 * 1024 * 1024) return;
   }
   const t = inferCreativeType(file);
   toast('Завантажую…', 'info', file.name);
+
+  // #295: inline progress placeholder у f_creatives strip — користувач БАЧИТЬ що upload іде
+  const tempId = 'uploading_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const strip = document.getElementById('f_creatives');
+  let progressItem = null;
+  if (strip) {
+    progressItem = document.createElement('div');
+    progressItem.className = 'cs-item uploading';
+    progressItem.dataset.tempId = tempId;
+    progressItem.style.cssText = 'position:relative;overflow:hidden;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);border:2px dashed rgba(122,176,255,0.5);';
+    const sizeMb = (file.size / 1024 / 1024).toFixed(1);
+    const typeIcon = t === 'video' ? '🎬' : t === 'photo' ? '🖼' : '📄';
+    progressItem.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#7ab0ff;font-size:9px;text-align:center;padding:4px;gap:3px;">
+      <span style="font-size:22px;animation:spin 1.5s linear infinite;">⏳</span>
+      <div style="font-size:10px;font-weight:600;">${typeIcon} Завантажую</div>
+      <div style="opacity:0.8;font-size:8px;line-height:1.2;word-break:break-all;">${(file.name||'').slice(0,18)}</div>
+      <div class="upl-progress" style="font-size:8px;color:#7ab0ff;">${sizeMb}МБ</div>
+    </div>`;
+    const addBtn = document.getElementById('addCreativeBtn');
+    if (addBtn) strip.insertBefore(progressItem, addBtn);
+    else strip.appendChild(progressItem);
+  }
+  const removeProgressItem = () => { if (progressItem && progressItem.parentNode) progressItem.parentNode.removeChild(progressItem); };
+
   try {
     const up = await storageUpload(file, pub);
     // Створюємо метаданий запис
@@ -480,26 +504,88 @@ async function uploadCreativeFile(file, pub) {
       url: up.url,
       storage_path: up.path,
     });
-    if (!creative) return;
+    if (!creative) { removeProgressItem(); return; }
     // Додаємо у pub.creatives і робимо autosave
     pub.creatives = [...(pub.creatives || []), creative.id];
-    // Перерендерити creative-strip + preview
-    const strip = document.getElementById('f_creatives');
-    if (strip) {
+
+    // #295: REPLACE progress item на real preview з thumbnail (а не emoji)
+    const stripEl = document.getElementById('f_creatives');
+    if (stripEl) {
       const c = Store.creative(creative.id);
       if (c) {
         const item = document.createElement('div');
         item.className = 'cs-item';
         item.dataset.id = creative.id;
         item.title = c.name;
-        item.innerHTML = `${c.preview}<div class="cs-remove" data-remove="${creative.id}">×</div>`;
+        item.style.cssText = 'position:relative;overflow:hidden;';
+        const thumb = c.thumbnail_url || c.url || '';
+        const isVid = c.type === 'video';
+        // Для video — поки compress=pending — animated placeholder. Інакше показуємо тhumbnail.
+        const compressStatus = (c.compressed_status || 'ready').toLowerCase();
+        const isPending = isVid && compressStatus !== 'ready' && compressStatus !== 'failed';
+        let inner;
+        if (isPending) {
+          inner = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);color:#888;font-size:10px;text-align:center;padding:6px;gap:4px;">
+            <span style="font-size:24px;animation:spin 2s linear infinite;">⚙</span>
+            <span>обробка відео</span>
+          </div>`;
+        } else if (thumb) {
+          inner = `<img src="${thumb}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;">${isVid ? '<span style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:2px 4px;border-radius:3px;">▶ VIDEO</span>' : ''}`;
+        } else {
+          inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:#666;">${isVid ? '🎬' : '🖼'}</div>`;
+        }
+        item.innerHTML = `${inner}<div class="cs-remove" data-remove="${creative.id}">×</div>`;
         item.querySelector('.cs-remove').onclick = (e) => {
           e.stopPropagation();
           pub.creatives = pub.creatives.filter(x => x !== creative.id);
           item.remove();
           autosave(pub);
         };
-        strip.insertBefore(item, document.getElementById('addCreativeBtn'));
+        // Replace progress item or append before addCreativeBtn
+        if (progressItem && progressItem.parentNode === stripEl) {
+          stripEl.replaceChild(item, progressItem);
+          progressItem = null;
+        } else {
+          stripEl.insertBefore(item, document.getElementById('addCreativeBtn'));
+        }
+
+        // #295: Poll DB для оновлення тhumbnail коли compress закінчиться (video)
+        if (isPending && creative.id) {
+          let polls = 0;
+          const pollId = setInterval(async () => {
+            polls++;
+            if (polls > 60) { clearInterval(pollId); return; } // 60×5s = 5 хв max
+            try {
+              const { data: fresh } = await window.supabase.from('creatives')
+                .select('compressed_status, thumbnail_url, compressed_url')
+                .eq('id', creative.id).maybeSingle();
+              if (fresh && (fresh.compressed_status === 'ready' || fresh.compressed_status === 'failed')) {
+                clearInterval(pollId);
+                // Update local cache
+                const cached = Store.creative(creative.id);
+                if (cached) Object.assign(cached, fresh);
+                // Replace UI item з real thumbnail
+                if (item.parentNode) {
+                  const newThumb = fresh.thumbnail_url || fresh.compressed_url || '';
+                  if (newThumb && fresh.compressed_status === 'ready') {
+                    item.querySelector('div[style*="background:linear"]')?.remove();
+                    const img = document.createElement('img');
+                    img.src = newThumb;
+                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;';
+                    img.loading = 'lazy';
+                    item.insertBefore(img, item.firstChild);
+                    if (isVid) {
+                      const badge = document.createElement('span');
+                      badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:2px 4px;border-radius:3px;';
+                      badge.textContent = '▶ VIDEO';
+                      item.appendChild(badge);
+                    }
+                  }
+                }
+              }
+            } catch (e) { console.warn('[poll compress]', e); }
+          }, 5000);
+        }
       }
     }
     refreshPreview(pub);
@@ -507,6 +593,7 @@ async function uploadCreativeFile(file, pub) {
     toast('Готово', 'success', file.name);
   } catch (e) {
     console.error('upload failed:', e);
+    removeProgressItem();
     toast('Помилка завантаження', 'error', e.message || file.name);
   }
 }
