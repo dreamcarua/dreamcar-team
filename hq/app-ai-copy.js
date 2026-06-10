@@ -24,7 +24,7 @@
       '.hq-ai-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 8px; transition: opacity 0.15s; }' +
       '.hq-ai-btn:hover { opacity: 0.9; }' +
       '.hq-ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }' +
-      '.hq-ai-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }' +
+      '.hq-ai-modal { position: fixed !important; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 20000 !important; display: flex; align-items: center; justify-content: center; padding: 20px; }' +
       '.hq-ai-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; max-width: 540px; width: 100%; box-shadow: var(--shadow); }' +
       '.hq-ai-card h2 { font-size: 16px; color: #fff; margin-bottom: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; }' +
       '.hq-ai-grid { display: grid; gap: 10px; }' +
