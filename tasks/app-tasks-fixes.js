@@ -206,15 +206,45 @@
         var wfAct = btn.dataset.wf;
         if (!task || !window.supabase) return;
         if (wfAct === 'reassign') {
-          // Prompt-fallback — обери з списку юзерів
-          var names = (window.state && state.users || []).map(function (u) { return u.name; }).join('\n');
-          var name = prompt('Передати кому?\n\n' + names, '');
-          if (!name) return;
-          var u = (state.users || []).find(function (x) { return x.name && x.name.toLowerCase() === name.trim().toLowerCase(); });
-          if (!u) { window.toast && toast('Користувача не знайдено', 'error'); return; }
-          var res = await supabase.from('team_tasks').update({ assignee_id: u.id, updated_at: new Date().toISOString() }).eq('id', task.id);
-          if (res.error) { window.toast && toast('Помилка: ' + res.error.message, 'error'); return; }
-          window.toast && toast('Передано → ' + u.name, 'success');
+          // #264 (Давид): prompt не клікабельний — замінити на real picker modal
+          var users = (window.state && state.users || []).filter(function(u){ return u.is_active !== false && u.id !== task.assignee_id; });
+          if (!users.length) { window.toast && toast('Немає кому передати', 'warn'); return; }
+          var picker = document.createElement('div');
+          picker.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+          picker.innerHTML = '<div style="background:var(--graphite,#1a1a1a);border:1px solid var(--steel,#333);border-radius:12px;max-width:420px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">' +
+            '<div style="padding:14px 18px;border-bottom:1px solid var(--line,#333);font-family:\'Archivo Black\',sans-serif;font-size:16px;color:#fff;">🤝 Передати кому?</div>' +
+            '<div style="padding:8px;overflow-y:auto;flex:1;">' +
+              users.map(function(u){
+                var init = (u.name||'').split(' ').map(function(x){ return (x[0]||''); }).join('').slice(0,2).toUpperCase();
+                return '<button class="dlg-pick-btn" data-uid="'+u.id+'" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;background:transparent;border:1px solid var(--steel,#333);border-radius:8px;color:#fff;font-family:Manrope,sans-serif;font-size:14px;cursor:pointer;margin-bottom:6px;text-align:left;transition:all 100ms;">' +
+                  '<span style="width:34px;height:34px;border-radius:50%;background:#2a2a2a;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;">' + init + '</span>' +
+                  '<div style="flex:1;"><div style="font-weight:600;">'+ (u.name||u.email||'?') +'</div><div style="font-size:11px;color:var(--ash,#888);">'+ (u.role||'') +'</div></div>' +
+                  '<span style="color:var(--red,#e30613);font-size:18px;">→</span>' +
+                '</button>';
+              }).join('') +
+            '</div>' +
+            '<div style="padding:12px 18px;border-top:1px solid var(--line,#333);text-align:right;"><button class="dlg-cancel" style="padding:8px 16px;background:transparent;color:var(--ash,#888);border:1px solid var(--steel,#333);border-radius:6px;cursor:pointer;">Скасувати</button></div>' +
+          '</div>';
+          document.body.appendChild(picker);
+          picker.querySelector('.dlg-cancel').onclick = function(){ picker.remove(); };
+          picker.onclick = function(e){ if (e.target === picker) picker.remove(); };
+          picker.querySelectorAll('.dlg-pick-btn').forEach(function(b){
+            b.addEventListener('mouseenter', function(){ b.style.borderColor='var(--red,#e30613)'; b.style.background='rgba(227,6,19,0.08)'; });
+            b.addEventListener('mouseleave', function(){ b.style.borderColor='var(--steel,#333)'; b.style.background='transparent'; });
+            b.onclick = async function(){
+              var uid = b.dataset.uid;
+              var u = users.find(function(x){ return x.id === uid; });
+              if (!u) return;
+              picker.remove();
+              var res = await supabase.from('team_tasks').update({ assignee_id: u.id, updated_at: new Date().toISOString() }).eq('id', task.id);
+              if (res.error) { window.toast && toast('Помилка: ' + res.error.message, 'error'); return; }
+              window.toast && toast('Передано → ' + u.name, 'success');
+              overview.classList.remove('show');
+              try { window.loadTasks && loadTasks(); } catch (_) {}
+              try { window.triggerNotifyWorker && triggerNotifyWorker(); } catch (_) {}
+            };
+          });
+          return; // НЕ закривати overview — picker ще відкритий
         } else {
           var newStatus = wfAct; // done/review/blocked/doing
           var update = { status: newStatus, updated_at: new Date().toISOString() };
