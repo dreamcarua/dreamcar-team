@@ -195,6 +195,41 @@ const Store = {
   pub(id) { return this._data?.publications.find(p => p.id === id); },
   creatives() { return this._data?.creatives || []; },
   creative(id) { return this._data?.creatives.find(c => c.id === id); },
+
+  // #297 (10.06.2026): Forced fresh fetch для конкретних creatives — патчимо Store cache.
+  // Потрібно тому що _refreshAfterChange skip-ається коли modal open (рядок ~173).
+  // Викликається з openCard() щоб гарантувати свіжі thumbnail_url/compressed_url
+  // навіть якщо compress worker дописав їх у DB після того як юзер відкрив modal.
+  // Returns Promise<boolean> — true якщо хоч одне поле змінилось у cache.
+  async refreshCreatives(ids) {
+    if (!BACKEND_MODE || !window.supabase || !Array.isArray(ids) || ids.length === 0) return false;
+    try {
+      const { data, error } = await window.supabase
+        .from('creatives')
+        .select('id, thumbnail_url, compressed_url, compressed_url_hevc, compressed_status, drive_file_id, width_px, height_px, size_bytes, duration_sec, name, type')
+        .in('id', ids)
+        .is('deleted_at', null);
+      if (error) { console.warn('[refreshCreatives]', error); return false; }
+      if (!Array.isArray(data) || !data.length) return false;
+      let changed = false;
+      const cache = this._data?.creatives || [];
+      data.forEach(fresh => {
+        const c = cache.find(x => x.id === fresh.id);
+        if (!c) return;
+        // Тільки thumb/compress поля + базові — НЕ перезаписуємо обчислені (size human, res, color, preview).
+        const fields = ['thumbnail_url', 'compressed_url', 'compressed_url_hevc', 'compressed_status', 'drive_file_id', 'name', 'type', 'width_px', 'height_px'];
+        fields.forEach(f => {
+          if (fresh[f] !== undefined && fresh[f] !== c[f]) {
+            c[f] = fresh[f];
+            changed = true;
+          }
+        });
+        // Перерахунок res якщо width/height оновились
+        if (fresh.width_px && fresh.height_px) c.res = `${fresh.width_px}×${fresh.height_px}`;
+      });
+      return changed;
+    } catch (e) { console.warn('[refreshCreatives] exception', e); return false; }
+  },
   users() { return this._data?.users || []; },
   // У backend-режимі — тільки ті хто реально залогінився (мають auth_id) + поточний користувач.
   // У demo-режимі — всі seed-юзери для тестування.

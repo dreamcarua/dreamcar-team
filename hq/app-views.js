@@ -337,6 +337,13 @@ function openCard(id) {
   `);
   attachCardHandlers(p);
   Modal.onClose = () => { if (cardAutosaveTimer) clearTimeout(cardAutosaveTimer); };
+  // #297 (10.06.2026 P0): Store кеш може бути застарілим — поки modal був закритий
+  // compress worker міг записати thumbnail_url у DB, але realtime refresh skipped
+  // через `if (modalBackdrop.open) return` guard у Store._refreshAfterChange.
+  // Робимо forced fetch creatives з DB і patch-имо cache + DOM strip.
+  if (Array.isArray(p.creatives) && p.creatives.length) {
+    refreshCreativeStrip(p);
+  }
   // #219 (Vira UX): backdrop click guard — не закривати поки autosave у "Зберігаю…"
   // АБО якщо це нова публікація що ще не збережена в БД
   setTimeout(() => {
@@ -403,6 +410,63 @@ function newPubObject(forDate) {
     _autoLaunch: true,
   };
 }
+// #297 (10.06.2026): окрема функція рендеру item-ів creative-strip — переюзаємо
+// у renderCardBody + після Store.refreshCreatives() щоб патчити DOM без re-render всієї карти.
+function renderCreativeStripItems(creativeIds) {
+  return (creativeIds || []).map(cid => {
+    const c = Store.creative(cid); if (!c) return '';
+    // #225 + #262 (Олександр UX): показуємо реальний thumbnail замість emoji
+    // #262: якщо thumbnail+compressed ще не готові — show placeholder з compress status
+    const thumb = c.thumbnail_url || c.compressed_url || '';
+    const isVideo = c.type === 'video' || /\.(mp4|mov|webm)$/i.test(thumb);
+    const compressStatus = (c.compressed_status || '').toLowerCase();
+    const isPending = !thumb && compressStatus && compressStatus !== 'failed';
+    let inner;
+    if (thumb) {
+      inner = `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;">${isVideo ? '<span style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:2px 4px;border-radius:3px;font-family:JetBrains Mono,monospace;">▶ VIDEO</span>' : ''}`;
+    } else if (isPending) {
+      inner = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);color:#888;font-size:10px;text-align:center;padding:6px;gap:4px;"><span style="font-size:24px;animation:spin 2s linear infinite;">⏳</span><span>обробка...</span></div>`;
+    } else {
+      inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:#666;">${isVideo ? '🎬' : '🖼'}</div>`;
+    }
+    return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}" style="position:relative;overflow:hidden;">${inner}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
+  }).join('');
+}
+
+// #297: Forced refresh + re-render для creative-strip у відкритій publication modal.
+// Викликається з openCard() щоб обійти guard у Store._refreshAfterChange (skip while modal open).
+async function refreshCreativeStrip(p) {
+  if (!p || !Array.isArray(p.creatives) || !p.creatives.length) return;
+  if (!Store.refreshCreatives) return;
+  try {
+    const changed = await Store.refreshCreatives(p.creatives);
+    if (!changed) return;
+    const stripEl = document.getElementById('f_creatives');
+    if (!stripEl) return; // modal закрилась
+    const addBtn = document.getElementById('addCreativeBtn');
+    // Видаляємо всі .cs-item, залишаючи .cs-add (addCreativeBtn)
+    stripEl.querySelectorAll('.cs-item').forEach(el => el.remove());
+    // Re-render через innerHTML — DocumentFragment overkill для 1-10 елементів
+    const html = renderCreativeStripItems(p.creatives);
+    if (addBtn) {
+      addBtn.insertAdjacentHTML('beforebegin', html);
+    } else {
+      stripEl.insertAdjacentHTML('afterbegin', html);
+    }
+    // Re-bind cs-remove handlers після re-render (інакше клік на × не спрацює)
+    stripEl.querySelectorAll('.cs-remove').forEach(rb => {
+      rb.onclick = (e) => {
+        e.stopPropagation();
+        const cid = rb.getAttribute('data-remove');
+        if (!cid) return;
+        p.creatives = (p.creatives || []).filter(x => x !== cid);
+        rb.closest('.cs-item')?.remove();
+        if (typeof autosave === 'function') autosave(p);
+      };
+    });
+  } catch (e) { console.warn('[refreshCreativeStrip]', e); }
+}
+
 function renderCardBody(p) {
   const dt = new Date(p.dateTime);
   const dtLocal = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') + 'T' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
@@ -442,26 +506,7 @@ function renderCardBody(p) {
         <div class="pub-section">
           <h4>Креативи</h4>
           <div class="creative-strip" id="f_creatives">
-            ${(p.creatives||[]).map(cid => {
-              const c = Store.creative(cid); if (!c) return '';
-              // #225 + #262 (Олександр UX): показуємо реальний thumbnail замість emoji
-              // #262: якщо thumbnail+compressed ще не готові — show placeholder з compress status
-              const thumb = c.thumbnail_url || c.compressed_url || '';
-              const isVideo = c.type === 'video' || /\.(mp4|mov|webm)$/i.test(thumb);
-              // Show pending placeholder з info про compress status замість сухого emoji
-              const compressStatus = (c.compressed_status || '').toLowerCase();
-              const isPending = !thumb && compressStatus && compressStatus !== 'failed';
-              let inner;
-              if (thumb) {
-                inner = `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;">${isVideo ? '<span style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:2px 4px;border-radius:3px;font-family:JetBrains Mono,monospace;">▶ VIDEO</span>' : ''}`;
-              } else if (isPending) {
-                // #262: pending compression — animated placeholder з info
-                inner = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);color:#888;font-size:10px;text-align:center;padding:6px;gap:4px;"><span style="font-size:24px;animation:spin 2s linear infinite;">⏳</span><span>обробка...</span></div>`;
-              } else {
-                inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:#666;">${isVideo ? '🎬' : '🖼'}</div>`;
-              }
-              return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}" style="position:relative;overflow:hidden;">${inner}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
-            }).join('')}
+            ${renderCreativeStripItems(p.creatives || [])}
             <div class="cs-add" id="addCreativeBtn">+</div>
           </div>
         </div>
