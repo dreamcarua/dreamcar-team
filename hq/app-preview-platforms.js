@@ -77,7 +77,13 @@
     return d.toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'});
   }
 
-  // Збираємо media (фото/відео) у формат {kind, src, ratio}
+  // Чи рядок схожий на URL?
+  function isUrl(s) {
+    if (!s) return false;
+    s = String(s);
+    return s.startsWith('http://') || s.startsWith('https://') || s.startsWith('blob:') || s.startsWith('data:');
+  }
+  // Збираємо media (фото/відео) у формат {kind, src, name, emoji, color}
   function collectMedia(p) {
     var ids = p.creatives || [];
     var out = [];
@@ -86,13 +92,32 @@
       try { c = Store.creative(id); } catch(_){}
       if (!c) return;
       var kind = c.type === 'video' ? 'video' : 'photo';
-      var src = c.thumbnail_url || c.compressed_url || c.preview || '';
+      // Шукаємо реальний URL — НЕ preview emoji
+      var src = '';
+      if (isUrl(c.thumbnail_url)) src = c.thumbnail_url;
+      else if (isUrl(c.compressed_url)) src = c.compressed_url;
+      else if (isUrl(c.compressed_url_hevc)) src = c.compressed_url_hevc;
+      // Drive file id — будуємо URL якщо є
+      else if (c.drive_file_id) src = 'https://drive.google.com/thumbnail?id=' + c.drive_file_id + '&sz=w800';
+      // preview може бути URL АБО emoji — використовуємо тільки якщо URL
+      else if (isUrl(c.preview)) src = c.preview;
+
+      // Emoji-only preview (типу 🖼️ / 🎬) — fallback для placeholder
+      var emoji = null;
+      if (!src && c.preview && !isUrl(c.preview)) {
+        emoji = c.preview;
+      }
+      if (!src && !emoji) {
+        // Compress ще не закінчив? Показуємо kind-based icon
+        emoji = kind === 'video' ? '🎬' : '🖼️';
+      }
       out.push({
         kind: kind,
         src: src,
         name: c.name || '',
-        emoji: c.preview && /^\p{Emoji}+$/u.test(c.preview) ? c.preview : null,
-        color: c.color || '#1a1a1a'
+        emoji: emoji,
+        color: c.color || (kind === 'video' ? '#7c3aed' : '#0ea5e9'),
+        status: c.compressed_status || 'ready'
       });
     });
     return out;
@@ -100,21 +125,27 @@
   // Рендер одного media тіла (img або video або emoji placeholder)
   function mediaTile(m, opts) {
     opts = opts || {};
-    var aspect = opts.aspect || '1/1'; // 1/1, 4/5, 9/16, 16/9
+    var aspect = opts.aspect || '1/1';
     var radius = opts.radius == null ? 0 : opts.radius;
     var bg = m.color || '#0e0e0e';
-    if (m.emoji) {
-      return '<div class="dcpv-media-empty" style="aspect-ratio:' + aspect + ';border-radius:' + radius + 'px;background:linear-gradient(135deg,' + bg + '33,#000);">' +
-        '<div style="font-size:64px;">' + m.emoji + '</div></div>';
+    // Має URL — показуємо реальну картинку/превʼю відео
+    if (m.src) {
+      if (m.kind === 'video') {
+        return '<div class="dcpv-media-video" style="aspect-ratio:' + aspect + ';border-radius:' + radius + 'px;background:#000 url(' + JSON.stringify(m.src) + ') center/cover no-repeat;">' +
+          '<div class="dcpv-play">▶</div></div>';
+      }
+      return '<div class="dcpv-media-img" style="aspect-ratio:' + aspect + ';border-radius:' + radius + 'px;background:#0e0e0e url(' + JSON.stringify(m.src) + ') center/cover no-repeat;"></div>';
     }
-    if (!m.src) {
-      return '<div class="dcpv-media-empty" style="aspect-ratio:' + aspect + ';border-radius:' + radius + 'px;background:#161616;color:#555;">медіа не завантажено</div>';
-    }
-    if (m.kind === 'video') {
-      return '<div class="dcpv-media-video" style="aspect-ratio:' + aspect + ';border-radius:' + radius + 'px;background:#000 url(' + JSON.stringify(m.src) + ') center/cover no-repeat;">' +
-        '<div class="dcpv-play">▶</div></div>';
-    }
-    return '<div class="dcpv-media-img" style="aspect-ratio:' + aspect + ';border-radius:' + radius + 'px;background:#0e0e0e url(' + JSON.stringify(m.src) + ') center/cover no-repeat;"></div>';
+    // URL відсутній — показуємо placeholder з emoji + назвою файлу + статусом
+    var statusText = m.status === 'pending' || m.status === 'processing'
+      ? 'компресується…'
+      : m.status === 'error' ? 'помилка компресії' : 'без прев\'ю';
+    var name = m.name ? esc(m.name).slice(0, 40) : (m.kind === 'video' ? 'Відео' : 'Зображення');
+    return '<div class="dcpv-media-empty" style="aspect-ratio:' + aspect + ';border-radius:' + radius + 'px;background:linear-gradient(135deg,' + bg + '55,#0a0a0a 70%);flex-direction:column;gap:8px;color:#fff;padding:16px;text-align:center;">' +
+      '<div style="font-size:54px;line-height:1;">' + (m.emoji || '🖼️') + '</div>' +
+      '<div style="font-size:12px;color:rgba(255,255,255,0.9);font-weight:600;word-break:break-word;">' + name + '</div>' +
+      '<div style="font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.1em;">' + statusText + '</div>' +
+      '</div>';
   }
 
 
