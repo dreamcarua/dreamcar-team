@@ -188,23 +188,41 @@
     if (typeof toast === 'function') toast('AI', 'success', 'Текст вставлено в поле');
   }
 
+  // #296: defensive button binding — unique ID, dual onclick+addEventListener,
+  // re-injection if label was recreated, console.log for debug, body delegation fallback.
+  function bindAiHandler(btn) {
+    var handler = function (e) {
+      console.log('[#296 hq-ai-btn click]', e && e.type);
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      try { showModal(getPubFromCard()); } catch (err) {
+        console.error('[#296 AI showModal err]', err);
+        if (typeof toast === 'function') toast('AI', 'error', String(err.message || err));
+      }
+    };
+    btn.onclick = handler;
+    btn.addEventListener('click', handler);
+    btn.__hqAiBound = true;
+  }
+
   function injectButton() {
     var textArea = document.getElementById('f_text');
     if (!textArea) return;
-    var label = textArea.closest('.field') && textArea.closest('.field').querySelector('label');
+    var fieldEl = textArea.closest('.field');
+    var label = fieldEl && fieldEl.querySelector('label');
     if (!label) return;
-    if (label.querySelector('.hq-ai-btn')) return;
+    var existing = label.querySelector('#hq_ai_btn');
+    if (existing) {
+      if (!existing.__hqAiBound) bindAiHandler(existing);
+      return;
+    }
 
     var btn = document.createElement('button');
     btn.type = 'button';
+    btn.id = 'hq_ai_btn';
     btn.className = 'hq-ai-btn';
     btn.innerHTML = '✨ AI';
     btn.title = 'Згенерувати текст за допомогою Claude';
-    btn.onclick = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      showModal(getPubFromCard());
-    };
+    bindAiHandler(btn);
     label.appendChild(btn);
   }
 
@@ -213,6 +231,22 @@
   });
   observer.observe(document.body, { childList: true, subtree: true });
   [400, 1500, 3500].forEach(function (ms) { setTimeout(injectButton, ms); });
+
+  // #296: ultimate fallback — body-level delegated click handler.
+  // Catches click on .hq-ai-btn або #hq_ai_btn навіть якщо onclick десь обнулено.
+  if (!window.__hqAiDelegated) {
+    window.__hqAiDelegated = true;
+    document.body.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest && e.target.closest('#hq_ai_btn, .hq-ai-btn');
+      if (!btn) return;
+      if (btn.__hqAiHandledAt && (Date.now() - btn.__hqAiHandledAt) < 500) return;
+      btn.__hqAiHandledAt = Date.now();
+      console.log('[#296 hq-ai-btn delegated click]');
+      e.preventDefault();
+      e.stopPropagation();
+      try { showModal(getPubFromCard()); } catch (err) { console.error(err); }
+    }, false);
+  }
 
   console.log('%cDreamCar HQ AI Copy %c· Claude assistant wired (DreamCar-only)', 'color:#8b5cf6;font-weight:700;', 'color:#888;');
 })();
