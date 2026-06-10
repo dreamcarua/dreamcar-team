@@ -190,23 +190,42 @@
     });
   }
 
+  // #296: defensive button binding — unique ID, dual onclick+addEventListener,
+  // re-injection if label was recreated, console.log for debug, body delegation fallback.
+  function bindTplHandler(btn) {
+    var handler = function (e) {
+      console.log('[#296 hq-tpl-btn click]', e && e.type);
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      try { showPickerModal(); } catch (err) {
+        console.error('[#296 showPickerModal err]', err);
+        if (typeof toast === 'function') toast('Шаблони', 'error', String(err.message || err));
+      }
+    };
+    btn.onclick = handler;
+    btn.addEventListener('click', handler);
+    btn.__hqTplBound = true;
+  }
+
   function injectButton() {
     var titleField = document.getElementById('f_title');
     if (!titleField) return;
-    var label = titleField.closest('.field') && titleField.closest('.field').querySelector('label');
+    var fieldEl = titleField.closest('.field');
+    var label = fieldEl && fieldEl.querySelector('label');
     if (!label) return;
-    if (label.querySelector('.hq-tpl-btn')) return;
+    // #296: якщо кнопка вже існує — переконуємось що handler не null (re-inject не потрібен)
+    var existing = label.querySelector('#hq_tpl_btn');
+    if (existing) {
+      if (!existing.__hqTplBound) bindTplHandler(existing);
+      return;
+    }
 
     var btn = document.createElement('button');
     btn.type = 'button';
+    btn.id = 'hq_tpl_btn';
     btn.className = 'hq-tpl-btn';
     btn.innerHTML = '📋 З шаблону';
     btn.title = 'Заповнити поля із збереженого шаблону';
-    btn.onclick = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      showPickerModal();
-    };
+    bindTplHandler(btn);
     label.appendChild(btn);
   }
 
@@ -215,6 +234,23 @@
   });
   observer.observe(document.body, { childList: true, subtree: true });
   [400, 1500, 3500].forEach(function (ms) { setTimeout(injectButton, ms); });
+
+  // #296: ultimate fallback — body-level delegated click handler.
+  // Catches click on .hq-tpl-btn або #hq_tpl_btn навіть якщо onclick десь обнулено.
+  if (!window.__hqTplDelegated) {
+    window.__hqTplDelegated = true;
+    document.body.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest && e.target.closest('#hq_tpl_btn, .hq-tpl-btn');
+      if (!btn) return;
+      // якщо native onclick відпрацював — не дублюємо
+      if (btn.__hqTplHandledAt && (Date.now() - btn.__hqTplHandledAt) < 500) return;
+      btn.__hqTplHandledAt = Date.now();
+      console.log('[#296 hq-tpl-btn delegated click]');
+      e.preventDefault();
+      e.stopPropagation();
+      try { showPickerModal(); } catch (err) { console.error(err); }
+    }, false);
+  }
 
   async function enhanceSettingsTemplates() {
     if (!isLead()) return;

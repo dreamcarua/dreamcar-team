@@ -8,6 +8,19 @@
 
 ---
 
+## 10.06.2026 (ранок) — #296 SMM AI/Template buttons defensive binding
+
+### 🔧 #296 SMM publication modal — кнопки `✨ AI` і `📋 З шаблону` не реагували на клік
+- 🔧 **`hq/app-templates.js`** + **`hq/app-ai-copy.js`** — defensive binding:
+  - Унікальні ID: `#hq_tpl_btn` / `#hq_ai_btn` (легко знайти у DOM/Inspector).
+  - `bindTplHandler` / `bindAiHandler` — bind через `btn.onclick` **AND** `addEventListener('click', ...)` (двойна страховка).
+  - MutationObserver re-inject перевіряє: якщо кнопка існує але `__hqTplBound`/`__hqAiBound` === undefined (handler null'd) — перевʼязує заново.
+  - `console.log` на кожен click (debug у майбутньому).
+  - **Ultimate fallback** — body-level delegated `click` listener (window.__hqTplDelegated / __hqAiDelegated), ловить кнопку через `closest()` навіть якщо native onclick десь обнулено. De-dupe 500ms.
+- 🚀 Cache bust автомат через GH Action Cloudflare purge.
+
+---
+
 ## 10.06.2026 (ранок) — #267 + #268 TG task notify v6 + Creator notifications
 
 ### 🆕 #267 TG task notify — формат з ID + Project + Duplicate detection
