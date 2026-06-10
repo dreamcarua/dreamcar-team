@@ -516,8 +516,8 @@ function renderCardBody(p) {
           <div id="previewSection">${renderPreviewSection(p)}</div>
         </div>
 
-        <!-- #233.7 TG Autopost v2 секція -->
-        ${(p.platforms||[]).includes('tg') ? renderTgAutopostBlock(p) : ''}
+        <!-- #233.7 TG Autopost v2 секція — #305: завжди wrapper div, контент динамічно за platforms -->
+        <div id="tgAutopostWrapper">${(p.platforms||[]).includes('tg') ? renderTgAutopostBlock(p) : ''}</div>
 
         <div class="tabs" id="cardTabs">
           <div class="tab active" data-tab="comments">💬 Коментарі <span style="font-size:10px;color:var(--grey);">(${(p.comments||[]).length})</span></div>
@@ -888,6 +888,20 @@ function attachCardHandlers(p) {
       else p.platforms.push(id);
       c.classList.toggle('on');
       autosave(p);
+      // #305: реактивно показати/сховати TG Autopost блок при toggle Telegram
+      if (id === 'tg') {
+        const wrap = document.getElementById('tgAutopostWrapper');
+        if (wrap) {
+          wrap.innerHTML = p.platforms.includes('tg') ? renderTgAutopostBlock(p) : '';
+          // Перебиндити handlers нового блоку (countdown / buttons / тест)
+          if (typeof window.__hqAttachTgHandlers === 'function') {
+            try { window.__hqAttachTgHandlers(); } catch(e){ console.warn('[#305 bindTg]', e); }
+          }
+        }
+      }
+      // Preview теж залежить від platforms — оновити
+      const prev = document.getElementById('previewSection');
+      if (prev) prev.innerHTML = renderPreviewSection(p);
     };
   });
   document.querySelectorAll('#f_resp .chip').forEach(c => {
@@ -1108,6 +1122,8 @@ function attachCardHandlers(p) {
     };
   };
   // #250: try/catch навколо attachTgHandlers — щоб throw тут НЕ ламав решту handlers
+  // #305: expose для реактивного rebind при toggle Telegram chip
+  window.__hqAttachTgHandlers = attachTgHandlers;
   try { attachTgHandlers(); } catch (e) { console.error('[attachTgHandlers]', e); }
   const textCount = () => {
     const el = document.getElementById('f_textCount');
