@@ -8,6 +8,14 @@
 
 ---
 
+## 10.06.2026 (день) — #300 P0 /news/ + /regulations/ SSO bridge
+
+🛡 **#300 P0** `/news/` і `/regulations/` — login loop повторно (4-й раз сьогодні)
+- **Симптом:** Скрін від Vadym — URL `team.dreamcar.ua/news/#sso=eyJ...`, але показано «🔒 Потрібен вхід». Клік «Перейти у HQ» → HQ редиректить назад з НОВИМ `#sso=` → /news/ знов login → loop.
+- **Корінь:** `/tasks/index.html` парсить `#sso=base64(json{access_token,refresh_token})` і робить `sb.auth.setSession()` ДО getSession(). У #298 я перевів /news/ і /regulations/ на getSession() + login gate (щоб уникнути auto-redirect loop), але **не додав SSO bridge парсинг**. Тому HQ-токен у URL fragment ігнорувався → session не встановлювалась → loop продовжувався.
+- **Fix:** Додав SSO bridge у loadMe() обох сторінок ДО getSession() — копія з `/tasks/index.html` line 753. Парсить `#sso=`, setSession(), очищає hash через replaceState.
+- Commit: 0d03c41
+
 ## 10.06.2026 (день) — #297 SMM creative thumbnail emoji fix
 
 ### 🔧 #297 SMM publication modal — креативи показували 🖼/🎬 emoji замість thumbnail
