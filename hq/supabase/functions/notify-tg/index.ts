@@ -38,7 +38,7 @@ interface UserRow {
   tg_chat_id: number|string|null; tg_username: string|null;
 }
 interface ApproverWithDecision extends UserRow { is_approved: boolean|null; }
-interface CreativeRow { id:string; type:string; thumbnail_url:string|null; name:string; }
+interface CreativeRow { id:string; type:string; thumbnail_url:string|null; compressed_url:string|null; name:string; }
 interface InlineButton { text:string; callback_data?:string; url?:string; }
 interface ReplyMarkup { inline_keyboard: InlineButton[][]; }
 
@@ -176,13 +176,36 @@ async function loadUsers(sb: ReturnType<typeof createClient>, userIds: (string|n
   return (data ?? []) as UserRow[];
 }
 async function loadFirstCreative(sb: ReturnType<typeof createClient>, pubId: string): Promise<CreativeRow|null> {
+  const all = await loadAllCreatives(sb, pubId);
+  return all[0] || null;
+}
+// #315: тягнемо ВСІ creatives (раніше тільки перший — video пропускалось коли photo був перший).
+async function loadAllCreatives(sb: ReturnType<typeof createClient>, pubId: string): Promise<CreativeRow[]> {
   const { data } = await sb.from("creative_publications")
-    .select("creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, name)")
-    .eq("publication_id", pubId).order("sort_order", { ascending: true }).limit(1);
-  if (!data || data.length === 0) return null;
-  const c = (data[0] as any).creatives as CreativeRow | null;
-  if (!c || !c.thumbnail_url) return null;
-  return c;
+    .select("creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, compressed_url, name)")
+    .eq("publication_id", pubId).order("sort_order", { ascending: true });
+  if (!data) return [];
+  return (data as any[]).map(d => d.creatives as CreativeRow).filter(c => !!c && (c.thumbnail_url || c.compressed_url));
+}
+// #315: sendMediaGroup для album (>1 media у approval повідомленні).
+async function tgSendMediaGroup(chatId: string|number, items: {type:'photo'|'video', media: string}[], caption: string): Promise<boolean> {
+  if (!TG_BOT_TOKEN || !items.length) return false;
+  const media = items.slice(0, 10).map((m, i) => {
+    const obj: any = { type: m.type, media: m.media };
+    if (i === 0 && caption) { obj.caption = caption.slice(0, MAX_CAPTION); obj.parse_mode = "HTML"; }
+    if (m.type === 'video') obj.supports_streaming = true;
+    return obj;
+  });
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMediaGroup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, media }),
+    });
+    const j = await r.json();
+    if (!j.ok) console.warn("sendMediaGroup", j.description);
+    return !!j.ok;
+  } catch (e) { console.error("sendMediaGroup", e); return false; }
 }
 
 // ---------- Build messages ----------
@@ -258,16 +281,57 @@ function buildTaskMsg(task: any, requester: UserRow|null, assignee: UserRow|null
 }
 
 // ---------- Send to chat (with creative) ----------
-async function sendPubReviewToChat(chatId: string|number, pub: any, creative: CreativeRow|null, requester: UserRow|null, approvers: ApproverWithDecision[], responsibles: UserRow[]) {
+async function sendPubReviewToChat(chatId: string|number, pub: any, creatives: CreativeRow[], requester: UserRow|null, approvers: ApproverWithDecision[], responsibles: UserRow[]) {
   const kb = pubReviewKeyboard(pub.id);
-  if (creative && creative.thumbnail_url) {
-    const caption = buildPubReviewMsg(pub, requester, approvers, responsibles, true);
-    const ok = creative.type === "video"
-      ? await tgSendVideo(chatId, creative.thumbnail_url, caption, { reply_markup: kb })
-      : await tgSendPhoto(chatId, creative.thumbnail_url, caption, { reply_markup: kb });
-    if (ok) return;
+  // #315: фільтр валідних media. Video → compressed_url (sendVideo expects video URL не thumbnail).
+  const items: {type:'photo'|'video', media: string, fallbackPhoto: string|null}[] = creatives
+    .map(c => {
+      if (c.type === 'video') {
+        const v = c.compressed_url || c.thumbnail_url;
+        if (!v) return null;
+        return { type: 'video' as const, media: v, fallbackPhoto: c.thumbnail_url };
+      }
+      const p = c.thumbnail_url || c.compressed_url;
+      if (!p) return null;
+      return { type: 'photo' as const, media: p, fallbackPhoto: null };
+    })
+    .filter((x): x is {type:'photo'|'video', media: string, fallbackPhoto: string|null} => !!x);
+
+  if (items.length === 0) {
+    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false), { reply_markup: kb });
+    return;
   }
-  await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false), { reply_markup: kb });
+
+  // 1 media — як було (sendPhoto/sendVideo з reply_markup у тому ж message)
+  if (items.length === 1) {
+    const it = items[0];
+    const caption = buildPubReviewMsg(pub, requester, approvers, responsibles, true);
+    const ok = it.type === "video"
+      ? await tgSendVideo(chatId, it.media, caption, { reply_markup: kb })
+      : await tgSendPhoto(chatId, it.media, caption, { reply_markup: kb });
+    if (ok) return;
+    // fallback на текст
+    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false), { reply_markup: kb });
+    return;
+  }
+
+  // 2+ media — sendMediaGroup album + окремий msg з кнопками (TG album не підтримує inline_keyboard).
+  const caption = buildPubReviewMsg(pub, requester, approvers, responsibles, true);
+  const sent = await tgSendMediaGroup(chatId, items.map(i => ({ type: i.type, media: i.media })), caption);
+  if (sent) {
+    // Окремий короткий msg з кнопками (TG album не приймає reply_markup).
+    await tgSend(chatId, "⬇ Дії з публікацією:", { reply_markup: kb });
+    return;
+  }
+  // fallback на 1-й media або текст
+  const first = items[0];
+  const captionFb = buildPubReviewMsg(pub, requester, approvers, responsibles, true);
+  const okFb = first.type === "video"
+    ? await tgSendVideo(chatId, first.media, captionFb, { reply_markup: kb })
+    : await tgSendPhoto(chatId, first.media, captionFb, { reply_markup: kb });
+  if (!okFb) {
+    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false), { reply_markup: kb });
+  }
 }
 
 // ---------- Stakeholder collector (deduped) ----------
@@ -297,15 +361,15 @@ async function handlePublicationEvent(sb: ReturnType<typeof createClient>, pubId
   const approvers = await loadPubApprovers(sb, pub.id);
   const responsibles = await loadPubResponsibles(sb, pub.id);
   const author = await loadUser(sb, pub.created_by);
-  const creative = await loadFirstCreative(sb, pub.id);
+  const creatives = await loadAllCreatives(sb, pub.id);  // #315: тягнемо ВСІ
 
   if (pub.status === "review") {
     // 1. У груповий чат
-    if (TG_GROUP_CHAT_ID) await sendPubReviewToChat(TG_GROUP_CHAT_ID, pub, creative, author, approvers, responsibles);
+    if (TG_GROUP_CHAT_ID) await sendPubReviewToChat(TG_GROUP_CHAT_ID, pub, creatives, author, approvers, responsibles);
     // 2. У DM КОЖНОМУ stakeholder (approvers + responsibles + author), deduped
     const allUsers = collectStakeholders(approvers, responsibles, [author]);
     for (const u of allUsers) {
-      if (u.tg_chat_id) await sendPubReviewToChat(u.tg_chat_id, pub, creative, author, approvers, responsibles);
+      if (u.tg_chat_id) await sendPubReviewToChat(u.tg_chat_id, pub, creatives, author, approvers, responsibles);
     }
   } else if (pub.status === "approved" || pub.status === "rework") {
     const text = pub.status === "approved"
