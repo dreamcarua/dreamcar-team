@@ -1,0 +1,110 @@
+name: Auto Cache Bust
+
+# #266 (10.06.2026): після КОЖНОГО push до main що зачіпає frontend файли —
+# 1) Bump ?v= параметра у всіх index.html на git SHA
+# 2) Cloudflare API purge cache (edge invalidation)
+# Цей workflow самостійно НЕ deploy — Cloudflare Pages auto-deploys з main.
+# Але він робить cache bust ЗМІНОЮ files = новий commit = новий deploy.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hq/**'
+      - 'tasks/**'
+      - 'projects/**'
+      - 'retention/**'
+      - 'dashboard/**'
+      - 'brand-book/**'
+      - '_headers'
+
+concurrency:
+  group: auto-cache-bust
+  cancel-in-progress: false
+
+jobs:
+  bust:
+    runs-on: ubuntu-latest
+    # ВАЖЛИВО: не реагувати на власні коміти cache-bust (бо нескінченний цикл)
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '🤖 auto cache bust')"
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Compute short SHA + timestamp
+        id: ver
+        run: |
+          SHORT_SHA=$(git rev-parse --short=8 HEAD)
+          TS=$(date -u +%Y%m%d%H%M)
+          VERSION="${TS}-${SHORT_SHA}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "::notice::Cache bust version: $VERSION"
+
+      - name: Bump version у script src URLs
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          # Замінити ?v=<щось> на ?v=<новий> у всіх .html
+          # Скрипт обережний — тільки patterns "?v=20YYY..." (наша конвенція)
+          for f in hq/index.html tasks/index.html projects/index.html retention/index.html dashboard/index.html brand-book/index.html; do
+            if [ -f "$f" ]; then
+              # Замінити ?v=20XXXX[a-z]? на ?v=$VERSION
+              sed -i -E "s/\?v=20[0-9]{6,8}[a-z]?/?v=$VERSION/g" "$f"
+              sed -i -E "s/\?v=[0-9]{12}-[a-f0-9]{8}/?v=$VERSION/g" "$f"
+              echo "Updated $f"
+            fi
+          done
+
+      - name: Commit version bump
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add hq/index.html tasks/index.html projects/index.html retention/index.html dashboard/index.html brand-book/index.html 2>/dev/null || true
+            git commit -m "🤖 auto cache bust v=$VERSION [skip ci]"
+            git push
+            echo "::notice::Committed cache bust"
+          else
+            echo "::notice::No changes — nothing to commit"
+          fi
+
+      - name: Cloudflare cache purge (edge invalidation)
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
+            echo "::warning::CF_API_TOKEN або CF_ZONE_ID не виставлено — пропускаю CF purge"
+            exit 0
+          fi
+          # Purge URL-by-URL для team.dreamcar.ua *index.html
+          curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/purge_cache" \
+            -H "Authorization: Bearer $CF_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "files": [
+                "https://team.dreamcar.ua/hq/",
+                "https://team.dreamcar.ua/hq/index.html",
+                "https://team.dreamcar.ua/tasks/",
+                "https://team.dreamcar.ua/tasks/index.html",
+                "https://team.dreamcar.ua/projects/",
+                "https://team.dreamcar.ua/projects/index.html",
+                "https://team.dreamcar.ua/retention/",
+                "https://team.dreamcar.ua/retention/index.html",
+                "https://team.dreamcar.ua/dashboard/",
+                "https://team.dreamcar.ua/dashboard/index.html",
+                "https://team.dreamcar.ua/brand-book/"
+              ]
+            }' | tee /tmp/cf-purge.json
+          if grep -q '"success":true' /tmp/cf-purge.json; then
+            echo "::notice::Cloudflare cache purged"
+          else
+            echo "::error::CF purge failed:"
+            cat /tmp/cf-purge.json
+            exit 1
+          fi
