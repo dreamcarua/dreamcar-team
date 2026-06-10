@@ -315,33 +315,11 @@ if [ "$SRC_ROT_ABS" = "90" ] || [ "$SRC_ROT_ABS" = "270" ]; then
   echo "::warning::Rotation detected — logical dimensions ${LOGICAL_W}×${LOGICAL_H} (swapped from container ${SRC_W}×${SRC_H})"
 fi
 
-# #256: HDR detection + tone mapping chain (iPhone Pro знімає HLG за замовч → TG не tone-map)
-SRC_COLOR_TRANSFER=$(echo "$PROBE" | jq -r '.streams[0].color_transfer // ""')
-SRC_COLOR_PRIMARIES=$(echo "$PROBE" | jq -r '.streams[0].color_primaries // ""')
-SRC_PIX_FMT=$(echo "$PROBE" | jq -r '.streams[0].pix_fmt // ""')
+# #301: FULL ROLLBACK — НІЯКОГО tone mapping / color filter / HDR detection.
+# Vadym: "Кольоропередача жахлива, катастрофа." Mobius (#291) + Hable (#256) + eq filter
+# давали washed/artificial look. Telegram сам розбирає HLG через preview і player на
+# сучасних клієнтах. Залишаємо source pixels як є, без жодного color processing.
 HDR_PREFIX=""
-case "$SRC_COLOR_TRANSFER" in
-  arib-std-b67|smpte2084|bt2020-10|bt2020-12)
-    echo "::warning::HDR detected (transfer=$SRC_COLOR_TRANSFER, primaries=$SRC_COLOR_PRIMARIES, pix=$SRC_PIX_FMT) — applying tone mapping HDR → SDR Rec.709"
-    # #291: Mobius tone mapping (краще ніж Hable для HLG iPhone — менш washed look, кращі midtones)
-    # + eq filter для відновлення saturation/contrast після tone mapping (вирівнює "blah" вигляд)
-    # npl=250 — типова peak luminance для HLG iPhone (Hable використовував 100 — занадто темно)
-    # eq: saturation 1.2, contrast 1.05, gamma 0.95 — natural look максимально близько до оригіналу
-    HDR_PREFIX="zscale=t=linear:npl=250,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0:peak=10,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,eq=saturation=1.2:contrast=1.05:gamma=0.95,"
-    ;;
-  *)
-    case "$SRC_COLOR_PRIMARIES" in
-      bt2020)
-        echo "::warning::Wide gamut detected (primaries=$SRC_COLOR_PRIMARIES) — converting Rec.2020 → Rec.709"
-        # #291: + saturation boost для bt2020 → bt709 (компенсуємо обрізання gamut)
-        HDR_PREFIX="zscale=p=bt709:m=bt709:r=tv,format=yuv420p,eq=saturation=1.15:contrast=1.03,"
-        ;;
-      *)
-        echo "Source colors: SDR Rec.709 (transfer=$SRC_COLOR_TRANSFER, primaries=$SRC_COLOR_PRIMARIES) — no tone mapping"
-        ;;
-    esac
-    ;;
-esac
 
 # v2: Target = 99% of budget, не 91% undershoot
 EFFECTIVE_BUDGET=$((TARGET_BUDGET_BYTES * TARGET_FILL_PCT / 100))
@@ -396,7 +374,6 @@ ffmpeg -y -v error -stats -i "$INPUT" \
   -pass 2 -passlogfile "$PASS_LOG" \
   -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
   -movflags +faststart -pix_fmt yuv420p \
-  -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
   "$OUTPUT"
   # #292: видалив -metadata:s:v:0 rotate=0
   # ffmpeg 6.x autorotate=on автоматично обертає фрейми ПЕРЕД scale,
@@ -420,7 +397,6 @@ if [ "$OUT_SIZE" -gt "$TARGET_BUDGET_BYTES" ]; then
     -pass 2 -passlogfile "$PASS_LOG" \
     -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
     -movflags +faststart -pix_fmt yuv420p \
-    -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
     "$OUTPUT"
   OUT_SIZE=$(stat -c%s "$OUTPUT")
   VIDEO_KBPS=$RETRY_KBPS
