@@ -53,6 +53,29 @@
 - **P2**: 2 materialized views у public API (`mv_dashboard_projects_stats`, `mv_upsell_daily`) — currently немає anon grant, але advisor попереджає. Бекап: refresh через service_role + експонувати через RPC SECURITY INVOKER.
 - **P2**: HaveIBeenPwned leaked password protection вимкнено. Це closed-system auth (admin створює юзерів) — низький пріоритет.
 
-## Phases 2-10 — Recommended Next Session
+## Phase 2 — Secrets & Auth Flow (PARTIAL)
+
+### Findings
+
+1. **JWT secrets у фронтенді (8 файлів)** — все anon publishable keys для `wotghlaehnvxyeacznvv` (наш проект). Це **OK by design** (Supabase anon key призначений для public).
+
+2. **🔴 DEAD CODE на team.dreamcar.ua/index.html** — використовував **STALE Supabase проект** `oekoamtgbsklbmqyydzj.supabase.co` для auth indicator. Перевірив curl → HTTP 000 (DNS fail = projet paused/deleted).
+   - Impact: silent DNS timeout при кожному load головної team hub сторінки → повільніше навантаження.
+   - **✅ FIXED:** прибрав весь блок (auth indicator не критичний — повна реалізація у /hq/ /tasks/).
+
+3. **GH token у коментарях** — `dispatch-workflow/index.ts` має приклад `ghp_XXXX` як коментар-інструкція (не реальний token). OK.
+
+4. **Edge fn verify_jwt** — 41 функція:
+   - 36 з verify_jwt=false — більшість мають внутрішню auth (cron-secret check, JWT check у handler як у tg-post-send v14)
+   - 5 з verify_jwt=true (daily-health-audit, tg-personal-digest, global-search, sendpulse-books-list, tg-post-send)
+   - **Risk не аудитувано детально** — окремий sprint для нової сесії (для кожної fn перевірити чи є валідація + CORS)
+
+### Backlog Phase 2 additions
+
+- **P1**: повний аудит CORS у Edge fn (44 fn × ~15 хв = ~10 годин окремий sprint)
+- **P1**: webhook endpoints (track-checkout, webhook-dashboard-*) — перевірити чи мають shared-secret check у payload
+- **P2**: 5 Edge fn з verify_jwt=true — перевірити чи там не cron (тоді платформа блокуватиме без auth header)
+
+## Phases 3-10 — Recommended Next Session
 
 Сесія була довга (одна Cowork → дрейф контексту). Для надійності — **запусти AUDIT_PROMPT_10H.md у НОВІЙ сесії** з пустим контекстом. Phase 1 готовий, далі Phase 2 (Secrets & Auth) → 10.

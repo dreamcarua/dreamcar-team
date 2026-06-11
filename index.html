@@ -407,22 +407,9 @@
 </footer>
 
 <script type="module">
-  // Auth status — перевірка Supabase сесії (показує статус вгорі)
-  // Повна реалізація auth — у /hq/ і /tasks/, тут тільки індикатор
-  try {
-    const sb = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-    const { createClient } = sb;
-    const SUPABASE_URL = 'https://oekoamtgbsklbmqyydzj.supabase.co';
-    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9la29hbXRnYnNrbGJtcXl5ZHpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzMDY5MTQsImV4cCI6MjA1Nzg4MjkxNH0.eXKr2WJrAYwhKnt8jXKEjJqkN8tmRYRJ-Tm8r5IxhJ0';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
-    const { data: { session } } = await supabase.auth.getSession();
-    const el = document.getElementById('authStatus');
-    if (session && session.user) {
-      el.classList.add('authed');
-      const name = session.user.user_metadata?.full_name || session.user.email || 'user';
-      el.textContent = '✓ ' + name.toUpperCase().slice(0, 18);
-    }
-  } catch (e) { /* silent — no auth yet */ }
+  // #audit (11.06.2026): прибрав мертвий Supabase-call на oekoamtgbsklbmqyydzj (HTTP 000 = paused/deleted).
+  // Колишній auth indicator використовував legacy проект, який більше не активний.
+  // Повна реалізація auth — у /hq/ і /tasks/ (актуальний wotghlaehnvxyeacznvv).
 </script>
 
 <script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
