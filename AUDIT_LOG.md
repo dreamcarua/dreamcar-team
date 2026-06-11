@@ -76,6 +76,51 @@
 - **P1**: webhook endpoints (track-checkout, webhook-dashboard-*) — перевірити чи мають shared-secret check у payload
 - **P2**: 5 Edge fn з verify_jwt=true — перевірити чи там не cron (тоді платформа блокуватиме без auth header)
 
-## Phases 3-10 — Recommended Next Session
+## Phase 3 — DB Performance (COMPLETED)
+
+### Findings (`get_advisors` performance: 138 lints)
+
+| Severity | Lint | Count | Status |
+|---|---|---|---|
+| WARN | duplicate_index | 1 | ✅ FIXED |
+| INFO | unindexed_foreign_keys | 13 | ✅ FIXED |
+| WARN | auth_rls_initplan | 5 | ✅ 4 FIXED |
+| INFO | unused_index | 45 | Backlog (risky — may be needed for rare queries) |
+| WARN | multiple_permissive_policies | 73 | Backlog (separate sprint) |
+| INFO | auth_db_connections_absolute | 1 | Backlog (config setting) |
+
+### Fixes applied (2 migrations)
+
+1. **`audit_phase3_fk_indexes_and_dedup`**
+   - 13 нових B-tree indexes на foreign key columns
+   - 1 duplicate index dropped (`idx_dashboard_ads_data_date_start`)
+
+2. **`audit_phase3_rls_initplan_wrap_auth_uid`**
+   - 4 RLS policies переписані: `auth.uid()` → `(SELECT auth.uid())`
+   - InitPlan caching → 1 call per query замість 1 per row at scale
+
+### Verification
+
+- 13 нових індексів створено + duplicate dropped ✓
+- pg_policies показує нові policies нормалізовані як `( SELECT auth.uid() AS uid)` ✓
+
+## Phase 4 — Edge fn Reliability (PARTIAL)
+
+### Findings
+
+- **Logs (~3h window):** 0× 5xx errors. Усі Edge fn повертають 200. Latency у нормі (track-checkout 100-1100ms, etl-trigger 1.7-4.2s, anomaly-alerter 3.6s).
+- **🔴 P1 BUG у `r2-sign-upload`**: `try` без top-level `catch`. Якщо `signR2PutUrl()` throw — unhandled → connection reset для клієнта.
+
+### Fix applied
+
+- `hq/supabase/functions/r2-sign-upload/index.ts` — додав `try { ... } catch(e) { return 500 }` навколо POST handler. Body parse мав окремий try-catch (OK).
+
+### Items for Backlog
+
+- **P2**: повний audit 41 Edge fn (4 fn перевірено вручну: notify-tg, cron-reminders, tg-webhook, daily-digest, tg-task-extract, autopost-tg-enqueue — всі OK з try/catch + 5xx response)
+- **P2**: 45 unused_index — потребує перевірки кожного перед DROP (може використовуватись у рідких queries — Daily AI analyst, weekly-AI)
+- **P2**: 73 multiple_permissive_policies — окремий sprint узгодження business logic
+
+## Phases 5-10 — Recommended Next Session
 
 Сесія була довга (одна Cowork → дрейф контексту). Для надійності — **запусти AUDIT_PROMPT_10H.md у НОВІЙ сесії** з пустим контекстом. Phase 1 готовий, далі Phase 2 (Secrets & Auth) → 10.
