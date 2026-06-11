@@ -127,6 +127,8 @@ Deno.serve(async (req) => {
       status: 405, headers: { "content-type": "application/json", ...corsHeaders(origin) },
     });
   }
+  // #audit Phase 4: top-level try/catch — раніше signR2PutUrl() throw → unhandled crash
+  try {
 
   // Soft auth: just require Authorization header presence.
   // Real signature verification is delegated to Supabase Gateway (Verify JWT toggle).
@@ -194,4 +196,11 @@ Deno.serve(async (req) => {
     status: 200,
     headers: { "content-type": "application/json", ...corsHeaders(origin) },
   });
+  } catch (e: any) {
+    // #audit Phase 4: catch для signR2PutUrl() / unexpected errors
+    console.error("[r2-sign-upload ERR]", e?.message || e);
+    return new Response(JSON.stringify({ error: "internal", detail: String(e?.message || e).slice(0, 200) }), {
+      status: 500, headers: { "content-type": "application/json", ...corsHeaders(origin) },
+    });
+  }
 });
