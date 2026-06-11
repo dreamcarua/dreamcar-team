@@ -43,7 +43,36 @@ _(none — Phase 1 found no active P0 leaks)_
 
 Перед Phase 2-10 — варто протестувати фронт `dashboard.dreamcar.ua/v_dashboard_webhook_health` consumer (якщо є) щоб переконатись що anon-revoke не зламав читання. Поточна довга сесія не дає 100% впевненості у smoke test.
 
-## Notes
+## Phase 5 — Frontend Bloat (cleanup candidates)
+
+### P2 — 12 orphan JS файлів у `hq/` (2512 рядків dead code)
+
+Не loading через `app-tg-login.js` loader chain, не linked у `index.html`. Зберегти у git history достатньо. Перевірити кожен перед DROP (може бути beta-feature на pause):
+
+| File | Lines | Suggested action |
+|---|---|---|
+| `app-projects.js` | 481 | Phase 2 migrated to `/projects/` — safe DELETE |
+| `app-aleksandr-fixes.js` | 289 | personal patches, ймовірно merged — review git log |
+| `app-compress-admin.js` | 277 | check чи admin compress flow ще доступний |
+| `app-board-view.js` | 224 | duplicate of board logic in app-views.js? |
+| `app-next-action.js` | 207 | next-action feature replaced? |
+| `app-work-status-extras.js` | 195 | extras, low risk |
+| `app-compress-preview.js` | 192 | merge into compress flow? |
+| `app-orphan-drafts-fix.js` | 178 | one-off fix, likely safe |
+| `app-bulk-upload.js` | 159 | check if bulk upload still used |
+| `app-tg-bind-banner.js` | 114 | TG-bind UX moved? |
+| `app-dispatch-hooks.js` | 112 | unused dispatch hooks |
+| `app-hq-flatpickr.js` | 84 | replaced by native datetime input |
+
+### P3 — 99 `console.log/debug` у `hq/`
+
+Не урезаємо: цей debug-noise зараз корисний для production debug-ing (видно у browser DevTools при support тікетах). Залишити для нової P3 сесії.
+
+### P3 — 46 alert/confirm calls
+
+Багато з них у catch blocks — legit error UX. Окремий sprint UX migration на toast/modal.
+
+### Notes
 
 - Severity scale per AUDIT_PROMPT_10H.md
 - 3 migrations applied у Phase 1 — всі логуються у Supabase migrations table.
