@@ -1217,7 +1217,9 @@ async function openOverview(task){
     }
     return `<div style="position:relative;display:inline-flex;"><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;padding-right:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;"><span style="font-size:18px;">📄</span>${escapeHtml(fname)}${sizeMb}</a>${delBtn}</div>`;
   }).join('');
-  const uploadBtn = `<button id="taskAttUpload" type="button" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:13px;cursor:pointer;"><span style="font-size:16px;">📎</span>Прикріпити файл</button><input type="file" id="taskAttInput" multiple style="display:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip">`;
+  // #357 (12.06.2026): inline onclick — bulletproof. addEventListener bind ОДИН раз при init,
+  // але кнопка рендериться у innerHTML кожен раз → handler втрачається. Inline onclick гарантовано працює.
+  const uploadBtn = `<button id="taskAttUpload" type="button" onclick="window.tasksTriggerFileInput && window.tasksTriggerFileInput()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:13px;cursor:pointer;"><span style="font-size:16px;">📎</span>Прикріпити файл</button><input type="file" id="taskAttInput" multiple style="display:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip" onchange="window.tasksHandleFileInput && window.tasksHandleFileInput(event)">`;
   body += `<div class="ov-section" id="taskAttSection"><span class="ov-section-label">Прикріплення (${attsList.length})</span><div id="taskAttGrid" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">${attsHtml}${uploadBtn}</div><div id="taskAttProgress" style="display:none;margin-top:8px;font-size:12px;color:#ff6577;"></div></div>`;
   // HQ↔Tasks linkage: показати linked publication
   if(task.publication_id){
@@ -1385,15 +1387,22 @@ async function openOverview(task){
     if(mime.startsWith('audio/')) return 'audio';
     return 'document';
   }
-  document.getElementById('taskAttUpload')?.addEventListener('click', ()=>{
-    document.getElementById('taskAttInput').click();
-  });
-  document.getElementById('taskAttInput')?.addEventListener('change', async (ev)=>{
+  // #357 (12.06.2026): зберігаємо task у window щоб global window fn мали до нього доступ
+  window.__currentOverviewTask = task;
+  // Global trigger — викликається з inline onclick
+  window.tasksTriggerFileInput = () => {
+    const inp = document.getElementById('taskAttInput');
+    if (inp) inp.click(); else console.warn('[tasks-upload] no taskAttInput');
+  };
+  // Global handler — викликається з inline onchange
+  window.tasksHandleFileInput = async (ev) => {
+    const task = window.__currentOverviewTask;
+    if (!task) { console.error('[tasks-upload] no currentOverviewTask'); return; }
     const files = Array.from(ev.target.files || []);
     if(!files.length) return;
     const prog = document.getElementById('taskAttProgress');
     prog.style.display = 'block';
-    // #355 (12.06.2026): refresh session перед upload щоб гарантувати свіжий JWT.
+    // #355: refresh session перед upload щоб гарантувати свіжий JWT.
     try { await supabase.auth.refreshSession(); } catch(_) {}
     const current = Array.isArray(task.attachments) ? [...task.attachments] : [];
     for(let i=0;i<files.length;i++){
@@ -1451,8 +1460,10 @@ async function openOverview(task){
     if(idx>=0) state.tasks[idx].attachments = current;
     prog.style.display='none';
     toast(`Прикріплено ${files.length} ${files.length===1?'файл':'файлів'}`,'success');
+    // reset input value щоб той самий файл можна було вибрати знову
+    try { ev.target.value = ''; } catch(_) {}
     refreshOverview();
-  });
+  };
   document.querySelectorAll('[data-att-del]').forEach(btn=>{
     btn.addEventListener('click', async (ev)=>{
       ev.preventDefault(); ev.stopPropagation();
