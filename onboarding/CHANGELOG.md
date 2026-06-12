@@ -8,6 +8,19 @@
 
 ---
 
+## 12.06.2026 — #358 SMM Calendar UX
+
+### SMM (#358)
+- 🔧 **Календар: плитка більша + 5 карток на день замість 3.** Vadym скрін 10.06 — 3 картки REELS/ПОСТ обрізались знизу (`overflow: hidden` на `.cal-day` ховало нижні рядки).
+  - `.calendar-grid { height: calc(100vh - 180px); min-height: 780px }` (було 540px) → 130px на клітинку (було 90px)
+  - `.cal-card { flex-wrap: nowrap; align-items: center; padding: 3px 5px; gap: 4px; min-height: 20px }` — одно-рядкове compact layout
+  - `.cal-card .ctype-badge { display: inline-block; flex-shrink: 0 }` — chip inline, не block з width:100%
+  - `dayPubs.slice(0,3) → slice(0,5)` у `renderMonth()` — до 5 публікацій на день видно
+  - Формат рядка: `[REELS] 14:00 ●● На що зробити...` — type+time+title в одному рядку
+  - Commit `810cc2a`
+
+---
+
 ## 12.06.2026 — #345 BIG нова система СКЛАД (Inventory)
 
 ### Inventory (#345 BIG)
