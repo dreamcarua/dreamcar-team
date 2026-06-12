@@ -124,15 +124,18 @@
     opts = opts || {};
     if (!c) return '<span style="font-size:24px;">📝</span>';
     var size = opts.size || 'tile';
-    var url = safeUrl(c.url) || safeUrl(c.thumbnail_url) || '';
+    // #368 (12.06.2026 Vadym): пріоритет compressed_url (повна якість) → thumbnail_url → legacy url.
+    // Для photo навіть thumbnail_url достатньо для preview, для video краще compressed_url.
+    var url = safeUrl(c.compressed_url) || safeUrl(c.thumbnail_url) || safeUrl(c.url) || safeUrl(c.compressed_url_hevc) || '';
     var fontSize = size === 'modal' ? '72px' : size === 'card' ? '18px' : '30px';
     var emoji = '<span style="font-size:' + fontSize + ';">' + (c.preview || '📦') + '</span>';
     if (!url) return emoji;
     if (c.type === 'photo') {
-      return '<img src="' + url + '" alt="' + escapeHtml(c.name || '') + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;"/>';
+      // #368: object-fit:cover, абсолютна позиція щоб гарантовано заповнити .pv-media
+      return '<img src="' + url + '" alt="' + escapeHtml(c.name || '') + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;" onerror="this.onerror=null;this.src=\'' + (safeUrl(c.thumbnail_url) || '') + '\';"/>';
     }
     if (c.type === 'video') {
-      return '<video src="' + url + '#t=0.1" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;pointer-events:none;"></video>' +
+      return '<video src="' + url + '#t=0.1" preload="metadata" muted playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;pointer-events:none;"></video>' +
         '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6);font-size:28px;pointer-events:none;">▶</div>';
     }
     return emoji;

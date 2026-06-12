@@ -1009,6 +1009,14 @@
     object-fit: contain; background: #000;
   }
   .preview-card .pv-album img { width: 100%; height: 100%; object-fit: cover; }
+  /* #368 (12.06.2026 Vadym): preview .pv-media контейнер з aspect-ratio — img/video мають заповнити */
+  .preview-card .pv-media { min-height: 280px; }
+  .preview-card .pv-media img,
+  .preview-card .pv-media video {
+    position: absolute !important; inset: 0 !important;
+    width: 100% !important; height: 100% !important;
+    object-fit: cover !important; display: block !important;
+  }
   .preview-card .pv-text tg-spoiler {
     background: rgba(255,255,255,0.15); color: transparent;
     border-radius: 3px; padding: 0 2px; cursor: pointer;
