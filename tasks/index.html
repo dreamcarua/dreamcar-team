@@ -1219,7 +1219,10 @@ async function openOverview(task){
   }).join('');
   // #357 (12.06.2026): inline onclick — bulletproof. addEventListener bind ОДИН раз при init,
   // але кнопка рендериться у innerHTML кожен раз → handler втрачається. Inline onclick гарантовано працює.
-  const uploadBtn = `<button id="taskAttUpload" type="button" onclick="window.tasksTriggerFileInput && window.tasksTriggerFileInput()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:13px;cursor:pointer;"><span style="font-size:16px;">📎</span>Прикріпити файл</button><input type="file" id="taskAttInput" multiple style="display:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip" onchange="window.tasksHandleFileInput && window.tasksHandleFileInput(event)">`;
+  // #358 (12.06.2026): Safari iOS bug — input.click() НЕ працює коли input має display:none.
+  // Fix: position:absolute + opacity:0 + width/height:0 — input лишається у DOM але невидимий.
+  // Це працює як у Chrome так і у Safari/iOS.
+  const uploadBtn = `<button id="taskAttUpload" type="button" onclick="window.tasksTriggerFileInput && window.tasksTriggerFileInput()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:13px;cursor:pointer;"><span style="font-size:16px;">📎</span>Прикріпити файл</button><input type="file" id="taskAttInput" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip" onchange="window.tasksHandleFileInput && window.tasksHandleFileInput(event)">`;
   body += `<div class="ov-section" id="taskAttSection"><span class="ov-section-label">Прикріплення (${attsList.length})</span><div id="taskAttGrid" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">${attsHtml}${uploadBtn}</div><div id="taskAttProgress" style="display:none;margin-top:8px;font-size:12px;color:#ff6577;"></div></div>`;
   // HQ↔Tasks linkage: показати linked publication
   if(task.publication_id){
