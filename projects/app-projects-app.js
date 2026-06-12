@@ -356,6 +356,16 @@
     var h = location.hash || '';
     // Redirect legacy
     if (h === '#launches') { location.hash = '#projects'; return; }
+    // #360 (12.06.2026): Зведений календар SMM+Retention
+    if (h === '#calendar') {
+      if (window.dcUnifiedCalendar && typeof window.dcUnifiedCalendar.open === 'function') {
+        window.dcUnifiedCalendar.open();
+      } else {
+        // Якщо файл ще не завантажений — retry за 200ms
+        setTimeout(maybeRoute, 200);
+      }
+      return;
+    }
     if (h.indexOf('#project/') === 0) {
       renderDetail(h.substring('#project/'.length));
     } else {
