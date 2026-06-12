@@ -489,12 +489,14 @@ function calItem(m, size){
   const mm = String(dt.getMinutes()).padStart(2,'0');
   const title = (m.title || '(без назви)');
   if (size === 'short') {
-    return `<div class="cal-item" data-id="${m.id}" title="${escHtml(title)}" style="cursor:pointer; font-size:10px; padding:3px 5px; background:var(--bg-3); border-radius:3px; border-left:3px solid var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ch.ic} ${escHtml(title).slice(0, 20)}</div>`;
+    // #350 Vira UX: час перед назвою у Month view (раніше було тільки ch.ic + title)
+    return `<div class="cal-item" data-id="${m.id}" title="${hh}:${mm} · ${escHtml(title)}" style="cursor:pointer; font-size:10px; padding:3px 5px; background:var(--bg-3); border-radius:3px; border-left:3px solid var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ch.ic} <span style="color:#fff; font-weight:700; font-variant-numeric:tabular-nums;">${hh}:${mm}</span> <span style="color:var(--ash);">·</span> ${escHtml(title).slice(0, 18)}</div>`;
   }
   if (size === 'medium') {
+    // #350: жирний час як префікс title для консистентності з Month
     return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; padding:6px 8px; background:var(--bg-3); border-radius:5px; border-left:3px solid var(--red);">
-      <div style="font-size:10px; color:var(--ash);">${hh}:${mm} ${ch.ic}</div>
-      <div style="font-size:11px; color:#fff; margin-top:2px;">${escHtml(title).slice(0, 50)}</div>
+      <div style="font-size:10px; color:var(--ash);">${ch.ic} ${st.name ? '· ' + escHtml(st.name) : ''}</div>
+      <div style="font-size:11px; color:#fff; margin-top:2px;"><span style="color:#fff; font-weight:700; font-variant-numeric:tabular-nums;">${hh}:${mm}</span> <span style="color:var(--ash);">·</span> ${escHtml(title).slice(0, 50)}</div>
       <span class="chip ${st.cls}" style="margin-top:4px;">${escHtml(st.name)}</span>
     </div>`;
   }
