@@ -395,9 +395,9 @@
     }).join('');
     return `
       <article class="${cls.join(' ')}">
-        <div class="item-head">
+        <div class="item-head" ${w ? `onclick="invOpenItemModalById('${esc(it.item_id)}')" style="cursor:pointer;" title="Клік — редагувати товар"` : ''}>
           <div>
-            <h3>${esc(it.name)}</h3>
+            <h3>${esc(it.name)}${w ? ' <span style="font-size:10px;color:var(--ash);font-weight:normal;">✏</span>' : ''}</h3>
             <div class="item-meta"><span class="cat-chip">${esc(catLabel(it.category))}</span><span>${(it.variants||[]).length} варіант(и)</span></div>
           </div>
           <div class="${totalCls}" title="Всього на складі">${it.total_qty}</div>
@@ -406,11 +406,11 @@
           ${varsHtml || '<div class="hint">Немає варіантів. Додай нижче →</div>'}
         </div>
         <div class="item-footer">
-          <span>${esc(it.notes||'').slice(0,80)}${(it.notes||'').length>80?'…':''}</span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(it.notes||'').slice(0,80)}${(it.notes||'').length>80?'…':''}</span>
           <span class="ops">
             ${w ? `
+              <button class="btn small" onclick="invOpenItemModalById('${esc(it.item_id)}')">✏ РЕДАГУВАТИ</button>
               <button class="btn small" onclick="invOpenVariantModal('${esc(it.item_id)}', null)">+ ВАРІАНТ</button>
-              <button class="btn small ghost" onclick="invOpenItemModalById('${esc(it.item_id)}')">✏</button>
             ` : ''}
           </span>
         </div>
