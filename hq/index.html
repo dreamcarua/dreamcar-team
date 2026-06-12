@@ -654,20 +654,22 @@
   .cal-card.urgent-yellow { box-shadow: inset 0 0 0 1px var(--gold); }
   .cal-card.urgent-red { box-shadow: inset 0 0 0 1px var(--red); animation: pulse 1.5s ease-in-out infinite; }
   .cal-card.missed { background: rgba(204,0,0,0.15); }
-  /* #229 (Олександр): плашка типу контенту над карткою у календарі */
-  .cal-card { flex-wrap: wrap; align-items: stretch; padding: 0 0 4px; }
+  /* #229 (Олександр): плашка типу контенту над карткою у календарі
+     #358 (12.06.2026 Vadym): badge inline щоб 2-3 картки у день не обрізались overflow */
+  .cal-card { flex-wrap: nowrap; align-items: center; padding: 3px 5px; gap: 4px; min-height: 20px; }
   .cal-card .ctype-badge {
-    display: block; width: 100%;
+    display: inline-block; flex-shrink: 0;
     background: rgba(255,255,255,0.08);
     color: var(--ash-2, #BBB);
-    font-size: 9px; font-weight: 700; letter-spacing: 1px;
-    padding: 2px 6px; margin-bottom: 3px;
-    text-transform: uppercase; text-align: left;
-    border-radius: 3px 3px 0 0;
+    font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
+    padding: 1px 4px;
+    text-transform: uppercase;
+    border-radius: 3px;
     font-family: 'JetBrains Mono', monospace;
+    line-height: 1.4;
   }
-  .cal-card .time, .cal-card .title { padding-left: 6px; }
-  .cal-card .title { padding-right: 6px; }
+  .cal-card .time, .cal-card .title { padding-left: 0; }
+  .cal-card .title { padding-right: 0; }
   @keyframes pulse {
     0%, 100% { box-shadow: inset 0 0 0 1px var(--red); }
     50% { box-shadow: inset 0 0 0 1px var(--red), 0 0 8px rgba(204,0,0,0.4); }
