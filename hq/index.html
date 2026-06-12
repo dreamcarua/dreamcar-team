@@ -9,13 +9,13 @@
 <meta http-equiv="Expires" content="0">
 <title>DreamCar HQ · Стіл SMM</title>
 <!-- GLOBAL BRAND HEADER — обов'язково на ВСІХ сторінках проекту для навігації -->
-<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
 <script src="config.js"></script>
 <!-- 08.06.2026 R2 (Давид login loop fix): підключаємо shared storage у HQ -->
 <!-- Раніше HQ використовував дефолтний localStorage без cookie sync — це могло
      створювати ситуацію коли Tasks через cookie бачив старий expired token,
      а HQ свіжий → cross-app session drift → login loop. -->
-<script src="dc-shared-storage.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a"></script>
+<script src="dc-shared-storage.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a"></script>
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config
   if (window.HQ_CONFIG?.SUPABASE_URL && window.HQ_CONFIG?.SUPABASE_ANON_KEY) {
@@ -1699,7 +1699,7 @@
     .fab-create { display: flex; }
   }
 </style>
-<script src="dc-theme.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<script src="dc-theme.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
 </head>
 <body>
 
@@ -1877,15 +1877,15 @@
 })();
 </script>
 
-<script src="app-core.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
-<script src="app-views.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<script src="app-core.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<script src="app-views.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
 <!-- 09.06.2026 #207/#208/#209: loader chain (app-locks → app-extras → ...) на production не стартувала.
      Через це app-overview-modal.js, app-extras.js, app-duplicate-to.js НЕ завантажувались.
      Олександр і Давид бачили старий edit modal без кнопки Дублювати + без креативів у preview.
      Тепер вантажимо chain напряму. -->
-<script src="app-locks.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
-<script src="app-overview-modal.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
-<script src="app-duplicate-to.js?v=202606121049-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<script src="app-locks.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<script src="app-overview-modal.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<script src="app-duplicate-to.js?v=202606121106-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
 
 </body>
 </html>
