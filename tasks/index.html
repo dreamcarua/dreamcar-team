@@ -640,7 +640,8 @@
       <label>ПРИКРІПЛЕННЯ <span id="editAttCount" style="color:var(--ash);font-weight:normal;"></span></label>
       <div id="editAttGrid" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:48px;"></div>
       <div id="editAttProgress" style="display:none;margin-top:8px;font-size:12px;color:#ff6577;"></div>
-      <input type="file" id="editAttInput" multiple style="display:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip">
+      <!-- #361 (12.06.2026): visually-hidden замість display:none (Safari iOS bug). Label-trigger у renderEditAttachments. -->
+      <input type="file" id="editAttInput" multiple style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip">
     </div>
     <div class="field">
       <label>ЧЕК-ЛИСТ</label>
@@ -2186,12 +2187,9 @@ function renderEditAttachments(){
     }
     return `<div style="position:relative;display:inline-flex;"><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:8px 12px;padding-right:30px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:8px;text-decoration:none;color:#ccc;font-size:12px;"><span style="font-size:16px;">${t==='voice'||t==='audio'?'🎤':'📄'}</span>${escapeHtml(fname)}${sizeMb}</a>${delBtn}</div>`;
   }).join('');
-  const uploadBtn = `<button type="button" id="editAttUploadBtn" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:6px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:12px;cursor:pointer;"><span style="font-size:14px;">📎</span>Прикріпити</button>`;
+  // #361 (12.06.2026): SMM-патерн — <label for> замість programmatic click (Safari iOS).
+  const uploadBtn = `<label for="editAttInput" id="editAttUploadLabel" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:6px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:12px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:rgba(227,6,19,0.2);"><span style="font-size:14px;">📎</span>Прикріпити</label>`;
   grid.innerHTML = items + uploadBtn;
-  // Bind events
-  document.getElementById('editAttUploadBtn')?.addEventListener('click', ()=>{
-    document.getElementById('editAttInput').click();
-  });
   grid.querySelectorAll('[data-att-del]').forEach(btn=>{
     btn.addEventListener('click', (ev)=>{
       ev.preventDefault();
@@ -2205,60 +2203,71 @@ function renderEditAttachments(){
   });
 }
 
-// File input handler — спрацьовує при click з upload button OR drag-drop
+// #361 (12.06.2026): EDIT-modal file upload за SMM-патерном.
+// - НЕ Promise.race 90s timeout (sb client сам ре-юзає JWT)
+// - НЕ refreshSession (зайвий round-trip)
+// - Inline progress placeholders у grid (як SMM ⏳ spinner)
+// - Атомарне додавання у state.editAttachments + renderEditAttachments
+// - Bind через DOMContentLoaded бо input у DOM з самого початку.
 document.addEventListener('DOMContentLoaded', ()=>{
   const inp = document.getElementById('editAttInput');
-  if(inp){
-    inp.addEventListener('change', async (ev)=>{
-      const files = Array.from(ev.target.files || []);
-      ev.target.value = ''; // reset для повторного select
-      if(!files.length) return;
-      const prog = document.getElementById('editAttProgress');
-      if(!state.editAttachments) state.editAttachments = [];
-      prog.style.display = 'block';
-      // #355: refresh session + timeout 90s + детальний log
-      try { await supabase.auth.refreshSession(); } catch(_) {}
-      for(let i=0;i<files.length;i++){
-        const f = files[i];
-        prog.textContent = `Завантаження ${i+1}/${files.length}: ${f.name}…`;
-        if(f.size > 50*1024*1024){
-          toast(`"${f.name}" завеликий (>50MB)`,'error');
-          continue;
-        }
-        const safeName = f.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(0,80);
-        const taskId = state.editingId || 'new';
-        const objectKey = `${taskId}/${Date.now()}_${i}_${safeName}`;
-        console.log('[tasks-edit-upload] start', { name: f.name, size: f.size, type: f.type, key: objectKey });
-        let result;
-        try {
-          result = await Promise.race([
-            supabase.storage.from('task-attachments').upload(objectKey, f, { contentType: f.type || 'application/octet-stream', upsert: false }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Upload timeout 90s — мережа або auth')), 90000))
-          ]);
-        } catch(e) {
-          console.error('[tasks-edit-upload] exception', e);
-          toast(`Помилка завантаження ${f.name}: ${e.message || e}`,'error');
-          prog.style.display='none';
-          continue;
-        }
-        const { error } = result || {};
-        if(error){ console.error('[tasks-edit-upload] supabase error:', error); toast(`Помилка: ${error.message || JSON.stringify(error)}`,'error'); continue; }
-        console.log('[tasks-edit-upload] success', { key: objectKey });
-        const { data: urlData } = supabase.storage.from('task-attachments').getPublicUrl(objectKey);
-        let type = 'document';
-        if(f.type?.startsWith('image/')) type = 'photo';
-        else if(f.type?.startsWith('video/')) type = 'video';
-        else if(f.type?.startsWith('audio/')) type = 'audio';
-        state.editAttachments.push({
-          type, url: urlData.publicUrl, mime: f.type, size: f.size, file_name: f.name,
-          uploaded_by: state.publicUser?.id, uploaded_at: new Date().toISOString(),
-        });
-      }
-      prog.style.display = 'none';
-      renderEditAttachments();
-      toast(`Прикріплено ${files.length}. Натисни Зберегти.`,'success');
+  if(!inp) return;
+  inp.addEventListener('change', async (ev)=>{
+    const files = Array.from(ev.target.files || []);
+    ev.target.value = '';
+    if(!files.length) return;
+    const grid = document.getElementById('editAttGrid');
+    const label = document.getElementById('editAttUploadLabel');
+    if(!state.editAttachments) state.editAttachments = [];
+    // SMM-патерн: inline placeholders ПЕРЕД label
+    const placeholders = [];
+    files.forEach((f, i) => {
+      const sizeMb = (f.size/1024/1024).toFixed(1);
+      const ph = document.createElement('div');
+      ph.style.cssText = 'position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:96px;height:96px;border-radius:6px;border:2px dashed rgba(122,176,255,0.5);background:linear-gradient(135deg,#1a1a1a,#2a2a2a);color:#7ab0ff;font-size:9px;padding:4px;gap:3px;text-align:center;';
+      ph.innerHTML = `<span style="font-size:20px;animation:spin 1.5s linear infinite;">⏳</span><div style="font-weight:600;">Завантажую</div><div style="opacity:0.8;font-size:8px;line-height:1.2;word-break:break-all;">${escapeHtml((f.name||'').slice(0,16))}</div><div style="font-size:8px;">${sizeMb}МБ</div>`;
+      if(grid && label) grid.insertBefore(ph, label); else if(grid) grid.appendChild(ph);
+      placeholders.push(ph);
     });
-  }
+    let uploaded = 0;
+    for(let i=0;i<files.length;i++){
+      const f = files[i];
+      if(f.size > 50*1024*1024){
+        toast(`"${f.name}" завеликий (>50MB)`,'error');
+        placeholders[i]?.remove();
+        continue;
+      }
+      const safeName = f.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(0,80);
+      const taskId = state.editingId || 'new';
+      const objectKey = `${taskId}/${Date.now()}_${i}_${safeName}`;
+      try {
+        const { error } = await supabase.storage.from('task-attachments').upload(objectKey, f, { contentType: f.type || 'application/octet-stream', upsert: false });
+        if(error){
+          console.error('[tasks-edit-upload]', error);
+          toast(`Помилка ${f.name}: ${error.message||'unknown'}`,'error');
+          placeholders[i]?.remove();
+          continue;
+        }
+      } catch(e) {
+        console.error('[tasks-edit-upload] exception', e);
+        toast(`Помилка ${f.name}: ${e.message||e}`,'error');
+        placeholders[i]?.remove();
+        continue;
+      }
+      const { data: urlData } = supabase.storage.from('task-attachments').getPublicUrl(objectKey);
+      let type = 'document';
+      if(f.type?.startsWith('image/')) type = 'photo';
+      else if(f.type?.startsWith('video/')) type = 'video';
+      else if(f.type?.startsWith('audio/')) type = 'audio';
+      state.editAttachments.push({
+        type, url: urlData.publicUrl, mime: f.type, size: f.size, file_name: f.name,
+        uploaded_by: state.publicUser?.id, uploaded_at: new Date().toISOString(),
+      });
+      uploaded++;
+    }
+    renderEditAttachments();
+    if(uploaded > 0) toast(`Прикріплено ${uploaded}. Натисни Зберегти.`,'success');
+  });
 });
 
 // ========== SUBTASKS ==========
@@ -2315,10 +2324,24 @@ function renderWatchers(){
 }
 
 // ========== COMMENTS ==========
+// #361 (12.06.2026): миттєвий render з кешу state.commentsByTask + async refresh з DB.
+// SMM-патерн: користувач НЕ бачить "Завантаження…" — одразу видно існуючі коментарі.
 async function loadComments(taskId){
-  const {data,error}=await supabase.from('team_task_comments').select('*').eq('task_id',taskId).is('deleted_at',null).order('created_at',{ascending:true});
-  if(error){console.warn(error);state.comments=[];}else state.comments=data||[];
+  // Step 1: миттєво з cache (#359 preload у boot)
+  const cached = (state.commentsByTask && state.commentsByTask[taskId]) || [];
+  state.comments = cached.slice();
   renderComments();
+  // Step 2: async refresh з DB (за SMM-патерном — fetch fresh data, оновити UI)
+  try {
+    const {data,error}=await supabase.from('team_task_comments').select('*').eq('task_id',taskId).is('deleted_at',null).order('created_at',{ascending:true});
+    if(error){console.warn('[loadComments]',error);return;}
+    state.comments=data||[];
+    // Sync у global cache теж
+    if(state.commentsByTask) state.commentsByTask[taskId] = (data||[]).slice();
+    renderComments();
+  } catch(e){
+    console.error('[loadComments] failed', e);
+  }
 }
 
 function renderComments(){
@@ -2340,26 +2363,59 @@ function renderComments(){
   }).join('');
 }
 
-document.getElementById('postCommentBtn').onclick=postComment;
-async function postComment(){
+// #361 (12.06.2026): EDIT-modal postComment за SMM-патерном.
+// - .select().single() щоб одразу мати fresh row
+// - Оптимістично додаємо у state.comments + state.commentsByTask
+// - НЕ робимо повторний loadComments (зайвий round-trip, real-time subscription підхопить)
+// - Global window.postComment + inline onclick = bulletproof handler
+window.postComment = async function postComment(){
   const inp=document.getElementById('commentInput');
-  const body=inp.value.trim();
-  if(!body||!state.editingId)return;
-  // витягуємо @mentions
+  const body=(inp?.value||'').trim();
+  if(!body||!state.editingId){console.warn('[postComment] no body or editingId');return;}
+  const btn = document.getElementById('postCommentBtn');
+  if(btn){btn.disabled=true;btn.textContent='ВІДПРАВЛЯЮ…';}
   const mentions=[];
   const re=/@([A-Za-zА-Яа-яІіЇїЄєҐґ\-]+)/g;
   let m;while((m=re.exec(body))){
     const u=state.users.find(x=>x.name?.split(' ')[0].toLowerCase()===m[1].toLowerCase());
     if(u&&!mentions.includes(u.id))mentions.push(u.id);
   }
-  const {error}=await supabase.from('team_task_comments').insert({
-    task_id:state.editingId,author_id:state.publicUser.id,body,mentions
-  });
-  if(error){toast('Помилка: '+error.message,'error');return;}
-  inp.value='';
-  await loadComments(state.editingId);
-  triggerNotifyWorker();
-}
+  try {
+    const {data, error}=await supabase.from('team_task_comments').insert({
+      task_id:state.editingId,author_id:state.publicUser.id,body,mentions
+    }).select().single();
+    if(error){
+      toast('Помилка: '+error.message,'error');
+      if(btn){btn.disabled=false;btn.textContent='ВІДПРАВИТИ';}
+      return;
+    }
+    // Optimistic: додаємо у edit-modal список + у global cache
+    if(data){
+      state.comments.push(data);
+      if(typeof pushCommentToCache === 'function') pushCommentToCache(data);
+    }
+    inp.value='';
+    if(typeof renderComments === 'function') renderComments();
+    if(btn){btn.disabled=false;btn.textContent='ВІДПРАВИТИ';}
+    triggerNotifyWorker();
+    toast('Коментар додано','success');
+  } catch(e){
+    console.error('[postComment] exception', e);
+    toast('Помилка: '+(e.message||e),'error');
+    if(btn){btn.disabled=false;btn.textContent='ВІДПРАВИТИ';}
+  }
+};
+// Bind: і onclick (top-level) і addEventListener (resilient) — щоб точно реагувало
+(function bindPostCommentBtn(){
+  var btn = document.getElementById('postCommentBtn');
+  if(!btn){setTimeout(bindPostCommentBtn, 100); return;}
+  btn.onclick = window.postComment;
+  btn.addEventListener('click', window.postComment);
+})();
+// Inline onclick на кнопці теж — як HARD RULE для critical buttons
+document.getElementById('postCommentBtn')?.setAttribute('onclick', 'window.postComment && window.postComment()');
+// Backward compat alias
+var postComment = window.postComment;
 
 // @mention picker on '@' typing
 const commentInput=document.getElementById('commentInput');
