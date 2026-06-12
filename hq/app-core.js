@@ -1,11 +1,3 @@
-/* ====================================================================
-   DreamCar HQ — Стіл SMM (Пілот)
-   MVP як SPA: HTML + ванільний JS + localStorage
-   Архітектура: hash-router → views (Calendar/Board/Library/Launches)
-                Store wrapper над localStorage
-                Seed-дані при першому старті
-   ==================================================================== */
-
 const PLATFORMS = [
   { id: 'ig', name: 'Instagram', icon: '📷', color: '#E1306C' },
   { id: 'tg', name: 'Telegram', icon: '✈️', color: '#0088cc' },
@@ -257,11 +249,16 @@ const Store = {
   upsertPub(pub) {
     // Optimistic cache update
     const ix = this._data.publications.findIndex(p => p.id === pub.id);
+    // Bug 8 fix (12.06.2026): захоплюємо реальний попередній статус ДО того як оновлюємо
+    // in-memory store, щоб _persistPub бачив справжній safeStatus для safe-sequence step 3.
+    // Без цього existing.status === targetStatus і step 3 UPDATE ніколи не виконується →
+    // DB trigger нотифікації апруверам при draft→review не спрацьовував після дублювання.
+    const _prevStatus = (ix >= 0 && this._data.publications[ix]) ? (this._data.publications[ix].status || null) : null;
     if (ix >= 0) this._data.publications[ix] = pub;
     else this._data.publications.push(pub);
 
     if (BACKEND_MODE) {
-      return this._persistPub(pub).catch(err => {
+      return this._persistPub(pub, _prevStatus).catch(err => {
         // 05.06.2026: розширена діагностика — toast + alert щоб user точно побачив
         console.error('[persistPub] Persist failed:', err);
         console.error('[persistPub] Pub data:', { id: pub.id, title: pub.title, rubric_id: pub.rubric, status: pub.status });
@@ -280,7 +277,7 @@ const Store = {
     }
   },
 
-  async _persistPub(pub) {
+  async _persistPub(pub, _prevStatus) {
     const sb = window.supabase;
     // 05.06.2026: pre-validation — pub.id має бути валідний UUID
     var uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -294,12 +291,17 @@ const Store = {
     // Тепер: спочатку upsert БЕЗ зміни status (зберігаємо existing), потім insert platforms, потім UPDATE status.
     const targetStatus = pub.status || 'draft';
     const existing = this.pub(pub.id);
-    const safeStatus = (existing && existing.status) ? existing.status : 'draft';
+    // Bug 8 fix (12.06.2026): використовуємо _prevStatus переданий з upsertPub (реальний старий статус),
+    // бо existing.status вже = targetStatus після optimistic update. Без _prevStatus safeStatus === targetStatus
+    // → step 3 UPDATE пропускається → DB trigger нотифікацій апруверам не спрацьовує.
+    const safeStatus = (_prevStatus !== null && _prevStatus !== undefined) ? _prevStatus
+                     : ((existing && existing.status) ? existing.status : 'draft');
 
     // 12.06.2026 #RE-APPROVAL: якщо публікація вже approved і хтось її редагує —
     // автоматично скидаємо на review + обнуляємо рішення погоджувачів.
     // Виняток: перехід approved → published (кнопка "Позначити опублікованою").
-    const _wasApproved = existing && existing.status === 'approved';
+    // Bug 8 fix: перевіряємо safeStatus (реальний старий статус), а не existing.status
+    const _wasApproved = safeStatus === 'approved';
     if (_wasApproved && targetStatus !== 'published') {
       console.log('[re-approval] pub', pub.id, '— was approved, editing detected → reset to review');
       pub.status = 'review';

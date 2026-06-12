@@ -1,4 +1,3 @@
-/* ============ BOARD (Approvals) ============ */
 function renderBoard(root) {
   const me = Store.currentUser();
   const pubs = Store.pubs();
@@ -1336,7 +1335,23 @@ async function transitionStatus(p, to, sourceBtn) {
     if (!p.rubric) missing.push('Рубрика');
     if (!p.text) missing.push('Текст');
     if (p.contentType !== 'Лонгрід' && (!p.creatives || !p.creatives.length)) missing.push('Креативи');
-    if (missing.length) { toast('Не вистачає полів', 'error', missing.join(', ')); return; }
+    if (missing.length) {
+      // Bug 7 fix (12.06.2026): toast рендерується в #toastStack поза backdrop модалки — не видно.
+      // Рендеримо помилку безпосередньо всередині модалки, перед .modal-foot.
+      let errBox = document.getElementById('validationErrBox');
+      if (!errBox) {
+        errBox = document.createElement('div');
+        errBox.id = 'validationErrBox';
+        errBox.style.cssText = 'color:#fca5a5;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.45);border-radius:6px;padding:10px 14px;margin:0 22px 4px;font-size:13px;line-height:1.5;';
+        const foot = document.querySelector('#modal .modal-foot');
+        if (foot) foot.insertAdjacentElement('beforebegin', errBox);
+      }
+      if (errBox) {
+        errBox.innerHTML = '⚠ Заповни обов\'язкові поля: <b>' + escapeHtml(missing.join(', ')) + '</b>';
+        errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      return;
+    }
   }
   if (to === 'rework' || to === 'approved') {
     const me = Store.currentUser();
