@@ -185,7 +185,8 @@
     if (!cr.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">📦</div><div class="empty-title">Нічого не знайдено</div></div>'; return; }
     grid.innerHTML = cr.map(function (c) {
       var dur = c.duration ? '<div class="lt-dur">' + formatDur(c.duration) + '</div>' : '';
-      var hasMedia = (c.url || c.thumbnail_url) && (c.type === 'photo' || c.type === 'video');
+      // #369.1: додано compressed_url
+      var hasMedia = (c.url || c.thumbnail_url || c.compressed_url) && (c.type === 'photo' || c.type === 'video');
       var bg = hasMedia ? 'background:var(--bg-3);' : 'background:linear-gradient(135deg, ' + c.color + '33, transparent);';
       return '<div class="lib-tile" data-id="' + c.id + '"><div class="lt-preview" style="' + bg + 'position:relative;overflow:hidden;">' +
         mediaThumb(c, { size: 'tile' }) + '<div class="lt-type-badge">' + c.type + '</div>' + dur + '</div>' +
@@ -200,11 +201,14 @@
   window.openCreative = function (id) {
     var c = Store.creative(id); if (!c) return;
     var usedIn = Store.pubs().filter(function (p) { return (p.creatives || []).indexOf(id) >= 0; });
-    var hasReal = (c.url || c.thumbnail_url) && (c.type === 'photo' || c.type === 'video');
+    // #369.1: openCreative fullscreen + додано compressed_url
+    var hasReal = (c.url || c.thumbnail_url || c.compressed_url) && (c.type === 'photo' || c.type === 'video');
     var bg = hasReal ? 'background:#000;' : 'background:linear-gradient(135deg, ' + c.color + '33, transparent);';
     var mediaHtml;
-    if (c.type === 'video' && safeUrl(c.url)) mediaHtml = '<video src="' + safeUrl(c.url) + '" controls preload="metadata" style="width:100%;height:100%;object-fit:contain;background:#000;"></video>';
-    else if (c.type === 'photo' && safeUrl(c.url)) mediaHtml = '<img src="' + safeUrl(c.url) + '" alt="' + escapeHtml(c.name) + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block;"/>';
+    var videoSrc = safeUrl(c.url) || safeUrl(c.compressed_url);
+    var photoSrc = safeUrl(c.url) || safeUrl(c.thumbnail_url) || safeUrl(c.compressed_url);
+    if (c.type === 'video' && videoSrc) mediaHtml = '<video src="' + videoSrc + '" controls preload="metadata" style="width:100%;height:100%;object-fit:contain;background:#000;"></video>';
+    else if (c.type === 'photo' && photoSrc) mediaHtml = '<img src="' + photoSrc + '" alt="' + escapeHtml(c.name) + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block;"/>';
     else mediaHtml = mediaThumb(c, { size: 'modal' });
     Modal.open(
       '<div class="modal-head"><h2>' + escapeHtml(c.name) + '</h2>' +
@@ -238,7 +242,8 @@
     fb: { brand: 'Facebook',  handle: 'Dream Car',      accent: '#1877f2', aspect: '16/9' },
   };
   function previewMediaBg(first) {
-    var hasRealMedia = first && (first.url || first.thumbnail_url) && (first.type === 'photo' || first.type === 'video');
+    // #369.1 (12.06.2026): додано compressed_url до перевірки наявності media
+    var hasRealMedia = first && (first.url || first.thumbnail_url || first.compressed_url) && (first.type === 'photo' || first.type === 'video');
     if (hasRealMedia) return 'background:#000;';
     var color = (first && first.color) || '#E30613';
     return 'background: linear-gradient(135deg, ' + color + '33, var(--bg-2));';
@@ -713,7 +718,8 @@
           var preview = el.querySelector('.lt-preview'); if (!preview) return;
           if (preview.querySelector('img, video')) return;
           var badge = preview.querySelector('.lt-type-badge');
-          var hasMedia = (c.url || c.thumbnail_url) && (c.type === 'photo' || c.type === 'video');
+          // #369.1: додано compressed_url
+          var hasMedia = (c.url || c.thumbnail_url || c.compressed_url) && (c.type === 'photo' || c.type === 'video');
           if (hasMedia) preview.style.background = 'var(--bg-3)';
           preview.style.position = 'relative'; preview.style.overflow = 'hidden';
           preview.innerHTML = mediaThumb(c, { size: 'tile' });
