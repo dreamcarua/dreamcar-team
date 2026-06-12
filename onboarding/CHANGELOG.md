@@ -8,6 +8,38 @@
 
 ---
 
+## 12.06.2026 — #359 Tasks: коментарі + файли РЕФАКТОРИНГ за SMM-патерном
+
+### Tasks (#359 BIG)
+Vadym: «коментарі не завантажуються, файли не прикріпляються — викинь і скопіюй точно як у SMM».
+
+**Коментарі** — повний відмова від per-modal fetch на користь preload-in-memory патерну:
+- 🗑 Видалено `loadOverviewComments()` з Promise.race 30s timeout (висів на «Завантаження…» через повільний RLS EXISTS-join на `team_task_comments`)
+- 🆕 `loadAllComments()` — preload останніх 500 коментарів у `state.commentsByTask` map у boot Promise.all (`tasks/index.html:893`)
+- 🆕 `renderOverviewCommentsHtml(taskId)` — синхронний рендер з кешу (миттєво, без spinner)
+- 🆕 `pushCommentToCache()` — оптимістичне додавання у map + перерендер відкритого overview modal. Викликається з insert success і з real-time INSERT subscription (idempotent по id)
+- 🔧 Send handler тепер `.select().single()` щоб одразу мати fresh row у кеш
+- 🔧 Real-time subscription оновлює `state.commentsByTask` автоматично
+
+**Файли** — input винесено з modal innerHTML у `<body>` direct, label-trigger замість programmatic click:
+- 🗑 Видалено `tasksTriggerFileInput()` — programmatic `.click()` Safari iOS блокував (повтор 5 разів: #119/#355/#357/#358)
+- 🗑 Видалено `Promise.race(90s)` timeout — не потрібен, sb client сам ре-юзає JWT
+- 🗑 Видалено `refreshSession()` перед upload — зайвий round-trip
+- 🆕 `ensureTaskFileInput()` — створює persistent `<input type="file">` у `<body>` direct (поза modal innerHTML rerender), визивається у boot Promise.all
+- 🔧 Кнопка через `<label for="taskAttInput">` — native Safari iOS click forward без `.click()` (HARD RULE: Safari iOS bug)
+- 🆕 Inline ⏳ progress placeholder у grid за SMM-патерном (anim spin + ім'я + розмір)
+- 🔧 Атомарний DB update після всіх uploads (rollback placeholders при помилці)
+
+**Що НЕ змінено:**
+- Схема DB: `team_task_comments` + JSONB `attachments` у `team_tasks` — зберігаються
+- TG-нотифікації (`team-tasks-notify` Edge Fn) — працює без змін
+- Mentions (`mentions UUID[]`) — підтримується
+- RLS policies — лишаються
+
+**Перевірено:** 0 merge markers, 0 JS syntax errors (108k chars), 0 refs на видалені функції, prod показує 18× `commentsByTask` + 5× `ensureTaskFileInput`. Commit `6543b3d`.
+
+---
+
 ## 12.06.2026 — #358 SMM Calendar UX
 
 ### SMM (#358)
