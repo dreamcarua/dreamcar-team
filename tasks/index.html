@@ -1536,7 +1536,8 @@ async function loadOverviewComments(taskId){
   // 03.06.2026 fix: timeout + try/catch щоб placeholder НЕ висів вічно при network error
   try {
     const fetchPromise = supabase.from('team_task_comments').select('*').eq('task_id',taskId).is('deleted_at',null).order('created_at',{ascending:false}).limit(3);
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+    // #355 (12.06.2026): timeout 8s → 30s бо ttc_select RLS робить EXISTS join на users і повільно
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout 30s')), 30000));
     const result = await Promise.race([fetchPromise, timeout]);
     const data = result?.data;
     const error = result?.error;
