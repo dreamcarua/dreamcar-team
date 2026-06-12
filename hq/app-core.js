@@ -1,4 +1,4 @@
-[Resource from github at repo://dreamcarua/dreamcar-team/sha/c0382c57d7ff2afabc89af80593d4dc3017e1dfb/contents/hq/app-core.js] /* ====================================================================
+/* ====================================================================
    DreamCar HQ — Стіл SMM (Пілот)
    MVP як SPA: HTML + ванільний JS + localStorage
    Архітектура: hash-router → views (Calendar/Board/Library/Launches)
