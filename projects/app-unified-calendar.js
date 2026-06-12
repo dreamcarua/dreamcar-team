@@ -27,7 +27,24 @@
 
   var SOURCE_COLOR = { smm: '#3b82f6', retention: '#a855f7' };
   var SOURCE_LABEL = { smm: 'SMM', retention: 'RET' };
-  var CHANNEL_LABEL = { tg: 'TG', ig: 'IG', fb: 'FB', tt: 'TT', yt: 'YT', threads: 'TH', email: '@', push: 'PSH', sms: 'SMS', viber: 'VBR', other: '?' };
+  // #364 (12.06.2026 Vadym): emoji-піктограми соцмереж замість текстових літер
+  var CHANNEL_LABEL = {
+    tg: '✈️',       // Telegram paper plane
+    ig: '📷',       // Instagram camera
+    fb: 'ⓕ',       // Facebook
+    tt: '🎵',       // TikTok music note
+    yt: '▶️',       // YouTube play
+    threads: '🧵',  // Threads
+    email: '📧',    // Email envelope
+    push: '🔔',     // Push bell
+    sms: '💬',      // SMS chat bubble
+    viber: '📞',    // Viber phone
+    other: '🔗'     // Other link
+  };
+  var CHANNEL_NAME = {
+    tg: 'Telegram', ig: 'Instagram', fb: 'Facebook', tt: 'TikTok', yt: 'YouTube',
+    threads: 'Threads', email: 'Email', push: 'Push', sms: 'SMS', viber: 'Viber', other: 'Інше'
+  };
   var STATUS_LABEL = { draft: 'Чорнетка', planned: 'Заплановано', review: 'На погодженні', approved: 'Затверджено', ready: 'Готово', scheduled: 'Заплановано', publishing: 'Публікація', published: 'Опубліковано', sent: 'Відправлено', sending: 'Розсилка', failed: 'Помилка', cancelled: 'Скасовано' };
 
   var state = {
@@ -238,7 +255,7 @@
       '.uc-event.src-smm{background:rgba(59,130,246,0.18);border-left:3px solid #3b82f6;}',
       '.uc-event.src-retention{background:rgba(168,85,247,0.18);border-left:3px solid #a855f7;}',
       '.uc-event.has-conflict{outline:1px dashed #eab308;}',
-      '.uc-event .chip{font-family:JetBrains Mono,monospace;font-size:8px;font-weight:700;color:#aaa;background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px;flex-shrink:0;}',
+      '.uc-event .chip{font-size:14px;line-height:1;flex-shrink:0;padding:0 2px;}',
       '.uc-event .time{font-family:JetBrains Mono,monospace;font-size:10px;color:#ddd;flex-shrink:0;}',
       '.uc-event .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#eee;}',
       '.uc-event .warn{color:#eab308;font-size:10px;}',
@@ -272,7 +289,7 @@
       '.uc-list .row .src-smm{background:rgba(59,130,246,0.2);color:#7ab0ff;}',
       '.uc-list .row .src-retention{background:rgba(168,85,247,0.2);color:#c4a3ff;}',
       '.uc-list .row .title{color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
-      '.uc-list .row .channels{font-family:JetBrains Mono,monospace;font-size:10px;color:#888;}',
+      '.uc-list .row .channels{font-size:16px;line-height:1;letter-spacing:2px;}',
       '.uc-list .row .who{font-size:11px;color:#aaa;}',
       '.uc-list .row .warn{color:#eab308;font-size:14px;}',
 
@@ -484,8 +501,9 @@
       h.push('<div class="gh ' + (isToday ? 'today' : '') + '">' + dayOfWeekShort(day) + ' ' + ddmm(day) + '</div>');
     }
     chList.forEach(function (ch) {
-      var label = (CHANNEL_LABEL[ch] || ch.toUpperCase()) + ' · ' + ch.toUpperCase();
-      h.push('<div class="gch">' + label + '</div>');
+      var icon = CHANNEL_LABEL[ch] || '🔗';
+      var name = CHANNEL_NAME[ch] || ch.toUpperCase();
+      h.push('<div class="gch"><span style="font-size:18px;margin-right:6px;">' + icon + '</span>' + name + '</div>');
       for (var d2 = 0; d2 < 7; d2++) {
         var day2 = addDays(weekStart, d2);
         var dayYmd2 = ymd(day2);
@@ -514,7 +532,8 @@
     events.forEach(function (e) {
       var dt = new Date(e.scheduled_at);
       var when = ddmm(dt) + ' ' + hhmm(dt);
-      var chips = (e.channels || []).map(function (c) { return c.toUpperCase(); }).join('·');
+      // #364: emoji-піктограми каналів замість літер
+      var chips = (e.channels || []).map(function (c) { return CHANNEL_LABEL[c] || c.toUpperCase(); }).join(' ');
       h.push('<div class="row ' + (e.hasConflict ? 'has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '">');
       h.push('<div class="when">' + when + '</div>');
       h.push('<div class="src src-' + e.source + '">' + SOURCE_LABEL[e.source] + '</div>');
