@@ -8,6 +8,60 @@
 
 ---
 
+## 12.06.2026 — #360 BIG ЗВЕДЕНИЙ КАЛЕНДАР SMM+Retention у /projects/
+
+### Projects (#360 BIG)
+Vadym: «бачити в одному місці що Олександр у SMM шле і що Віра у Retention шле — щоб не пересікались і різноманіт контент». Розташування: `/projects/#calendar`.
+
+**DB:**
+- 🆕 RPC `unified_calendar_events(p_from, p_to, p_systems, p_channels, p_owners, p_statuses)` SECURITY DEFINER — UNION ALL `publications` + `retention_messages` у єдиний формат (`source/scheduled_at/channels[]/ctype/title/status/owner_id/owner_name/has_creative/thumbnail_url`). JOIN на `users` + `creative_publications`+`creatives` для thumbnail. Migration `unified_calendar_phase1`.
+- 🆕 RPC `unified_reschedule(p_source, p_id, p_new_at)` — quick reschedule прямо з preview modal. CEO/COO/lead — будь-який. Інакше — тільки власник (creator або responsible).
+
+**5 Views у `app-unified-calendar.js`** (657 рядків JS):
+- 🆕 **МІСЯЦЬ** — як SMM: кольорові бейджі (5 events/day + N more)
+- 🆕 **ТИЖДЕНЬ** — timeline по годинах 06-23
+- 🆕 **ДЕНЬ** — вертикальний timeline для одного дня
+- 🆕 **ТИЖД×КАНАЛ** (POWER VIEW) — horizontal grid канал × дні. З одного погляду видно пустоти і перевантаження
+- 🆕 **СПИСОК** — flat з виконавцем і конфліктами
+
+**Conflict detection (per-channel thresholds):**
+- TG 60 хв / Email 240 / Push 480 / IG 90 / FB 120 / TT 90 / YT 120 / Threads 120 / SMS 240 / Viber 240 / Other 120
+- Подія з конфліктом → yellow dashed outline + ⚠️
+- Toggle «Тільки конфлікти» у filters
+- У preview modal детальний список: «TG: «партнерська назва» (45 хв)»
+
+**Diversity insights:**
+- Chip над календарем: `3xREELS · 1xПОСТ · 1xEMAIL | 4xSMM · 2xRET`
+- Допомагає балансувати контент
+
+**Inline preview modal (read-only popover):**
+- Title, when, channels, ctype, status, owner_name
+- Conflict-box з деталями якщо є
+- 3 кнопки: ↗ Відкрити у SMM/Retention | ⏰ Перенести час | Закрити
+- Quick reschedule prompt() → `unified_reschedule` RPC → auto-refresh
+
+**Filters (persistent у localStorage `uc_prefs`):**
+- Source toggle: SMM / Retention (синій / фіолетовий)
+- Owner select
+- Channel select
+- onlyConflicts toggle
+- view + cursor + filters зберігаються між сесіями
+
+**Color coding:** SMM = `#3b82f6` (синій) / Retention = `#a855f7` (фіолетовий).
+
+**UI integration:**
+- Кнопка `📅 ЗВЕДЕНИЙ` у topbar `/projects/` з gradient синій→фіолетовий
+- Route `/projects/#calendar` → `dcUnifiedCalendar.open()`
+- HARD RULE: всі дати через `Intl.DateTimeFormat('uk-UA', { timeZone: 'Europe/Kyiv' })`
+- Світла/темна теми
+- Mobile responsive (768px breakpoint)
+
+**Не модифікує** `/hq/` чи `/retention/` — повна ізоляція через RPC. Не показує Tasks (Vadym обрав тільки SMM+Retention).
+
+Commit `9fb9259`.
+
+---
+
 ## 12.06.2026 — #359 Tasks: коментарі + файли РЕФАКТОРИНГ за SMM-патерном
 
 ### Tasks (#359 BIG)
