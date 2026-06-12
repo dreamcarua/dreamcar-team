@@ -560,10 +560,13 @@ function bindHeadActions(){
 function openMessageDetail(id){
   const msg = id ? Store.byId.get(id) : null;
   const isNew = !msg;
-  let defaultPublish = new Date(Date.now() + 24*3600*1000);
+  // #351 Vadym UX: default = поточний момент (раніше було +24h → показувало "завтра").
+  let defaultPublish = new Date();
   if (isNew && Store._prefillDate) {
     const [yy,mm,dd] = Store._prefillDate.split('-').map(Number);
-    defaultPublish = new Date(yy, mm-1, dd, 12, 0, 0);
+    // якщо юзер клікнув на конкретний день у календарі — на цей день, о ПОТОЧНІЙ годині
+    const now = new Date();
+    defaultPublish = new Date(yy, mm-1, dd, now.getHours(), now.getMinutes(), 0);
     Store._prefillDate = null;
   }
   const m = msg || {

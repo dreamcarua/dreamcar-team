@@ -376,8 +376,16 @@ function activeLaunchFor(dt) {
 }
 
 function newPubObject(forDate) {
-  const dt = forDate ? new Date(forDate) : new Date();
-  dt.setHours(12, 0, 0, 0);
+  // #351 Vadym UX: default — поточний момент (раніше було setHours(12,0,0,0) → завжди обід).
+  // Якщо юзер клікнув на конкретний день календаря — той день о поточній годині.
+  const now = new Date();
+  let dt;
+  if (forDate) {
+    dt = new Date(forDate);
+    dt.setHours(now.getHours(), now.getMinutes(), 0, 0);
+  } else {
+    dt = new Date();
+  }
   const ceoUser = Store.users().find(u => u.role === 'ceo');
   // 09.06.2026 #201 P0 FIX: був 'p_' + uid() — це local random string, не UUID.
   // При save _persistPub() валідація `uuidRe.test(pub.id)` fails → alert "Невалідний UUID".
