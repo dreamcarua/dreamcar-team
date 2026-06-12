@@ -725,42 +725,66 @@ function openMessageDetail(id){
     </div>
   `;
   document.body.appendChild(overlay);
-  // #217 (Vira UX): backdrop click більше НЕ закриває modal без save — захист від втрати даних
-  overlay.onclick = (e) => {
-    if (e.target !== overlay) return;
+  // Зберігаємо msgId у dataset щоб autosave для нової міг зробити INSERT,
+  // а наступні autosave вже UPDATE з отриманим id.
+  if (!isNew) overlay.dataset.msgId = m.id;
+  // #363 (12.06.2026 Давид): backdrop click + close × → тихо flush save + закрити.
+  // Як у SMM #219: автоматично зберігаємо як чернетку, не питаємо.
+  const safeClose = async () => {
+    const isSaving = overlay.dataset.saving === '1';
+    if (isSaving) {
+      // Зачекаємо поки in-flight save завершиться (макс 3 сек)
+      let tries = 0;
+      while (overlay.dataset.saving === '1' && tries++ < 30) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+    // Якщо є незбережені зміни — flush save (один immediate save)
     const dirty = overlay.dataset.dirty === '1';
-    if (dirty) {
-      window.toast && window.toast('Не закриваю — є незбережені зміни. Натисни ✕ якщо точно хочеш вийти', 'warn');
-      return;
+    if (dirty && typeof overlay._flushSave === 'function') {
+      try { await overlay._flushSave(); } catch(_) {}
     }
     overlay.remove();
   };
-  document.getElementById('closeDetail').onclick = () => {
-    const dirty = overlay.dataset.dirty === '1';
-    if (dirty && !confirm('Є незбережені зміни. Точно закрити без збереження?')) return;
-    overlay.remove();
+  overlay.onclick = (e) => {
+    if (e.target !== overlay) return;
+    safeClose();
   };
+  document.getElementById('closeDetail').onclick = () => { safeClose(); };
 
   document.getElementById('msgForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, isNew ? null : m.id, overlay); };
 
-  // #217 (Vira UX): AUTOSAVE при кожній зміні form (тільки для існуючого draft, не для нової)
-  if (!isNew) {
+  // #363 (12.06.2026 Давид): AUTOSAVE працює для ВСІХ — і для нової теж створює draft автоматично.
+  {
     const form = document.getElementById('msgForm');
     const ind = document.getElementById('msgAutosaveInd');
     let saveTimer = null;
-    const markDirty = () => { overlay.dataset.dirty = '1'; if (ind) { ind.textContent = '⏳ Збереження…'; ind.style.color = 'var(--amber, #f59e0b)'; } };
-    const markSaved = () => { overlay.dataset.dirty = '0'; if (ind) { ind.textContent = '✓ збережено ' + new Date().toLocaleTimeString('uk-UA', { hour:'2-digit', minute:'2-digit' }); ind.style.color = 'var(--green, #10b981)'; } };
-    const markErr  = (msg) => { if (ind) { ind.textContent = '⚠ ' + (msg || 'помилка'); ind.style.color = 'var(--red-soft, #ef4444)'; } };
+    const markDirty  = () => { overlay.dataset.dirty = '1'; if (ind) { ind.textContent = '⏳ Збереження…'; ind.style.color = 'var(--amber, #f59e0b)'; } };
+    const markSaved  = () => { overlay.dataset.dirty = '0'; if (ind) { ind.textContent = '✓ чернетка ' + new Date().toLocaleTimeString('uk-UA', { hour:'2-digit', minute:'2-digit' }); ind.style.color = 'var(--green, #10b981)'; } };
+    const markErr    = (msg) => { if (ind) { ind.textContent = '⚠ ' + (msg || 'помилка'); ind.style.color = 'var(--red-soft, #ef4444)'; } };
     const doAutosave = async () => {
+      overlay.dataset.saving = '1';
       try {
-        await saveForm(form, m.id, null, { silent: true });
+        // Якщо у dataset вже є msgId — UPDATE існуючий, інакше INSERT новий
+        const currentId = overlay.dataset.msgId || null;
+        const result = await saveForm(form, currentId, null, { silent: true });
+        // saveForm повертає msgId (для нових — це новостворений UUID)
+        if (result && typeof result === 'string' && !overlay.dataset.msgId) {
+          overlay.dataset.msgId = result;
+        }
         markSaved();
       } catch(e) { markErr(e && e.message); }
+      finally { overlay.dataset.saving = '0'; }
     };
     const scheduleAutosave = () => {
       markDirty();
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(doAutosave, 800);
+    };
+    // _flushSave — викликає safeClose() для immediate flush без debounce timer
+    overlay._flushSave = async () => {
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+      await doAutosave();
     };
     // Усі input/select/textarea у формі
     form.querySelectorAll('input, select, textarea').forEach(el => {
@@ -1013,11 +1037,12 @@ async function saveForm(form, id, overlay, opts){
   }
   // #217: silent autosave — не закриваємо overlay і не toast
   if (opts && opts.silent) {
-    return;
+    return msgId;  // #363: повертаємо id щоб caller знав про новий created msg
   }
   if (overlay) overlay.remove();
   window.toast && window.toast('Збережено', 'success');
   await loadAll();
+  return msgId;
 }
 
 async function deleteMsg(id, overlay){
