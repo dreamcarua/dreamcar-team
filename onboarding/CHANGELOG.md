@@ -8,6 +8,18 @@
 
 ---
 
+## 12.06.2026 — #344 P0 Tasks onboarding кнопки «Знаю» — silent exit fix
+
+### Tasks (#344 P0)
+- 🔧 **`tasks/index.html`** line 750: після `createClient()` додав `window.supabase = supabase;`. Раніше клієнт жив тільки у module scope — `app-onboarding.js` чекав на `window.supabase` (line 325 `if (!me || !window.supabase) return;`) → silent exit → кнопки кроків онбордингу візуально клікались, але крок не зберігався у DB. Симптом скаржився Vadym: `/tasks/#onboarding` → клік «✓ Знаю 4 статуси» → нічого не відбувалось.
+- 🔧 **`tasks/app-onboarding.js`** `markStep()`:
+  - Конкретні `console.warn` (`state.publicUser not ready` / `window.supabase missing`) — без silent exit
+  - Перевіряємо `error` від UPDATE на `users.onboarding_steps` — якщо є → `console.error` + `window.toast(error.message)` (якщо toast є) + rollback optimistic-stored (`delete stored[key]`)
+  - catch робить те саме для thrown промісів
+- 📖 Commit `988c4ee`. Cache bust автомат через GH Action Cloudflare purge.
+
+---
+
 ## 11.06.2026 — AUDIT (Phases 1-7 DONE, autonomous session)
 
 ### Security (Phase 1+2)
