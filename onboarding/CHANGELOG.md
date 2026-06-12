@@ -8,6 +8,24 @@
 
 ---
 
+## 12.06.2026 — #362 Retention TG notify — повний body замість preview_text
+
+### Edge fn notify-tg v34 (#362)
+Vadym скрін з DreamCar LTV RETENTION TG group: «Денний мото-факт від Дрімкар» — приходить тільки назва і метадані, **без body**.
+
+**Причина:** `buildRetReviewMsg()` показував `msg.preview_text` обмежено 800 chars. Але Vira пише у `msg.body` (а `preview_text` лишається порожнім). DB перевірено: `body_len=541, preview_len=0` для тестового message.
+
+**Fixes:**
+- 🔧 Поле джерела: `msg.body` (preferred) → fallback `msg.preview_text`
+- 🔧 Ліміт: `MAX_RETENTION_BODY = 3500` (раніше 800) — Vadym вибір
+- 🆕 `smartHtml(s)` — якщо body містить TG-allowed HTML tags (`b/i/u/s/a/code/pre/strong/em/br/tg-spoiler`), pass-through без escape. Інакше escape. Vira пише HTML свідомо (наприклад `<b>Денний мото-факт від Дрімкар:</b>`).
+- 🆕 Body загорнутий між роздільниками `━━━━━━━` для візуального розділення метаданих і контенту
+- 🗑 Прибрана обгортка `<i>...</i>` яка ламала вкладений HTML
+
+Деплой Supabase Edge Function `notify-tg` v34 успішний. Status flip review→approved→review на тестовому message тригернув notify через DB-trigger.
+
+---
+
 ## 12.06.2026 — #361 P0 КАТАСТРОФА Tasks EDIT modal комент+файли
 
 ### Tasks (#361 P0)
