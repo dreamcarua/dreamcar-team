@@ -1,4 +1,4 @@
-/* ====================================================================
+[Resource from github at repo://dreamcarua/dreamcar-team/sha/c0382c57d7ff2afabc89af80593d4dc3017e1dfb/contents/hq/app-core.js] /* ====================================================================
    DreamCar HQ — Стіл SMM (Пілот)
    MVP як SPA: HTML + ванільний JS + localStorage
    Архітектура: hash-router → views (Calendar/Board/Library/Launches)
@@ -296,6 +296,16 @@ const Store = {
     const existing = this.pub(pub.id);
     const safeStatus = (existing && existing.status) ? existing.status : 'draft';
 
+    // 12.06.2026 #RE-APPROVAL: якщо публікація вже approved і хтось її редагує —
+    // автоматично скидаємо на review + обнуляємо рішення погоджувачів.
+    // Виняток: перехід approved → published (кнопка "Позначити опублікованою").
+    const _wasApproved = existing && existing.status === 'approved';
+    if (_wasApproved && targetStatus !== 'published') {
+      console.log('[re-approval] pub', pub.id, '— was approved, editing detected → reset to review');
+      pub.status = 'review';
+    }
+    const resolvedStatus = pub.status || 'draft';
+
     // 1. main row — БЕЗ зміни статусу (тримаємо safeStatus поки не вставимо platforms)
     const row = {
       id: pub.id,
@@ -338,9 +348,17 @@ const Store = {
     }
 
     // 3. ТЕПЕР безпечно змінити status (trigger знайде platforms)
-    if (targetStatus !== safeStatus) {
-      const { error: es } = await sb.from('publications').update({ status: targetStatus }).eq('id', pub.id);
+    // resolvedStatus враховує re-approval logic (approved → review при редагуванні)
+    if (resolvedStatus !== safeStatus) {
+      const { error: es } = await sb.from('publications').update({ status: resolvedStatus }).eq('id', pub.id);
       if (es) throw es;
+    }
+
+    // 3b. Re-approval: обнуляємо is_approved у всіх погоджувачів при поверненні з approved → review
+    if (_wasApproved && resolvedStatus === 'review') {
+      await sb.from('publication_approvers')
+        .update({ is_approved: null, decided_at: null, comment: null })
+        .eq('publication_id', pub.id);
     }
 
     // 4. решта relations (також dedupe + upsert де є composite pkey)
