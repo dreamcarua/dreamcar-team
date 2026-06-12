@@ -748,6 +748,8 @@ Object.assign(state, {
     setStatus('Завантажую SDK…');
     const createClient=await importSupabase();
     supabase=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,storage:window.dcStorage}});
+    // #344 (11.06.2026): expose до window для app-onboarding.js (markStep/unmarkStep). Раніше supabase був module-scoped → window.supabase=undefined → кнопки «Знаю» тихо exit-или.
+    window.supabase=supabase;
     // 05.06.2026: SSO bridge від HQ — парсимо #sso=base64(json) ДО checkAuth
     // (потрібно бо у TG WebView / Mobile Safari localStorage НЕ shared між /hq/ та /tasks/)
     try {

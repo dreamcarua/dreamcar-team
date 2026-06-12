@@ -323,16 +323,26 @@
 
   async function markStep(key) {
     var me = getMe();
-    if (!me || !window.supabase) return;
+    if (!me) { console.warn('[tasks onb] markStep: state.publicUser not ready'); return; }
+    if (!window.supabase) { console.warn('[tasks onb] markStep: window.supabase missing — check tasks/index.html'); return; }
     var stored = me.onboarding_steps || {};
     stored[key] = true;
     me.onboarding_steps = stored;
     try {
-      await window.supabase.from('users').update({
+      const { error } = await window.supabase.from('users').update({
         onboarding_steps: stored,
         onboarding_completed_at: getProgress(me).done === STEPS.length ? new Date().toISOString() : null,
       }).eq('id', me.id);
-    } catch (e) { console.warn('[tasks onb save]', e); }
+      if (error) {
+        console.error('[tasks onb] update failed:', error);
+        if (typeof window.toast === 'function') window.toast('Не вдалося зберегти крок: ' + (error.message || ''), 'error');
+        delete stored[key];  // rollback optimistic
+      }
+    } catch (e) {
+      console.error('[tasks onb save]', e);
+      if (typeof window.toast === 'function') window.toast('Помилка збереження кроку', 'error');
+      delete stored[key];
+    }
   }
 
   async function unmarkStep(key) {
