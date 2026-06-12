@@ -580,8 +580,8 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     overflow: hidden;
-    height: calc(100vh - 240px);               /* заповнюємо повну висоту viewport */
-    min-height: 540px;
+    height: calc(100vh - 180px);               /* #358 (Vadym): більше місця у клітинках */
+    min-height: 780px;                          /* 780/6 = 130px на клітинку → ~5 карток */
   }
   .cal-weekday {
     background: var(--bg-2);
