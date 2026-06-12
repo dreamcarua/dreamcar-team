@@ -414,6 +414,8 @@
   .qs-chip:hover:not(:disabled){border-color:var(--red);color:#fff;background:rgba(227,6,19,0.15);transform:translateY(-1px);}
   .qs-chip.active{border-color:var(--red);color:var(--red);background:rgba(227,6,19,0.18);cursor:default;font-family:'Archivo Black',sans-serif;}
   .qs-chip:disabled{opacity:0.95;}
+  /* #359 (12.06.2026): keyframes для inline upload progress placeholder (SMM-патерн) */
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .ov-comment-form{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
   .ov-comment-form.show{display:block;}
   .ov-comment-form textarea{width:100%;background:var(--black);border:1px solid var(--steel);color:var(--white);padding:8px 10px;font-family:'Manrope',sans-serif;font-size:13px;min-height:60px;resize:vertical;outline:none;}
@@ -740,6 +742,7 @@ const state={
 window.state = state;
 Object.assign(state, {
   subtasks:[], watchers:[], comments:[],
+  commentsByTask:{},  // #359 (12.06.2026): preloaded коментарі за SMM-патерном, кешовані у map по task_id
   mentionAuthors:new Set(),  // userIds, у чиїх коментарях я тегнутий
 });
 
@@ -800,7 +803,9 @@ async function checkAuth(){
       document.getElementById('bellBtn').style.display='inline-flex';
       document.getElementById('prefsBtn').style.display='inline-flex';
       document.getElementById('helpBtn').style.display='inline-flex';
-      await Promise.all([loadUsers(),loadProjects(),loadTasks(),loadNotifications(),loadPrefs(),loadTrash()]);
+      await Promise.all([loadUsers(),loadProjects(),loadTasks(),loadNotifications(),loadPrefs(),loadTrash(),loadAllComments()]);
+      // #359 (12.06.2026): persistent file input у body для SMM-style file upload pattern
+      if(typeof ensureTaskFileInput === 'function') ensureTaskFileInput();
       updateTrashCount();
       // Якщо #trash hash при першому load — показати trash view
       if(location.hash === '#trash') showTrashView();
@@ -881,6 +886,26 @@ async function loadPrefs(){
   state.prefs=data||{tg_enabled:true,email_enabled:false,digest_enabled:true,digest_hour:9,quiet_from:22,quiet_to:8};
 }
 
+// #359 (12.06.2026): PRELOAD коментарів у state.commentsByTask за SMM-патерном.
+// Замість per-modal fetch (який висів на "Завантаження…" через повільний RLS join),
+// одним bulk-запитом тягнемо останні 500 коментарів у boot і кешуємо.
+// Modal читає синхронно з кешу. Real-time оновлює map.
+async function loadAllComments(){
+  try{
+    const {data,error}=await supabase.from('team_task_comments')
+      .select('id,task_id,author_id,body,mentions,created_at')
+      .is('deleted_at',null)
+      .order('created_at',{ascending:false})
+      .limit(500);
+    if(error){console.warn('[loadAllComments]',error);state.commentsByTask={};return;}
+    const map={};
+    (data||[]).forEach(c=>{if(!map[c.task_id])map[c.task_id]=[];map[c.task_id].push(c);});
+    // Reverse кожен список — щоб у chronological order (старі першими)
+    Object.keys(map).forEach(k=>map[k].reverse());
+    state.commentsByTask=map;
+  }catch(e){console.error('[loadAllComments] failed',e);state.commentsByTask={};}
+}
+
 function subscribeRealtime(){
   try{
     supabase.channel('team_tasks_realtime').on('postgres_changes',{event:'*',schema:'public',table:'team_tasks'},payload=>{
@@ -914,6 +939,9 @@ function subscribeRealtime(){
       maybeBeep();
     }).subscribe();
     supabase.channel('team_task_comments_realtime').on('postgres_changes',{event:'INSERT',schema:'public',table:'team_task_comments'},payload=>{
+      // #359 (12.06.2026): оновлюємо state.commentsByTask кеш + перерендер відкритого overview modal
+      if(payload.new && !payload.new.deleted_at) pushCommentToCache(payload.new);
+      // Edit-modal коментарі (повноцінний список) — окремий loadComments
       if(state.editingId&&payload.new.task_id===state.editingId)loadComments(state.editingId);
     }).subscribe();
   }catch(e){console.warn('[realtime]',e);}
@@ -1217,12 +1245,10 @@ async function openOverview(task){
     }
     return `<div style="position:relative;display:inline-flex;"><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 14px;padding-right:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1a1a1a;align-items:center;gap:10px;text-decoration:none;color:#ccc;font-size:13px;"><span style="font-size:18px;">📄</span>${escapeHtml(fname)}${sizeMb}</a>${delBtn}</div>`;
   }).join('');
-  // #357 (12.06.2026): inline onclick — bulletproof. addEventListener bind ОДИН раз при init,
-  // але кнопка рендериться у innerHTML кожен раз → handler втрачається. Inline onclick гарантовано працює.
-  // #358 (12.06.2026): Safari iOS bug — input.click() НЕ працює коли input має display:none.
-  // Fix: position:absolute + opacity:0 + width/height:0 — input лишається у DOM але невидимий.
-  // Це працює як у Chrome так і у Safari/iOS.
-  const uploadBtn = `<button id="taskAttUpload" type="button" onclick="window.tasksTriggerFileInput && window.tasksTriggerFileInput()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:13px;cursor:pointer;"><span style="font-size:16px;">📎</span>Прикріпити файл</button><input type="file" id="taskAttInput" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip" onchange="window.tasksHandleFileInput && window.tasksHandleFileInput(event)">`;
+  // #359 (12.06.2026): SMM-патерн — input БЕЗ modal innerHTML. Live input живе у <body> direct
+  // (див. innerHTML.html bootstrap або динамічний ensureTaskFileInput()).
+  // <label for="taskAttInput"> — native Safari iOS click forward. Без programmatic .click().
+  const uploadBtn = `<label for="taskAttInput" id="taskAttUploadLabel" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px dashed rgba(227,6,19,0.4);background:transparent;color:#ff6577;font-size:13px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:rgba(227,6,19,0.2);"><span style="font-size:16px;">📎</span>Прикріпити файл</label>`;
   body += `<div class="ov-section" id="taskAttSection"><span class="ov-section-label">Прикріплення (${attsList.length})</span><div id="taskAttGrid" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">${attsHtml}${uploadBtn}</div><div id="taskAttProgress" style="display:none;margin-top:8px;font-size:12px;color:#ff6577;"></div></div>`;
   // HQ↔Tasks linkage: показати linked publication
   if(task.publication_id){
@@ -1244,8 +1270,9 @@ async function openOverview(task){
     const ww = watchers.map(u=>{const i=(u.name||'').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();return `<div class="ov-avatar" title="${escapeHtml(u.name||u.email)}">${i}</div>`;}).join('');
     body += `<div class="ov-section"><span class="ov-section-label">Спостерігачі (${watchers.length})</span><div class="ov-avatars">${ww}</div></div>`;
   }
-  // comments (last 3)
-  body += `<div class="ov-section"><span class="ov-section-label">Останні коментарі</span><div class="ov-comments-mini" id="ov-comments-mini">Завантаження…</div>`;
+  // #359 (12.06.2026): коментарі рендеримо СИНХРОННО з state.commentsByTask кешу (SMM-патерн).
+  // Замість per-modal fetch який висів на "Завантаження…" 30s через повільний RLS join.
+  body += `<div class="ov-section"><span class="ov-section-label">Останні коментарі</span><div class="ov-comments-mini" id="ov-comments-mini">${renderOverviewCommentsHtml(task.id)}</div>`;
   body += `<div class="ov-comment-form" id="ov-comment-form"><textarea id="ov-comment-input" placeholder="Напиши коментар..."></textarea><div class="ov-comment-form-actions"><button class="ov-btn" id="ov-comment-cancel">Скасувати</button><button class="ov-btn primary" id="ov-comment-send">Відправити</button></div></div>`;
   body += `</div>`;
 
@@ -1362,20 +1389,28 @@ async function openOverview(task){
   document.getElementById('ov-comment-send')?.addEventListener('click', async()=>{
     const body = document.getElementById('ov-comment-input').value.trim();
     if(!body) return;
+    const sendBtn = document.getElementById('ov-comment-send');
+    if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='Відправляю…';}
     const mentions = [];
     const re = /@([A-Za-zА-Яа-яІіЇїЄєҐґ\-]+)/g;
     let m; while((m=re.exec(body))){
       const u = state.users.find(x=>x.name?.split(' ')[0].toLowerCase()===m[1].toLowerCase());
       if(u && !mentions.includes(u.id)) mentions.push(u.id);
     }
-    const {error} = await supabase.from('team_task_comments').insert({task_id:task.id, author_id:state.publicUser.id, body, mentions});
-    if(error){toast(error.message,'error');return;}
+    // #359 (12.06.2026): SMM-патерн — select() щоб отримати fresh row + одразу додати у кеш
+    const {data, error} = await supabase.from('team_task_comments').insert({task_id:task.id, author_id:state.publicUser.id, body, mentions}).select().single();
+    if(error){
+      toast(error.message,'error');
+      if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Відправити';}
+      return;
+    }
+    // Optimistic push у state.commentsByTask + перерендер ov-comments-mini
+    if(data) pushCommentToCache(data);
     document.getElementById('ov-comment-input').value = '';
     document.getElementById('ov-comment-form').classList.remove('show');
+    if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Відправити';}
     toast('Коментар додано','success');
     triggerNotifyWorker();
-    // reload comments preview
-    loadOverviewComments(task.id);
   });
 
   // 07.06.2026 — Attachments: upload + delete
@@ -1392,53 +1427,56 @@ async function openOverview(task){
   }
   // #357 (12.06.2026): зберігаємо task у window щоб global window fn мали до нього доступ
   window.__currentOverviewTask = task;
-  // Global trigger — викликається з inline onclick
-  window.tasksTriggerFileInput = () => {
-    const inp = document.getElementById('taskAttInput');
-    if (inp) inp.click(); else console.warn('[tasks-upload] no taskAttInput');
-  };
-  // Global handler — викликається з inline onchange
+  // #359 (12.06.2026): гарантуємо що persistent <input type=file> існує у body перед
+  // показом modal — щоб <label for="taskAttInput"> працював одразу.
+  ensureTaskFileInput();
+  // #359 (12.06.2026): handler за SMM-патерном — inline progress placeholder у grid,
+  // оптимістичне додавання у UI, БЕЗ Promise.race timeout + БЕЗ refreshSession (не потрібно
+  // бо sb client сам ре-юзає JWT). Save у DB атомарно після всіх uploads.
   window.tasksHandleFileInput = async (ev) => {
     const task = window.__currentOverviewTask;
     if (!task) { console.error('[tasks-upload] no currentOverviewTask'); return; }
     const files = Array.from(ev.target.files || []);
     if(!files.length) return;
+    const grid = document.getElementById('taskAttGrid');
     const prog = document.getElementById('taskAttProgress');
-    prog.style.display = 'block';
-    // #355: refresh session перед upload щоб гарантувати свіжий JWT.
-    try { await supabase.auth.refreshSession(); } catch(_) {}
     const current = Array.isArray(task.attachments) ? [...task.attachments] : [];
+    // SMM-патерн: inline progress placeholder додається ПЕРЕД label-кнопкою у grid
+    const label = document.getElementById('taskAttUploadLabel');
+    const placeholders = [];
+    files.forEach((f, i) => {
+      const sizeMb = (f.size/1024/1024).toFixed(1);
+      const ph = document.createElement('div');
+      ph.style.cssText = 'position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:120px;height:120px;border-radius:8px;border:2px dashed rgba(122,176,255,0.5);background:linear-gradient(135deg,#1a1a1a,#2a2a2a);color:#7ab0ff;font-size:10px;padding:6px;gap:4px;text-align:center;';
+      ph.innerHTML = `<span style="font-size:22px;animation:spin 1.5s linear infinite;">⏳</span><div style="font-weight:600;">Завантажую</div><div style="opacity:0.8;font-size:9px;line-height:1.2;word-break:break-all;">${escapeHtml((f.name||'').slice(0,18))}</div><div style="font-size:9px;">${sizeMb}МБ</div>`;
+      if(grid && label) grid.insertBefore(ph, label); else if(grid) grid.appendChild(ph);
+      placeholders.push(ph);
+    });
+    if(prog){prog.style.display='block';prog.textContent=`Завантажую ${files.length} ${files.length===1?'файл':'файлів'}…`;}
+    let uploaded = 0;
     for(let i=0;i<files.length;i++){
       const f = files[i];
-      prog.textContent = `Завантаження ${i+1}/${files.length}: ${f.name}…`;
       if(f.size > 50*1024*1024){
         toast(`Файл "${f.name}" завеликий (>50MB)`,'error');
+        placeholders[i]?.remove();
         continue;
       }
-      const ext = (f.name.split('.').pop()||'bin').toLowerCase();
       const safeName = f.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(0,80);
       const objectKey = `${task.id}/${Date.now()}_${i}_${safeName}`;
-      console.log('[tasks-upload] start', { name: f.name, size: f.size, type: f.type, key: objectKey });
-      // #355: timeout 90s — щоб не висіло безкінечно при network/auth issue
-      let result;
       try {
-        result = await Promise.race([
-          supabase.storage.from('task-attachments').upload(objectKey, f, { contentType: f.type || 'application/octet-stream', upsert: false }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Upload timeout 90s — мережа або auth')), 90000))
-        ]);
+        const { error } = await supabase.storage.from('task-attachments').upload(objectKey, f, { contentType: f.type || 'application/octet-stream', upsert: false });
+        if(error){
+          console.error('[tasks-upload] supabase error:', error);
+          toast(`Помилка ${f.name}: ${error.message||'unknown'}`,'error');
+          placeholders[i]?.remove();
+          continue;
+        }
       } catch(e) {
         console.error('[tasks-upload] exception', e);
-        toast(`Помилка завантаження ${f.name}: ${e.message || e}`,'error');
-        prog.style.display='none';
+        toast(`Помилка ${f.name}: ${e.message||e}`,'error');
+        placeholders[i]?.remove();
         continue;
       }
-      const { data, error } = result || {};
-      if(error){
-        console.error('[tasks-upload] supabase error:', error);
-        toast(`Помилка завантаження ${f.name}: ${error.message || JSON.stringify(error)}`,'error');
-        continue;
-      }
-      console.log('[tasks-upload] success', { key: objectKey });
       const { data: urlData } = supabase.storage.from('task-attachments').getPublicUrl(objectKey);
       current.push({
         type: await detectAttType(f.type),
@@ -1449,21 +1487,26 @@ async function openOverview(task){
         uploaded_by: state.publicUser?.id || null,
         uploaded_at: new Date().toISOString(),
       });
+      uploaded++;
     }
-    // Save у БД
+    if(uploaded === 0){
+      if(prog) prog.style.display='none';
+      try { ev.target.value = ''; } catch(_) {}
+      return;
+    }
+    // Save у DB атомарно
     const { error: updErr } = await supabase.from('team_tasks').update({ attachments: current }).eq('id', task.id);
     if(updErr){
       toast('Не вдалося зберегти прикріплення: '+updErr.message,'error');
-      prog.style.display='none';
+      if(prog) prog.style.display='none';
+      placeholders.forEach(p=>p?.remove());
       return;
     }
     task.attachments = current;
-    // Update local state
     const idx = state.tasks.findIndex(t=>t.id===task.id);
     if(idx>=0) state.tasks[idx].attachments = current;
-    prog.style.display='none';
-    toast(`Прикріплено ${files.length} ${files.length===1?'файл':'файлів'}`,'success');
-    // reset input value щоб той самий файл можна було вибрати знову
+    if(prog) prog.style.display='none';
+    toast(`Прикріплено ${uploaded} ${uploaded===1?'файл':'файлів'}`,'success');
     try { ev.target.value = ''; } catch(_) {}
     refreshOverview();
   };
@@ -1541,41 +1584,63 @@ async function openOverview(task){
   });
 
   overviewModal.classList.add('show');
-  loadOverviewComments(task.id);
+  // #359: коментарі вже синхронно срендерені вище через renderOverviewCommentsHtml(task.id).
+  // Жодного async fetch — нічого не висить на "Завантаження…".
 }
 
-async function loadOverviewComments(taskId){
-  const target = document.getElementById('ov-comments-mini');
-  if(!target) return;
-  // 03.06.2026 fix: timeout + try/catch щоб placeholder НЕ висів вічно при network error
-  try {
-    const fetchPromise = supabase.from('team_task_comments').select('*').eq('task_id',taskId).is('deleted_at',null).order('created_at',{ascending:false}).limit(3);
-    // #355 (12.06.2026): timeout 8s → 30s бо ttc_select RLS робить EXISTS join на users і повільно
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout 30s')), 30000));
-    const result = await Promise.race([fetchPromise, timeout]);
-    const data = result?.data;
-    const error = result?.error;
-    if(error){
-      console.warn('[loadOverviewComments]', error);
-      target.innerHTML = '<div class="ov-empty" style="color:#FF6A7A;">Помилка завантаження: '+(error.message||'unknown')+'</div>';
-      return;
-    }
-    if(!data || !data.length){
-      target.innerHTML = '<div class="ov-empty">Немає коментарів. Будь першим у Редагуванні.</div>';
-      return;
-    }
-    target.innerHTML = data.reverse().map(c=>{
-      const a = state.users.find(u=>u.id===c.author_id);
-      let body = escapeHtml(c.body);
-      (c.mentions||[]).forEach(uid=>{
-        const u = state.users.find(x=>x.id===uid);
-        if(u){const re=new RegExp('@'+u.name.split(' ')[0],'gi');body=body.replace(re,`<span class="mention">@${escapeHtml(u.name.split(' ')[0])}</span>`);}
-      });
-      return `<div class="ov-comment"><div class="head"><span class="who">${escapeHtml(a?.name||'?')}</span><span>${timeAgo(c.created_at)}</span></div><div class="body">${body}</div></div>`;
-    }).join('');
-  } catch(e) {
-    console.error('[loadOverviewComments] failed:', e);
-    target.innerHTML = '<div class="ov-empty" style="color:#FF6A7A;">⚠ Не вдалося завантажити (' + (e.message || 'timeout') + '). Спробуй закрити і відкрити знову.</div>';
+// #359 (12.06.2026): СИНХРОННИЙ render коментарів з state.commentsByTask кешу.
+// Старий async loadOverviewComments() видалений — він висів на "Завантаження…" 30s через
+// повільний RLS join. Тепер preload у boot (loadAllComments) + читання з map = миттєво.
+function renderOverviewCommentsHtml(taskId){
+  const list = (state.commentsByTask && state.commentsByTask[taskId]) || [];
+  if(!list.length){
+    return '<div class="ov-empty">Немає коментарів. Напиши перший — кнопка «💬 Коментар» нижче.</div>';
+  }
+  // Останні 3 у chronological order (старі першими)
+  const last3 = list.slice(-3);
+  return last3.map(c=>{
+    const a = state.users.find(u=>u.id===c.author_id);
+    let body = escapeHtml(c.body);
+    (c.mentions||[]).forEach(uid=>{
+      const u = state.users.find(x=>x.id===uid);
+      if(u){const re=new RegExp('@'+u.name.split(' ')[0],'gi');body=body.replace(re,`<span class="mention">@${escapeHtml(u.name.split(' ')[0])}</span>`);}
+    });
+    return `<div class="ov-comment"><div class="head"><span class="who">${escapeHtml(a?.name||'?')}</span><span>${timeAgo(c.created_at)}</span></div><div class="body">${body}</div></div>`;
+  }).join('');
+}
+
+// #359 (12.06.2026): persistent <input type=file> у <body> для file upload (SMM-патерн).
+// БЕЗ display:none (Safari iOS bug) — використовуємо visually-hidden CSS.
+// Створюється один раз і живе у body. <label for="taskAttInput"> у modal HTML
+// надсилає click нативно — без programmatic .click() який Safari iOS блокує.
+function ensureTaskFileInput(){
+  if(document.getElementById('taskAttInput')) return;
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.id = 'taskAttInput';
+  inp.multiple = true;
+  inp.accept = 'image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip';
+  // Visually hidden — клас-аналог .sr-only. Безпечно для Safari iOS (НЕ display:none, НЕ visibility:hidden).
+  inp.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+  inp.addEventListener('change', (ev) => {
+    if(typeof window.tasksHandleFileInput === 'function') window.tasksHandleFileInput(ev);
+  });
+  document.body.appendChild(inp);
+}
+
+// #359: Оптимістичне додавання коментаря у state.commentsByTask + перерендер.
+// Викликається з insert success + з real-time INSERT subscription (idempotent по id).
+function pushCommentToCache(comment){
+  if(!comment || !comment.task_id) return;
+  if(!state.commentsByTask) state.commentsByTask = {};
+  if(!state.commentsByTask[comment.task_id]) state.commentsByTask[comment.task_id] = [];
+  // Idempotent: skip якщо id вже є
+  if(state.commentsByTask[comment.task_id].some(c=>c.id===comment.id)) return;
+  state.commentsByTask[comment.task_id].push(comment);
+  // Якщо overview modal зараз відкритий на цій задачі — перерендеримо коментарі
+  const ovMini = document.getElementById('ov-comments-mini');
+  if(ovMini && window.__currentOverviewTask && window.__currentOverviewTask.id === comment.task_id){
+    ovMini.innerHTML = renderOverviewCommentsHtml(comment.task_id);
   }
 }
 
