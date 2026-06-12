@@ -725,31 +725,67 @@ function openMessageDetail(id){
     </div>
   `;
   document.body.appendChild(overlay);
-  // Зберігаємо msgId у dataset щоб autosave для нової міг зробити INSERT,
-  // а наступні autosave вже UPDATE з отриманим id.
   if (!isNew) overlay.dataset.msgId = m.id;
-  // #363 (12.06.2026 Давид): backdrop click + close × → тихо flush save + закрити.
-  // Як у SMM #219: автоматично зберігаємо як чернетку, не питаємо.
+  // #367 (12.06.2026 Vadym): 3-кнопковий dirty-confirm dialog як у Tasks app-tasks-fixes.js.
+  // Назад редагувати / Видалити чернетку / Зберегти зараз — замість silent autosave.
+  ensureRetDirtyConfirmCss();
+  const showDirtyConfirm = (onSave, onDiscard, onCancel) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'ret-dirty-confirm';
+    wrap.innerHTML =
+      '<div class="box">' +
+      '<h3>Закрити без збереження?</h3>' +
+      '<p>У повідомленні є незбережені зміни. Що зробити?</p>' +
+      '<div class="actions">' +
+      '<button data-act="cancel">← Назад редагувати</button>' +
+      '<button class="danger" data-act="discard">Видалити чернетку</button>' +
+      '<button class="primary" data-act="save">Зберегти зараз</button>' +
+      '</div></div>';
+    document.body.appendChild(wrap);
+    wrap.addEventListener('click', (e) => {
+      const act = e.target && e.target.dataset && e.target.dataset.act;
+      if (!act) return;
+      wrap.remove();
+      if (act === 'save') onSave();
+      else if (act === 'discard') onDiscard();
+      else if (act === 'cancel' && typeof onCancel === 'function') onCancel();
+    });
+  };
   const safeClose = async () => {
-    const isSaving = overlay.dataset.saving === '1';
-    if (isSaving) {
-      // Зачекаємо поки in-flight save завершиться (макс 3 сек)
-      let tries = 0;
-      while (overlay.dataset.saving === '1' && tries++ < 30) {
-        await new Promise(r => setTimeout(r, 100));
-      }
-    }
-    // Якщо є незбережені зміни — flush save (один immediate save)
-    const dirty = overlay.dataset.dirty === '1';
-    if (dirty && typeof overlay._flushSave === 'function') {
-      try { await overlay._flushSave(); } catch(_) {}
-    }
-    overlay.remove();
+    // Якщо немає змін — просто закриваємо
+    if (overlay.dataset.dirty !== '1' && !overlay.dataset.msgId) { overlay.remove(); return; }
+    if (overlay.dataset.dirty !== '1') { overlay.remove(); return; }
+    showDirtyConfirm(
+      // Save: flush autosave і закриваємо
+      async () => {
+        if (typeof overlay._flushSave === 'function') {
+          try { await overlay._flushSave(); } catch(_) {}
+        }
+        overlay.remove();
+        window.toast && window.toast('Збережено', 'success');
+        await loadAll();
+      },
+      // Discard: якщо це новий draft який створив autosave — DELETE його
+      async () => {
+        const liveId = overlay.dataset.msgId;
+        if (liveId && isNew) {
+          // Soft delete новостворений draft (його тут не повинно бути у списку)
+          try {
+            await window.supabase.from('retention_messages').update({
+              deleted_at: new Date().toISOString(),
+              deleted_reason: 'cancelled_draft'
+            }).eq('id', liveId);
+          } catch(_) {}
+        }
+        overlay.remove();
+        window.toast && window.toast('Чернетка видалена', 'info');
+        await loadAll();
+      },
+      // Cancel: повертаємось у редагування — нічого не робимо
+      null
+    );
   };
-  overlay.onclick = (e) => {
-    if (e.target !== overlay) return;
-    safeClose();
-  };
+  overlay.onclick = (e) => { if (e.target === overlay) safeClose(); };
   document.getElementById('closeDetail').onclick = () => { safeClose(); };
 
   // #363 fix: брати msgId з overlay.dataset (може бути виставлений autosave для нового)
@@ -955,6 +991,26 @@ function toLocalDt(iso){
     const local = new Date(d.getTime() - off*60000);
     return local.toISOString().slice(0,16);
   } catch(_) { return ''; }
+}
+
+// #367 (12.06.2026 Vadym): 3-кнопковий dirty-confirm dialog як у Tasks
+function ensureRetDirtyConfirmCss(){
+  if (document.getElementById('ret-dirty-confirm-css')) return;
+  const css = [
+    '.ret-dirty-confirm { position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; padding:24px; }',
+    '.ret-dirty-confirm .box { background:var(--coal, #141414); border:1px solid var(--red, #E30613); border-radius:10px; padding:24px 28px; max-width:480px; width:100%; font-family:"Manrope",sans-serif; color:#fff; }',
+    '.ret-dirty-confirm h3 { font-family:"Oswald",sans-serif; font-size:18px; margin-bottom:12px; text-transform:uppercase; }',
+    '.ret-dirty-confirm p { font-size:13px; color:var(--ash,#bbb); margin-bottom:18px; line-height:1.6; }',
+    '.ret-dirty-confirm .actions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }',
+    '.ret-dirty-confirm button { padding:9px 14px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; border:1px solid #2a2a2a; background:transparent; color:#fff; }',
+    '.ret-dirty-confirm button.primary { background:var(--red,#E30613); border-color:var(--red); }',
+    '.ret-dirty-confirm button.danger { color:#F59E0B; border-color:#F59E0B; }',
+    '@media (max-width:480px) { .ret-dirty-confirm .actions { flex-direction:column-reverse; } .ret-dirty-confirm button { width:100%; padding:11px; } }',
+  ].join('');
+  const st = document.createElement('style');
+  st.id = 'ret-dirty-confirm-css';
+  st.textContent = css;
+  document.head.appendChild(st);
 }
 
 async function saveForm(form, id, overlay, opts){
