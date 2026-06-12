@@ -124,19 +124,26 @@
     opts = opts || {};
     if (!c) return '<span style="font-size:24px;">📝</span>';
     var size = opts.size || 'tile';
-    // #368 (12.06.2026 Vadym): пріоритет compressed_url (повна якість) → thumbnail_url → legacy url.
-    // Для photo навіть thumbnail_url достатньо для preview, для video краще compressed_url.
-    var url = safeUrl(c.compressed_url) || safeUrl(c.thumbnail_url) || safeUrl(c.url) || safeUrl(c.compressed_url_hevc) || '';
     var fontSize = size === 'modal' ? '72px' : size === 'card' ? '18px' : '30px';
     var emoji = '<span style="font-size:' + fontSize + ';">' + (c.preview || '📦') + '</span>';
-    if (!url) return emoji;
+    // #369 (12.06.2026 Vadym): для PREVIEW (як у TG/IG) показуємо ЗАВЖДИ <img> з thumbnail_url,
+    // НЕ <video>. Video element без autoplay = чорний блок з play button без кадру.
+    // TG/IG показують preview як poster image — те саме робимо тут.
     if (c.type === 'photo') {
-      // #368: object-fit:cover, абсолютна позиція щоб гарантовано заповнити .pv-media
-      return '<img src="' + url + '" alt="' + escapeHtml(c.name || '') + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;" onerror="this.onerror=null;this.src=\'' + (safeUrl(c.thumbnail_url) || '') + '\';"/>';
+      var pUrl = safeUrl(c.thumbnail_url) || safeUrl(c.compressed_url) || safeUrl(c.url) || '';
+      if (!pUrl) return emoji;
+      return '<img src="' + pUrl + '" alt="' + escapeHtml(c.name || '') + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;"/>';
     }
     if (c.type === 'video') {
-      return '<video src="' + url + '#t=0.1" preload="metadata" muted playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;pointer-events:none;"></video>' +
-        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6);font-size:28px;pointer-events:none;">▶</div>';
+      // Завжди thumbnail_url як poster, ніколи <video>. Play overlay поверх.
+      var vUrl = safeUrl(c.thumbnail_url) || safeUrl(c.compressed_url) || safeUrl(c.url) || '';
+      if (!vUrl) {
+        // Fallback: фоновий emoji + play overlay
+        return '<div style="position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center;font-size:64px;color:#fff;">🎬</div>' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6);font-size:48px;pointer-events:none;">▶</div>';
+      }
+      return '<img src="' + vUrl + '" alt="' + escapeHtml(c.name || '') + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;"/>' +
+        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8);font-size:48px;pointer-events:none;">▶</div>';
     }
     return emoji;
   }

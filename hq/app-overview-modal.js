@@ -310,13 +310,11 @@
           <button class="ov-close" onclick="Modal.close()" title="Закрити (Esc)">×</button>
         </div>
         <div class="ov-body">
-          <div class="ov-section"><div class="ov-section-title">Майданчики</div><div class="ov-tags">${platRow(p)}</div></div>
+          <!-- #369 (12.06.2026 Vadym): повноцінні platform preview cards замість окремих Майданчики/Текст/Креативи -->
           <div class="ov-section">
-            <div class="ov-section-title">Текст</div>
-            <div class="ov-text">${tgFmt(p.text || '(порожньо)')}</div>
-            ${(p.hashtags && p.hashtags.length) ? `<div class="ov-tags" style="margin-top:8px;">${p.hashtags.map(h => `<span class="ov-tag">${esc(h.startsWith('#') ? h : '#' + h)}</span>`).join('')}</div>` : ''}
+            <div class="ov-section-title">Прев'ю по майданчиках</div>
+            ${typeof window.renderPreviewSection === 'function' ? window.renderPreviewSection(p) : `<div class="ov-tags">${platRow(p)}</div><div class="ov-text" style="margin-top:8px;">${tgFmt(p.text || '(порожньо)')}</div><div class="ov-creatives" style="margin-top:8px;">${crRow(p)}</div>`}
           </div>
-          <div class="ov-section"><div class="ov-section-title">Креативи</div><div class="ov-creatives">${crRow(p)}</div></div>
           <div class="ov-section"><div class="ov-section-title">Відповідальні</div><div class="ov-people">${respRow(p)}</div></div>
           <div class="ov-section"><div class="ov-section-title">Погоджувачі</div><div class="ov-people">${apprRow(p)}</div></div>
           <div class="ov-section"><div class="ov-section-title">Останні коментарі</div>${commRow(p)}</div>
