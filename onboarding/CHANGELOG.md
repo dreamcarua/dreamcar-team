@@ -8,6 +8,27 @@
 
 ---
 
+## 12.06.2026 — #363 Retention modal: backdrop click = autosave чернетки (Давид UX)
+
+### Retention (#363)
+Давид у TG: «зробіть будь ласка, щоб коли клікаєш поза полем редагування все не зникало і створювалась чернетка». Vadym: «зроби як в SMM».
+
+**Зміни у `retention/app-retention.js`:**
+- 🔧 **Autosave для ВСІХ** (раніше тільки для existing): прибрав `if (!isNew)`. Перший autosave для нового message робить INSERT і повертає `msgId`. Наступні autosave вже UPDATE.
+- 🔧 **`saveForm` повертає `msgId`** (раніше void). Caller (autosave) запам'ятовує у `overlay.dataset.msgId`.
+- 🆕 **`safeClose()` async** — backdrop click + close × тихо зберігає і закриває:
+  1. Чекає поки in-flight save завершиться (max 3 сек через `overlay.dataset.saving`)
+  2. Flush autosave якщо `dirty=1` через `overlay._flushSave()` — миттєвий save без debounce
+  3. Видаляє overlay (без toast, без confirm)
+- 🗑 Прибрано toast «Не закриваю — є незбережені зміни» (#217) і `confirm()` «Точно закрити без збереження?» — натомість автоматичний save як у SMM #219
+- 🔧 Індикатор показує «✓ чернетка HH:MM» замість «✓ збережено» — Давид просив
+
+**UX:** Vira пише текст → клікає поза модалом → автоматично створюється/оновлюється draft у DB → модал закривається тихо. Можна відкрити пізніше і продовжити. Як у SMM.
+
+Commit `9f99b56`.
+
+---
+
 ## 12.06.2026 — #362 Retention TG notify — повний body замість preview_text
 
 ### Edge fn notify-tg v34 (#362)
