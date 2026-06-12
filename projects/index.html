@@ -193,6 +193,7 @@ body {
     <button class="filter-btn"  id="btnNewProjectTop" aria-label="Створити" title="Новий проєкт">+ НОВИЙ</button>
     <a href="#kanban" class="filter-btn" title="Канбан">📋 KANBAN</a>
     <a href="#list" class="filter-btn" title="Список">📃 СПИСОК</a>
+    <a href="#calendar" class="filter-btn" title="Зведений календар SMM+Retention" style="background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(168,85,247,0.15));border-color:#a855f7;">📅 ЗВЕДЕНИЙ</a>
     <span id="authChip"></span>
     <a href="#" id="signOutBtn" class="filter-btn" style="display:none;">EXIT</a>
   </div>
@@ -319,6 +320,8 @@ document.getElementById('signOutBtn').onclick = async (e) => {
 
 <!-- Projects app — підключається після auth -->
 <script src="app-projects-app.js?v=202606121136-6543b3d013-810cc2a309-ebfd362c06-b4d3d69849-5fb8744b43-8b4043b735-eb8ad1bd43-87b83ea322-201d809246-988c4ee906-50a949bf25-a38589ca20-82c7600c13-5eac87ec07-56d4018e48-257a7d2639-c8f5dde729-c1af7a4d54-f15b23fa42-037160ad30-7104b45c30-9bf0526616-401fb17501-4115aecb56-e94bffe152-772e9da032-ead45b7a" defer></script>
+<!-- #360 (12.06.2026): Зведений календар SMM+Retention -->
+<script src="app-unified-calendar.js?v=202606121200" defer></script>
 
 </body>
 </html>
