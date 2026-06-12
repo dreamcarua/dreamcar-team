@@ -2405,15 +2405,16 @@ window.postComment = async function postComment(){
     if(btn){btn.disabled=false;btn.textContent='ВІДПРАВИТИ';}
   }
 };
-// Bind: і onclick (top-level) і addEventListener (resilient) — щоб точно реагувало
+// #361 (12.06.2026): ОДИН binding — inline onclick attribute. 
+// Triple binding (onclick + addEventListener + setAttribute) призводив до подвоєного INSERT!
+// Inline onclick через setAttribute — найнадійніше + HARD RULE для critical buttons.
 (function bindPostCommentBtn(){
   var btn = document.getElementById('postCommentBtn');
   if(!btn){setTimeout(bindPostCommentBtn, 100); return;}
-  btn.onclick = window.postComment;
-  btn.addEventListener('click', window.postComment);
+  btn.setAttribute('onclick', 'window.postComment && window.postComment(); return false;');
+  // Прибираємо .onclick щоб не дублювати з inline
+  btn.onclick = null;
 })();
-// Inline onclick на кнопці теж — як HARD RULE для critical buttons
-document.getElementById('postCommentBtn')?.setAttribute('onclick', 'window.postComment && window.postComment()');
 // Backward compat alias
 var postComment = window.postComment;
 
