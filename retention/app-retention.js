@@ -752,7 +752,12 @@ function openMessageDetail(id){
   };
   document.getElementById('closeDetail').onclick = () => { safeClose(); };
 
-  document.getElementById('msgForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, isNew ? null : m.id, overlay); };
+  // #363 fix: брати msgId з overlay.dataset (може бути виставлений autosave для нового)
+  document.getElementById('msgForm').onsubmit = (e) => {
+    e.preventDefault();
+    const liveId = overlay.dataset.msgId || (isNew ? null : m.id);
+    saveForm(e.target, liveId, overlay);
+  };
 
   // #363 (12.06.2026 Давид): AUTOSAVE працює для ВСІХ — і для нової теж створює draft автоматично.
   {
@@ -797,7 +802,9 @@ function openMessageDetail(id){
   const saveAndReviewBtn = document.getElementById('btnSaveAndReview');
   if (saveAndReviewBtn) saveAndReviewBtn.onclick = () => {
     const form = document.getElementById('msgForm');
-    if (form) saveForm(form, isNew ? null : m.id, overlay, { andSubmit: true });
+    // #363 fix: брати msgId з overlay.dataset (може бути виставлений autosave для нового)
+    const liveId = overlay.dataset.msgId || (isNew ? null : m.id);
+    if (form) saveForm(form, liveId, overlay, { andSubmit: true });
   };
 
   // 08.06.2026 Vira: PREVIEW тільки для email; toggle при зміні channel
