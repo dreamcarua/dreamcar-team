@@ -1132,7 +1132,7 @@ function renderMonth(d, pubs) {
     const isOther = day.getMonth() !== d.getMonth();
     const isToday = day.getTime() === today.getTime();
     const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
-    const cards = dayPubs.slice(0,3).map(p => `
+    const cards = dayPubs.slice(0,5).map(p => `
       <div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}">
         ${p.contentType ? `<div class="ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
         <span class="time" style="font-weight:700;color:#fff;">${fmtTime(p.dateTime)}</span>
