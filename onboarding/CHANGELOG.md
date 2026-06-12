@@ -8,6 +8,34 @@
 
 ---
 
+## 12.06.2026 — #361 P0 КАТАСТРОФА Tasks EDIT modal комент+файли
+
+### Tasks (#361 P0)
+Vadym скрін: написав "qweqwe" → ВІДПРАВИТИ → нічого. Файли не прикріпляються.
+
+**Корінь:** після #359 я полагодив тільки **OVERVIEW modal** (read-only popup), а **EDIT modal** (повноекранне редагування) має ОКРЕМІ функції — `postComment`, `loadComments`, file upload handler — які лишилися ламаними з display:none на input + Promise.race timeout.
+
+**Fixes EDIT modal:**
+- 🔧 `<input id="editAttInput" style="display:none">` → visually-hidden (Safari iOS bug fix)
+- 🔧 `<button editAttUploadBtn>` → `<label for="editAttInput">` (native click forward)
+- 🗑 Видалено `Promise.race(90s)` + `refreshSession()` з file upload handler
+- 🆕 Inline ⏳ progress placeholders у grid (SMM-патерн з spinner + name + size)
+- 🆕 `window.postComment` global fn + inline `onclick` через `setAttribute`
+- 🔧 `postComment` тепер `.select().single()` + optimistic push у state.comments + state.commentsByTask
+- 🆕 `loadComments` — Step 1: миттєвий render з кешу state.commentsByTask, Step 2: async DB refresh
+- 🔧 button disabled+"ВІДПРАВЛЯЮ…" поки processing
+
+**Chrome MCP smoke test PASS:**
+- ✅ 1 клік ВІДПРАВИТИ = 1 INSERT (раніше було 2 через triple binding — onclick + addEventListener + setAttribute)
+- ✅ file upload: файл у Supabase Storage + у state.editAttachments
+- ✅ button onclick attr = "window.postComment && window.postComment(); return false;"
+
+**Key insight:** triple bind (`.onclick = fn` + `addEventListener('click', fn)` + `setAttribute('onclick', ...)`) запускав handler 2-3 рази за один click. Залишив тільки `setAttribute(onclick)` + `btn.onclick = null` щоб гарантувати ОДИН виклик. Цей патерн HARD RULE для critical buttons.
+
+Commits `71aa635` + `a57514f`.
+
+---
+
 ## 12.06.2026 — #360 BIG ЗВЕДЕНИЙ КАЛЕНДАР SMM+Retention у /projects/
 
 ### Projects (#360 BIG)
