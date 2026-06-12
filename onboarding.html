@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Онбординг — DreamCar Team Hub</title>
+<link rel="icon" href="https://brand.dreamcar.ua/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="https://brand.dreamcar.ua/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/brand-tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Manrope', -apple-system, sans-serif; background: #0A0A0A; color: #fff; line-height: 1.55; }
+  #role-picker { position: fixed; inset: 0; background: #0A0A0A; z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #role-picker.hidden { display: none; }
+  .picker-wrap { max-width: 720px; width: 100%; text-align: center; }
+  .picker-wrap .kicker { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 14px; }
+  .picker-wrap h1 { font-family: 'Oswald', sans-serif; font-size: 44px; text-transform: uppercase; margin-bottom: 12px; line-height: 1.1; }
+  .picker-wrap h1 span { color: #E30613; }
+  .picker-wrap p { font-size: 15px; color: #999; max-width: 540px; margin: 0 auto 36px; }
+  .roles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .role-btn { background: #141414; border: 1px solid #2A2A2A; border-radius: 10px; padding: 22px 16px; cursor: pointer; transition: all 0.15s; color: #fff; text-align: center; }
+  .role-btn:hover { border-color: #E30613; transform: translateY(-2px); background: rgba(227, 6, 19, 0.06); }
+  .role-btn .role-icon { font-size: 32px; margin-bottom: 10px; }
+  .role-btn .role-name { font-family: 'Oswald', sans-serif; font-size: 16px; text-transform: uppercase; margin-bottom: 4px; }
+  .role-btn .role-desc { font-size: 11px; color: #777; }
+  .picker-skip { margin-top: 24px; font-size: 12px; color: #555; cursor: pointer; text-decoration: underline; display: inline-block; }
+  .picker-skip:hover { color: #E30613; }
+  .layout { display: none; }
+  .layout.active { display: flex; min-height: 100vh; }
+  aside.sidebar { width: 260px; background: #0a0a0a; border-right: 1px solid #1a1a1a; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; padding: 24px 0; }
+  /* #326 (11.06.2026): прибрав sb-logo (дубль з global header), замінив на стильний заголовок */
+  .sb-hero { padding: 0 22px 18px; border-bottom: 1px solid #1a1a1a; margin-bottom: 14px; }
+  .sb-hero .kicker { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #E30613; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 6px; }
+  .sb-hero h2 { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 28px; line-height: 0.95; letter-spacing: 0.01em; color: #FFFFFF; margin: 0; text-transform: uppercase; }
+  .sb-hero h2 .red { color: #E30613; }
+  .sb-hero .meta { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #555; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 8px; }
+  /* global-header.js додає <dc-header> зверху висотою ~52px — зрушую layout */
+  body.has-topbar aside.sidebar { top: 52px; height: calc(100vh - 52px); }
+  body.has-topbar .main { padding-top: 80px; }
+  body.has-topbar .layout.active { padding-top: 0; }
+  .sb-role { padding: 8px 22px 18px; border-bottom: 1px solid #1a1a1a; margin-bottom: 8px; }
+  .sb-role .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #555; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+  .sb-role .val { font-size: 12px; color: #ccc; display: flex; align-items: center; gap: 8px; }
+  .sb-role .change { font-size: 10px; color: #555; cursor: pointer; text-decoration: underline; margin-left: auto; }
+  .sb-role .change:hover { color: #E30613; }
+  .sb-section { padding: 12px 22px 6px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #444; letter-spacing: 0.18em; text-transform: uppercase; }
+  .sb-link { display: block; padding: 8px 22px; font-size: 12.5px; color: #888; text-decoration: none; cursor: pointer; transition: all 0.1s; border-left: 2px solid transparent; }
+  .sb-link:hover { color: #ddd; background: rgba(255,255,255,0.03); }
+  .sb-link.active { color: #fff; border-left-color: #E30613; background: rgba(227,6,19,0.07); }
+  .main { margin-left: 260px; padding: 32px 40px 80px; max-width: 1100px; width: calc(100% - 260px); }
+  section.page { display: none; }
+  section.page.active { display: block; }
+  .page-header { border-bottom: 2px solid #E30613; padding-bottom: 18px; margin-bottom: 28px; }
+  .page-header .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E30613; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 6px; }
+  .page-header h1 { font-family: 'Oswald', sans-serif; font-size: 32px; text-transform: uppercase; line-height: 1.1; }
+  .page-header h1 span { color: #E30613; }
+  .page-header .lead { font-size: 14px; color: #aaa; margin-top: 10px; max-width: 720px; }
+  .block { margin-bottom: 32px; }
+  .block h2 { font-family: 'Oswald', sans-serif; font-size: 20px; text-transform: uppercase; margin-bottom: 14px; letter-spacing: 0.4px; }
+  .block h3 { font-family: 'Oswald', sans-serif; font-size: 15px; text-transform: uppercase; color: #E30613; margin: 18px 0 8px; }
+  .block p { font-size: 14px; color: #bbb; margin-bottom: 10px; }
+  .block ul, .block ol { margin: 10px 0 12px 22px; }
+  .block li { font-size: 14px; color: #bbb; margin-bottom: 5px; }
+  .block code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #1a1a1a; padding: 2px 6px; border-radius: 3px; color: #E30613; }
+  .card { background: #141414; border: 1px solid #2A2A2A; border-radius: 8px; padding: 18px 22px; margin-bottom: 12px; }
+  .card.accent { border-left: 4px solid #E30613; }
+  .card h4 { font-family: 'Oswald', sans-serif; font-size: 15px; margin-bottom: 8px; }
+  .card .who { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E30613; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+  .steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+  .steps li { font-size: 13.5px; color: #ccc; padding: 7px 0 7px 32px; position: relative; margin: 0; }
+  .steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 6px; width: 22px; height: 22px; border-radius: 50%; background: #E30613; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .tip { margin-top: 10px; padding: 9px 13px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10B981; border-radius: 0 4px 4px 0; font-size: 12.5px; color: #aaa; }
+  .warn { margin-top: 10px; padding: 9px 13px; background: rgba(245, 158, 11, 0.08); border-left: 3px solid #F59E0B; border-radius: 0 4px 4px 0; font-size: 12.5px; color: #fbbf24; }
+  table.dataset { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  table.dataset th, table.dataset td { padding: 10px 13px; border-bottom: 1px solid #2A2A2A; font-size: 13px; text-align: left; vertical-align: top; }
+  table.dataset th { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E30613; letter-spacing: 0.12em; text-transform: uppercase; background: #141414; }
+  table.dataset td:first-child { color: #fff; font-weight: 600; }
+  [data-role] { display: none; }
+  body[data-active-role="all"] [data-role] { display: block; }
+  body[data-active-role="ceo"] [data-role*="ceo"], body[data-active-role="coo"] [data-role*="coo"], body[data-active-role="smm"] [data-role*="smm"], body[data-active-role="approver"] [data-role*="approver"], body[data-active-role="member"] [data-role*="member"], body[data-active-role="designer"] [data-role*="designer"] { display: block; }
+  .role-pill { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #E30613; letter-spacing: 0.15em; text-transform: uppercase; background: rgba(227, 6, 19, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(227, 6, 19, 0.3); margin-right: 4px; }
+  /* Hamburger для mobile (схований на desktop) */
+  .mobile-menu-btn { display: none; }
+
+  /* ════════════════════════════════════════════
+     Локальний topbar — ТОЧНО як у брендбуці.
+     Бенчмарк: dreamcar-brand-book/.topbar — padding 14px 20px,
+     brand-mark Archivo Black 16px / 0.04em, menu-toggle JetBrains Mono 11px / 0.2em.
+  ═══════════════════════════════════════════════ */
+  .ob-topbar { display: none; }
+  @media (max-width: 900px) {
+    .ob-topbar {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      background: #0a0a0a;
+      border-bottom: 1px solid #1a1a1a;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .ob-topbar .ob-brand {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 16px; letter-spacing: 0.04em;
+      color: #fff; text-transform: uppercase;
+      text-decoration: none;
+      flex: 0 1 auto; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      line-height: 1.2;
+    }
+    .ob-topbar .ob-brand .red { color: #E30613; }
+    .ob-topbar .ob-menu-btn {
+      flex-shrink: 0;
+      background: transparent;
+      border: 1px solid #2A2A2A;
+      color: #fff;
+      padding: 8px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-weight: 400;
+      cursor: pointer;
+      border-radius: 0;
+      transition: border-color 120ms, background 120ms;
+      line-height: 1;
+    }
+    .ob-topbar .ob-menu-btn:hover,
+    .ob-topbar .ob-menu-btn:active { border-color: #E30613; background: rgba(227,6,19,0.06); }
+
+    /* Відступ у самому контенті, щоб sticky topbar не перекривав page-header при якоренні */
+    section.page { scroll-margin-top: 70px; }
+    .page-header { padding-top: 8px; }
+  }
+
+  /* ════════════════════════════════════════════
+     MOBILE STEPPER — sticky horizontal chip nav з усіма розділами.
+     На desktop НЕ показується (там є sidebar).
+     Користувач бачить ЕТАПИ і може swipe між ними.
+  ═══════════════════════════════════════════════ */
+  .mobile-stepper { display: none; }
+
+  /* Welcome CTA «Знайти свою роль» */
+  .role-cta {
+    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(135deg, rgba(227,6,19,0.08), rgba(227,6,19,0.02));
+    border: 1px solid rgba(227,6,19,0.3); border-radius: 12px;
+    padding: 18px 22px; margin: 22px 0; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .role-cta:hover { border-color: #E30613; background: rgba(227,6,19,0.12); }
+  .role-cta .role-cta-icon { font-size: 28px; }
+  .role-cta .role-cta-text { flex: 1; }
+  .role-cta .role-cta-text strong { display: block; font-family: 'Oswald', sans-serif; font-size: 15px; text-transform: uppercase; margin-bottom: 4px; }
+  .role-cta .role-cta-text span { font-size: 12.5px; color: #aaa; }
+  .role-cta .role-cta-arrow { color: #E30613; font-size: 20px; }
+
+  /* === Sidebar search input (як в brand-book) === */
+  .sb-search { padding: 0 22px 14px; position: relative; }
+  .sb-search input {
+    width: 100%; padding: 9px 12px 9px 32px;
+    background: #0a0a0a; border: 1px solid #2A2A2A; color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; outline: none; transition: border-color 120ms;
+    border-radius: 4px;
+  }
+  .sb-search input:focus { border-color: #E30613; }
+  .sb-search input::placeholder { color: #555; letter-spacing: 0.06em; }
+  .sb-search::before {
+    content: '⌕'; position: absolute; left: 33px; top: 50%;
+    transform: translateY(-50%); color: #555; font-size: 14px; pointer-events: none;
+  }
+  .sb-link.is-hidden, .sb-section.is-hidden { display: none !important; }
+
+  @media (max-width: 900px) {
+    /* Layout — main full width */
+    body.has-topbar .main, .main { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding: 16px 14px 60px 14px !important; box-sizing: border-box !important; }
+    body.has-topbar .layout.active, .layout { flex-direction: column !important; padding-top: 0 !important; }
+    .container { max-width: 100% !important; width: 100% !important; padding: 0 !important; box-sizing: border-box !important; overflow-x: hidden; }
+    html, body { overflow-x: hidden !important; max-width: 100vw !important; }
+
+    /* Стара fixed-кнопка прибрана — тепер кнопка в .ob-topbar (локальний topbar) */
+
+    /* ── Sidebar = slide-in overlay (brand-book pattern) ── */
+    body.has-topbar aside.sidebar, aside.sidebar {
+      position: fixed !important;
+      top: 0 !important; left: 0 !important;
+      width: 84vw !important; max-width: 320px;
+      height: 100vh !important;
+      padding: calc(env(safe-area-inset-top) + 56px) 0 24px !important;
+      z-index: 110;
+      transform: translateX(-105%);
+      transition: transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+      border-right: 1px solid #2A2A2A;
+      box-shadow: 8px 0 32px rgba(0,0,0,0.6);
+      display: block !important;
+      overflow-y: auto;
+      background: #0a0a0a;
+    }
+    body.sidebar-open aside.sidebar, aside.sidebar.mobile-open { transform: translateX(0); }
+
+    /* Backdrop */
+    body.sidebar-open::after, body.mobile-open::after {
+      content: ''; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+      z-index: 100;
+    }
+
+    /* Tables — горизонтальний scroll щоб не ламали layout */
+    table.dataset { display: block; overflow-x: auto; white-space: nowrap; max-width: 100%; }
+    table.dataset thead, table.dataset tbody, table.dataset tr { display: table; width: 100%; table-layout: fixed; }
+    table.dataset td, table.dataset th { white-space: normal; word-break: break-word; }
+
+    /* Headings меншi */
+    .page-header h1 { font-size: 22px; line-height: 1.15; }
+    .page-header .lead { font-size: 13px; }
+    .block h2 { font-size: 17px; }
+    .card { padding: 14px 16px; }
+    .card h4 { font-size: 14px; }
+
+    /* Steps + lists компактніше */
+    .steps li { font-size: 12.5px; padding-left: 28px; }
+    .block ul, .block ol { margin-left: 18px; }
+    .block li { font-size: 13px; }
+
+    /* Role picker mobile */
+    .picker-wrap h1 { font-size: 28px; }
+    .picker-wrap p { font-size: 13px; margin-bottom: 20px; }
+    .roles-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    #role-picker {
+      align-items: flex-start !important;
+      padding: max(16px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom)) 14px !important;
+      overflow-y: auto !important;
+    }
+    .picker-wrap { padding: 18px 0 28px; }
+    .picker-wrap .kicker { font-size: 11px; margin-bottom: 10px; }
+    .role-btn { padding: 16px 12px; }
+    .role-btn .role-icon { font-size: 24px; }
+
+    /* Welcome CTA компактніший */
+    .role-cta { padding: 14px 16px; margin: 16px 0; gap: 10px; }
+    .role-cta .role-cta-icon { font-size: 22px; }
+    .role-cta .role-cta-text strong { font-size: 13px; }
+    .role-cta .role-cta-text span { font-size: 11.5px; }
+  }
+</style>
+</head>
+<body data-active-role="all" class="has-topbar">
+
+<!-- Global header автоматично додається з brand.dreamcar.ua — справжній DreamCar логотип -->
+<script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
+
+<div id="role-picker">
+<div class="picker-wrap">
+<div class="kicker">/// ВІТАЄМО У DREAMCAR</div>
+<h1>ХТО <span>ТИ</span> У КОМАНДІ?</h1>
+<p>Обери свою роль — покажемо тільки те, що тобі справді треба знати. Можна змінити пізніше.</p>
+<div class="roles-grid">
+<div class="role-btn" data-role-select="ceo"><div class="role-icon">👑</div><div class="role-name">CEO</div><div class="role-desc">Стратегія, підпис</div></div>
+<div class="role-btn" data-role-select="coo"><div class="role-icon">📋</div><div class="role-name">COO / Lead</div><div class="role-desc">Операційка, команда</div></div>
+<div class="role-btn" data-role-select="smm"><div class="role-icon">📸</div><div class="role-name">SMM</div><div class="role-desc">Контент, креативи</div></div>
+<div class="role-btn" data-role-select="approver"><div class="role-icon">✋</div><div class="role-name">Погоджуючий</div><div class="role-desc">Approver — погоджую пости</div></div>
+<div class="role-btn" data-role-select="member"><div class="role-icon">👤</div><div class="role-name">Учасник</div><div class="role-desc">Виконавець задач</div></div>
+<div class="role-btn" data-role-select="designer"><div class="role-icon">🎨</div><div class="role-name">Дизайнер</div><div class="role-desc">Креативи, дизайн</div></div>
+</div>
+<div class="picker-skip" id="skip-picker">Показати все, не вибирати роль →</div>
+</div>
+</div>
+
+<!-- Локальний topbar — точно як у брендбуці (DREAMCAR · BRAND BOOK + МЕНЮ) -->
+<header class="ob-topbar">
+  <a href="#welcome" class="ob-brand">DREAM<span class="red">CAR</span> · ОНБОРДИНГ</a>
+  <button class="ob-menu-btn" id="mobileMenuBtn" aria-label="Меню розділів" aria-expanded="false">МЕНЮ</button>
+</header>
+
+<div class="layout active" id="layout">
+<aside class="sidebar">
+<div class="sb-hero">
+  <div class="kicker">/// TEAM HUB</div>
+  <h2>ОНБО<span class="red">РДИНГ</span></h2>
+  <div class="meta">v1.0 · 11.06.2026 · UA</div>
+</div>
+
+<div class="sb-search">
+  <input type="search" id="sbSearch" placeholder="Пошук розділу…" autocomplete="off" />
+</div>
+
+<div class="sb-role"><div class="lbl">Твоя роль</div><div class="val"><span id="role-label">Усі</span><span class="change" id="change-role">змінити</span></div></div>
+<div class="sb-section">Старт</div>
+<a class="sb-link active" data-page="welcome">👋 Ласкаво просимо</a>
+<a class="sb-link" data-page="quickstart">🚀 Першоденний старт</a>
+<a class="sb-link" data-page="glossary">📖 Глосарій термінів</a>
+<a class="sb-link" data-page="notifications">🔔 Карта сповіщень</a>
+<div class="sb-section">Системи</div>
+<a class="sb-link" data-page="hq">📝 SMM · Публікації</a>
+<a class="sb-link" data-page="projects">📁 Проєкти</a>
+<a class="sb-link" data-page="tasks">✅ Tasks</a>
+<a class="sb-link" data-page="retention">📬 Ретеншн</a>
+<a class="sb-link" data-page="compress">🎬 Креативи</a>
+<a class="sb-link" data-page="autopost">🚀 Автопостинг</a>
+<a class="sb-link" data-page="bot">🤖 TG бот</a>
+<a class="sb-link" data-page="dashboard" data-role="ceo,coo,lead">📊 Dashboard (CEO/COO/Lead)</a>
+<a class="sb-link" data-page="brand">🎨 Brand Book</a>
+<div class="sb-section">Решта</div>
+<a class="sb-link" data-page="faq">❓ FAQ</a>
+<a class="sb-link" data-page="contacts">📧 Контакти</a>
+</aside>
+
+<main class="main">
+<section class="page active" data-page="welcome">
+<div class="page-header"><div class="kicker">/// ОНБОРДИНГ</div><h1>ЛАСКАВО <span>ПРОСИМО</span> У КОМАНДУ</h1><p class="lead">DreamCar — українська платформа де люди купують токени ШІ-сервісу, а серед учасників розігруються автомобілі мрії. 17 авто з 2019. База 100k+ учасників. Наша команда — це <b>люди + системи</b>: ми побудували один інструмент, де ВСІ працюють разом без хаосу.</p></div>
+<div class="block"><h2>💡 Що ти знайдеш тут</h2><p>За 30-40 хвилин ти знатимеш:</p><ul><li>Як працює <b>HQ</b> — місце де народжуються всі публікації</li><li>Як працює <b>Tasks</b> — звідки беруться задачі, як їх закривати</li><li>Що відбувається з твоїми <b>фото та відео</b> після завантаження</li><li>Як пости автоматично потрапляють у TG-канал, Instagram, Facebook, Threads</li><li>Які <b>сповіщення</b> ти будеш отримувати — куди, коли, як на них реагувати</li><li>Як TG-бот <b>@dreamcar_team_bot</b> допомагає працювати без HQ</li></ul></div>
+<div class="card accent"><h4>🎯 Принцип №1: Робота тече сама</h4><p>Ми побудували все так, щоб ти приймав <b>рішення</b>, а система робила <b>рутину</b>. Натиснув «На погодження» → approvers одразу побачать у TG. Approved → пост сам полетить у канал у потрібний час. Кинув фото → стиснулось і готове.</p></div>
+
+<div class="role-cta" data-open-picker>
+  <div class="role-cta-icon">🎯</div>
+  <div class="role-cta-text">
+    <strong>Знайти свою роль (опційно)</strong>
+    <span>Покажу тільки те, що тобі справді треба знати. Можна змінити будь-коли.</span>
+  </div>
+  <div class="role-cta-arrow">→</div>
+</div>
+
+<div class="card"><h4>📚 Куди далі</h4><p><a href="#" data-go="quickstart" style="color:#E30613;text-decoration:none;">→ Першоденний старт</a> — 8 кроків</p><p><a href="#" data-go="glossary" style="color:#E30613;text-decoration:none;">→ Глосарій</a> — терміни</p><p><a href="#" data-go="notifications" style="color:#E30613;text-decoration:none;">→ Карта сповіщень</a> — звідки що приходить</p></div>
+</section>
+
+<section class="page" data-page="_updates_archive" style="display:none;">
+
+<div class="block"><h2>🗑 Корзина — 30 днів на роздуми (TASKS + HQ)</h2>
+<p>Тепер коли ти видаляєш задачу або публікацію — вона <b>не зникає назавжди одразу</b>. Йде у Корзину, зберігається 30 днів, можна відновити.</p>
+<ul>
+  <li><b>Хто може видалити:</b> тільки автор задачі/публікації або CEO/COO. Якщо хтось інший поставив на тебе задачу — ти НЕ можеш її видалити, тільки автор може.</li>
+  <li><b>Як видалити:</b> у Tasks/HQ → відкрий задачу → 🗑 → з'явиться вибір з 3 кнопок:</li>
+  <li style="list-style:none;"><span style="color:#FF6A7A;">🗑 ВИДАЛИТИ НАЗАВЖДИ</span> — тільки для CEO/COO. Корзини НЕ буде. Двоступенева підтвердження.</li>
+  <li style="list-style:none;"><span style="color:#FBBF24;">📦 ПЕРЕМІСТИТИ В КОРЗИНУ</span> — зберігається 30 днів, можна відновити.</li>
+  <li style="list-style:none;">✕ СКАСУВАТИ — якщо випадково клікнув</li>
+</ul>
+<p><b>Де знайти корзину:</b></p>
+<ul>
+  <li><b>Tasks:</b> у горизонтальному меню фільтрів є chip <code>🗑 КОРЗИНА (N)</code> — клік → список видалених</li>
+  <li><b>HQ:</b> у sidebar посилання <code>🗑 Корзина (N)</code></li>
+</ul>
+<p>У корзині бачиш:</p>
+<ul>
+  <li><b>Що видалено</b> (title)</li>
+  <li><b>Хто видалив</b> (видно для всіх — щоб не сваритись хто прибрав чужу роботу)</li>
+  <li><b>Коли</b> та <b>скільки днів залишилось</b> до автоматичного видалення (≤3 дні — червоний, ≤7 — жовтий)</li>
+  <li><b>↩ Відновити</b> — повертає задачу/публікацію на board</li>
+  <li><b>🗑</b> — purge назавжди (тільки автор/CEO/COO)</li>
+</ul>
+<div class="tip">💡 <b>CEO/COO бачать ВСЕ</b> видалене командою (зі шанданшейцами хто видалив). Решта членів — лише свої видалення і видалені свої задачі/публікації.</div>
+<div class="warn">⚠️ Після 30 днів вони видаляються <b>назавжди</b> через cron job — без можливості відновлення.</div>
+</div>
+
+<div class="block"><h2>📅 Календарний вид у Tasks</h2>
+<p>У Tasks тепер можна побачити задачі у форматі календаря — як у Google Calendar.</p>
+<ul>
+  <li><b>Як відкрити:</b> chip <code>📅 КАЛЕНДАР</code> у меню фільтрів</li>
+  <li><b>Місячна сітка</b> з днями тижня (ПН-НД). Сьогоднішня дата підсвічена червоним.</li>
+  <li><b>Кожна задача</b> — кольоровий pill з ім'ям виконавця. P1 червоний, P2 жовтий, P3 синій, P4 сірий.</li>
+  <li><b>Прострочені</b> — текст червоний</li>
+  <li><b>До 4 задач на день</b>, потім "+N ще"</li>
+</ul>
+<p><b>Інтерактив:</b></p>
+<ul>
+  <li>Клік на pill → відкрити задачу</li>
+  <li>Клік на день → нова задача з prefilled дедлайном цього дня</li>
+  <li>Чекбокс <b>"тільки мої"</b> — фільтрує по виконавцю=я</li>
+  <li>← Місяць / Місяць → / Сьогодні — навігація</li>
+</ul>
+<div class="tip">💡 Як включити/виключити: клацнеш на chip <code>📅 КАЛЕНДАР</code> = відкривається. Клацнеш на будь-який фільтр (Всі/Мої/Сьогодні) → повертає на дошку.</div>
+</div>
+
+<div class="block"><h2>🔥 Сортування по горючості</h2>
+<p>У Tasks тепер у кожній колонці (Inbox/Doing/Review) — найгарячіше зверху:</p>
+<ol>
+  <li><b>Прострочене</b> (overdue) — зверху, червоним</li>
+  <li><b>Сьогодні</b></li>
+  <li><b>Завтра</b> (+1 день)</li>
+  <li><b>Через 2 дні</b>, через 3 дні…</li>
+  <li><b>Без дедлайну</b> — внизу, сортовано по priority (P1 вище P4)</li>
+</ol>
+<p>Більше не треба фільтрувати "Прострочені" — вони і так зверху.</p>
+</div>
+
+<div class="block"><h2>🎨 Світла тема</h2>
+<p>Якщо тобі важко працювати у темному режимі — клацніть на іконку <b>🌙 / ☀️</b> у топбарі.</p>
+<ul>
+  <li>Тема <b>зберігається у браузері</b> — не треба перемикати кожного разу</li>
+  <li>Синхронізується між <b>HQ + Tasks + Dashboard</b> — обираєш у одному, у іншому теж стає світло/темно</li>
+  <li>Синхронізується між <b>вкладками</b> — відкрив HQ + Tasks паралельно, перемкнув → обидва оновились</li>
+</ul>
+</div>
+
+<div class="block"><h2>👀 "Передати" задачу (HQ Next Action Pipeline)</h2>
+<p>У HQ при відкритті публікації тепер є блок <b>"Зараз хід"</b> — показує:</p>
+<ul>
+  <li><b>Хто наступний</b> у роботі (emoji-аватарка)</li>
+  <li><b>Тип роботи</b>: ✍️ Сценарій · 🎬 Відео · 🎨 Дизайн · 📝 Копі · 👀 Перегляд · ✏️ Доопрацювати · ✅ Погодити · 🔄 Інше</li>
+  <li>Кнопка <b>"🤝 Передати"</b> — відкриває modal де обираєш виконавця + тип роботи + опціональна нотатка</li>
+  <li>Він <b>отримує TG DM</b> "{ім'я} передав тобі {тип}: {назва pub} — {нотатка}"</li>
+</ul>
+<p><b>Зачем це треба:</b> щоб не було "хто наступний?". Якщо ти зробив сценарій — клацаєш Передати → Дизайнеру → 🎨. Він бачить що це не "будь-коли", а на нього персонально.</p>
+</div>
+
+<div class="block"><h2>💾 Корзина у HQ — теж 30 днів</h2>
+<p>Як і у Tasks. Якщо публікація видалена не той людиною або помилково — її можна відновити з sidebar → <code>🗑 Корзина</code>. Логіка прав ідентична.</p>
+</div>
+
+<div class="block"><h2>📊 Dashboard — закрита бізнес-аналітика</h2>
+<p>На <code>dashboard.dreamcar.ua</code> тепер є login screen. <b>Доступ лише CEO/COO/Lead.</b> Member отримує "Доступ заборонено".</p>
+<p><b>Чому:</b> у dashboard видно revenue/spend/conversions — це конфіденційні цифри.</p>
+<p><b>Як зайти:</b> клік на <code>🔐 Увійти через Telegram</code> → перенаправляє на HQ login → потім повертає на dashboard.</p>
+<p><b>Якщо у тебе кілька Google account-ів</b> (наприклад <code>vg@abrisart.com</code> і <code>dreamcarua@gmail.com</code>) — обидва тепер ведуть на твій профіль через систему aliases. Не треба думати яким зайти.</p>
+</div>
+
+<div class="block"><h2>📲 TG бот — нові кнопки</h2>
+<ul>
+  <li><b>"👀 Відкрити у браузері"</b> під task notification — клік одразу відкриває браузер з задачею (раніше показувало URL текстом, треба було копіювати)</li>
+  <li><b>"✅ Готово" / "▶ В роботу"</b> на task notification — клік одразу змінює статус, у повідомленні з'являється "✅ Виконано · Вадим · 15:35"</li>
+  <li><b>Дедуплікація</b> — більше не приходить кілька однакових повідомлень при reload сторінки</li>
+</ul>
+</div>
+
+<div class="block"><h2>🛡 Безпека auth</h2>
+<p>Кілька покращень у фоні:</p>
+<ul>
+  <li><b>Single sign-on</b> між HQ ↔ Tasks ↔ Dashboard — залогінився в одному → інші теж пускають</li>
+  <li><b>"+ Завдання"</b> кнопка у tasks → тепер всередині рядка фільтрів (не окремий банер під меню)</li>
+  <li><b>Спостерігачі</b> у Tasks — простий select як "Виконавець" + chips зверху (видалили заплутаний autocomplete)</li>
+</ul>
+</div>
+
+<div class="block"><h2>📚 Куди далі</h2>
+<p>Якщо ти новачок — починай з <a href="#" onclick="document.querySelector('[data-page=quickstart]').click();return false;"><b>🚀 Першоденний старт</b></a>. Якщо вже у команді — переглянь розділи <b>HQ Публікації</b> і <b>Tasks</b> щоб побачити ці фічі у контексті повного flow.</p>
+<p><b>Технічні зміни</b> (для devs/админів): дивись <a href="onboarding/CHANGELOG.md">CHANGELOG.md</a></p>
+</div>
+</section>
+
+<section class="page" data-page="quickstart">
+<div class="page-header"><div class="kicker">/// QUICKSTART</div><h1>ПЕРШИЙ <span>ДЕНЬ</span> — 8 КРОКІВ</h1><p class="lead">Зроби це сьогодні — завтра зможеш повноцінно працювати. ~30 хв.</p></div>
+<div class="card accent"><div class="who">Крок 1</div><h4>🔑 Зайди у HQ через Google</h4><p><b>URL:</b> <a href="https://team.dreamcar.ua/hq" target="_blank" style="color:#E30613;text-decoration:underline;">team.dreamcar.ua/hq</a> → «Увійти через Google» → корпоративний email.</p><div class="tip">💡 «Немає доступу»? Напиши Вадиму у TG.</div></div>
+<div class="card accent"><div class="who">Крок 2</div><h4>🤖 Привʼязай Telegram бот</h4><p>Відкрий <a href="https://t.me/dreamcar_team_bot" target="_blank" style="color:#E30613;">@dreamcar_team_bot</a> → <code>/start</code> → введи email.</p><div class="tip">💡 Без TG-bind не отримаєш approve/нагадувань.</div></div>
+<div class="card accent"><div class="who">Крок 3</div><h4>👤 Налаштуй профіль</h4><p>HQ → аватар → «Профіль» → фото, ім'я, часова зона (CET).</p></div>
+<div class="card accent"><div class="who">Крок 4</div><h4>📅 Ознайомся з календарем HQ</h4><p>HQ → Календар → Місяць/Тиждень/День/Список. Кольорові точки = платформи. Клік на дату — створити публікацію.</p></div>
+<div class="card accent"><div class="who">Крок 5</div><h4>📚 Прочитай Brand Book</h4><p><a href="https://brand.dreamcar.ua" target="_blank" style="color:#E30613;text-decoration:underline;">brand.dreamcar.ua</a> → Quickstart + Voice & Tone + Examples (25 хв).</p></div>
+<div class="card accent"><div class="who">Крок 6</div><h4>✅ Глянь свої Tasks</h4><p><a href="https://team.dreamcar.ua/tasks" target="_blank" style="color:#E30613;text-decoration:underline;">team.dreamcar.ua/tasks</a> → побачиш задачі призначені тобі.</p></div>
+<div class="card accent"><div class="who">Крок 7</div><h4>🔔 Перевір сповіщення</h4><p>Попроси колегу тегнути тебе у коментарі. Має прийти у TG.</p></div>
+<div class="card accent"><div class="who">Крок 8</div><h4>📞 Запитуй</h4><p>Не зрозуміло — пиши Вадиму або тегни команду. Немає дурних питань.</p></div>
+</section>
+
+<section class="page" data-page="glossary">
+<div class="page-header"><div class="kicker">/// ГЛОСАРІЙ</div><h1>ТЕРМІНИ <span>СИСТЕМИ</span></h1><p class="lead">Якщо щось дивне зустрілось — шукай тут.</p></div>
+<table class="dataset"><thead><tr><th>Термін</th><th>Що означає</th></tr></thead><tbody>
+<tr><td>HQ</td><td>Headquarters — центральна сторінка де живуть усі публікації. <a href="https://team.dreamcar.ua/hq" target="_blank" style="color:#E30613;">team.dreamcar.ua/hq</a></td></tr>
+<tr><td>Публікація</td><td>Один пост що піде у соц.мережі. Статус (draft/review/approved/published), креативи, дата, approvers, платформи.</td></tr>
+<tr><td>Креатив</td><td>Фото або відео яке прикріплюється до публікації. Зберігається у Бібліотеці. Стискається автоматично.</td></tr>
+<tr><td>Approver</td><td>Людина яка погоджує публікацію. Зазвичай Вадим (CEO) + Артем (співзасновник).</td></tr>
+<tr><td>Multi-approver AND</td><td>Поки ВСІ approvers не погодили — статус не змінюється. Один не може «обійти» процес.</td></tr>
+<tr><td>Rework</td><td>Approver повернув на доопрацювання → у Tasks автоматично з'являється задача.</td></tr>
+<tr><td>Запуск (Launch)</td><td>Активний проект — «BMW X5 Hybrid». Кожна публікація прив'язана до запуску.</td></tr>
+<tr><td>Compress</td><td>Стиснення відео і фото під ліміти Telegram (≤49.5MB). Працює у фоні.</td></tr>
+<tr><td>Autopost</td><td>Автоматична публікація у канали (TG живий, IG/FB/Threads у Phase 2).</td></tr>
+<tr><td>DCSMM</td><td>Назва нашого Telegram каналу.</td></tr>
+<tr><td>SLA timer</td><td>Нагадування -10 хв перед публікацією + перевірка +10 хв після.</td></tr>
+<tr><td>Bell / Дзвіночок</td><td>Лічильник нотифікацій у HQ.</td></tr>
+<tr><td>Bind / TG-bind</td><td>Прив'язка твого Telegram до DreamCar акаунту через <code>/start</code> у боті.</td></tr>
+</tbody></table>
+</section>
+
+<section class="page" data-page="notifications">
+<div class="page-header"><div class="kicker">/// КАРТА СПОВІЩЕНЬ</div><h1>ЯКЕ <span>СПОВІЩЕННЯ</span> КУДИ ЙДЕ</h1><p class="lead">Щоб ти точно знав звідки що приходить.</p></div>
+<table class="dataset"><thead><tr><th>Подія</th><th>Хто отримає</th><th>Де</th><th>Коли</th></tr></thead><tbody>
+<tr><td>Створено публікацію → на погодження</td><td>Всі approvers</td><td>TG DM @dreamcar_team_bot</td><td>Одразу</td></tr>
+<tr><td>Хтось погодив пост</td><td>Інші approvers + SMM</td><td>TG DM</td><td>Одразу</td></tr>
+<tr><td>Всі погодили → approved</td><td>SMM + approvers</td><td>TG DM + HQ bell</td><td>Одразу</td></tr>
+<tr><td>Approver повернув на rework</td><td>SMM + watchers</td><td>TG DM + Tasks</td><td>Одразу</td></tr>
+<tr><td>Опубліковано у TG-канал</td><td>SMM + CEO</td><td>HQ bell</td><td>Одразу</td></tr>
+<tr><td>Нагадування про публікацію</td><td>SMM + CEO + Approver</td><td>TG група</td><td>-10 хв до publish</td></tr>
+<tr><td>Перевірка «чи опубліковано?»</td><td>SMM</td><td>TG DM</td><td>+10 хв після publish</td></tr>
+<tr><td>Коментар з @mention</td><td>Тегнутий</td><td>TG DM</td><td>Одразу</td></tr>
+<tr><td>Призначили задачу</td><td>Assignee + watchers</td><td>TG DM + Email</td><td>Одразу</td></tr>
+<tr><td>Задача overdue</td><td>Assignee + lead</td><td>TG DM</td><td>Раз на день о 9:00</td></tr>
+<tr><td>Daily Health Audit</td><td>CEO</td><td>Email + TG DM</td><td>Щодня 7:00 CEST</td></tr>
+<tr><td>Креатив стиснений</td><td>—</td><td>HQ UI оновиться сам</td><td>~3 хв після upload</td></tr>
+</tbody></table>
+<div class="block"><h3>Як вимкнути / налаштувати</h3><ul><li>HQ → Settings → Notifications → можна вимкнути окремі типи</li><li>Vacation mode — на відпустці сповіщення йдуть делегату</li><li>Email можна вимкнути окремо від TG</li></ul></div>
+</section>
+
+<section class="page" data-page="hq">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 01</div><h1>SMM — <span>КОНТЕНТ</span> І ПОГОДЖЕННЯ</h1><p class="lead">SMM-стіл DreamCar. Тут живе ВСЕ що публікується: календар, картки публікацій, погодження, креативи, шаблони, AI-помічник. URL поки що <code>team.dreamcar.ua/hq/</code> — повністю система буде переіменована на <code>/smm/</code> пізніше.</p></div>
+<div class="block"><h2>💡 Що це робить</h2><p>SMM замінив 5 інструментів (Excel + Google Docs + TG-чат + Slack + ручний постинг) на одну сторінку. Усі публікації — тут. Від ідеї до того моменту як підписники побачать пост.</p><p>Дані оновлюються real-time. Хтось редагує паралельно — ти бачиш зміни без F5.</p></div>
+<div class="block"><h2>🎬 Як це працює — flow</h2><p>Кожна публікація проходить 4 статуси:</p><ol><li><b>draft</b> — SMM пише, прикріплює креатив. Авто-сейв.</li><li><b>review</b> — натиснув «На погодження». Approvers отримують TG DM з ✅/↩.</li><li><b>approved</b> — ВСІ approvers погодили. У чергу на постинг.</li><li><b>published</b> — пост у каналі. Видно посилання.</li></ol></div>
+<div class="card accent" data-role="smm,ceo,coo"><div class="who"><span class="role-pill">SMM</span></div><h4>Як створити публікацію</h4><ol class="steps"><li>HQ → клік на дату у календарі (або «+ Створити»)</li><li>Заголовок + текст (⚡ AI Copy — 3 варіанти у нашому стилі)</li><li>Обери платформи</li><li>Перетягни креативи з Бібліотеки</li><li>Постав час публікації</li><li>Обери approvers</li><li>«На погодження» — далі система працює сама</li></ol><div class="tip">💡 AI Copy знає наш voice DreamCar (без «квитків/розіграшів/лотерей» — юридичні ризики, коротко).</div></div>
+<div class="card accent" data-role="approver,ceo,coo"><div class="who"><span class="role-pill">APPROVER</span></div><h4>Як погодити — 3 способи</h4><ol class="steps"><li><b>TG inline:</b> DM від @dreamcar_team_bot → ✅</li><li><b>HQ UI:</b> Дошка погоджень → «Погодити»</li><li><b>/approve у боті:</b> черга всіх постів</li></ol><div class="warn">⚠️ Multi-approver AND: статус «approved» тільки коли ВСІ погодили.</div></div>
+<div class="card accent" data-role="approver,ceo,coo"><div class="who"><span class="role-pill">APPROVER</span></div><h4>Як повернути на rework</h4><ol class="steps"><li>↩ у TG inline (двокроковий: причина → confirm)</li><li>Або у HQ «Повернути» → модалка з категоріями</li><li>SMM одразу отримає TG DM з причиною</li><li>У Tasks автоматично створюється задача (due = +1 день)</li></ol></div>
+<div class="card" data-role="smm"><div class="who"><span class="role-pill">SMM</span></div><h4>Корисні трюки</h4><ul><li><b>Дублювати на платформу</b> — один пост → дублі для TG/IG/FB</li><li><b>Шаблони</b> — повторювані типи постів</li><li><b>Per-platform date/time</b> — різний час одним постом</li><li><b>Bulk delete + undo</b> — 5 сек на скасування</li><li><b>Cmd+K</b> — глобальний пошук</li></ul></div>
+<div class="block"><h2>🔍 Де результат</h2><p>Після того як пост запостився — у HQ зʼявляється <b>посилання на TG-повідомлення</b>. Клік → відкривається пост у каналі.</p></div>
+
+<div class="block"><h2>👀 "Зараз хід" — хто наступний (Next Action Pipeline)</h2>
+<p>У картці публікації блок <b>«Зараз хід»</b> показує хто наступний у роботі і що саме робить.</p>
+<p><b>8 типів роботи (з emoji):</b></p>
+<ul style="columns:2;column-gap:24px;">
+  <li>✍️ Сценарій</li>
+  <li>🎬 Відео</li>
+  <li>🎨 Дизайн</li>
+  <li>📝 Копі</li>
+  <li>👀 Перегляд</li>
+  <li>✏️ Доопрацювати</li>
+  <li>✅ Погодити</li>
+  <li>🔄 Інше</li>
+</ul>
+<p><b>Як передати:</b></p>
+<ol>
+  <li>Відкрий публікацію у HQ</li>
+  <li>Клацни кнопку <b>«🤝 Передати»</b> у блоці «Зараз хід»</li>
+  <li>Обери виконавця зі списку</li>
+  <li>Обери тип роботи (з 8 emoji)</li>
+  <li>Опціонально — нотатка ("уточни шрифти Х, Y..." )</li>
+  <li>Save → виконавець отримує TG DM "{ім'я} передав тобі {тип}: {назва pub} — {нотатка}"</li>
+</ol>
+<div class="tip">💡 <b>Зачем це треба:</b> щоб не було "хто наступний?". Якщо ти зробив сценарій — клацаєш Передати → Дизайнеру → 🎨. Він бачить що це адресовано йому, не "будь-коли хтось зробить".</div>
+</div>
+
+<div class="block"><h2>🗑 Корзина публікацій — 30 днів</h2>
+<p>Видалені публікації не зникають назавжди — йдуть у корзину, зберігаються 30 днів, можна відновити.</p>
+<p><b>Хто може видалити:</b></p>
+<ul>
+  <li><b>Автор</b> (хто створив публікацію) — завжди</li>
+  <li><b>CEO / COO</b> — може все</li>
+  <li><b>Інші ролі</b> — НЕ можуть видаляти чужі публікації</li>
+</ul>
+<p><b>Як видалити:</b> у HQ → клік 🗑 → вибір з 3 кнопок:</p>
+<ul>
+  <li style="list-style:none;color:#FF6A7A;">🗑 <b>ВИДАЛИТИ НАЗАВЖДИ</b> — тільки CEO/COO. Корзини НЕ буде.</li>
+  <li style="list-style:none;color:#FBBF24;">📦 <b>ПЕРЕМІСТИТИ В КОРЗИНУ</b> — 30 днів, можна відновити.</li>
+  <li style="list-style:none;">✕ <b>СКАСУВАТИ</b> — Esc теж закриває.</li>
+</ul>
+<p><b>Де знайти корзину:</b> у sidebar посилання <code>🗑 Корзина (N)</code>.</p>
+<p>У корзині бачиш: назва, автор, <b>хто видалив</b>, коли, <b>скільки днів залишилось</b>, кнопки ↩ Відновити / 🗑 Purge.</p>
+<div class="tip">💡 CEO/COO бачать видалені публікації ВСІЄЇ команди. Інші ролі — лише свої.</div>
+<div class="warn">⚠️ Через 30 днів — hard delete через cron.</div>
+</div>
+
+<div class="block"><h2>🎨 Світла тема</h2>
+<p>Якщо тобі важко працювати у темному режимі — клацніть на іконку <b>🌙 / ☀️</b> у топбарі.</p>
+<ul>
+  <li>Тема <b>зберігається у браузері</b></li>
+  <li>Синхронізується між <b>HQ + Tasks + Dashboard</b></li>
+  <li>Синхронізується між <b>вкладками</b></li>
+</ul>
+</div>
+</section>
+
+<section class="page" data-page="projects">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 02</div><h1>ПРОЄКТИ — <span>ЗАПУСКИ</span> ТА КАМПАНІЇ</h1><p class="lead">Усе що має життєвий цикл, бюджет і ROI. Розіграші авто, спецпропозиції, продуктові запуски, кампанії партнерств. URL: <code>team.dreamcar.ua/hq/#projects</code> (Phase 1, у HQ). Пізніше винесемо у окремий <code>/projects/</code>.</p></div>
+
+<div class="block"><h2>💡 Що це робить</h2><p>До нинішнього моменту "Запуски" були маленьким filter всередині SMM. Тепер це повноцінна сутність зі своїм lifecycle:</p>
+<ul>
+  <li><b>💡 Ідея</b> — додали проєкт, ще нічого не вирішено</li>
+  <li><b>📋 Підготовка</b> — план, бюджет, дати, команда</li>
+  <li><b>🚀 Активний</b> — у роботі, публікації виходять, задачі робляться</li>
+  <li><b>📊 Вимірюємо</b> — закінчили, дивимось результати</li>
+  <li><b>✅ Завершено</b> — підсумки записано, ROI пораховано</li>
+  <li><b>📦 Архів</b> — старі проєкти що більше не змінюються</li>
+</ul>
+</div>
+
+<div class="block"><h2>🎬 Що містить кожен проєкт</h2>
+<ul>
+  <li><b>Код</b> (DC17_X5, IPHONE17, MOTO) — короткий slug для швидкого пошуку</li>
+  <li><b>Назва, опис, нотатки</b></li>
+  <li><b>Дати:</b> старт + кінець (опціонально)</li>
+  <li><b>Бюджет:</b> план + факт</li>
+  <li><b>Команда:</b> team_lead + responsible</li>
+  <li><b>KPI targets / actuals</b> (JSON, для майбутнього дашборду)</li>
+  <li><b>Cross-link:</b> усі публікації у SMM (через launch_id) + усі задачі у Tasks (через project_id)</li>
+</ul>
+</div>
+
+<div class="card accent" data-role="ceo,coo,lead"><div class="who"><span class="role-pill">CEO/COO</span></div><h4>Як створити проєкт</h4><ol class="steps"><li>SMM → меню <b>📁 ПРОЄКТИ</b> у sidebar (або URL <code>/hq/#projects</code>)</li><li>Кнопка <b>+ НОВИЙ ПРОЄКТ</b> зверху</li><li>Назва, код, статус (за замовчуванням <i>Активний</i>), дати, бюджет, колір</li><li>Зберегти — проєкт у Kanban</li></ol></div>
+
+<div class="card" data-role="smm,lead,member"><div class="who"><span class="role-pill">УСІ</span></div><h4>Як привʼязати задачу/публікацію до проєкту</h4>
+<p><b>У Tasks:</b> при створенні задачі — поле <b>📁 ПРОЄКТ</b> → обери зі списку. У Kanban і списку буде бейдж з кодом.</p>
+<p><b>У SMM:</b> при створенні публікації — поле <b>Запуск</b> (вже було) → обери проєкт. Публікація лінкується.</p>
+<p><b>Filter:</b> у Tasks chip <b>📁 ПРОЄКТ</b> у фільтрах — клік → обери проєкт → видно тільки задачі цього проєкту.</p>
+</div>
+
+<div class="block"><h2>📊 Detail view проєкту</h2>
+<p>Клік на проєкт у Kanban → відкривається detail з:</p>
+<ul>
+  <li>Назва + статус + дати</li>
+  <li>Бюджет (план / факт)</li>
+  <li>Кількість публікацій</li>
+  <li>Список задач по проєкту (клікабельні → відкривають Tasks)</li>
+  <li>Список публікацій (клікабельні → відкривають у SMM)</li>
+  <li>Нотатки</li>
+  <li>CEO/COO: кнопка <b>✏ РЕДАГУВАТИ</b></li>
+</ul>
+</div>
+
+<div class="card" data-role="ceo,coo,lead"><div class="who"><span class="role-pill">CEO/COO</span></div><h4>Як використовувати на практиці</h4>
+<ol class="steps">
+  <li><b>Запускаєш новий розіграш</b> → створи проєкт зі статусом <i>Підготовка</i>, познач дати кампанії, бюджет на рекламу</li>
+  <li><b>SMM</b> створюють пости і прикріплюють до цього проєкту (через launch_id)</li>
+  <li><b>Tasks</b> по підготовці прикріплюються до проєкту через project_id</li>
+  <li><b>Перехід у активний</b> — стартує продаж, всі пости йдуть з тегом проєкту</li>
+  <li><b>Finalize</b> — статус <i>Вимірюємо</i>, заносиш реальний бюджет/виторг у KPI</li>
+  <li><b>Завершено</b> — підсумки, архів</li>
+</ol>
+</div>
+
+<div class="block"><h2>🛣 Roadmap наступні фази</h2>
+<ul>
+  <li><b>Phase 2:</b> винесення у окремий <code>/projects/</code> з власним SPA, dashboard ROI per project</li>
+  <li><b>Phase 3:</b> TG-бот <code>/projects</code> команда, нотифікації "проєкт стартує завтра"</li>
+  <li><b>Phase 4:</b> Gantt chart, milestone tracking, dependencies між проєктами</li>
+</ul>
+</div>
+</section>
+
+<section class="page" data-page="tasks">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 03</div><h1>TASKS — <span>ЗАДАЧІ</span> КОМАНДИ</h1><p class="lead">Все що НЕ публікація: операційне, бюджети, переговори, баги.</p></div>
+<div class="block"><h2>💡 Що це робить</h2><p>Кожна задача має <b>одного власника</b>, дедлайн, пріоритет (P1-P4), watchers, автоматичні нагадування.</p><p><b>Звідки беруться задачі:</b></p><ul><li>Lead/COO створив і призначив тобі</li><li>Ти створив сам собі (todo)</li><li>Авто-задача з HQ — коли пост повернули на rework</li><li>Recurring — «Щотижневий звіт» сам зʼявляється</li></ul></div>
+<div class="card accent" data-role="member,smm,designer,ceo,coo"><div class="who"><span class="role-pill">ВИКОНАВЕЦЬ</span></div><h4>Як закрити задачу</h4><ol class="steps"><li>Tasks → клік на свою задачу → Overview</li><li>«Розпочати» → status: doing</li><li>Subtasks галочками</li><li>«Завершити» → status: done</li><li>Recurring → наступна автоматично</li></ol><div class="tip">💡 З TG: під нотифікацією — ✅ Виконано / 💬 Коментар / ⏰ +1 день.</div></div>
+<div class="card accent" data-role="ceo,coo"><div class="who"><span class="role-pill">LEAD / COO</span></div><h4>Як створити задачу</h4><ol class="steps"><li>Tasks → «+ Нова задача»</li><li>Заголовок на дію («Зробити Х»)</li><li>Assignee — одна людина</li><li>Priority (P1=критично, P4=коли буде час)</li><li>Due date — реалістичний дедлайн</li><li>Save → assignee отримає TG DM</li></ol></div>
+<div class="card" data-role="ceo,coo"><div class="who"><span class="role-pill">LEAD / COO</span></div><h4>Templates</h4><p>Однотипну задачу — зроби template один раз. Tasks → Templates → «+ Новий шаблон» → опиши → «+ Нова з шаблону» = заповнено.</p></div>
+<div class="block"><h2>📊 Аналітика</h2><p><code>/tasks/analytics.html</code>: KPI, chart по днях, P1/P2/P3/P4, per-assignee load, avg time-to-done, bottleneck detection.</p></div>
+<div class="block"><h2>📡 Сповіщення</h2><ul><li>Призначили задачу — TG DM + Email</li><li>Коментар з @mention — TG DM</li><li>Прострочено — TG DM (раз на день о 9:00)</li></ul></div>
+
+<div class="block"><h2>🔥 Сортування — найгарячіше зверху</h2>
+<p>У кожній колонці (Inbox/Doing/Review) задачі автоматично відсортовані за дедлайном:</p>
+<ol>
+  <li><b>Прострочене</b> (overdue) — зверху, червоним</li>
+  <li><b>Сьогодні</b></li>
+  <li><b>Завтра</b> (+1 день), через 2 дні, через 3 дні…</li>
+  <li><b>Без дедлайну</b> — внизу, відсортовано по priority (P1 вище P4)</li>
+  <li><b>Done</b> — у самий кінець</li>
+</ol>
+<p>Більше не треба фільтрувати "Прострочені" — вони і так зверху. Бачиш одразу що горить.</p>
+</div>
+
+<div class="block"><h2>📅 Календарний вид</h2>
+<p>Chip <code>📅 КАЛЕНДАР</code> у меню фільтрів — відкриває місячну сітку з усіма задачами.</p>
+<ul>
+  <li><b>Кожна задача</b> — кольоровий pill з ініціалом виконавця. P1 червоний / P2 жовтий / P3 синій / P4 сірий.</li>
+  <li><b>Прострочені</b> — текст червоний</li>
+  <li><b>До 4 на день</b>, потім "+N ще"</li>
+  <li><b>Сьогодні</b> підсвічена червоним border</li>
+</ul>
+<p><b>Інтерактив:</b></p>
+<ul>
+  <li>Клік на pill → відкрити задачу</li>
+  <li>Клік на день → нова задача з prefilled дедлайном цього дня</li>
+  <li>Чекбокс <b>"тільки мої"</b> — фільтрує по виконавцю=я</li>
+  <li>← Місяць / Місяць → / Сьогодні — навігація</li>
+</ul>
+<p><b>Як вийти:</b> клік на будь-який фільтр chip (Всі/Мої/Сьогодні/тощо) → автоматично повертає на дошку з обраним фільтром. Або кнопка <code>← На дошку</code>.</p>
+</div>
+
+<div class="block"><h2>🗑 Корзина — 30 днів на роздуми</h2>
+<p>Видалені задачі не зникають назавжди. Йдуть у корзину, зберігаються 30 днів, можна відновити.</p>
+<p><b>Хто може видалити:</b></p>
+<ul>
+  <li><b>Автор задачі</b> (той хто створив) — завжди</li>
+  <li><b>CEO / COO</b> — може все</li>
+  <li><b>Інші ролі (lead/member)</b> — НЕ можуть видаляти чужі задачі. Toast "Видалити може тільки автор або CEO/COO"</li>
+</ul>
+<p><b>Як видалити:</b> у Tasks → відкрий задачу → 🗑 кнопка → з'явиться вибір з 3 кнопок:</p>
+<ul>
+  <li style="list-style:none;color:#FF6A7A;">🗑 <b>ВИДАЛИТИ НАЗАВЖДИ</b> — тільки для CEO/COO. Корзини НЕ буде. Двоступенева підтвердження "точно?".</li>
+  <li style="list-style:none;color:#FBBF24;">📦 <b>ПЕРЕМІСТИТИ В КОРЗИНУ</b> — зберігається 30 днів, можна відновити.</li>
+  <li style="list-style:none;">✕ <b>СКАСУВАТИ</b> — якщо випадково клікнув. Esc теж закриває.</li>
+</ul>
+<p><b>Де знайти корзину:</b> chip <code>🗑 КОРЗИНА (N)</code> у меню фільтрів (число = скільки задач у корзині).</p>
+<p><b>У корзині бачиш:</b></p>
+<ul>
+  <li><b>Назва</b> + автор задачі</li>
+  <li><b>Хто видалив</b> (кожен бачить — щоб не сваритись хто прибрав)</li>
+  <li><b>Коли</b> та <b>скільки днів залишилось</b> до автоматичного hard-видалення (≤3 дні — червоний, ≤7 — жовтий)</li>
+  <li><b>Чому видалено</b> (якщо причина була вказана при видаленні)</li>
+  <li>↩ <b>Відновити</b> — повертає задачу у Inbox</li>
+  <li>🗑 — purge назавжди (тільки автор/CEO/COO)</li>
+</ul>
+<div class="tip">💡 <b>CEO/COO бачать ВСІ</b> видалені задачі команди (можуть переглядати хто що видаляє). Інші ролі — лише свої.</div>
+<div class="warn">⚠️ Через 30 днів задачі видаляються <b>назавжди</b> через cron — без можливості відновлення.</div>
+</div>
+</section>
+
+<section class="page" data-page="retention">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 04</div><h1>РЕТЕНШН — <span>РОЗСИЛКИ</span> ТА АВТОМАТИЗАЦІЯ</h1><p class="lead">Окремий стіл для планування Email/TG/Push/SMS розсилок. URL: <code>team.dreamcar.ua/retention/</code></p></div>
+
+<div class="block"><h2>💡 Що це робить</h2><p>SMM відповідає за <b>контент-маркетинг</b> у каналах (TG, IG, FB, Threads). РЕТЕНШН — окремий стіл де плануються <b>прямі комунікації з підписниками</b>: email-розсилки, TG-broadcast у клієнтський бот, push-нотифікації, SMS, viber.</p><p>Чому окремо: розсилки мають іншу логіку — сегментація аудиторії, A/B testing, win-back campaigns, transactional flows. Спам vs targeted comms. Метрики open/click vs engagement.</p></div>
+
+<div class="block"><h2>🎬 Канали (Phase 1)</h2><ul>
+<li><b>📧 Email</b> — інтеграція з SendPulse (READ-ONLY у Phase 1: статистика і списки). Сама відправка — через SendPulse Dashboard.</li>
+<li><b>📨 Telegram</b> — broadcast через існуючий <code>@dreamcar_team_bot</code>. Працює <b>авто</b> з 06.06.2026.</li>
+<li><b>🔔 Push</b> — Phase 2 (планується OneSignal).</li>
+<li><b>💬 SMS</b> — Phase 2.</li>
+<li><b>📱 Viber</b> — Phase 2.</li>
+<li><b>📤 Інше</b> — будь-який сторонній канал, manual send.</li>
+</ul></div>
+
+<div class="block"><h2>🔄 Lifecycle розсилки (9 статусів)</h2><ol>
+<li><b>draft</b> — пишеться, ніхто ще не бачить.</li>
+<li><b>review</b> — натиснули "На погодження", approvers отримують TG DM.</li>
+<li><b>approved</b> — всі approvers погодили. Готова до постановки у чергу.</li>
+<li><b>scheduled</b> — у черзі на відправку. cron retention-scheduler picks її коли <code>publish_at &lt;= now()</code>.</li>
+<li><b>sending</b> — у процесі відправки.</li>
+<li><b>sent</b> — відправлено. Видно sent_count.</li>
+<li><b>failed</b> — помилка. Видно external_error.</li>
+<li><b>rework</b> — повернуто на доопрацювання approver-ом.</li>
+<li><b>archived</b> — у архіві.</li>
+</ol></div>
+
+<div class="card accent" data-role="smm,ceo,coo,lead"><div class="who"><span class="role-pill">SMM / CEO / COO</span></div><h4>Як створити розсилку</h4><ol class="steps">
+<li>Відкрити <a href="/retention/">team.dreamcar.ua/retention/</a></li>
+<li>Кнопка <b>+ НОВА РОЗСИЛКА</b></li>
+<li>Канал (Email / Telegram / Push / SMS / Viber / Інше)</li>
+<li>Заголовок (Subject для email), Preview, Body</li>
+<li>Дата і час відправки</li>
+<li>Прикріпити до проєкту (опціонально)</li>
+<li>Сегмент: тариф (Бронза / Срібло / Золото / Платина) + статус (Активний / Потенційний / Відтік / Переможці)</li>
+<li>ID списку SendPulse або chat_id TG broadcast чату</li>
+<li>Призначити Approvers (хто погоджує) і Responsibles (хто виконує)</li>
+<li>💾 ЗБЕРЕГТИ → статус = <i>draft</i></li>
+<li>📤 НА ПОГОДЖЕННЯ → approvers отримують TG DM з ✅/↩</li>
+<li>Після approval — ⏰ ПОСТАВИТИ У ЧЕРГУ → cron підхопить</li>
+</ol></div>
+
+<div class="block"><h2>📊 Аудиторія і сегментація</h2><p>У формі розсилки є <b>фільтри</b>:</p>
+<ul>
+<li><b>Тариф</b>: Бронза (249-999) / Срібло (1499-2999) / Золото (4999+) / Платина (9999)</li>
+<li><b>Статус</b>: Активний / Потенційний (зареєстровані без оплати) / Відтік (купували колись) / Переможці</li>
+</ul>
+<p>Кнопка <b>↻ ОЦІНИТИ</b> у формі дає попередню оцінку розміру аудиторії перед відправкою. Phase 1: показує загальний розмір бази; Phase 2 додамо точну сегментацію.</p>
+</div>
+
+<div class="block"><h2>🎯 Сценарії використання</h2><ul>
+<li><b>Welcome series</b> — для нових учасників (email + TG бот).</li>
+<li><b>Win-back</b> — повернути тих хто давно не купував.</li>
+<li><b>Pre-launch warmup</b> — за 30/14/7 днів до фіналу проєкту (BMW X5 і подальші).</li>
+<li><b>Post-purchase upsell</b> — після оплати тарифу — додаткові пропозиції.</li>
+<li><b>Транзакційні</b> — підтвердження оплати, нагадування про дату фіналу, повідомлення про перемогу.</li>
+</ul></div>
+
+<div class="card warn"><h4>⚠️ Важливо</h4><ul>
+<li>Email send у Phase 1 — manual через SendPulse Dashboard (rule: READ-ONLY у нашій системі).</li>
+<li>Telegram broadcast — працює автоматично, але <b>chat_id</b> у audience_list_id має бути валідним.</li>
+<li>Cron <code>retention-scheduler</code> запускається <b>кожні 5 хв</b> і шипає approved розсилки коли час настав.</li>
+<li>Не використовуй слова "квиток", "лотерея", "розіграш" у текстах — юридичні ризики.</li>
+</ul></div>
+</section>
+
+<section class="page" data-page="compress">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 03</div><h1>КРЕАТИВИ — <span>ФОТО</span> ТА ВІДЕО</h1><p class="lead">Як завантажувати, чому інколи спінер крутиться.</p></div>
+<div class="block"><h2>💡 Як працює стиснення</h2><p>Сирі відео — 100-500MB. Telegram приймає ≤50MB. Ми <b>автоматично</b> стискаємо у фоні. Якість максимальна, тільки розмір зменшуємо.</p><p><b>Тобі це невидиме.</b> 200MB → за ~3 хв стало 49MB → готове.</p></div>
+<div class="card accent" data-role="smm,designer,ceo,coo"><div class="who"><span class="role-pill">SMM / DESIGNER</span></div><h4>Як завантажити креатив</h4><ol class="steps"><li>HQ → Бібліотека</li><li>«+ Завантажити» або перетягни файли</li><li>Підтримуються: JPG, PNG, HEIC, MP4, MOV, WebM</li><li>Файл йде у Cloudflare R2</li><li>З'явиться зі спінером 🌀</li><li>Через ~3 хв спінер зникне — креатив <b>ready</b></li></ol><div class="tip">💡 Можна перетягувати декілька файлів одразу.</div></div>
+<div class="block"><h2>🔍 Стани креативу</h2><table class="dataset"><thead><tr><th>Іконка</th><th>Стан</th><th>Що значить</th></tr></thead><tbody>
+<tr><td>🌀</td><td>pending / processing</td><td>Стискається. ~3 хв.</td></tr>
+<tr><td>✅</td><td>ready</td><td>Готовий.</td></tr>
+<tr><td>⚠️</td><td>failed</td><td>Не вдалося. Перезавантаж.</td></tr>
+<tr><td>—</td><td>n/a</td><td>Не потребує стиснення.</td></tr>
+</tbody></table></div>
+<div class="warn">⚠️ <b>HEIC iPhone</b> підтримуються — конвертуються у JPG автоматично.</div>
+</section>
+
+<section class="page" data-page="autopost">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 04</div><h1>АВТО<span>ПОСТИНГ</span></h1><p class="lead">Approved пости летять у канали самі. Ти не маєш постити руками.</p></div>
+<div class="block"><h2>💡 Як працює</h2><p>Всі approvers погодили → публікація у черзі. Якщо час уже настав — піде через ~30 сек. У майбутньому — почекає до часу.</p><p><b>Telegram канал DCSMM</b> — живий.</p><p><b>Instagram, Facebook, Threads</b> — Phase 2 (код готовий, чекаємо Meta App).</p></div>
+<div class="block"><h2>🎬 Приклад: запланувати на завтра</h2><ol class="steps"><li>HQ → publish_at = 2026-05-30 14:00 CEST</li><li>Approvers погодили сьогодні → у черзі</li><li>Завтра о 14:00 worker візьме і опублікує</li><li>За -10 хв команда отримає reminder у TG-групу</li><li>За +10 хв перевірка чи постнулось</li></ol></div>
+<div class="block"><h2>🔍 Де подивитись</h2><ul><li>У HQ біля approved-поста — посилання на TG</li><li>Канал DCSMM напряму</li><li>HQ → Аналітика V3 → funnel</li></ul></div>
+<div class="warn">⚠️ Пост «застряг» &gt;30 хв: перевір що креатив у ready + publish_at не у майбутньому + напиши Вадиму.</div>
+</section>
+
+<section class="page" data-page="bot">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 05</div><h1>TG <span>БОТ</span> @dreamcar_team_bot</h1><p class="lead">Командна лінія через Telegram.</p></div>
+<div class="block"><h2>💡 Що це</h2><p>Бот <a href="https://t.me/dreamcar_team_bot" target="_blank" style="color:#E30613;">@dreamcar_team_bot</a> — інтерфейс до HQ і Tasks через Telegram. Ти у поїздці — все одно можеш погоджувати, бачити задачі.</p></div>
+
+<div class="block"><h2>🔘 Inline кнопки під сповіщеннями</h2>
+<p>Коли тобі приходить нотифікація — під нею кнопки одразу для дій:</p>
+<p><b>Під задачею:</b></p>
+<ul>
+  <li>✅ <b>Готово</b> — статус → done, у повідомленні зʼявиться «✅ Виконано · Вадим · 15:35»</li>
+  <li>▶ <b>В роботу</b> — статус → doing</li>
+  <li>👀 <b>Відкрити у браузері</b> — <b>1 клік</b> відкриває задачу у браузері (раніше показувало URL текстом, треба було копіювати)</li>
+</ul>
+<p><b>Під публікацією на погодженні:</b></p>
+<ul>
+  <li>✅ <b>Погодити</b></li>
+  <li>↩ <b>Повернути</b> — далі двокроковий: причина → confirm</li>
+  <li>💬 <b>Коментар</b></li>
+  <li>👀 <b>Відкрити у HQ</b></li>
+</ul>
+<div class="tip">💡 Дедуплікація: якщо хтось reload-ить HQ — ти НЕ отримаєш повторне сповіщення. Один статус-change = одна нотифікація (5-хв guard).</div>
+</div>
+<div class="block"><h2>📖 Команди — універсальні</h2><table class="dataset"><thead><tr><th>Команда</th><th>Що робить</th></tr></thead><tbody>
+<tr><td><code>/start</code></td><td>Прив'язати TG до акаунту (один раз)</td></tr>
+<tr><td><code>/today</code></td><td>Що заплановано сьогодні</td></tr>
+<tr><td><code>/late</code></td><td>Прострочені пости + задачі</td></tr>
+<tr><td><code>/my</code></td><td>Що чекає від мене</td></tr>
+<tr><td><code>/tasks</code></td><td>Active задачі з Done/Snooze/Comment</td></tr>
+<tr><td><code>/help</code></td><td>Список усіх команд</td></tr>
+</tbody></table>
+<h3 data-role="approver,ceo,coo">Для approvers</h3>
+<table class="dataset" data-role="approver,ceo,coo"><thead><tr><th>Команда</th><th>Що</th></tr></thead><tbody>
+<tr><td><code>/queue</code></td><td>Черга постів у review</td></tr>
+<tr><td><code>/approve</code></td><td>Інтерактивна черга → ✅/↩</td></tr>
+<tr><td><code>/reject</code></td><td>Двокроковий з причиною</td></tr>
+</tbody></table>
+<h3 data-role="ceo">Для CEO</h3>
+<table class="dataset" data-role="ceo"><thead><tr><th>Команда</th><th>Що</th></tr></thead><tbody>
+<tr><td><code>/audit</code></td><td>On-demand health-report</td></tr>
+</tbody></table>
+</div>
+<div class="card"><h4>🎯 Інтерактивні кнопки під сповіщеннями</h4><ul><li>✅ Погодити / ↩ Повернути — для постів</li><li>💬 Коментар — пишеш у відповідь → стає коментарем</li><li>⏰ +1 день — посунути дедлайн</li><li>📌 Деталі — повний текст + creative</li></ul></div>
+</section>
+
+<section class="page" data-page="dashboard" data-role="ceo,coo,lead">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 06 · ЗАКРИТА</div><h1>DASHBOARD — <span>БІЗНЕС</span> АНАЛІТИКА</h1><p class="lead">Revenue, leads, spend, conversions — всі цифри DreamCar у real-time. Доступ лише CEO / COO / Lead.</p></div>
+
+<div class="block"><h2>💡 Що це</h2><p><a href="https://dashboard.dreamcar.ua" target="_blank" style="color:#E30613;text-decoration:underline;font-weight:600;">dashboard.dreamcar.ua</a> — бізнес-аналітика DreamCar з 9 розділами: Огляд, Проекти, Аналітика, Комбінації, Джерела, Тип трафіка, Кампанії, Виконавець, Оголошення + блоки Facebook Ads (Overview / Campaigns) + Maintenance (Таблиця, Webhook логи, UTM Mapping, People Merge, Cohort Retention, Manual Costs).</p>
+<p>Real-time через WebSocket: нова оплата → дашборд оновлюється &lt;200мс. ETL FB Ads щодня кожні 15 хв.</p>
+</div>
+
+<div class="block"><h2>🔒 Як зайти</h2>
+<ol>
+  <li>Відкрий <a href="https://dashboard.dreamcar.ua" target="_blank" style="color:#E30613;">dashboard.dreamcar.ua</a></li>
+  <li>Побачиш login screen "🔒 Закрита бізнес-аналітика"</li>
+  <li>Клік <b>"🔐 Увійти через Telegram"</b></li>
+  <li>Перенаправляє на HQ → TG login → автоматично повертає на dashboard</li>
+  <li>Якщо вже залогінений у HQ — sso bridge передає сесію автоматично, не треба перелогуватись</li>
+</ol>
+<div class="warn">⚠️ <b>Member отримує "Доступ заборонено"</b>. Якщо у тебе кілька Google аккаунтів (наприклад <code>vg@abrisart.com</code> + <code>dreamcarua@gmail.com</code>) — всі ведуть на один профіль через систему aliases.</div>
+</div>
+
+<div class="block"><h2>📊 Ключові метрики (вкладка Аналітика)</h2>
+<ul>
+  <li><b>Лідів / Оплат / Виручка / AOV</b> — з delta ▲/▼% vs попередній період</li>
+  <li><b>Платний vs Органічний</b> doughnut (на основі реальних FB Ads кампаній, не "instagram = paid")</li>
+  <li><b>Топ-5 каналів</b>, <b>Топ-10 кампаній</b>, <b>Топ-10 джерел</b></li>
+  <li><b>Hourly heatmap</b> — день тижня × година (по Kyiv time)</li>
+  <li><b>Time-to-pay, Repeat rate, Currency split</b> (UAH/USD/EUR)</li>
+</ul>
+</div>
+
+<div class="block"><h2>🏎️ Сторінка "Проекти"</h2>
+<p>7 активних проектів (VOLVO XC90 / AUDI Q7 / BMW 330E HYBRID / MERCEDES GLE COUPE / BMW X5 HYBRID / AUDI E-TRON / Архів-до-VOLVO).</p>
+<p>KPI cards: всього лідів / оплат / revenue / AOV / buyers / top-revenue / top-conv.</p>
+<p>Bar charts: Revenue (брендові кольори) + Conv % + <b>Ad spend + ROI + CAC per project</b>.</p>
+</div>
+
+<div class="block"><h2>🪝 Webhooks та джерела даних</h2>
+<p>Дані приходять з 4 точок:</p>
+<ol>
+  <li><b>SendPulse CRM</b> — оплати через webhook (real-time). Dual-write з сервером Олександра поки тестуємо.</li>
+  <li><b>Facebook Ads</b> — spend/impressions/clicks/conversions, ETL Python cron */15 хв</li>
+  <li><b>Manual costs</b> — partнерства, призи, сервіси (вручну у Settings)</li>
+  <li><b>Projects</b> — довідник 7 авто</li>
+</ol>
+<p>Здоров'я webhooks видно у <code>#webhooks</code>: success_rate, count, avg latency по джерелу. Якщо &lt;90% — автоматичний DM у TG.</p>
+</div>
+
+<div class="block"><h2>👥 People Merge (CRM ↔ ADS)</h2>
+<p>Один клієнт може мати кілька email/телефонів у CRM але один FB click. Сторінка <code>#people</code> дозволяє ручний merge — щоб counts не були завищені.</p>
+</div>
+
+<div class="block"><h2>📈 Cohort Retention</h2>
+<p><code>#cohort</code> heatmap — повторні оплати за місяцями. Видно з якого "винтажу" клієнти повертаються найкраще.</p>
+</div>
+
+<div class="block"><h2>🎨 Світла тема</h2>
+<p>Toggle 🌙/☀️ — синхронізується з HQ і Tasks. Один localStorage key для всіх 3 систем.</p>
+</div>
+
+<div class="block"><h2>📚 Детальна документація</h2>
+<p><a href="onboarding/dashboard.html" target="_blank" style="color:#E30613;">onboarding/dashboard.html</a> — повна архітектура (8 секцій: концепція, RPC, FB Ads ETL, paid/organic logic, всі сторінки, use cases, troubleshooting).</p>
+<p><a href="onboarding/DASHBOARD_DATA_FLOW.md" target="_blank" style="color:#E30613;">DASHBOARD_DATA_FLOW.md</a> — потоки даних, вузькі місця, моніторинг.</p>
+</div>
+</section>
+
+<section class="page" data-page="brand">
+<div class="page-header"><div class="kicker">/// СИСТЕМА 07</div><h1>BRAND <span>BOOK</span></h1><p class="lead">Як виглядає DreamCar, як говорить.</p></div>
+<div class="block"><h2>💡 Навіщо</h2><p>Щоб усі говорили однаково. Не «продакт-агенство», а «команда». Не «розіграш» а «проект».</p><p><b>URL:</b> <a href="https://brand.dreamcar.ua" target="_blank" style="color:#E30613;text-decoration:underline;font-weight:600;">brand.dreamcar.ua</a></p></div>
+<div class="block"><h2>📚 Точно треба знати</h2><ul><li><b>Quickstart</b> — 5 хв</li><li><b>Voice & Tone</b> — як ми говоримо</li><li><b>Examples</b> — добре vs погано</li><li><b>Логотип + Кольори + Шрифти</b></li><li><b>Photography Brief</b> — як знімати креативи</li><li><b>Email шаблони</b></li></ul></div>
+<div class="block"><h2>🛠 Інтерактивні tools</h2><ul><li><b>Voice Linter</b> — миттєвий аналіз тексту (з вибором проекту)</li><li><b>Color Checker</b> — WCAG accessibility</li><li><b>Brand Post Generator</b> — кістяк поста</li><li><b>Component Storybook</b> — кнопки/картки + CSS</li></ul></div>
+<div class="warn">⚠️ <b>Чого НЕ писати — per проект:</b><ul style="margin: 8px 0 0 22px;"><li><b>DreamCar:</b> «шанс / квиток / лотерея / розіграш» — юридичні ризики. Кажемо «проект», «учасник», «токен», «фінал».</li><li><b>snEco / Barpi:</b> «NASA технологія» — у нас власна патентована мікрохвильово-вакуумна сушка.</li><li><b>Все:</b> «Безкоштовно» якщо є умови — пиши умови явно</li></ul></div>
+</section>
+
+<section class="page" data-page="faq">
+<div class="page-header"><div class="kicker">/// ЧАСТІ ПИТАННЯ</div><h1>FAQ — <span>ПИТАЛИ</span> НАЙЧАСТІШЕ</h1></div>
+<div class="card"><h4>Чому не приходять TG-сповіщення?</h4><p>1) <code>/start</code> у <a href="https://t.me/dreamcar_team_bot" target="_blank" style="color:#E30613;">@dreamcar_team_bot</a>.<br>2) HQ Settings → Notifications → TG увімкнено.<br>3) TG-bind індикатор червоний — пере-bind через <code>/start</code>.</p></div>
+<div class="card"><h4>Як змінити час публікації після approve?</h4><p>Якщо ще не опубліковано — зміни publish_at → save. Якщо змінив &gt;10 символів у тексті — авто-revert у review.</p></div>
+<div class="card"><h4>Де подивитись чи мій пост опублікувався?</h4><p>У HQ біля поста — посилання на TG. Або відкрий канал DCSMM напряму.</p></div>
+<div class="card"><h4>Я завантажив відео — чому довго крутиться?</h4><p>Compress queue — кожні 3 хв опрацьовує один файл. 10 файлів = ~30 хв. &gt;1 год — пиши Вадиму.</p></div>
+<div class="card"><h4>Як скасувати дію? Я видалив за помилку.</h4><p>Undo delete — кнопка на 5 секунд внизу. Якщо минуло — пиши Вадиму.</p></div>
+<div class="card"><h4>Не хочу DM під час відпустки.</h4><p>HQ → Settings → Vacation mode → дати + делегат.</p></div>
+<div class="card"><h4>Що таке P1-P4?</h4><p><b>P1</b>=критично (сьогодні), <b>P2</b>=цього тижня, <b>P3</b>=місяць, <b>P4</b>=коли буде час.</p></div>
+<div class="card"><h4>Як працює recurring задача?</h4><p>Обери <code>recurrence</code>. Закриваєш → наступна автоматично.</p></div>
+<div class="card"><h4>Я бачу не всі функції — це нормально?</h4><p>Так. Обрав роль і показано тільки релевантне. «змінити роль» у sidebar — побачиш інше.</p></div>
+</section>
+
+<section class="page" data-page="contacts">
+<div class="page-header"><div class="kicker">/// КОНТАКТИ</div><h1>ДО <span>КОГО</span> ЗВЕРТАТИСЯ</h1></div>
+<table class="dataset"><thead><tr><th>Питання</th><th>Кому</th></tr></thead><tbody>
+<tr><td>Доступ у HQ / Tasks</td><td>Вадим (CEO) — TG</td></tr>
+<tr><td>Креатив не стиснувся</td><td>Вадим — TG</td></tr>
+<tr><td>Контент / бренд</td><td>Олександр (SMM Lead)</td></tr>
+<tr><td>Операційка</td><td>Артем (співзасновник)</td></tr>
+<tr><td>Загальні</td><td>Вадим — vg@abrisart.com</td></tr>
+</tbody></table>
+<div class="block"><h3>Корисні URL</h3><ul>
+<li>HQ: <a href="https://team.dreamcar.ua/hq" target="_blank" style="color:#E30613;">team.dreamcar.ua/hq</a></li>
+<li>Tasks: <a href="https://team.dreamcar.ua/tasks" target="_blank" style="color:#E30613;">team.dreamcar.ua/tasks</a></li>
+<li>Dashboard: <a href="https://dashboard.dreamcar.ua" target="_blank" style="color:#E30613;">dashboard.dreamcar.ua</a></li>
+<li>Brand Book: <a href="https://brand.dreamcar.ua" target="_blank" style="color:#E30613;">brand.dreamcar.ua</a></li>
+<li>Бот: <a href="https://t.me/dreamcar_team_bot" target="_blank" style="color:#E30613;">@dreamcar_team_bot</a></li>
+</ul></div>
+</section>
+
+</main>
+</div>
+
+<script>
+(function() {
+  const LS_ROLE = 'dc_onboarding_role';
+  const layout = document.getElementById('layout');
+  const picker = document.getElementById('role-picker');
+  const roleLabel = document.getElementById('role-label');
+  const ROLE_NAMES = { 'all': 'Усі', 'ceo': 'CEO 👑', 'coo': 'COO / Lead 📋', 'smm': 'SMM 📸', 'approver': 'Approver ✋', 'member': 'Member 👤', 'designer': 'Designer 🎨' };
+  function setRole(role) {
+    document.body.setAttribute('data-active-role', role);
+    roleLabel.textContent = ROLE_NAMES[role] || 'Усі';
+    localStorage.setItem(LS_ROLE, role);
+    picker.classList.add('hidden');
+    layout.classList.add('active');
+  }
+  function showPicker() {
+    picker.classList.remove('hidden');
+    layout.classList.remove('active');
+  }
+  // АВТО: завжди стартуємо з ролі 'all' — НЕ блокуємо контент picker'ом.
+  // Picker тепер ОПЦІОНАЛЬНИЙ — відкривається через CTA «Знайти свою роль» або «змінити»
+  const stored = localStorage.getItem(LS_ROLE);
+  setRole(stored || 'all');
+  document.querySelectorAll('.role-btn').forEach(btn => btn.addEventListener('click', () => setRole(btn.dataset.roleSelect)));
+  document.getElementById('skip-picker').addEventListener('click', () => setRole('all'));
+  document.getElementById('change-role').addEventListener('click', showPicker);
+  document.querySelectorAll('[data-open-picker]').forEach(el => el.addEventListener('click', (e) => { e.preventDefault(); showPicker(); }));
+
+  function goPage(page) {
+    document.querySelectorAll('section.page').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
+    const target = document.querySelector(`section.page[data-page="${page}"]`);
+    const link = document.querySelector(`.sb-link[data-page="${page}"]`);
+    if (target) target.classList.add('active');
+    if (link) link.classList.add('active');
+    // Update global-header page dropdown
+    if (window.DC_PAGE_NAV) window.DC_PAGE_NAV.current = page;
+    if (typeof window.__dcUpdatePageNav === 'function') window.__dcUpdatePageNav(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    history.replaceState(null, '', '#' + page);
+  }
+  // Експонуємо goPage для global-header.js (через DC_PAGE_NAV.onSelect)
+  window.__dcGoPage = goPage;
+  document.querySelectorAll('.sb-link').forEach(l => l.addEventListener('click', (e) => { e.preventDefault(); goPage(l.dataset.page); }));
+  document.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); goPage(a.dataset.go); }));
+  const hash = window.location.hash.replace('#', '');
+  if (hash) goPage(hash);
+
+  // ── Mobile drawer (brand-book pattern: body.sidebar-open) ──
+  const menuBtn = document.getElementById('mobileMenuBtn');
+  const sidebarEl = document.querySelector('aside.sidebar');
+  function openSidebar() {
+    document.body.classList.add('sidebar-open');
+    if (sidebarEl) sidebarEl.classList.add('mobile-open');
+    if (menuBtn) { menuBtn.textContent = 'ЗАКРИТИ'; menuBtn.setAttribute('aria-expanded','true'); }
+  }
+  function closeSidebar() {
+    document.body.classList.remove('sidebar-open');
+    if (sidebarEl) sidebarEl.classList.remove('mobile-open');
+    if (menuBtn) { menuBtn.textContent = 'МЕНЮ'; menuBtn.setAttribute('aria-expanded','false'); }
+  }
+  if (menuBtn) menuBtn.addEventListener('click', () => {
+    document.body.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+  });
+  // Close on link click (mobile)
+  document.querySelectorAll('aside.sidebar .sb-link').forEach(l => l.addEventListener('click', closeSidebar));
+  // Backdrop click closes sidebar
+  document.addEventListener('click', (e) => {
+    if (!document.body.classList.contains('sidebar-open')) return;
+    if (sidebarEl && (sidebarEl.contains(e.target) || (menuBtn && menuBtn.contains(e.target)))) return;
+    // Backdrop is body::after pseudo — detect any tap on body
+    closeSidebar();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+  window.__dcCloseSidebar = closeSidebar;
+
+  // ── Sidebar search filter (як в brand-book) ──
+  const sbSearchInput = document.getElementById('sbSearch');
+  if (sbSearchInput) {
+    sbSearchInput.addEventListener('input', () => {
+      const q = sbSearchInput.value.trim().toLowerCase();
+      document.querySelectorAll('aside.sidebar .sb-link').forEach(a => {
+        const txt = a.textContent.toLowerCase();
+        const data = (a.dataset.aliases || '').toLowerCase();
+        const match = !q || txt.includes(q) || data.includes(q);
+        a.classList.toggle('is-hidden', !match);
+      });
+      // Hide section headers if all їх links hidden
+      document.querySelectorAll('aside.sidebar .sb-section').forEach(sec => {
+        let next = sec.nextElementSibling;
+        let allHidden = true;
+        while (next && next.classList.contains('sb-link')) {
+          if (!next.classList.contains('is-hidden')) { allHidden = false; break; }
+          next = next.nextElementSibling;
+        }
+        sec.classList.toggle('is-hidden', allHidden && q.length > 0);
+      });
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
