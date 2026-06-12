@@ -245,9 +245,9 @@
       '.uc-diversity{font-size:11px;color:#888;padding:6px 10px;background:rgba(59,130,246,0.06);border-left:3px solid #3b82f6;margin-bottom:10px;font-family:JetBrains Mono,monospace;letter-spacing:0.05em;}',
       '.uc-diversity b{color:#ddd;}',
 
-      '.uc-month{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#1a1a1a;border:1px solid #1a1a1a;border-radius:8px;overflow:hidden;}',
+      '.uc-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:#1a1a1a;border:1px solid #1a1a1a;border-radius:8px;overflow:hidden;}',
       '.uc-month .uc-wd{background:#141414;padding:8px;text-align:center;font-size:9px;color:#888;letter-spacing:0.15em;font-family:JetBrains Mono,monospace;}',
-      '.uc-month .uc-day{background:#0a0a0a;min-height:120px;padding:6px;display:flex;flex-direction:column;gap:2px;overflow:hidden;}',
+      '.uc-month .uc-day{background:#0a0a0a;min-height:120px;padding:6px;display:flex;flex-direction:column;gap:2px;overflow:hidden;min-width:0;}',
       '.uc-month .uc-day.outside{opacity:0.35;}',
       '.uc-month .uc-day.today{background:rgba(227,6,19,0.06);box-shadow:inset 0 0 0 1px rgba(227,6,19,0.4);}',
       '.uc-month .uc-day .num{font-family:Oswald,sans-serif;font-weight:700;color:#fff;font-size:13px;margin-bottom:4px;}',
@@ -261,8 +261,9 @@
       '.uc-event .warn{color:#eab308;font-size:10px;}',
       '.uc-more{font-size:9px;color:#666;padding:2px 5px;text-align:center;}',
 
-      '.uc-week{display:grid;grid-template-columns:50px repeat(7,1fr);gap:1px;background:#1a1a1a;border:1px solid #1a1a1a;border-radius:8px;overflow:hidden;}',
-      '.uc-week .uc-cell{background:#0a0a0a;min-height:50px;padding:3px;border-bottom:1px solid #1a1a1a;}',
+      // #366 (12.06.2026 Віра): minmax(0,1fr) щоб колонки стискалися — інакше довгі назви подій виштовхують Чт/Пт/Сб/Нд за overflow:hidden
+      '.uc-week{display:grid;grid-template-columns:50px repeat(7,minmax(0,1fr));gap:1px;background:#1a1a1a;border:1px solid #1a1a1a;border-radius:8px;overflow:hidden;}',
+      '.uc-week .uc-cell{background:#0a0a0a;min-height:50px;padding:3px;border-bottom:1px solid #1a1a1a;min-width:0;overflow:hidden;}',
       '.uc-week .uc-hour{background:#141414;font-size:9px;color:#888;text-align:right;padding:3px 5px;font-family:JetBrains Mono,monospace;border-bottom:1px solid #1a1a1a;}',
       '.uc-week .uc-wd-head{background:#141414;padding:8px;text-align:center;font-size:11px;color:#fff;font-family:Oswald,sans-serif;font-weight:700;border-bottom:1px solid #2a2a2a;}',
       '.uc-week .uc-wd-head.today{color:#E30613;}',
@@ -271,7 +272,7 @@
       '.uc-day-view .uc-hour{background:#141414;font-size:11px;color:#aaa;text-align:right;padding:5px;border-bottom:1px solid #1a1a1a;}',
 
       '.uc-grid{display:grid;background:#1a1a1a;border:1px solid #1a1a1a;border-radius:8px;overflow:hidden;}',
-      '.uc-grid .gc{background:#0a0a0a;padding:6px 8px;font-size:11px;color:#ddd;border-right:1px solid #1a1a1a;border-bottom:1px solid #1a1a1a;min-height:50px;display:flex;flex-direction:column;gap:3px;}',
+      '.uc-grid .gc{background:#0a0a0a;padding:6px 8px;font-size:11px;color:#ddd;border-right:1px solid #1a1a1a;border-bottom:1px solid #1a1a1a;min-height:50px;display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden;}',
       '.uc-grid .gh{background:#141414;font-family:Oswald,sans-serif;font-weight:700;color:#fff;text-align:center;padding:8px;letter-spacing:0.08em;font-size:13px;}',
       '.uc-grid .gh.today{color:#E30613;}',
       '.uc-grid .gch{background:#141414;color:#fff;font-family:JetBrains Mono,monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;padding:8px;text-align:left;}',
@@ -493,7 +494,8 @@
     var chList = Object.keys(presentCh);
     if (!chList.length) chList = ['tg', 'ig', 'email'];
     chList.sort();
-    var h = ['<div class="uc-grid" style="grid-template-columns:140px repeat(7,1fr);">'];
+    // #366: minmax(0,1fr) щоб довгі назви events не виштовхували дні за overflow:hidden
+    var h = ['<div class="uc-grid" style="grid-template-columns:140px repeat(7,minmax(0,1fr));">'];
     h.push('<div class="gch">КАНАЛ</div>');
     for (var d = 0; d < 7; d++) {
       var day = addDays(weekStart, d);
