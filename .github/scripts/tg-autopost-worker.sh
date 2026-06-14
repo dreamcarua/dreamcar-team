@@ -306,9 +306,19 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
         -H "Content-Type: application/json" \
         -d "{\"job_id\":\"$JOB_ID\",\"pub_id\":\"$PUB_ID\",\"err_msg\":\"HTTP 200 but no response file\"}"
     else
-      MSG_ID=$(jq -r '.result.message_id // empty' /tmp/tg-resp.json)
-      CHAT_OUT=$(jq -r '.result.chat.id // empty' /tmp/tg-resp.json)
-      echo "Sent! message_id=$MSG_ID"
+      # #386 fix: sendMediaGroup повертає .result як array, sendVideo/Photo — як object.
+      # Без cases jq падає з 'Cannot index array with string "message_id"' → exit 5 →
+      # complete_autopost_job не викликається → publication.status залишається approved →
+      # cron знов enqueue → infinite spam-loop у канал.
+      RESULT_TYPE=$(jq -r 'if .result then (.result | type) else "null" end' /tmp/tg-resp.json)
+      if [ "$RESULT_TYPE" = "array" ]; then
+        MSG_ID=$(jq -r '.result[0].message_id // empty' /tmp/tg-resp.json)
+        CHAT_OUT=$(jq -r '.result[0].chat.id // empty' /tmp/tg-resp.json)
+      else
+        MSG_ID=$(jq -r '.result.message_id // empty' /tmp/tg-resp.json)
+        CHAT_OUT=$(jq -r '.result.chat.id // empty' /tmp/tg-resp.json)
+      fi
+      echo "Sent! message_id=$MSG_ID (result_type=$RESULT_TYPE)"
       curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_autopost_job" \
         -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
         -H "Content-Type: application/json" \
