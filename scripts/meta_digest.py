@@ -2,8 +2,8 @@
 """
 meta_digest.py — щоденний Telegram-дайджест Meta Ads аналітики DreamCar.
 
-Читає ПУБЛІЧНИЙ data.json (GitHub Pages дашборду), формує зведення по активних
-циклах + топ-рекомендації, шле DM Вадиму через @dreamcar_team_bot.
+Читає ПУБЛІЧНИЙ data.json дашборду, формує зведення по активних циклах +
+топ-рекомендації, шле DM Вадиму через @dreamcar_team_bot.
 
 Ізольовано: лише читає data.json по HTTP, нічого не пише в БД/репо дашборду.
 Секрети TG_BOT_TOKEN / TG_CHAT_ID вже існують у repo dreamcarua/dreamcar-team.
@@ -17,7 +17,10 @@ try:
 except Exception:
     NOW = datetime.now(timezone.utc)
 
-DATA_URL = os.getenv('META_DATA_URL', 'https://dashboard.dreamcar.ua/meta-analytics/data.json')
+# raw.githubusercontent — публічний, без Cloudflare-блоку бот-UA
+DATA_URL = os.getenv('META_DATA_URL',
+                     'https://raw.githubusercontent.com/dreamcarua/dreamcar-dashboard/main/docs/meta-analytics/data.json')
+DATA_FALLBACK = 'https://dashboard.dreamcar.ua/meta-analytics/data.json'
 TG_TOKEN = os.getenv('TG_BOT_TOKEN', '')
 TG_CHAT = os.getenv('TG_CHAT_ID', '')
 
@@ -26,11 +29,19 @@ def money(n):
     return f'{int(n or 0):,}'.replace(',', ' ')
 
 
-def fetch():
+def _get(url):
     ctx = ssl.create_default_context()
-    req = urllib.request.Request(DATA_URL, headers={'User-Agent': 'meta-digest'})
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 meta-digest'})
     with urllib.request.urlopen(req, timeout=30, context=ctx) as r:
         return json.load(r)
+
+
+def fetch():
+    try:
+        return _get(DATA_URL)
+    except Exception as e:
+        print('⚠ primary fetch failed:', e, '- пробую fallback')
+        return _get(DATA_FALLBACK)
 
 
 def build(payload):
