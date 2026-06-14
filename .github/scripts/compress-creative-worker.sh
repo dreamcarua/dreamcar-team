@@ -496,20 +496,40 @@ VIDEO_KBPS=$((TOTAL_KBPS - AUDIO_KBPS - MUX_OVERHEAD_KBPS))
 if [ "$VIDEO_KBPS" -lt 300 ]; then VIDEO_KBPS=300; fi
 echo "Audio: ${AUDIO_KBPS}k | Video budget: ${VIDEO_KBPS}k"
 
-if [ "$VIDEO_KBPS" -ge 4500 ]; then MAX_LONG=1920
-elif [ "$VIDEO_KBPS" -ge 2200 ]; then MAX_LONG=1280
-elif [ "$VIDEO_KBPS" -ge 1000 ]; then MAX_LONG=854
-else MAX_LONG=640
+# #389 (14.06.2026): Bench videocompress.ai vs наш — порівняння IMG_8011 (164s, 207MB).
+# Їхній output: 1080×1920 @ 30fps, 2.2 Mbps, libx264 — ВЖЕ те ж саме ffmpeg.
+# Наш output: 480×854 @ 60fps, 2.1 Mbps — мізерна резолюція!
+#
+# Корінь: старий ladder вимагав 2200kbps для 1280p та 4500kbps для 1920p.
+# При 2.1 Mbps бюджеті падали у 854p → втрата деталей.
+#
+# Новий принцип: пріоритезуємо РЕЗОЛЮЦІЮ над bitrate-per-pixel. iPhone Reels 1080×1920
+# native — при 2 Mbps + 30fps якість H.264 високого профілю достатня.
+if [ "$VIDEO_KBPS" -ge 2000 ]; then MAX_LONG=1920    # Full 1080p (or up to 1920 long side)
+elif [ "$VIDEO_KBPS" -ge 1000 ]; then MAX_LONG=1280   # 720p
+elif [ "$VIDEO_KBPS" -ge 500 ]; then MAX_LONG=854     # 480p
+else MAX_LONG=640                                       # 360p
 fi
 
 # #260: Використовуємо LOGICAL dimensions (після rotation) для рішень про size
 if [ "$LOGICAL_W" -ge "$LOGICAL_H" ]; then SRC_LONG=$LOGICAL_W; else SRC_LONG=$LOGICAL_H; fi
 if [ "$SRC_LONG" -lt "$MAX_LONG" ]; then MAX_LONG=$SRC_LONG; fi
 
+# #389: fps cap. iPhone може знімати 60 fps, але 30 fps вистачає для SMM/TG.
+# При 60 fps + 2 Mbps бюджет розмазується → кожен кадр отримує ½ біт.
+# При 30 fps + 2 Mbps → у 2× більше біт на кадр → деталі краще.
+# Залишаємо 60 fps тільки якщо бюджет ≥ 4 Mbps.
+SRC_FPS_INT=$(echo "$SRC_FPS" | awk '{printf "%d", $1+0.5}')
+FPS_FILTER=""
+if [ "$SRC_FPS_INT" -gt 30 ] && [ "$VIDEO_KBPS" -lt 4000 ]; then
+  echo "FPS cap: ${SRC_FPS_INT}fps → 30fps (budget < 4Mbps, more bits per frame)"
+  FPS_FILTER=",fps=30"
+fi
+
 # scale filter використовує iw/ih (post-rotation pixels) — ffmpeg autorotate розгортає
 # raw landscape pixels у logical portrait ПЕРЕД filter graph (з v5.x), тому iw/ih = LOGICAL
-SCALE_FILTER="${HDR_PREFIX}scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
-echo "Target longest side: ${MAX_LONG}px (orig logical=${SRC_LONG}), aspect preserved"
+SCALE_FILTER="${HDR_PREFIX}scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${MAX_LONG},ih),-2)':flags=lanczos,setsar=1${FPS_FILTER}"
+echo "Target longest side: ${MAX_LONG}px (orig logical=${SRC_LONG}), aspect preserved${FPS_FILTER:+, $FPS_FILTER}"
 [ -n "$HDR_PREFIX" ] && echo "HDR→SDR tone mapping ENABLED"
 
 # v2: preset veryslow + advanced tuning
