@@ -8,6 +8,53 @@
 
 ---
 
+## 14.06.2026 — #392 BIG AUDIT + Win-Analysis Hub (5 хвиль)
+
+### Dashboard повний аудит та переосмислення
+
+🆕 **Активний Launch Pulse** — sticky-pill row під topbar показує всі активні запуски (D-N counter, status dot, click → drill-down у Project filter). Auto-refresh 5хв + visibility cleanup. `app-dashboard-extras.js`.
+
+🆕 **Win-Analysis Hub** (`dashboard.dreamcar.ua/win-analysis/`) — стратегічний CEO-екран:
+- 5 hero KPI (Запуски / Revenue / Spend+Manual / Net Profit / Weighted avgROAS)
+- 📊 ROAS bar chart top-12 + Revenue vs Spend stacked
+- 🔮 Forecast (з warning про hockey-stick наївної екстраполяції)
+- 📋 Sortable P&L таблиця: Name/Status/Дні/Ліди/Оплати/Conv/Rev/Spend/Manual/Profit/Margin/ROAS/CPA/AOV
+- RPC `dashboard_project_pnl()` v3: paid_at-based revenue, UAH-only, word-boundary utm_campaign matching, elapsed_days vs days_duration, true_roi_pct, true_cac.
+
+🛡 **Security P0 — RLS leak fix:** `public.launches` раніше була `auth.role()='authenticated'` → будь-який Google-login бачив business дані. Тепер `current_user_has_role(['ceo','coo','lead','member','designer'])`.
+
+🛡 **Auth-guard SSO bridge:** `applySsoFromHash()` усередині check() — підключаючи `auth-guard.js` отримуєш повний захист + SSO в одному скрипті. Розгорнуто на `/upsell-ab/`, `/meta-analytics/`, `/win-analysis/`.
+
+🔧 **Performance fixes:**
+- Capture-phase global listeners → bubble (HARD RULE memory).
+- UTM input debounce 350→600ms + onBlur + skip no-op.
+- Realtime auto-reload → "+N нових" badge з manual click refresh (Soft reload тільки коли idle >60с).
+- fetchLeadsCount retry on 503 + null fallback.
+- meta-analytics hardcoded date → live Europe/Kyiv.
+- upsell-ab/loadDynamicFilters: UTC → Europe/Kyiv day-aligned.
+- Pulse setInterval visibility cleanup.
+
+🧹 **Code health (–347 рядків):**
+- Видалено dead CSS `assets/css/dashboard.css` (331 рядків не лінкувалися ніде).
+- Видалено `MAIN_PROJECTS` (dead після #98), `aggregateByMonth` (dead), `if (false && byProj7)` блок.
+- Helper `renderError(c, e)` замінив 8 копій catch-блоку.
+
+✨ **Cross-page consistency:**
+- Filter state propagation: sessionStorage `dc-active-filters` з TTL 1h. Sub-pages читають через `window.__dcInheritedFilters`.
+- Saved Views (⭐ topbar) verified рендерить + працює.
+- Sidebar group "Стратегія" → Win-Analysis.
+
+📖 **Метод. аудит — 5 паралельних агентів:**
+- UI/UX critic: 15 findings (P0 sticky thead, WCAG pills, mobile breakpoints).
+- Biz-Dev critic: Forecast має враховувати hockey-stick + cost_of_prize gap.
+- Finance critic: paid_at vs created_at + currency + utm tokenize (B1-B5 fixed).
+- Marketing critic: CPC/CPM/Frequency gap (deferred).
+- Sec+Perf critic: RLS leak (P0 fixed) + Pulse cleanup.
+
+**Commit chain:** `76fdf60` Wave 1 → `fdee4b9` Wave 2 → `ef09c9d` Wave 3 → `f402678` Wave 4 → `5670ff0` Wave 5. Verify: `HTTP/2 200` для всіх 4 сторінок.
+
+---
+
 ## 14.06.2026 — #391 Cleanup legacy PHP backend (–197 файлів)
 
 ### Dashboard repo (`dreamcarua/dreamcar-dashboard`)
