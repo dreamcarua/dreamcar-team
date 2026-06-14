@@ -130,13 +130,15 @@
     // НЕ <video>. Video element без autoplay = чорний блок з play button без кадру.
     // TG/IG показують preview як poster image — те саме робимо тут.
     if (c.type === 'photo') {
-      var pUrl = safeUrl(c.thumbnail_url) || safeUrl(c.compressed_url) || safeUrl(c.url) || '';
+      // #389: poster_url пріоритетніше за thumbnail_url (poster = optimized JPEG для UI)
+      var pUrl = safeUrl(c.poster_url) || safeUrl(c.thumbnail_url) || safeUrl(c.compressed_url) || safeUrl(c.url) || '';
       if (!pUrl) return emoji;
       return '<img src="' + pUrl + '" alt="' + escapeHtml(c.name || '') + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;"/>';
     }
     if (c.type === 'video') {
-      // Завжди thumbnail_url як poster, ніколи <video>. Play overlay поверх.
-      var vUrl = safeUrl(c.thumbnail_url) || safeUrl(c.compressed_url) || safeUrl(c.url) || '';
+      // #389: poster_url як poster для video. Fallback: thumbnail_url (raw video URL, браузер не покаже),
+      // потім compressed_url. Завжди як <img>, ніколи <video>. Play overlay поверх.
+      var vUrl = safeUrl(c.poster_url) || safeUrl(c.thumbnail_url) || safeUrl(c.compressed_url) || safeUrl(c.url) || '';
       if (!vUrl) {
         // Fallback: фоновий emoji + play overlay
         return '<div style="position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center;font-size:64px;color:#fff;">🎬</div>' +
