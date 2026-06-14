@@ -158,13 +158,17 @@ generate_video_poster_and_patch() {
   poster_url=$(upload_to_r2 "$poster" "$poster_key" "image/jpeg")
   echo "Poster uploaded: $poster_url"
 
-  # PATCH thumbnail_url напряму через REST (немає окремої RPC для цього)
+  # #389 (14.06.2026): PATCH poster_url, НЕ thumbnail_url.
+  # Bug #388 — я перетер thumbnail_url JPEG-постером, і compress worker
+  # при retry завантажив JPEG як source → ffprobe duration=0 → division by zero.
+  # thumbnail_url = оригінальний URL для compress worker download.
+  # poster_url = JPEG preview для SMM UI.
   curl -sS -X PATCH "$SUPABASE_URL/rest/v1/creatives?id=eq.$cre_id" \
     -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
     -H "Content-Type: application/json" -H "Prefer: return=minimal" \
-    -d "$(jq -nc --arg url "$poster_url" '{thumbnail_url:$url}')" \
-    && echo "✓ thumbnail_url PATCH-ed" \
-    || echo "::warning::thumbnail_url PATCH failed"
+    -d "$(jq -nc --arg url "$poster_url" '{poster_url:$url}')" \
+    && echo "✓ poster_url PATCH-ed" \
+    || echo "::warning::poster_url PATCH failed"
 
   rm -f "$poster"
 }
