@@ -358,9 +358,82 @@ if [ "$IS_HDR" = "yes" ] && [ "$IN_SIZE" -le $((49 * 1024 * 1024)) ]; then
   exit 0
 fi
 
-# HDR > 49 MB — попередимо у логах, не perfekt-варіант, але іншого нема
+# #388 (14.06.2026): HDR >49MB → HEVC 2-pass encode з ЗБЕРЕЖЕННЯМ HDR metadata.
+#
+# Стискання БЕЗ color processing: тільки scale + bitrate. Pixel data залишається у
+# yuv420p10le HLG BT.2020, output tag-ується відповідно. TG приймає HEVC файли і
+# на HDR-клієнтах рендерить як оригінал.
+#
+# Чому НЕ H.264:
+#   • H.264 8-bit yuv420p втрачає 10-bit precision HLG
+#   • H.264 + HDR metadata = нестандарт, не всі плеєри/TG-клієнти зрозуміють
+#   • libx264 default colormatrix = bt709 → TG думає що це SDR → washed
+#   • HEVC Main10 нативно підтримує HLG bt2020 через -x265-params:
+#     colorprim=bt2020 transfer=arib-std-b67 colormatrix=bt2020nc hdr10-opt=1
+#
 if [ "$IS_HDR" = "yes" ]; then
-  echo "::warning::HDR source >49MB — НЕ вкладається у TG sendVideo ліміт. Fallback на H.264 без HDR conversion (кольори будуть смерті). Зменшіть розмір джерела у iPhone (Settings → Camera → Record Video → 1080p 30fps замість 4K)."
+  echo "=== HDR >49MB — HEVC 2-pass encode зі збереженням HDR metadata ==="
+
+  # Бюджет (50 MB ceiling, 99% fill)
+  EFFECTIVE_BUDGET=$((TARGET_BUDGET_BYTES * TARGET_FILL_PCT / 100))
+  TOTAL_KBPS=$(awk "BEGIN{printf \"%.0f\", ($EFFECTIVE_BUDGET * 8 / 1024) / $DURATION}")
+  AUDIO_KBPS=$MIN_AUDIO_KBPS
+  if [ "$TOTAL_KBPS" -ge 1500 ]; then AUDIO_KBPS=$MAX_AUDIO_KBPS; fi
+  VIDEO_KBPS=$((TOTAL_KBPS - AUDIO_KBPS - MUX_OVERHEAD_KBPS))
+  if [ "$VIDEO_KBPS" -lt 500 ]; then VIDEO_KBPS=500; fi
+  echo "HDR encode budget: video=${VIDEO_KBPS}k audio=${AUDIO_KBPS}k"
+
+  # Resolution: для HDR залишаємо повний 1920 longest side (HDR заслуговує якості)
+  if [ "$LOGICAL_W" -ge "$LOGICAL_H" ]; then SRC_LONG=$LOGICAL_W; else SRC_LONG=$LOGICAL_H; fi
+  HDR_MAX_LONG=1920
+  if [ "$SRC_LONG" -lt "$HDR_MAX_LONG" ]; then HDR_MAX_LONG=$SRC_LONG; fi
+  HDR_SCALE="scale='if(gt(iw,ih),min(${HDR_MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${HDR_MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
+
+  # x265 з HLG bt2020 metadata збереженням
+  HDR_X265_PARAMS="log-level=error:keyint=120:bframes=8:rc-lookahead=60:aq-mode=3:psy-rd=2.0:psy-rdoq=1.0:colorprim=bt2020:transfer=arib-std-b67:colormatrix=bt2020nc:range=limited:hdr10-opt=1"
+
+  echo "[HDR HEVC Pass 1/2] @ ${VIDEO_KBPS}k..."
+  ffmpeg -y -v error -stats -i "$INPUT" \
+    -c:v libx265 -preset slow -profile:v main10 -pix_fmt yuv420p10le \
+    -x265-params "${HDR_X265_PARAMS}:pass=1:stats=${PASS_LOG_HEVC}" \
+    -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
+    -vf "$HDR_SCALE" \
+    -color_primaries bt2020 -color_trc arib-std-b67 -colorspace bt2020nc \
+    -an -f null /dev/null
+
+  echo "[HDR HEVC Pass 2/2] Encoding..."
+  ffmpeg -y -v error -stats -i "$INPUT" \
+    -c:v libx265 -preset slow -profile:v main10 -pix_fmt yuv420p10le -tag:v hvc1 \
+    -x265-params "${HDR_X265_PARAMS}:pass=2:stats=${PASS_LOG_HEVC}" \
+    -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
+    -vf "$HDR_SCALE" \
+    -color_primaries bt2020 -color_trc arib-std-b67 -colorspace bt2020nc \
+    -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
+    -movflags +faststart \
+    "$OUTPUT"
+
+  HDR_OUT_SIZE=$(stat -c%s "$OUTPUT")
+  HDR_OUT_MB=$(awk "BEGIN{printf \"%.1f\", $HDR_OUT_SIZE/1024/1024}")
+  echo "HDR HEVC Final: ${HDR_OUT_MB} MB (color tags preserved: bt2020/HLG)"
+
+  if [ "$HDR_OUT_SIZE" -gt "$TARGET_BUDGET_BYTES" ]; then
+    echo "::error::HDR HEVC overshoot ${HDR_OUT_SIZE} > ${TARGET_BUDGET_BYTES}. Скоротіть тривалість відео."
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_compress_job" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg id "$CRE_ID" --arg err "HDR HEVC encode overshoot ${HDR_OUT_MB}MB > 49.5MB — скоротіть відео" '{cre_id:$id, err_msg:$err}')"
+    exit 1
+  fi
+
+  OBJECT_KEY="video-compressed/${CRE_ID}.mp4"
+  PUBLIC_URL=$(upload_to_r2 "$OUTPUT" "$OBJECT_KEY" "video/mp4")
+  echo "HDR HEVC uploaded: $PUBLIC_URL"
+  curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_compress_job" \
+    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -nc --arg id "$CRE_ID" --arg url "$PUBLIC_URL" --argjson sz "$HDR_OUT_SIZE" '{cre_id:$id, out_url:$url, out_size_bytes:$sz}')"
+  echo "✓ HDR HEVC DONE: $CRE_ID → $PUBLIC_URL (${HDR_OUT_MB} MB, HDR color tags preserved)"
+  exit 0
 fi
 
 HDR_PREFIX=""
