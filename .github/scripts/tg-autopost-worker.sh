@@ -56,6 +56,13 @@ if [ "$JOB_COUNT" = "0" ]; then
 fi
 
 for i in $(seq 0 $(($JOB_COUNT - 1))); do
+  # CRITICAL #382: clear per-iteration state — bash vars persist between for-loop iterations.
+  # Without this, GROUP_SENT="yes" or HTTP="400" from prev job leaks into next iteration,
+  # causing if/elif chain to skip media-send branch and jq to crash on missing tg-resp.json.
+  unset GROUP_SENT HTTP MSG_ID CHAT_OUT ERR USE_URL NEED_REENCODE CODEC_USED \
+        ANY_VIDEO_PENDING IN_SIZE OUT_SIZE FINAL_FILE FW FH FD
+  rm -f /tmp/tg-resp.json /tmp/input.mp4 /tmp/out.mp4 /tmp/thumb.jpg /tmp/photo.bin /tmp/mg_*.bin
+
   JOB=$(echo "$CLAIMED" | jq -c ".[$i]")
   JOB_ID=$(echo "$JOB" | jq -r '.id')
   PUB_ID=$(echo "$JOB" | jq -r '.publication_id')
@@ -282,18 +289,37 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
       -d "parse_mode=HTML")
   fi
 
-  echo "TG HTTP=$HTTP"
+  echo "TG HTTP=${HTTP:-NONE}"
 
-  if [ "$HTTP" = "200" ]; then
-    MSG_ID=$(jq -r '.result.message_id' /tmp/tg-resp.json)
-    CHAT_OUT=$(jq -r '.result.chat.id' /tmp/tg-resp.json)
-    echo "Sent! message_id=$MSG_ID"
-    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_autopost_job" \
+  # #382 guard: HTTP may be empty (no send branch matched) or tg-resp.json may be missing
+  if [ -z "${HTTP:-}" ]; then
+    echo "::error::No send branch executed for this job — likely missing media URL"
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_autopost_job" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
-      -d "{\"job_id\":\"$JOB_ID\",\"pub_id\":\"$PUB_ID\",\"chat_id\":\"$CHAT_OUT\",\"msg_id\":$MSG_ID}"
+      -d "{\"job_id\":\"$JOB_ID\",\"pub_id\":\"$PUB_ID\",\"err_msg\":\"no send branch matched (creatives missing URL)\"}"
+  elif [ "$HTTP" = "200" ]; then
+    if [ ! -s /tmp/tg-resp.json ]; then
+      echo "::error::HTTP 200 but tg-resp.json missing — race condition"
+      curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_autopost_job" \
+        -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+        -H "Content-Type: application/json" \
+        -d "{\"job_id\":\"$JOB_ID\",\"pub_id\":\"$PUB_ID\",\"err_msg\":\"HTTP 200 but no response file\"}"
+    else
+      MSG_ID=$(jq -r '.result.message_id // empty' /tmp/tg-resp.json)
+      CHAT_OUT=$(jq -r '.result.chat.id // empty' /tmp/tg-resp.json)
+      echo "Sent! message_id=$MSG_ID"
+      curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_autopost_job" \
+        -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+        -H "Content-Type: application/json" \
+        -d "{\"job_id\":\"$JOB_ID\",\"pub_id\":\"$PUB_ID\",\"chat_id\":\"$CHAT_OUT\",\"msg_id\":$MSG_ID}"
+    fi
   else
-    ERR=$(jq -r '.description // .error // "Unknown"' /tmp/tg-resp.json | head -c 500)
+    if [ -s /tmp/tg-resp.json ]; then
+      ERR=$(jq -r '.description // .error // "Unknown"' /tmp/tg-resp.json | head -c 500)
+    else
+      ERR="HTTP $HTTP, no response body (likely curl/network error)"
+    fi
     echo "::error::Fail: $ERR"
     curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_autopost_job" \
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \

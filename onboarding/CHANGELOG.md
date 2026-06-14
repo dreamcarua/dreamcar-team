@@ -8,6 +8,34 @@
 
 ---
 
+## 14.06.2026 — #382 TG Autopost Worker — fix 6+ failed runs (prod channel + bash state leak)
+
+### TG Autopost (#382)
+GitHub Actions email: "TG Autopost Worker — main (1a0c3fb): All jobs have failed". Розслідування показало ТРИ проблеми, що накладалися:
+
+**1. Production channel `-1002496656144` — bot @dreamcar_team_bot не доданий.**
+Логи: `HTTP 400: Bad Request: chat not found` / `HTTP 403: Forbidden: bot is not a member of the channel chat`. Per memory `project_dreamcar_tg_channels` — prod канал ще не готовий, постимо тільки у test `-1003933841573`.
+
+**2. RPC `enqueue_pending_autoposts` мав hardcoded fallback на prod.**
+`v_target := COALESCE(v_pub.tg_channel_id, '-1002496656144')` — будь-яка `approved` публікація з NULL `tg_channel_id` випадково потрапляла у prod. 🛡 **Migration `enqueue_pending_autoposts_safe_fallback_382`** — fallback перенесено на `-1003933841573` (test).
+
+**3. Worker bash script — state leak між iterations of `for`-loop.**
+`HTTP` і `GROUP_SENT` як bash vars persist між iterations. Після успішного sendMediaGroup у job#1, у job#2:
+- `GROUP_SENT="yes"` зайве → if/elif chain пропускає video branch
+- `HTTP="400"` від попередньої job → ловиться як failure
+- `/tmp/tg-resp.json` deleted у cleanup → jq fail → exit 2 → trap → `Worker died on line 296`
+
+🔧 **`.github/scripts/tg-autopost-worker.sh`**:
+- На початку кожного iteration `unset GROUP_SENT HTTP MSG_ID CHAT_OUT ERR USE_URL NEED_REENCODE CODEC_USED ANY_VIDEO_PENDING IN_SIZE OUT_SIZE FINAL_FILE FW FH FD` + `rm -f` всіх tmp files.
+- Guard на порожній `$HTTP` (no send branch matched) + guard на missing `/tmp/tg-resp.json` (HTTP 200 але response відсутній). Замість крешу — fail_autopost_job з explicit error.
+
+**4. Cleanup 9 stale failed jobs** (10.06–13.06) у `tg_autopost_queue`: позначені `cancelled` з суфіксом `[cancelled #382: bot not in prod channel]`.
+
+### Дія Вадима (опційно)
+Якщо хочеш постити у production-канал `-1002496656144` — треба додати @dreamcar_team_bot як admin (з правом Post Messages). Поки бот не доданий — fallback на test channel, нічого не ламається.
+
+---
+
 ## 12.06.2026 — #363 Retention modal: backdrop click = autosave чернетки (Давид UX)
 
 ### Retention (#363)
