@@ -9,15 +9,39 @@
   if (window.__hqCharCounter) return;
   window.__hqCharCounter = true;
 
+  // #387 (14.06.2026): TG ліміт ЗАЛЕЖИТЬ від наявності медіа.
+  // sendMessage (text-only) → 4096 chars. sendVideo/sendPhoto/sendMediaGroup caption → 1024 chars.
+  // Telegram рахує усі символи РАЗОМ з HTML тегами (<b>, <i>, <a href="...">, тощо).
+  // Корінь: #383 — мій тестовий пост з ~1500 chars провалився "Bad Request: caption is too long".
+  //
   // Реальні ліміти символів caption/post body
   var LIMITS = {
     ig: { name: 'IG', limit: 2200 },
     fb: { name: 'FB', limit: 63206 },
-    tg: { name: 'TG', limit: 4096 },
+    tg: { name: 'TG', limit: 4096 },  // оновлюється динамічно у getEffectiveLimit
     tt: { name: 'TT', limit: 2200 },
     yt: { name: 'YT', limit: 5000 },
     th: { name: 'Threads', limit: 500 },
   };
+
+  // Чи є хоч 1 прикріплений creative у редакторі?
+  // Якщо так → TG sendVideo/Photo/MediaGroup ліміт caption = 1024 (з HTML)
+  function hasMediaAttached() {
+    var strip = document.getElementById('f_creatives');
+    if (!strip) return false;
+    var items = strip.querySelectorAll('.cs-item');
+    return items && items.length > 0;
+  }
+
+  function getEffectiveLimit(platformId) {
+    var lim = LIMITS[platformId];
+    if (!lim) return null;
+    // TG особливий випадок — caption (з медіа) = 1024, sendMessage (без медіа) = 4096
+    if (platformId === 'tg' && hasMediaAttached()) {
+      return { name: 'TG (caption)', limit: 1024 };
+    }
+    return lim;
+  }
 
   function updateCounter() {
     var textEl = document.getElementById('f_text');
@@ -42,7 +66,8 @@
     }
 
     var parts = selected.map(function (id) {
-      var lim = LIMITS[id];
+      var lim = getEffectiveLimit(id);  // #387: TG динамічний 1024/4096
+      if (!lim) return '';
       var pct = lim.limit > 0 ? len / lim.limit : 0;
       var color;
       var weight = '500';
@@ -89,15 +114,31 @@
     });
   }
 
+  // #387: спостерігаємо за #f_creatives — коли користувач додає/видаляє creative
+  // ліміт TG змінюється між 1024 (з медіа) і 4096 (без), counter має одразу перерахуватись
+  function bindCreativesObserver() {
+    var strip = document.getElementById('f_creatives');
+    if (!strip || strip.__hqCCObserved) return;
+    strip.__hqCCObserved = true;
+    if ('MutationObserver' in window) {
+      var stripMo = new MutationObserver(function () {
+        clearTimeout(window.__hqCCStripTimer);
+        window.__hqCCStripTimer = setTimeout(updateCounter, 30);
+      });
+      stripMo.observe(strip, { childList: true, subtree: true });
+    }
+  }
+
   function rebind() {
     bindTextInput();
     bindPlatformChips();
+    bindCreativesObserver();
     updateCounter();
   }
 
   if ('MutationObserver' in window) {
     var mo = new MutationObserver(function () {
-      if (document.getElementById('f_text') || document.getElementById('f_platforms')) {
+      if (document.getElementById('f_text') || document.getElementById('f_platforms') || document.getElementById('f_creatives')) {
         clearTimeout(window.__hqCCTimer);
         window.__hqCCTimer = setTimeout(rebind, 50);
       }
