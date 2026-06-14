@@ -3,8 +3,8 @@
 meta_digest.py — щоденний Telegram-дайджест Meta Ads аналітики DreamCar.
 
 Лід — денний зріз (payload.daily, за ВЧОРА) з дельтами день-до-дня.
-Лідер/слабкі — з РЕАЛЬНИХ ads за вчора. Топ кампаній по реальній виручці.
-З циклу — стратегічні сигнали (вигорання, вік).
+Реал = ЛИШЕ реклама (placement-мітки utm_medium facebook_*/instagram_*), без органіки.
+Лідер/слабкі — з РЕАЛЬНИХ ads за вчора. З циклу — стратегічні сигнали (вигорання, вік).
 
 Ізольовано: лише читає публічний data.json по HTTP, нічого не пише в БД/репо.
 Секрети TG_BOT_TOKEN / TG_CHAT_ID існують у repo dreamcarua/dreamcar-team.
@@ -81,12 +81,12 @@ def build(payload):
                  f'<i>сформовано {NOW:%d.%m %H:%M} Київ · дельта до {ddmm(daily.get("prev_date"))}</i>', '']
         lines.append(f'💰 Витрати <b>{money(daily.get("spend"))} ₴</b>{darrow(d.get("spend"))} · '
                      f'{daily.get("purchases") or 0} покупок{darrow(d.get("purchases"))} · CPA {daily.get("cpa")} ₴{darrow(d.get("cpa"))}')
-        lines.append(f'📈 ROAS: піксель <b>{daily.get("pixel_roas")}</b>{darrow(d.get("pixel_roas"))} · реал <b>{daily.get("real_ad_roas")}</b> · частота {daily.get("frequency")}')
+        lines.append(f'📈 ROAS: піксель <b>{daily.get("pixel_roas")}</b>{darrow(d.get("pixel_roas"))} · реал-реклама <b>{daily.get("real_ad_roas")}</b> · частота {daily.get("frequency")}')
 
-        rc = daily.get('real_by_campaign') or []
-        if rc:
-            top_rc = ' · '.join(f'{c["campaign"][:16]} {kmoney(c["revenue"])}' for c in rc[:3])
-            lines.append(f'💵 Реал по кампаніях: {top_rc}')
+        rp = daily.get('real_by_placement') or []
+        if rp:
+            top_rp = ' · '.join(f'{c["placement"]} {kmoney(c["revenue"])}' for c in rp[:3])
+            lines.append(f'💵 Реал по плейсментах: {top_rp}')
         lines.append('')
         lines.append(f'🏁 Активні цикли: <b>{", ".join(active) if active else "—"}</b>')
 
@@ -126,7 +126,7 @@ def build(payload):
              '<i>(денний зріз недоступний — показано за цикл)</i>', '']
     for p in cur:
         lines.append(f'🏁 <b>{p.get("name")}</b> · {money(p.get("spend"))} ₴ за цикл')
-        lines.append(f'   ROAS: піксель {p.get("pixel_roas")} · реал {p.get("real_ad_roas")} · частота {p.get("frequency")}')
+        lines.append(f'   ROAS: піксель {p.get("pixel_roas")} · реал-реклама {p.get("real_ad_roas")} · частота {p.get("frequency")}')
         for r in (p.get('recommendations') or [])[:3]:
             mark = '🔴' if r.get('sev') == 'cri' else ('🟡' if r.get('sev') == 'mod' else 'ℹ️')
             lines.append(f'   {mark} {r.get("text")}')
