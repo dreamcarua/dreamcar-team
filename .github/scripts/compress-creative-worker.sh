@@ -125,6 +125,50 @@ upload_to_r2() {
   echo "${R2_PUBLIC_BASE%/}/$object_key"
 }
 
+# #388 (14.06.2026): JPEG poster для video creative.
+# Без цього SMM UI не може показати preview .MOV/.MP4 у браузері (особливо HEVC HLG).
+# Генеруємо poster (середній кадр), uploadимo у R2, PATCH-имо thumbnail_url у DB.
+# Викликається з гілок: HDR pass-through, HDR HEVC encode, SDR H.264 encode.
+generate_video_poster_and_patch() {
+  local input="$1"
+  local cre_id="$2"
+  local poster=/tmp/cw/poster.jpg
+
+  # Середина відео для кращого preview (не чорний 1-й кадр)
+  local dur seek
+  dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$input" 2>/dev/null | awk '{printf "%.0f", $1/2}')
+  seek=${dur:-2}
+
+  # Конвертація HDR → JPEG sRGB (бо JPEG не підтримує HLG)
+  # Це потрібно ТІЛЬКИ для thumbnail (preview), оригінал video не чіпаємо.
+  ffmpeg -y -v error -ss "$seek" -i "$input" -vframes 1 \
+    -vf "scale='min(720,iw)':-2,format=yuv420p" \
+    -q:v 3 "$poster" 2>/dev/null || \
+  ffmpeg -y -v error -i "$input" -vframes 1 \
+    -vf "scale='min(720,iw)':-2,format=yuv420p" \
+    -q:v 3 "$poster" 2>/dev/null
+
+  if [ ! -s "$poster" ]; then
+    echo "::warning::Poster generation failed for $cre_id"
+    return 1
+  fi
+
+  local poster_key poster_url
+  poster_key="video-poster/${cre_id}.jpg"
+  poster_url=$(upload_to_r2 "$poster" "$poster_key" "image/jpeg")
+  echo "Poster uploaded: $poster_url"
+
+  # PATCH thumbnail_url напряму через REST (немає окремої RPC для цього)
+  curl -sS -X PATCH "$SUPABASE_URL/rest/v1/creatives?id=eq.$cre_id" \
+    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+    -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+    -d "$(jq -nc --arg url "$poster_url" '{thumbnail_url:$url}')" \
+    && echo "✓ thumbnail_url PATCH-ed" \
+    || echo "::warning::thumbnail_url PATCH failed"
+
+  rm -f "$poster"
+}
+
 JOB=$(echo "$CLAIMED" | jq -c '.[0]')
 CRE_ID=$(echo "$JOB"  | jq -r '.id')
 CRE_NAME=$(echo "$JOB" | jq -r '.name // "creative"')
@@ -355,6 +399,7 @@ if [ "$IS_HDR" = "yes" ] && [ "$IN_SIZE" -le $((49 * 1024 * 1024)) ]; then
     -H "Content-Type: application/json" \
     -d "$(jq -nc --arg id "$CRE_ID" --arg url "$PUBLIC_URL" --argjson sz "$IN_SIZE" '{cre_id:$id, out_url:$url, out_size_bytes:$sz}')"
   echo "✓ HDR pass-through DONE: $CRE_ID → $PUBLIC_URL (${IN_MB} MB, original codec preserved)"
+  generate_video_poster_and_patch "$INPUT" "$CRE_ID"
   exit 0
 fi
 
@@ -433,6 +478,7 @@ if [ "$IS_HDR" = "yes" ]; then
     -H "Content-Type: application/json" \
     -d "$(jq -nc --arg id "$CRE_ID" --arg url "$PUBLIC_URL" --argjson sz "$HDR_OUT_SIZE" '{cre_id:$id, out_url:$url, out_size_bytes:$sz}')"
   echo "✓ HDR HEVC DONE: $CRE_ID → $PUBLIC_URL (${HDR_OUT_MB} MB, HDR color tags preserved)"
+  generate_video_poster_and_patch "$INPUT" "$CRE_ID"
   exit 0
 fi
 
@@ -537,6 +583,7 @@ curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_compress_job" \
   -d "$(jq -nc --arg id "$CRE_ID" --arg url "$PUBLIC_URL" --argjson sz "$OUT_SIZE" '{cre_id:$id, out_url:$url, out_size_bytes:$sz}')"
 
 echo "✓ H.264 DONE: $CRE_ID → $PUBLIC_URL ($OUT_MB MB, ${OUT_W}×${OUT_H})"
+generate_video_poster_and_patch "$INPUT" "$CRE_ID"
 
 if [ "$ENABLE_HEVC" = "1" ]; then
   HEVC_MAX_LONG=1920
