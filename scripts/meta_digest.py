@@ -41,6 +41,10 @@ def dmy(iso):
         return iso or ''
 
 
+def ddmm(iso):
+    return dmy(iso)[:5]
+
+
 def darrow(v):
     if v is None:
         return ''
@@ -74,7 +78,7 @@ def build(payload):
         d = daily.get('deltas') or {}
 
         lines = [f'📊 <b>Meta Ads — дайджест за {date_lbl}</b>',
-                 f'<i>сформовано {NOW:%d.%m %H:%M} Київ · дельта до {(daily.get("prev_date") or "")[5:]}</i>', '']
+                 f'<i>сформовано {NOW:%d.%m %H:%M} Київ · дельта до {ddmm(daily.get("prev_date"))}</i>', '']
         lines.append(f'💰 Витрати <b>{money(daily.get("spend"))} ₴</b>{darrow(d.get("spend"))} · '
                      f'{daily.get("purchases") or 0} покупок{darrow(d.get("purchases"))} · CPA {daily.get("cpa")} ₴{darrow(d.get("cpa"))}')
         lines.append(f'📈 ROAS: піксель <b>{daily.get("pixel_roas")}</b>{darrow(d.get("pixel_roas"))} · реал <b>{daily.get("real_ad_roas")}</b> · частота {daily.get("frequency")}')
