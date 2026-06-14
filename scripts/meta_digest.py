@@ -2,10 +2,9 @@
 """
 meta_digest.py — щоденний Telegram-дайджест Meta Ads аналітики DreamCar.
 
-Лід — денний зріз (payload.daily, за ВЧОРА): витрати, покупки, CPA, частота,
-ROAS піксель/реал. Лідер/слабкі оголошення — з РЕАЛЬНИХ ads за вчора
-(daily.top_creatives / weak_creatives), а не з кумулятиву циклу.
-З циклу лишаємо тільки стратегічні сигнали (вигорання, вік).
+Лід — денний зріз (payload.daily, за ВЧОРА) з дельтами день-до-дня.
+Лідер/слабкі — з РЕАЛЬНИХ ads за вчора. Топ кампаній по реальній виручці.
+З циклу — стратегічні сигнали (вигорання, вік).
 
 Ізольовано: лише читає публічний data.json по HTTP, нічого не пише в БД/репо.
 Секрети TG_BOT_TOKEN / TG_CHAT_ID існують у repo dreamcarua/dreamcar-team.
@@ -30,11 +29,22 @@ def money(n):
     return f'{int(n or 0):,}'.replace(',', ' ')
 
 
+def kmoney(n):
+    n = n or 0
+    return f'{n/1000:.1f}k' if n >= 1000 else str(int(n))
+
+
 def dmy(iso):
     try:
         return datetime.strptime(iso, '%Y-%m-%d').strftime('%d.%m.%Y')
     except Exception:
         return iso or ''
+
+
+def darrow(v):
+    if v is None:
+        return ''
+    return f' {"▲" if v >= 0 else "▼"}{abs(v):.0f}%'
 
 
 def _get(url):
@@ -61,17 +71,22 @@ def build(payload):
         active = daily.get('active_cycles') or []
         cyc = [by_name[n] for n in active if n in by_name] or [p for p in projects if p.get('is_current')]
         date_lbl = dmy(daily.get('date'))
+        d = daily.get('deltas') or {}
 
         lines = [f'📊 <b>Meta Ads — дайджест за {date_lbl}</b>',
-                 f'<i>сформовано {NOW:%d.%m %H:%M} Київ</i>', '']
-        lines.append(f'💰 Витрати <b>{money(daily.get("spend"))} ₴</b> · '
-                     f'{daily.get("purchases") or 0} покупок · CPA {daily.get("cpa")} ₴ · частота {daily.get("frequency")}')
-        lines.append(f'📈 ROAS: піксель <b>{daily.get("pixel_roas")}</b> · реал <b>{daily.get("real_ad_roas")}</b>')
+                 f'<i>сформовано {NOW:%d.%m %H:%M} Київ · дельта до {(daily.get("prev_date") or "")[5:]}</i>', '']
+        lines.append(f'💰 Витрати <b>{money(daily.get("spend"))} ₴</b>{darrow(d.get("spend"))} · '
+                     f'{daily.get("purchases") or 0} покупок{darrow(d.get("purchases"))} · CPA {daily.get("cpa")} ₴{darrow(d.get("cpa"))}')
+        lines.append(f'📈 ROAS: піксель <b>{daily.get("pixel_roas")}</b>{darrow(d.get("pixel_roas"))} · реал <b>{daily.get("real_ad_roas")}</b> · частота {daily.get("frequency")}')
+
+        rc = daily.get('real_by_campaign') or []
+        if rc:
+            top_rc = ' · '.join(f'{c["campaign"][:16]} {kmoney(c["revenue"])}' for c in rc[:3])
+            lines.append(f'💵 Реал по кампаніях: {top_rc}')
         lines.append('')
         lines.append(f'🏁 Активні цикли: <b>{", ".join(active) if active else "—"}</b>')
 
         recs = []
-        # 1) Лідер/слабкі — з РЕАЛЬНИХ оголошень за вчора
         top = daily.get('top_creatives') or []
         weak = daily.get('weak_creatives') or []
         if top:
@@ -81,14 +96,11 @@ def build(payload):
             nm = ', '.join(f'«{c["name"]}» (ROAS {c["roas"]})' for c in weak[:2])
             recs.append(('mod', f'Слабкі за {date_lbl}: {nm} — переглянути/вимкнути.'))
 
-        # 2) Стратегічні сигнали з циклу (вигорання, вік) — БЕЗ кумулятивного лідера креативу
         seen = set()
         for p in cyc:
             for r in (p.get('recommendations') or []):
                 txt = r.get('text', '')
-                if txt.startswith('Лідер'):      # кумулятивний лідер циклу може містити стару назву — пропускаємо
-                    continue
-                if txt in seen:
+                if txt.startswith('Лідер') or txt in seen:
                     continue
                 seen.add(txt)
                 recs.append((r.get('sev'), txt))
