@@ -8,6 +8,15 @@
 
 ---
 
+## 14.06.2026 — #395 Dashboard dropdown — дублі BMW X5 / AUDI E-TRON прибрані
+
+### Dashboard
+- 🔧 `public.launches.deal_aliases` був NULL для BMW X5 Hybrid #17 і AUDI E-TRON 2026 → frontend `loadProjects()` дедуп не ловив collision з `dashboard_projects.deal_project_values`. Dropdown показував по два записи на той самий проект.
+- 🛡 UPDATE launches: BMW X5 Hybrid #17 → `['BMW X5 HYBRID','DreamCar AI']`, AUDI E-TRON 2026 → `['AUDI E-TRON']`.
+- ✅ Verified у Chrome MCP: dropdown 12→10 опцій, BMW X5 і AUDI E-TRON по одному запису.
+
+---
+
 ## 14.06.2026 — #394 Dashboard filter-bar fix (Pulse прибрано)
 
 ### Dashboard
