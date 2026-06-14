@@ -1,0 +1,27 @@
+name: Meta Ads — щоденний дайджест
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 09:00 Europe/Kyiv (літо UTC+3)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meta-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Send Meta Ads digest to Telegram
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: python3 scripts/meta_digest.py
