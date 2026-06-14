@@ -315,11 +315,45 @@ if [ "$SRC_ROT_ABS" = "90" ] || [ "$SRC_ROT_ABS" = "270" ]; then
   echo "::warning::Rotation detected — logical dimensions ${LOGICAL_W}×${LOGICAL_H} (swapped from container ${SRC_W}×${SRC_H})"
 fi
 
-# #301: FULL ROLLBACK — НІЯКОГО tone mapping / color filter / HDR detection.
-# Vadym: "Кольоропередача жахлива, катастрофа." Mobius (#291) + Hable (#256) + eq filter
-# давали washed/artificial look. Telegram сам розбирає HLG через preview і player на
-# сучасних клієнтах. Залишаємо source pixels як є, без жодного color processing.
+# #385 (14.06.2026): HDR→SDR tone mapping — Mobius (БЕЗ eq/saturation boost).
+#
+# Історія катастроф:
+#   #256 — Hable washed
+#   #291 — Mobius + eq saturation boost = неприродно
+#   #301 — повний rollback (HDR джерела дають washed/orange skin tones)
+#   #385 — bench на IMG_8472 (HEVC Main10 HLG bt2020): Mobius БЕЗ eq виявився найкращим.
+#
+# Запобіжники:
+#   1) Tonemap застосовується ТІЛЬКИ якщо source має HLG/PQ transfer або bt2020 primaries.
+#      SDR відео (Rec.709/BT.709) НЕ торкаємо — обходимо catastrofa #301 коли SDR через
+#      tonemap ставали washed.
+#   2) ENABLE_HDR_TONEMAP=0 — kill switch. Default увімкнено (=1). Якщо знов катастрофа —
+#      один env-flip без code revert.
+#   3) НІЯКОГО eq filter / saturation boost (різниця від #291).
+#   4) Filter chain через native ffmpeg `colorspace` (без libzimg/zscale) — простіше.
+ENABLE_HDR_TONEMAP="${ENABLE_HDR_TONEMAP:-1}"
+SRC_TRANSFER=$(echo "$PROBE" | jq -r '.streams[0].color_transfer // ""')
+SRC_PRIMARIES=$(echo "$PROBE" | jq -r '.streams[0].color_primaries // ""')
+SRC_PIXFMT=$(echo "$PROBE" | jq -r '.streams[0].pix_fmt // ""')
+IS_HDR="no"
+case "$SRC_TRANSFER" in
+  arib-std-b67|smpte2084) IS_HDR="yes" ;;
+esac
+case "$SRC_PRIMARIES" in
+  bt2020) IS_HDR="yes" ;;
+esac
+echo "Color: transfer=${SRC_TRANSFER} primaries=${SRC_PRIMARIES} pix=${SRC_PIXFMT} HDR=${IS_HDR} tonemap_enabled=${ENABLE_HDR_TONEMAP}"
+
 HDR_PREFIX=""
+if [ "$IS_HDR" = "yes" ] && [ "$ENABLE_HDR_TONEMAP" = "1" ]; then
+  # HLG/PQ + BT.2020 → SDR Rec.709 через Mobius tone mapping.
+  # Chain (native ffmpeg colorspace, БЕЗ zscale/libzimg):
+  #   format=gbrpf32le         — float linear для коректного tonemap
+  #   colorspace iall=bt2020:all=bt709 fast=1  — gamut transform + EOTF inverse
+  #   tonemap=mobius:peak=10   — soft S-curve до SDR luminance
+  #   format=yuv420p           — H.264 compatible output
+  HDR_PREFIX="format=gbrpf32le,colorspace=all=bt709:iall=bt2020:fast=1,tonemap=mobius:peak=10,format=yuv420p,"
+fi
 
 # v2: Target = 99% of budget, не 91% undershoot
 EFFECTIVE_BUDGET=$((TARGET_BUDGET_BYTES * TARGET_FILL_PCT / 100))
