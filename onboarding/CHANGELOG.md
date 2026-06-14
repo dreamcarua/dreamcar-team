@@ -8,6 +8,15 @@
 
 ---
 
+## 14.06.2026 — #394 Dashboard filter-bar fix (Pulse прибрано)
+
+### Dashboard
+- 🗑 Active Launch Pulse повністю прибрано з `app-dashboard-extras.js` — sticky pill row перекривав перший ряд фільтрів (Період / Проект / Статус / Новий-старий клієнт). Init() більше не викликає refreshPulse/injectPulseBar; cleanup старого DOM на завантаженні.
+- ⚡ Cache bust: `app-dashboard-extras.js?v=20260603a` → `?v=20260614-pulse-removed`. Cloudflare кешував старий v=20260603a 4 години, тому правки positioning не доходили до браузерів.
+- 🛡 Verified у Chrome MCP після push: pulseGone=true, filter-bar display:flex, height 153.5px, 9 видимих фільтрів. Commit 05b9cfd.
+
+---
+
 ## 14.06.2026 — #393 BIG Financial system по проектах
 
 🆕 **Нова сторінка `dashboard.dreamcar.ua/finance/`** з 4 табами:
