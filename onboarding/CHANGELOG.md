@@ -8,6 +8,48 @@
 
 ---
 
+## 14.06.2026 — #387 SMM: TG caption counter 1024/4096 динамічно
+
+### SMM (#387)
+🆕 **`hq/app-char-counter.js` — динамічний TG ліміт залежно від наявності медіа:**
+- Без креативів → `TG 4096` (sendMessage)
+- З креативами (≥1 у `#f_creatives`) → `TG (caption) 1024` (sendVideo / sendPhoto / sendMediaGroup)
+- Telegram рахує усі символи РАЗОМ з HTML тегами (`<b>`, `<i>`, `<a href="...">` тощо)
+- MutationObserver на `#f_creatives` — counter перераховується одразу при додаванні/видаленні creative
+
+Корінь — #383: мій тестовий пост з ~1500 chars HTML провалився `Bad Request: caption is too long`. До цього юзер не знав про обмеження 1024.
+
+---
+
+## 14.06.2026 — #385 + #386 TG Autopost: HDR pass-through + spam-loop fix
+
+### Compress Worker (#385)
+Після 3 катастроф з HDR→SDR tone mapping (#256 Hable washed, #291 Mobius + eq неприродно, #301 повний rollback) — бенчмарк 4 варіантів на IMG_8472.MP4 (HEVC Main10 HLG bt2020). Vadym: «всі зразки виглядають погано».
+
+**Висновок:** математично неможливо HDR→SDR конверсія, яка зберегла би оригінал.
+
+🔧 **`.github/scripts/compress-creative-worker.sh`:**
+- Auto-detect HDR (`color_transfer in arib-std-b67/smpte2084` або `color_primaries=bt2020`)
+- Для HDR джерел ≤49MB → **pass-through без ffmpeg encode**: source upload напряму у R2 як compressed_url
+- TG приймає HEVC HLG: HDR-клієнти бачать оригінал, SDR — TG-side downconvert
+- SDR джерела перекодовуються нормально (H.264 yuv420p)
+
+### TG Autopost Worker (#386)
+🔧 **`.github/scripts/tg-autopost-worker.sh` — fix spam-loop у тест-канал:**
+- TG `sendMediaGroup` повертає `.result` як **масив**, sendVideo/sendPhoto — як **object**
+- Мій fix #382 робив `jq '.result.message_id'` → падав з exit 5 для sendMediaGroup
+- `complete_autopost_job` не викликалось → `publication.status` залишався 'approved' → `pg_cron` знов enqueue → infinite loop
+- Додав `RESULT_TYPE=$(jq 'if .result then (.result | type)...)` з гілками для array/object
+
+🛡 **Migration `enqueue_pending_autoposts_no_fallback_386`:**
+- Прибрав fallback на test channel якщо `tg_channel_id IS NULL`
+- Замість fallback → CONTINUE (skip публікації без явного каналу)
+- Безпечніше: старі публікації без каналу більше не попадають випадково у автопостинг
+
+**Cleanup:** 9 stale failed jobs cancelled, 2 публікації (cadd4d7f KTM, aee24b59 Сторис) переведено у `rework` (не-approved терминальний стан).
+
+---
+
 ## 14.06.2026 — #382 TG Autopost Worker — fix 6+ failed runs (prod channel + bash state leak)
 
 ### TG Autopost (#382)
