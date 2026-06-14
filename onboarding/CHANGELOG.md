@@ -8,6 +8,35 @@
 
 ---
 
+## 14.06.2026 — #393 BIG Financial system по проектах
+
+🆕 **Нова сторінка `dashboard.dreamcar.ua/finance/`** з 4 табами:
+- 📁 Категорії (CRUD з parent_id tree, sub-categories, icons/colors, archive)
+- ⚙️ Fixed Monthly (overhead-витрати з valid_from/valid_to)
+- 💸 Project Costs (per-launch витрати з vendor + invoice)
+- 🏆 Запуски (редагування `prize_cost_uah` + дата + notes)
+
+🛡 **DB schema:**
+- `public.launches +prize_cost_uah +prize_purchased_at +prize_notes` (ALTER).
+- `public.cost_categories` — справочник з 16 seed-записів (PRIZE, CONTENT_TEAM, INFRA_API, PARTNERS_LEGAL + 12 sub).
+- `public.fixed_monthly_costs` — pro-rata розподіл по запусках за overlap_days.
+- `public.project_costs` — per-launch з category_id + vendor + invoice.
+- RLS: team read, ceo/coo/cfo write. Тригери touch_updated_at.
+
+📊 **RPC v4** `dashboard_project_pnl()`:
+Нові поля: `prize_cost`, `project_costs_total`, `fixed_allocated`, `total_cost`, **`true_net_profit`**, **`true_net_margin_pct`**, **`true_roi_pct`**, **`true_cac`**, `category_breakdown` (JSONB).
+
+🏆 **Win-Analysis оновлено:**
+- KPI: "Усі витрати" (Ads + Приз + Fixed + Project breakdown) + "TRUE Net Profit" (з margin %).
+- P&L таблиця: +🏆 Приз +⚙️ Fixed +Project +Всі витрати +TRUE Net +Margin %+True CAC (16 колонок).
+
+🔗 **NAV:** sidebar group "Стратегія" → Win-Analysis + 💰 Фінанси. Win-Analysis topbar має 💰 Фінанси link.
+
+**Commit:** `d66fe1f` (3 files, +648/-31).
+**Live:** dashboard.dreamcar.ua/finance/ + /win-analysis/ — HTTP/2 200.
+
+---
+
 ## 14.06.2026 — #392 BIG AUDIT + Win-Analysis Hub (5 хвиль)
 
 ### Dashboard повний аудит та переосмислення
