@@ -90,9 +90,9 @@
       measure: '📊 Вимірюємо', completed: '✅ Завершено', archived: '📦 Архів',
     })[s] || s;
   }
-  // 10.06.2026 #270 (Давид): порядок старе → теперішнє → майбутнє
-  // Архів/Завершено (минуле) ЗЛІВА, Активний/Вимірюємо (теперішнє) ЦЕНТР, Підготовка/Ідея (майбутнє) СПРАВА
-  var STATUSES = ['archived', 'completed', 'active', 'measure', 'planning', 'idea'];
+  // 14.06.2026 (Vadym): reverse #270 — від ІДЕЇ ЗЛІВА до АРХІВУ СПРАВА (logical lifecycle flow).
+  // Раніше Давид просив старе зліва → майбутнє справа, тепер Vadym: ідея зліва → архів справа.
+  var STATUSES = ['idea', 'planning', 'active', 'measure', 'completed', 'archived'];
 
   function getCurrentUser() { return (window.appState && window.appState.publicUser) || null; }
   function isAdmin() {
