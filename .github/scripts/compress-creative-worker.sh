@@ -315,23 +315,22 @@ if [ "$SRC_ROT_ABS" = "90" ] || [ "$SRC_ROT_ABS" = "270" ]; then
   echo "::warning::Rotation detected — logical dimensions ${LOGICAL_W}×${LOGICAL_H} (swapped from container ${SRC_W}×${SRC_H})"
 fi
 
-# #385 (14.06.2026): HDR→SDR tone mapping — Mobius (БЕЗ eq/saturation boost).
+# #385 (14.06.2026): HDR pass-through. НЕ перекодовуємо HDR взагалі.
 #
-# Історія катастроф:
-#   #256 — Hable washed
-#   #291 — Mobius + eq saturation boost = неприродно
-#   #301 — повний rollback (HDR джерела дають washed/orange skin tones)
-#   #385 — bench на IMG_8472 (HEVC Main10 HLG bt2020): Mobius БЕЗ eq виявився найкращим.
+# Історія катастроф з HDR→SDR conversion:
+#   #256 — Hable: washed
+#   #291 — Mobius + eq saturation boost: неприродно
+#   #301 — повний rollback: SDR клієнти бачать перенасичено
+#   #385 — bench Mobius БЕЗ eq: Вадим: «всі зразки виглядають погано»
 #
-# Запобіжники:
-#   1) Tonemap застосовується ТІЛЬКИ якщо source має HLG/PQ transfer або bt2020 primaries.
-#      SDR відео (Rec.709/BT.709) НЕ торкаємо — обходимо catastrofa #301 коли SDR через
-#      tonemap ставали washed.
-#   2) ENABLE_HDR_TONEMAP=0 — kill switch. Default увімкнено (=1). Якщо знов катастрофа —
-#      один env-flip без code revert.
-#   3) НІЯКОГО eq filter / saturation boost (різниця від #291).
-#   4) Filter chain через native ffmpeg `colorspace` (без libzimg/zscale) — простіше.
-ENABLE_HDR_TONEMAP="${ENABLE_HDR_TONEMAP:-1}"
+# Висновок: математично неможливо HDR→SDR конверсія, яка би зберегла оригінал.
+# Telegram приймає HEVC Main10 HLG/PQ напряму:
+#   • HDR-клієнти (iPhone Pro, MacBook, recent Android) → бачать точний оригінал
+#   • SDR-клієнти → TG сам робить downconvert (їхня логіка під клієнтську панель)
+# У будь-якому випадку це краще ніж наш ffmpeg.
+#
+# Тому: HDR detected → pass source through без ffmpeg encode.
+# SDR detected → нормальне H.264 перекодування для бітрейту/розміру.
 SRC_TRANSFER=$(echo "$PROBE" | jq -r '.streams[0].color_transfer // ""')
 SRC_PRIMARIES=$(echo "$PROBE" | jq -r '.streams[0].color_primaries // ""')
 SRC_PIXFMT=$(echo "$PROBE" | jq -r '.streams[0].pix_fmt // ""')
@@ -342,18 +341,29 @@ esac
 case "$SRC_PRIMARIES" in
   bt2020) IS_HDR="yes" ;;
 esac
-echo "Color: transfer=${SRC_TRANSFER} primaries=${SRC_PRIMARIES} pix=${SRC_PIXFMT} HDR=${IS_HDR} tonemap_enabled=${ENABLE_HDR_TONEMAP}"
+echo "Color: transfer=${SRC_TRANSFER} primaries=${SRC_PRIMARIES} pix=${SRC_PIXFMT} HDR=${IS_HDR}"
+
+# HDR pass-through: source у межах TG ліміту (50MB) → upload as-is і exit
+if [ "$IS_HDR" = "yes" ] && [ "$IN_SIZE" -le $((49 * 1024 * 1024)) ]; then
+  echo "=== HDR source detected — pass-through (no encode) ==="
+  echo "TG handles HDR rendering: HDR clients see original, SDR clients get TG downconvert"
+  OBJECT_KEY="video-compressed/${CRE_ID}.mp4"
+  PUBLIC_URL=$(upload_to_r2 "$INPUT" "$OBJECT_KEY" "video/mp4")
+  echo "HDR pass-through uploaded: $PUBLIC_URL"
+  curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_compress_job" \
+    -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -nc --arg id "$CRE_ID" --arg url "$PUBLIC_URL" --argjson sz "$IN_SIZE" '{cre_id:$id, out_url:$url, out_size_bytes:$sz}')"
+  echo "✓ HDR pass-through DONE: $CRE_ID → $PUBLIC_URL (${IN_MB} MB, original codec preserved)"
+  exit 0
+fi
+
+# HDR > 49 MB — попередимо у логах, не perfekt-варіант, але іншого нема
+if [ "$IS_HDR" = "yes" ]; then
+  echo "::warning::HDR source >49MB — НЕ вкладається у TG sendVideo ліміт. Fallback на H.264 без HDR conversion (кольори будуть смерті). Зменшіть розмір джерела у iPhone (Settings → Camera → Record Video → 1080p 30fps замість 4K)."
+fi
 
 HDR_PREFIX=""
-if [ "$IS_HDR" = "yes" ] && [ "$ENABLE_HDR_TONEMAP" = "1" ]; then
-  # HLG/PQ + BT.2020 → SDR Rec.709 через Mobius tone mapping.
-  # Chain (native ffmpeg colorspace, БЕЗ zscale/libzimg):
-  #   format=gbrpf32le         — float linear для коректного tonemap
-  #   colorspace iall=bt2020:all=bt709 fast=1  — gamut transform + EOTF inverse
-  #   tonemap=mobius:peak=10   — soft S-curve до SDR luminance
-  #   format=yuv420p           — H.264 compatible output
-  HDR_PREFIX="format=gbrpf32le,colorspace=all=bt709:iall=bt2020:fast=1,tonemap=mobius:peak=10,format=yuv420p,"
-fi
 
 # v2: Target = 99% of budget, не 91% undershoot
 EFFECTIVE_BUDGET=$((TARGET_BUDGET_BYTES * TARGET_FILL_PCT / 100))
