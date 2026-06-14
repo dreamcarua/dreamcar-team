@@ -8,6 +8,34 @@
 
 ---
 
+## 14.06.2026 — #391 Cleanup legacy PHP backend (–197 файлів)
+
+### Dashboard repo (`dreamcarua/dreamcar-dashboard`)
+🗑 **Видалено увесь старий PHP-стек який жив на `dreamcar.ai-platform.space`:**
+- 116 PHP-скриптів у корені (DIAGNOSTIC, FULL_DIAGNOSTIC, webhook_crm, handler_bulk, manual_costs, upload_*, check_*, fix_*, test_*, debug_*, etc)
+- Папки: `ads/`, `api/`, `config/`, `core/`, `cron/`, `finance/`, `migrations/`, `plans/`, `scripts/`, `sql/`, `assets/` (старий UI)
+- Legacy docs: WEBHOOK_SETUP.md, WORK-CHECK.md, UX-AUDIT.md, INTEGRATION_REPORT.md
+- `.htaccess` (PHP routing) + `apply_*.py` (legacy migration helpers)
+
+**Чому це безпечно:**
+1. SendPulse webhook `webhook_crm.php` НЕ потрібен — `etl/sync_sendpulse.py` тягне `GET /crm/v1/deals` напряму у Supabase (Phase 2 #202)
+2. `meta-analytics/` уже перенесено Артемом у `docs/meta-analytics/` (комміт c730ad1) як чистий статичний JS+Supabase
+3. `utm-dashboard/` дубль уже видалив Артем у e1bf1fa
+4. Live `dashboard.dreamcar.ua` (GitHub Pages з `docs/`) НЕ зачеплено
+5. Жодного fetch/XHR з `docs/` на `ai-platform.space` — grep підтвердив
+
+**Залишається у корені (живий стек):**
+- `docs/` — live Pages dashboard
+- `.github/workflows/` — ETL cron (etl-mysql-sync, etl-sendpulse-sync, fb-ads-sync)
+- `etl/` — Python ETL scripts (SendPulse + FB Ads → Supabase)
+- README.md, CLAUDE.md, SECURITY.md, .env.example, .gitignore, .package-versions.json
+
+**Наслідок:** хостинг `dreamcar.ai-platform.space` можна відключити окремо (більше не deploy-ається з цього репо). Verify: `curl -sI dashboard.dreamcar.ua/` → HTTP/2 200, last-modified 14.06.2026 11:22 → Pages rebuild ok.
+
+Commit `19d9275`. Pushed by Vadym.
+
+---
+
 ## 14.06.2026 — #387 SMM: TG caption counter 1024/4096 динамічно
 
 ### SMM (#387)
