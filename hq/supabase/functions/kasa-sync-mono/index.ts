@@ -1,15 +1,15 @@
 // ============================================================================
-// kasa-sync-mono — синк виписок monobank (особисті токени ФОП) у kasa_transactions.
-// Креди з public.kasa_bank_creds (bank='monobank', is_active).
-// Backfill НЕ глибше KASA_BACKFILL_FROM (дефолт 2026-03-01).
-// Ліміт monobank: <= 1 statement/60с на токен (1 виклик/токен за раз).
-// Guard: header x-cron-key (або ?key=) == kasa_config.cron_key.
+// kasa-sync-mono — monobank: фактичний баланс (client-info, щогодини) + виписки.
+// api_balance/api_balance_at оновлюються з реального балансу банку.
+// Backfill не глибше KASA_BACKFILL_FROM (2026-03-01). Ліміт: 1 mono-виклик/60с/токен.
+// Guard: x-cron-key == kasa_config.cron_key.
 // ============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const MONO_API = "https://api.monobank.ua";
 const WINDOW_DAYS = 31;
 const INC_REFRESH_MIN = 55;
+const BAL_REFRESH_MIN = 55;
 const BACKFILL_FROM = Deno.env.get("KASA_BACKFILL_FROM") || "2026-03-01";
 
 const sb = createClient(
@@ -35,22 +35,29 @@ async function monoGET(path: string, token: string) {
   return r.json();
 }
 
-async function ensureAccounts(token: string, label: string) {
+// client-info: створює відсутні UAH-рахунки + оновлює фактичний api_balance кожного
+async function refreshFromClientInfo(token: string, label: string) {
   const info = await monoGET("/personal/client-info", token);
-  const created: string[] = [];
+  const now = new Date().toISOString();
+  let updated = 0, created = 0;
   for (const a of info.accounts || []) {
     if (a.currencyCode !== 980) continue; // тільки UAH
     const { data: exist } = await sb.from("kasa_accounts").select("id").eq("mono_account_id", a.id).maybeSingle();
-    if (exist) continue;
-    const last4 = (a.maskedPan?.[0] || a.iban || a.id).toString().slice(-4);
-    await sb.from("kasa_accounts").insert({
-      name: `monobank ${label} ·${last4}`, kind: "bank", bank: "monobank", currency: "UAH",
-      mono_account_id: a.id, mono_token_label: label, iban: a.iban || null,
-      icon: "⚫", color: "#111111", sort_order: 60,
-    });
-    created.push(`monobank ${label} ·${last4}`);
+    if (exist) {
+      await sb.from("kasa_accounts").update({ api_balance: a.balance / 100, api_balance_at: now }).eq("id", exist.id);
+      updated++;
+    } else {
+      const last4 = (a.maskedPan?.[0] || a.iban || a.id).toString().slice(-4);
+      await sb.from("kasa_accounts").insert({
+        name: `monobank ${label} ·${last4}`, kind: "bank", bank: "monobank", currency: "UAH",
+        mono_account_id: a.id, mono_token_label: label, iban: a.iban || null,
+        api_balance: a.balance / 100, api_balance_at: now,
+        is_active: false, icon: "⚫", color: "#111111", sort_order: 60,
+      });
+      created++;
+    }
   }
-  return created;
+  return { updated, created };
 }
 
 async function upsertStatement(accId: string, items: any[]) {
@@ -75,11 +82,15 @@ async function syncOneCallForToken(token: string, label: string) {
   const { data: accs } = await sb.from("kasa_accounts")
     .select("*").eq("bank", "monobank").eq("mono_token_label", label).eq("is_active", true).order("sort_order");
 
-  if (!accs || !accs.length) {
-    const created = await ensureAccounts(token, label);
-    return { token: label, action: "mapped_accounts", created };
+  // 0) баланс із API (щогодини) — пріоритет; також маппінг нових рахунків
+  const balStale = !accs || !accs.length ||
+    accs.some((a) => !a.api_balance_at || (Date.now() - new Date(a.api_balance_at).getTime()) > BAL_REFRESH_MIN * 60000);
+  if (balStale) {
+    const r = await refreshFromClientInfo(token, label);
+    return { token: label, action: "balances", ...r };
   }
 
+  // 1) інкрементал (останні 31 день)
   const incAcc = accs
     .filter((a) => !a.mono_last_inc || (Date.now() - new Date(a.mono_last_inc).getTime()) > INC_REFRESH_MIN * 60000)
     .sort((a, b) => new Date(a.mono_last_inc || 0).getTime() - new Date(b.mono_last_inc || 0).getTime())[0];
@@ -93,6 +104,7 @@ async function syncOneCallForToken(token: string, label: string) {
     return { token: label, action: "incremental", account: incAcc.name, fetched: n };
   }
 
+  // 2) backfill (не глибше target)
   const bfAcc = accs
     .filter((a) => a.mono_synced_from && new Date(a.mono_synced_from) > target)
     .sort((a, b) => new Date(b.mono_synced_from).getTime() - new Date(a.mono_synced_from).getTime())[0];
