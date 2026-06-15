@@ -8,6 +8,16 @@
 
 ---
 
+## 15.06.2026 — #396 Daily AI Analyst v6 — більше не алярмить по завершених проектах
+
+### AI/Analytics
+- 🔧 Ранковий дайджест видавав термінову ескалацію по AUDI E-TRON («5+ днів, 0₴ виручки → вимкнути проєкт») попри те що проект завершився 31.05.
+- 🔧 Дві першопричини: (1) `dealsDay()` агрегувала `pay`-записи з `amount=NULL` як `paid: count++, rev += 0` — хвостові операції (refund/retry/test) виглядали як проблема з платежами; (2) AI взагалі не знав які проекти зараз active vs completed.
+- 🔧 daily-ai-analyst v6: фільтр `amount > 0` у pay-аггрегації + окремий `tail_pay_null` counter (для діагностики) + нова функція `launchesStatus()` що передає у промпт `ACTIVE_LAUNCHES` та `COMPLETED_LAUNCHES` + явна інструкція в system prompt не давати alarm-ів про завершені проекти.
+- ✅ Dry-run verified: AI правильно класифікує AUDI E-TRON як «завершений проєкт, хвости у порядку» і фокусується тільки на активних запусках.
+
+---
+
 ## 14.06.2026 — #395 Dashboard dropdown — дублі BMW X5 / AUDI E-TRON прибрані
 
 ### Dashboard
