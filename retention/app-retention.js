@@ -69,7 +69,10 @@ async function loadAll(){
   const supabase = window.supabase;
   if (!supabase) return;
   try {
-    const [msgs, users, projects, approvers, responsibles] = await Promise.all([
+    // #421: окрім своїх — підвантажуємо SMM ghost-події для cross-system візуалізації
+    const ghostFrom = new Date(); ghostFrom.setMonth(ghostFrom.getMonth() - 2);
+    const ghostTo = new Date(); ghostTo.setMonth(ghostTo.getMonth() + 6);
+    const [msgs, users, projects, approvers, responsibles, ghostSmm] = await Promise.all([
       supabase.from('retention_messages').select('*').is('deleted_at', null).order('publish_at', { ascending: false }).limit(500),
       // 08.06.2026 Vira fix: users.deleted_at НЕ ІСНУЄ → запит повертав null → dropdowns approvers/responsibles порожні.
       supabase.from('users').select('id,name,email,role').eq('is_active', true).order('name'),
@@ -77,7 +80,9 @@ async function loadAll(){
       supabase.from('launches').select('id,name,status').order('starts_on', { ascending: false }).limit(100),
       supabase.from('retention_message_approvers').select('*'),
       supabase.from('retention_message_responsibles').select('*'),
+      supabase.rpc('ghost_calendar_events', { p_source: 'smm', p_from: ghostFrom.toISOString(), p_to: ghostTo.toISOString() }),
     ]);
+    Store.ghostSmm = (ghostSmm && !ghostSmm.error) ? (ghostSmm.data || []) : [];
     if (msgs.error) throw msgs.error;
     const aMap = new Map();
     const rMap = new Map();
@@ -375,6 +380,12 @@ function renderCalendar(main){
     if (!byDay[k]) byDay[k] = [];
     byDay[k].push(m);
   });
+  // #421 Ghost events з SMM: показуємо як приглушені нашого календаря
+  (Store.ghostSmm || []).forEach(g => {
+    const k = ymd(g.publish_at);
+    if (!byDay[k]) byDay[k] = [];
+    byDay[k].push({ ...g, _ghost: 'smm' });
+  });
   Object.values(byDay).forEach(arr => arr.sort((a,b) => new Date(a.publish_at) - new Date(b.publish_at)));
 
   if (v === 'list')  return renderCalList(main, items);
@@ -482,6 +493,19 @@ function renderDayView(byDay){
 }
 
 function calItem(m, size){
+  // #421 Ghost SMM event — приглушений, неклікабельний, з 📢 префіксом
+  if (m._ghost === 'smm') {
+    const dt = new Date(m.publish_at);
+    const hh = String(dt.getHours()).padStart(2,'0');
+    const mm = String(dt.getMinutes()).padStart(2,'0');
+    const title = (m.title || '(SMM)');
+    const channels = (m.channels || []).map(c => c === 'tg' ? '📢' : c === 'ig' ? '📷' : c === 'fb' ? 'ⓕ' : '').join('');
+    const tip = `SMM · ${channels || 'канал'} · ${hh}:${mm} · ${title.replace(/"/g,'')}`;
+    if (size === 'short') {
+      return `<div class="cal-item-ghost" title="${escHtml(tip)}" style="cursor:default; font-size:10px; padding:3px 5px; background:rgba(59,130,246,0.10); border-radius:3px; border-left:3px solid rgba(59,130,246,0.55); color:rgba(255,255,255,0.50); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:0.7;">${channels || '📢'} <span style="font-weight:700; font-variant-numeric:tabular-nums;">${hh}:${mm}</span> <span style="opacity:.7;">· SMM</span></div>`;
+    }
+    return `<div class="cal-item-ghost" title="${escHtml(tip)}" style="cursor:default; padding:5px 7px; background:rgba(59,130,246,0.10); border-radius:5px; border-left:3px solid rgba(59,130,246,0.55); color:rgba(255,255,255,0.55); opacity:0.7;"><div style="font-size:10px;">${channels || '📢'} · SMM</div><div style="font-size:11px; margin-top:2px;"><span style="font-weight:700;">${hh}:${mm}</span> · ${escHtml(title).slice(0, 35)}</div></div>`;
+  }
   const ch = CH_LABELS[m.channel] || CH_LABELS.other;
   const st = ST_LABELS[m.status] || ST_LABELS.draft;
   const dt = new Date(m.publish_at);
