@@ -8,6 +8,18 @@
 
 ---
 
+## 15.06.2026 — #403 Каса (факт) — облік фактичного руху коштів
+
+### Kasa
+- 🆕 Сторінка `dashboard.dreamcar.ua/kasa/` — безготівка / готівка / дивіденди / перекази між книгами. Доступ лише 2 email (1avrybak@, dreamcarua@) на рівні UI + RLS.
+- 🆕 Таблиці `kasa_accounts` / `kasa_transactions` / `kasa_transfers` (адитивно, без FK на launches/cost_categories — soft-refs). Застосовано через одноразову Edge `kasa-migrate` напряму по `SUPABASE_DB_URL`.
+- 🆕 Edge Functions `kasa-sync-mono` (ФОП, ліміт 1 req/60с, backfill-курсор) + `kasa-sync-privat` (Автоклієнт). Cron+secrets — pending банк-токени.
+- 🆕 Імпорт виписки ПУМБ (CSV/XLSX) у UI з дедуплікацією по `source+external_id`.
+- 🆕 Категорії доходів/витрат + прив'язка до запусків (тягне `cost_categories`/`launches`).
+- 🆕 Лінк «Каса» у сайдбарі дашборду (секція Стратегія).
+
+---
+
 ## 15.06.2026 — #402 Finance trend chart — Виручка vs Реклама (замість cumulative profit)
 
 ### Finance UI
