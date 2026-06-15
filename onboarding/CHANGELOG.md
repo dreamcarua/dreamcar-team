@@ -8,6 +8,16 @@
 
 ---
 
+## 15.06.2026 — #404 Каса — авто-синк банків (4 рахунки ФОП)
+
+### Kasa
+- 🆕 Таблиця `kasa_bank_creds` (bank/label/token/privat_id) + `kasa_config(cron_key)`. Токени вводяться у вкладці «🔑 Банки» (RLS, лише 2 email; cron_key недоступний фронту).
+- 🔧 `kasa-sync-mono` + `kasa-sync-privat` тепер читають креди з БД (мульти-ФОП), guard по cron_key. Privat — backfill-курсор per-cred; mono — 1 statement/60с на токен.
+- 🚀 Автосинк через `pg_cron` job `kasa-sync` кожні 10 хв → `net.http_post` обох функцій. Історія підтягується backfill-вікнами (~3 роки).
+- 🆕 Вкладка «🔑 Банки» у Касі: CRUD підключень + статус останнього синку.
+
+---
+
 ## 15.06.2026 — #403 Каса (факт) — облік фактичного руху коштів
 
 ### Kasa
