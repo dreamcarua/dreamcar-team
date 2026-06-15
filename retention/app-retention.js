@@ -806,7 +806,7 @@ function openMessageDetail(id){
             <h3 style="margin:0; color:#fff;">🖼 Обери з бібліотеки</h3>
             <button id="ret-picker-close" style="background:transparent; border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer;">✕</button>
           </div>
-          <div style="margin-bottom:10px; color:var(--ash); font-size:12px;">Клікни щоб додати. Доданий креатив підсвічується. Натисни ще раз — приберти.</div>
+          <div style="margin-bottom:10px; color:var(--ash); font-size:12px;">Клікни щоб додати. Доданий креатив підсвічується. Натисни ще раз — прибрати.</div>
           <div id="ret-picker-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px;"></div>
           <div style="margin-top:14px; text-align:right;"><button id="ret-picker-done" style="background:var(--red, #E30613); color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:600;">✓ Готово</button></div>
         </div>`;
@@ -814,13 +814,22 @@ function openMessageDetail(id){
         const pickerGrid = picker.querySelector('#ret-picker-grid');
         const renderPicker = () => {
           const sel = new Set(window.retState.modalCreatives || []);
+          // #419 fix: для video НЕ використовуємо compressed_url як <img> src (це сам mp4).
+          // Якщо thumbnail_url/poster_url немає → одразу emoji fallback. Якщо image без thumb → ОК, compressed_url можна.
+          const thumbOf = (c) => {
+            if (c.type === 'video') {
+              return c.thumbnail_url || c.poster_url || '';
+            }
+            return c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
+          };
           pickerGrid.innerHTML = items.map(c => {
-            const thumb = c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
+            const thumb = thumbOf(c);
             const isSel = sel.has(c.id);
-            return `<div data-cid="${c.id}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:2px solid ${isSel ? 'var(--red, #E30613)' : 'var(--steel)'}; border-radius:6px; overflow:hidden; cursor:pointer;">
-              ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:30px;">${c.type === 'video' ? '🎬' : '🖼'}</div>`}
-              ${isSel ? '<div style="position:absolute; top:4px; right:4px; background:var(--red, #E30613); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px;">✓</div>' : ''}
-              ${c.type === 'video' ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff;">▶</div>' : ''}
+            const emojiPlaceholder = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; font-size:32px; gap:4px;"><span>${c.type === 'video' ? '🎬' : '🖼'}</span><span style="font-size:9px; color:var(--ash); padding:0 6px; text-align:center; word-break:break-all; line-height:1.2;">${(c.name || '').slice(0, 20)}</span></div>`;
+            return `<div data-cid="${c.id}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:2px solid ${isSel ? 'var(--red, #E30613)' : 'var(--steel)'}; border-radius:6px; overflow:hidden; cursor:pointer;" title="${(c.name||'').replace(/"/g,'&quot;')}">
+              ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.display='none'; this.parentNode.insertAdjacentHTML('afterbegin', ${JSON.stringify(emojiPlaceholder)});">` : emojiPlaceholder}
+              ${isSel ? '<div style="position:absolute; top:4px; right:4px; background:var(--red, #E30613); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px; z-index:2;">✓</div>' : ''}
+              ${c.type === 'video' ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff; z-index:2;">▶ VIDEO</div>' : ''}
             </div>`;
           }).join('');
           pickerGrid.querySelectorAll('[data-cid]').forEach(el => {
