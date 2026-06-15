@@ -816,10 +816,20 @@ function openMessageDetail(id){
       // Picker — відкрити бібліотеку
       const pickBtn = overlay.querySelector('#ret-pick-from-library');
       if (pickBtn) pickBtn.onclick = async () => {
-        const { data } = await window.supabase.from('creatives')
-          .select('id, name, type, thumbnail_url, compressed_url, drive_file_id, scopes')
-          .is('deleted_at', null).order('uploaded_at', { ascending: false }).limit(200);
-        const items = data || [];
+        const [creRes, useRes] = await Promise.all([
+          window.supabase.from('creatives')
+            .select('id, name, type, thumbnail_url, compressed_url, drive_file_id, scopes')
+            .is('deleted_at', null).order('uploaded_at', { ascending: false }).limit(200),
+          window.supabase.from('v_creative_usages')
+            .select('creative_id, source, ref_title, ref_at, channels'),
+        ]);
+        const items = creRes.data || [];
+        const usagesByCid = {};
+        (useRes.data || []).forEach(u => {
+          if (!usagesByCid[u.creative_id]) usagesByCid[u.creative_id] = [];
+          usagesByCid[u.creative_id].push(u);
+        });
+        window.retState._creativeUsages = usagesByCid;
         const cache = window.retState._creativesCache || {};
         items.forEach(c => { cache[c.id] = c; });
         window.retState._creativesCache = cache;
@@ -846,12 +856,25 @@ function openMessageDetail(id){
             }
             return c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
           };
+          const usagesByCid = window.retState._creativeUsages || {};
           pickerGrid.innerHTML = items.map(c => {
             const thumb = thumbOf(c);
             const isSel = sel.has(c.id);
             const emojiPlaceholder = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; font-size:32px; gap:4px;"><span>${c.type === 'video' ? '🎬' : '🖼'}</span><span style="font-size:9px; color:var(--ash); padding:0 6px; text-align:center; word-break:break-all; line-height:1.2;">${(c.name || '').slice(0, 20)}</span></div>`;
+            // #422 used-бейдж
+            const uses = usagesByCid[c.id] || [];
+            let usedBadge = '';
+            if (uses.length) {
+              const tipLines = uses.slice(0, 8).map(u => {
+                const ic = u.source === 'smm' ? '📢 SMM' : '🤖 Ret';
+                const dt = u.ref_at ? new Date(u.ref_at).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', dateStyle: 'short', timeStyle: 'short' }) : '';
+                return `${ic} · ${(u.ref_title || '').slice(0, 30)} · ${dt}`;
+              }).join('\n') + (uses.length > 8 ? `\n+ще ${uses.length - 8}` : '');
+              usedBadge = `<div style="position:absolute; top:4px; left:4px; background:rgba(168,85,247,0.85); color:#fff; border-radius:10px; padding:1px 6px; font-size:10px; font-weight:700; z-index:2; cursor:help;" title="${tipLines.replace(/"/g,'&quot;')}">🔗 ${uses.length}</div>`;
+            }
             return `<div data-cid="${c.id}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:2px solid ${isSel ? 'var(--red, #E30613)' : 'var(--steel)'}; border-radius:6px; overflow:hidden; cursor:pointer;" title="${(c.name||'').replace(/"/g,'&quot;')}">
               ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.display='none'; this.parentNode.insertAdjacentHTML('afterbegin', ${JSON.stringify(emojiPlaceholder)});">` : emojiPlaceholder}
+              ${usedBadge}
               ${isSel ? '<div style="position:absolute; top:4px; right:4px; background:var(--red, #E30613); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px; z-index:2;">✓</div>' : ''}
               ${c.type === 'video' ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff; z-index:2;">▶ VIDEO</div>' : ''}
             </div>`;
