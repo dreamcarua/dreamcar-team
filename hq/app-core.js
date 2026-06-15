@@ -1161,29 +1161,35 @@ function renderMonth(d, pubs) {
     const day = addDays(start, i);
     const isOther = day.getMonth() !== d.getMonth();
     const isToday = day.getTime() === today.getTime();
-    const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
-    const cards = dayPubs.slice(0,5).map(p => `
-      <div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}">
-        ${p.contentType ? `<div class="ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
-        <span class="time" style="font-weight:700;color:#fff;">${fmtTime(p.dateTime)}</span>
-        ${platformIcons(p.platforms)}
-        <span class="title">${escapeHtml(p.title)}</span>
-      </div>
-    `).join('');
-    // #421 Ghost retention розсилки — приглушений вид, неклікабельні
-    const ghosts = (App.retentionGhost || []).filter(g => sameDate(g.scheduled_at, day))
-      .sort((a,b)=> new Date(a.scheduled_at) - new Date(b.scheduled_at))
-      .slice(0, 3).map(g => {
+    // #421+#424 Об'єднаний sort: SMM пости + ghost retention хронологічно разом
+    const dayPubs = pubs.filter(p => sameDate(p.dateTime, day));
+    const dayGhosts = (App.retentionGhost || []).filter(g => sameDate(g.scheduled_at, day));
+    const merged = [
+      ...dayPubs.map(p => ({ _ts: new Date(p.dateTime).getTime(), _kind: 'pub', data: p })),
+      ...dayGhosts.map(g => ({ _ts: new Date(g.scheduled_at).getTime(), _kind: 'ghost', data: g })),
+    ].sort((a, b) => a._ts - b._ts);
+    const items = merged.slice(0, 6).map(item => {
+      if (item._kind === 'pub') {
+        const p = item.data;
+        return `<div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}">
+          ${p.contentType ? `<div class="ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
+          <span class="time" style="font-weight:700;color:#fff;">${fmtTime(p.dateTime)}</span>
+          ${platformIcons(p.platforms)}
+          <span class="title">${escapeHtml(p.title)}</span>
+        </div>`;
+      } else {
+        const g = item.data;
         const t = new Date(g.scheduled_at);
         const hh = String(t.getHours()).padStart(2,'0');
         const mm = String(t.getMinutes()).padStart(2,'0');
         const ch = (g.channels || [])[0] || 'tg';
         const icon = ch === 'tg' ? '🤖' : ch === 'email' ? '📧' : ch === 'push' ? '🔔' : '📤';
         return `<div class="cal-ghost" title="Retention · ${icon} · ${hh}:${mm} · ${escapeHtml(g.title || '')}" style="display:flex;align-items:center;gap:4px;font-size:10px;padding:3px 5px;background:rgba(168,85,247,0.10);border-left:3px solid rgba(168,85,247,0.55);border-radius:3px;color:rgba(255,255,255,0.55);opacity:0.7;cursor:default;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0;"><span>${icon}</span><span style="font-weight:700;font-variant-numeric:tabular-nums;">${hh}:${mm}</span><span style="opacity:.7;">· Ret</span></div>`;
-      }).join('');
-    const more = dayPubs.length > 3 ? `<span class="more" data-date="${day.toISOString().slice(0,10)}">+${dayPubs.length-3} ще</span>` : '';
+      }
+    }).join('');
+    const more = merged.length > 6 ? `<span class="more" data-date="${day.toISOString().slice(0,10)}">+${merged.length-6} ще</span>` : '';
     html += `<div class="cal-day ${isOther?'other-month':''} ${isToday?'today':''}" data-date="${day.toISOString().slice(0,10)}">
-      <div class="day-num">${day.getDate()}</div>${ghosts}${cards}${more}</div>`;
+      <div class="day-num">${day.getDate()}</div>${items}${more}</div>`;
   }
   html += '</div>';
   return html;
