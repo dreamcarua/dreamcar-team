@@ -8,6 +8,17 @@
 
 ---
 
+## 15.06.2026 — #398 Finance Dashboard P0 — швидке завантаження + правильна виручка
+
+### Finance / Dashboard
+- 🔧 KPI Revenue показував 11.37M (lifetime з PnL) — мав показувати 7.24M (за період). Створив новий RPC `dashboard_finance_overview(p_from, p_to)` SECURITY DEFINER що агрегує `revenue/paid/prev_revenue + daily series + by_project` на бекенді (без 1000-row REST ліміту Supabase).
+- ⚡ `dashboard_project_pnl` RPC висів 44с через cartesian `LEFT JOIN ON true` (8 launches × 60k+ deals = 480k агрегацій). Переписав на `matched_deals` CTE з реальним JOIN ON ANY(aliases). 44с → 20с. Додав індекси: `dashboard_deals (status, created_at DESC) INCLUDE (amount, project) WHERE status='pay' AND amount>0` + `(project, created_at DESC)`.
+- ⚡ Frontend 2-фазне завантаження: Phase 1 (~5с) — RPC overview → KPI/trend/forecast/insights з proxy margin. Phase 2 (~20с у фоні) — PnL → уточнення margin + cost-структура + ranking + точні insights. Skeleton shimmer + loading bar поки чекає.
+- 🔧 `init()` тепер запускає `reloadOverview()` БЕЗ чекання `loadAll()` — миттєвий старт RPC.
+- ✅ Verified prod: Revenue 7.24M ₴, Profit 6.62M ₴, Margin 91.5%, CAC×AOV 11.8×, 17 431 оплат за 30 днів. Skeleton зникає через ~5с після відкриття.
+
+---
+
 ## 15.06.2026 — #397 BIG Finance Dashboard v2 — повноцінний аналітичний огляд
 
 ### Finance / Dashboard
