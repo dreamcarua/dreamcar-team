@@ -1,14 +1,15 @@
 // ============================================================================
 // kasa-sync-privat — синк виписок ПриватБанк (Автоклієнт) для кількох ФОП.
 // Креди з public.kasa_bank_creds (bank='privatbank', is_active): privat_id + token + label.
-// Кожен запуск: інкрементал (останні 35 днів) + одне вікно backfill (курсор synced_from).
+// Кожен запуск: інкрементал (35 днів) + одне вікно backfill (курсор synced_from).
+// Backfill НЕ глибше KASA_BACKFILL_FROM (дефолт 2026-03-01).
 // Guard: header x-cron-key (або ?key=) == kasa_config.cron_key.
 // ============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ACP = "https://acp.privatbank.ua/api/statements/transactions";
 const WINDOW_DAYS = 31;
-const BACKFILL_DAYS = Number(Deno.env.get("KASA_PRIVAT_BACKFILL_DAYS") || 1095);
+const BACKFILL_FROM = Deno.env.get("KASA_BACKFILL_FROM") || "2026-03-01";
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -92,7 +93,7 @@ async function pullWindow(cred: any, startDate: string, endDate: string, pacc: a
 
 async function syncCred(cred: any) {
   const today = new Date();
-  const target = new Date(); target.setDate(target.getDate() - BACKFILL_DAYS);
+  const target = new Date(BACKFILL_FROM);
   const { data: pa } = await sb.from("kasa_accounts").select("*").eq("bank", "privatbank");
   const pacc = pa || [];
   const cache = new Map<string, string>();
@@ -104,7 +105,7 @@ async function syncCred(cred: any) {
   const patch: any = { last_inc: new Date().toISOString(), last_status: `inc:${inc.upserted}` };
   let bf: any = null;
 
-  // 2) одне вікно backfill (курсор synced_from)
+  // 2) одне вікно backfill (курсор synced_from), не глибше target
   let cursor = cred.synced_from ? new Date(cred.synced_from) : null;
   if (!cursor) { cursor = new Date(incFrom); patch.synced_from = dayStr(incFrom); }
   else if (cursor > target) {
@@ -123,7 +124,7 @@ Deno.serve(async (req) => {
   if (!(await guardOk(req))) return new Response("forbidden", { status: 403 });
   const { data: creds } = await sb.from("kasa_bank_creds").select("*").eq("bank", "privatbank").eq("is_active", true);
   if (!creds || !creds.length) {
-    return new Response(JSON.stringify({ ok: true, note: "no privatbank creds in kasa_bank_creds" }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, note: "no privatbank creds" }), { headers: { "Content-Type": "application/json" } });
   }
   const results: any[] = [];
   for (const c of creds) {
