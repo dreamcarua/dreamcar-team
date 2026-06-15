@@ -1,16 +1,14 @@
 // ============================================================================
-// kasa-sync-mono — monobank: фактичний баланс (client-info, щогодини) + виписки.
-// api_balance/api_balance_at оновлюються з реального балансу банку.
-// Backfill не глибше KASA_BACKFILL_FROM (2026-03-01). Ліміт: 1 mono-виклик/60с/токен.
+// kasa-sync-mono — monobank: фактичний баланс (client-info) + ПОВНЕ захоплення
+// виписок через чергу вікон kasa_mono_queue (обхід ліміту ~500 операцій/запит).
+// Якщо вікно впирається в 500 — ділиться навпіл і доганяється. 1 запит/60с на токен.
 // Guard: x-cron-key == kasa_config.cron_key.
 // ============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const MONO_API = "https://api.monobank.ua";
-const WINDOW_DAYS = 31;
-const INC_REFRESH_MIN = 55;
+const PAGE_LIMIT = 500;        // ліміт monobank на один statement-запит
 const BAL_REFRESH_MIN = 55;
-const BACKFILL_FROM = Deno.env.get("KASA_BACKFILL_FROM") || "2026-03-01";
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -19,7 +17,7 @@ const sb = createClient(
 );
 
 const dayStr = (d: Date) => d.toISOString().slice(0, 10);
-const unix = (d: Date) => Math.floor(d.getTime() / 1000);
+const nowUnix = () => Math.floor(Date.now() / 1000);
 
 async function guardOk(req: Request): Promise<boolean> {
   const { data } = await sb.from("kasa_config").select("value").eq("key", "cron_key").maybeSingle();
@@ -35,13 +33,12 @@ async function monoGET(path: string, token: string) {
   return r.json();
 }
 
-// client-info: створює відсутні UAH-рахунки + оновлює фактичний api_balance кожного
 async function refreshFromClientInfo(token: string, label: string) {
   const info = await monoGET("/personal/client-info", token);
   const now = new Date().toISOString();
   let updated = 0, created = 0;
   for (const a of info.accounts || []) {
-    if (a.currencyCode !== 980) continue; // тільки UAH
+    if (a.currencyCode !== 980) continue;
     const { data: exist } = await sb.from("kasa_accounts").select("id").eq("mono_account_id", a.id).maybeSingle();
     if (exist) {
       await sb.from("kasa_accounts").update({ api_balance: a.balance / 100, api_balance_at: now }).eq("id", exist.id);
@@ -51,8 +48,8 @@ async function refreshFromClientInfo(token: string, label: string) {
       await sb.from("kasa_accounts").insert({
         name: `monobank ${label} ·${last4}`, kind: "bank", bank: "monobank", currency: "UAH",
         mono_account_id: a.id, mono_token_label: label, iban: a.iban || null,
-        api_balance: a.balance / 100, api_balance_at: now,
-        is_active: false, icon: "⚫", color: "#111111", sort_order: 60,
+        api_balance: a.balance / 100, api_balance_at: now, is_active: false,
+        icon: "⚫", color: "#111111", sort_order: 60,
       });
       created++;
     }
@@ -76,48 +73,50 @@ async function upsertStatement(accId: string, items: any[]) {
   return rows.length;
 }
 
-async function syncOneCallForToken(token: string, label: string) {
-  const target = new Date(BACKFILL_FROM);
-
+async function processToken(token: string, label: string) {
   const { data: accs } = await sb.from("kasa_accounts")
     .select("*").eq("bank", "monobank").eq("mono_token_label", label).eq("is_active", true).order("sort_order");
 
-  // 0) баланс із API (щогодини) — пріоритет; також маппінг нових рахунків
-  const balStale = !accs || !accs.length ||
-    accs.some((a) => !a.api_balance_at || (Date.now() - new Date(a.api_balance_at).getTime()) > BAL_REFRESH_MIN * 60000);
-  if (balStale) {
+  if (!accs || !accs.length) {
     const r = await refreshFromClientInfo(token, label);
-    return { token: label, action: "balances", ...r };
+    return { token: label, action: "mapped_accounts", ...r };
+  }
+  const accIds = accs.map((a) => a.id);
+
+  // 1) баланс із API (щогодини)
+  const balStale = accs.some((a) => !a.api_balance_at || (Date.now() - new Date(a.api_balance_at).getTime()) > BAL_REFRESH_MIN * 60000);
+  if (balStale) { const r = await refreshFromClientInfo(token, label); return { token: label, action: "balances", ...r }; }
+
+  // 2) обробити одне вікно з черги
+  const { data: pend } = await sb.from("kasa_mono_queue")
+    .select("*").in("account_id", accIds).eq("status", "pending").order("id").limit(1);
+  if (pend && pend.length) {
+    const w = pend[0];
+    const items = await monoGET(`/personal/statement/${w.mono_account_id}/${w.from_unix}/${w.to_unix}`, token);
+    const n = await upsertStatement(w.account_id, items);
+    let split = false;
+    if (items.length >= PAGE_LIMIT && (w.to_unix - w.from_unix) > 3600) {
+      const mid = Math.floor((w.from_unix + w.to_unix) / 2);
+      await sb.from("kasa_mono_queue").insert([
+        { account_id: w.account_id, mono_account_id: w.mono_account_id, from_unix: w.from_unix, to_unix: mid },
+        { account_id: w.account_id, mono_account_id: w.mono_account_id, from_unix: mid, to_unix: w.to_unix },
+      ]);
+      split = true;
+    }
+    await sb.from("kasa_mono_queue").update({ status: "done" }).eq("id", w.id);
+    return { token: label, action: "queue", fetched: n, split, window_days: Math.round((w.to_unix - w.from_unix) / 86400) };
   }
 
-  // 1) інкрементал (останні 31 день)
-  const incAcc = accs
-    .filter((a) => !a.mono_last_inc || (Date.now() - new Date(a.mono_last_inc).getTime()) > INC_REFRESH_MIN * 60000)
-    .sort((a, b) => new Date(a.mono_last_inc || 0).getTime() - new Date(b.mono_last_inc || 0).getTime())[0];
-  if (incAcc) {
-    const to = new Date(); const from = new Date(); from.setDate(from.getDate() - WINDOW_DAYS);
-    const items = await monoGET(`/personal/statement/${incAcc.mono_account_id}/${unix(from)}/${unix(to)}`, token);
-    const n = await upsertStatement(incAcc.id, items);
-    const patch: any = { mono_last_inc: new Date().toISOString() };
-    if (!incAcc.mono_synced_from) patch.mono_synced_from = dayStr(from);
-    await sb.from("kasa_accounts").update(patch).eq("id", incAcc.id);
-    return { token: label, action: "incremental", account: incAcc.name, fetched: n };
+  // 3) черга порожня → освіжити останні 2 дні (новий рух)
+  const acc = accs.sort((a, b) => new Date(a.mono_last_inc || 0).getTime() - new Date(b.mono_last_inc || 0).getTime())[0];
+  const to = nowUnix(); const from = to - 2 * 86400;
+  const items = await monoGET(`/personal/statement/${acc.mono_account_id}/${from}/${to}`, token);
+  const n = await upsertStatement(acc.id, items);
+  await sb.from("kasa_accounts").update({ mono_last_inc: new Date().toISOString() }).eq("id", acc.id);
+  if (items.length >= PAGE_LIMIT) {
+    await sb.from("kasa_mono_queue").insert([{ account_id: acc.id, mono_account_id: acc.mono_account_id, from_unix: from, to_unix: to }]);
   }
-
-  // 2) backfill (не глибше target)
-  const bfAcc = accs
-    .filter((a) => a.mono_synced_from && new Date(a.mono_synced_from) > target)
-    .sort((a, b) => new Date(b.mono_synced_from).getTime() - new Date(a.mono_synced_from).getTime())[0];
-  if (bfAcc) {
-    const to = new Date(bfAcc.mono_synced_from); const from = new Date(to); from.setDate(from.getDate() - WINDOW_DAYS);
-    if (from < target) from.setTime(target.getTime());
-    const items = await monoGET(`/personal/statement/${bfAcc.mono_account_id}/${unix(from)}/${unix(to)}`, token);
-    const n = await upsertStatement(bfAcc.id, items);
-    await sb.from("kasa_accounts").update({ mono_synced_from: dayStr(from) }).eq("id", bfAcc.id);
-    return { token: label, action: "backfill", account: bfAcc.name, window: `${dayStr(from)}..${dayStr(to)}`, fetched: n };
-  }
-
-  return { token: label, action: "idle" };
+  return { token: label, action: "recent", account: acc.name, fetched: n };
 }
 
 Deno.serve(async (req) => {
@@ -129,7 +128,7 @@ Deno.serve(async (req) => {
   const results: any[] = [];
   for (const c of creds) {
     try {
-      const r = await syncOneCallForToken(c.token, c.label);
+      const r = await processToken(c.token, c.label);
       results.push(r);
       await sb.from("kasa_bank_creds").update({ last_inc: new Date().toISOString(), last_status: r.action }).eq("id", c.id);
     } catch (e) {
