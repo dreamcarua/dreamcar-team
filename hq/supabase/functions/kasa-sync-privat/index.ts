@@ -1,8 +1,9 @@
 // ============================================================================
 // kasa-sync-privat — ПриватБанк (Автоклієнт), кілька ФОП.
-// Фактичний баланс через /api/statements/balance -> api_balance (щозапуску).
+// ВАЖЛИВО: Privat ACP віддає тіло у windows-1251 — декодуємо саме так (інакше кирилиця = сміття).
+// Фактичний баланс через /api/statements/balance -> api_balance.
 // Виписки: інкрементал (35 днів) + backfill (курсор, не глибше 2026-03-01).
-// Guard: x-cron-key == kasa_config.cron_key.
+// upsert оновлює existing рядки (щоб виправити старий текст). Guard: x-cron-key.
 // ============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -26,6 +27,15 @@ function toISO(dat: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : new Date().toISOString().slice(0, 10);
 }
 
+// Privat віддає windows-1251 — читаємо як cp1251, потім JSON.parse
+async function privatJSON(url: string, id: string, token: string) {
+  const r = await fetch(url, { headers: { id, token, "Content-Type": "application/json" } });
+  if (!r.ok) throw new Error(`privat ${r.status}: ${await r.text()}`);
+  const buf = await r.arrayBuffer();
+  const text = new TextDecoder("windows-1251").decode(buf);
+  return JSON.parse(text);
+}
+
 async function guardOk(req: Request): Promise<boolean> {
   const { data } = await sb.from("kasa_config").select("value").eq("key", "cron_key").maybeSingle();
   const expected = data?.value;
@@ -39,25 +49,21 @@ async function fetchPage(id: string, token: string, startDate: string, endDate: 
   u.searchParams.set("endDate", endDate);
   u.searchParams.set("limit", "100");
   if (followId) u.searchParams.set("followId", followId);
-  const r = await fetch(u.toString(), { headers: { id, token, "Content-Type": "application/json" } });
-  if (!r.ok) throw new Error(`privat ${r.status}: ${await r.text()}`);
-  return r.json();
+  return privatJSON(u.toString(), id, token);
 }
 
-// фактичні залишки: перший (найсвіжіший) рядок на кожен рахунок
 async function refreshBalances(cred: any, pacc: any[], cache: Map<string, string>) {
   const u = new URL(ACP_BAL);
   u.searchParams.set("startDate", ddmmyyyy(new Date()));
   u.searchParams.set("limit", "100");
-  const r = await fetch(u.toString(), { headers: { id: cred.privat_id, token: cred.token, "Content-Type": "application/json" } });
-  if (!r.ok) return 0;
-  const data = await r.json();
+  let data: any;
+  try { data = await privatJSON(u.toString(), cred.privat_id, cred.token); } catch { return 0; }
   const now = new Date().toISOString();
   const seen = new Set<string>();
   let n = 0;
   for (const b of data.balances || []) {
     const acc = b.acc || b.account || "";
-    if (!acc || seen.has(acc)) continue; // лише найсвіжіший рядок на рахунок
+    if (!acc || seen.has(acc)) continue;
     seen.add(acc);
     const bal = parseFloat(b.balanceOutEq ?? b.balanceOut ?? "0");
     const accId = await resolveAccount(acc, cred.label, cache, pacc);
@@ -104,7 +110,8 @@ async function pullWindow(cred: any, startDate: string, endDate: string, pacc: a
       });
     }
     if (rows.length) {
-      const { error } = await sb.from("kasa_transactions").upsert(rows, { onConflict: "source,external_id", ignoreDuplicates: true });
+      // ignoreDuplicates:false -> оновлює existing (виправляє старий зламаний текст)
+      const { error } = await sb.from("kasa_transactions").upsert(rows, { onConflict: "source,external_id" });
       if (error) throw error;
       upserted += rows.length;
     }
@@ -145,6 +152,11 @@ async function syncCred(cred: any) {
 
 Deno.serve(async (req) => {
   if (!(await guardOk(req))) return new Response("forbidden", { status: 403 });
+  const u = new URL(req.url);
+  // ?repair=1 — скинути курсор, щоб перетягнути все з виправленим кодуванням
+  if (u.searchParams.get("repair") === "1") {
+    await sb.from("kasa_bank_creds").update({ synced_from: null }).eq("bank", "privatbank");
+  }
   const { data: creds } = await sb.from("kasa_bank_creds").select("*").eq("bank", "privatbank").eq("is_active", true);
   if (!creds || !creds.length) {
     return new Response(JSON.stringify({ ok: true, note: "no privatbank creds" }), { headers: { "Content-Type": "application/json" } });
