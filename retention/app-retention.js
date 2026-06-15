@@ -667,6 +667,22 @@ function openMessageDetail(id){
           <textarea name="notes" rows="2" placeholder="Внутрішні нотатки (не йде підписникам)" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px; font-family:inherit;">${escHtml(m.notes || '')}</textarea>
         </label>
 
+        <!-- #417 Креативи (картинки/відео) -->
+        <div id="ret-creatives-block" style="margin:10px 0; padding:12px; background:var(--bg-3); border:1px solid var(--steel); border-radius:8px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-size:11px; color:var(--ash); font-weight:600; letter-spacing:.5px;">📸 КРЕАТИВИ (картинки / відео)</span>
+            <div style="display:flex; gap:6px;">
+              <button type="button" id="ret-pick-from-library" style="background:var(--bg-2); border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">🖼 З бібліотеки</button>
+              <a href="/hq/#library" target="_blank" rel="noopener" style="background:var(--bg-2); border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; text-decoration:none; font-size:12px;">📤 Завантажити нові →</a>
+            </div>
+          </div>
+          <div id="ret-creatives-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:6px; min-height:60px;">
+            <div class="ret-creatives-empty" style="grid-column:1/-1; padding:18px; text-align:center; color:var(--ash); font-size:12px; border:1px dashed var(--steel); border-radius:6px;">
+              Креативи не прикріплені. Завантаж нові у бібліотеку або обери з існуючих.
+            </div>
+          </div>
+        </div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <label>
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ПОГОДЖУЮТЬ (multi)</span>
@@ -726,6 +742,102 @@ function openMessageDetail(id){
   `;
   document.body.appendChild(overlay);
   if (!isNew) overlay.dataset.msgId = m.id;
+  // #417 Init creatives block
+  (async () => {
+    try {
+      window.retState = window.retState || {};
+      window.retState.modalCreatives = [];
+      const grid = overlay.querySelector('#ret-creatives-grid');
+      const renderGrid = () => {
+        if (!grid) return;
+        const ids = window.retState.modalCreatives || [];
+        if (!ids.length) {
+          grid.innerHTML = '<div class="ret-creatives-empty" style="grid-column:1/-1; padding:18px; text-align:center; color:var(--ash); font-size:12px; border:1px dashed var(--steel); border-radius:6px;">Креативи не прикріплені. Завантаж нові у бібліотеку або обери з існуючих.</div>';
+          return;
+        }
+        const cache = window.retState._creativesCache || {};
+        grid.innerHTML = ids.map(cid => {
+          const c = cache[cid] || {};
+          const thumb = c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
+          const isVideo = c.type === 'video';
+          return `<div data-cid="${cid}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:1px solid var(--steel); border-radius:6px; overflow:hidden;">
+            ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.display='none'">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:24px;">${isVideo ? '🎬' : '🖼'}</div>`}
+            ${isVideo ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff;">▶ VIDEO</div>' : ''}
+            <button type="button" data-remove="${cid}" title="Прибрати" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.7); color:#fff; border:none; border-radius:3px; width:20px; height:20px; cursor:pointer; font-size:14px; line-height:1;">×</button>
+          </div>`;
+        }).join('');
+        grid.querySelectorAll('[data-remove]').forEach(btn => {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            const cid = btn.dataset.remove;
+            window.retState.modalCreatives = (window.retState.modalCreatives || []).filter(x => x !== cid);
+            renderGrid();
+            overlay.dataset.dirty = '1';
+          };
+        });
+      };
+      // Load existing creatives for this message
+      if (!isNew && m.id) {
+        const { data } = await window.supabase
+          .from('creative_retention_messages')
+          .select('creative_id, sort_order, creatives:creative_id(id, name, type, thumbnail_url, compressed_url, drive_file_id, poster_url)')
+          .eq('retention_message_id', m.id)
+          .order('sort_order', { ascending: true });
+        const ids = []; const cache = window.retState._creativesCache || {};
+        (data || []).forEach(r => { if (r.creatives) { cache[r.creative_id] = r.creatives; ids.push(r.creative_id); } });
+        window.retState._creativesCache = cache;
+        window.retState.modalCreatives = ids;
+      }
+      renderGrid();
+      // Picker — відкрити бібліотеку
+      const pickBtn = overlay.querySelector('#ret-pick-from-library');
+      if (pickBtn) pickBtn.onclick = async () => {
+        const { data } = await window.supabase.from('creatives')
+          .select('id, name, type, thumbnail_url, compressed_url, drive_file_id, scopes')
+          .is('deleted_at', null).order('uploaded_at', { ascending: false }).limit(200);
+        const items = data || [];
+        const cache = window.retState._creativesCache || {};
+        items.forEach(c => { cache[c.id] = c; });
+        window.retState._creativesCache = cache;
+        const picker = document.createElement('div');
+        picker.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1500; display:flex; align-items:center; justify-content:center; padding:20px;';
+        picker.innerHTML = `<div style="background:var(--bg-1, #1a1a1a); border:1px solid var(--steel); border-radius:8px; padding:18px; max-width:900px; width:100%; max-height:80vh; overflow:auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 style="margin:0; color:#fff;">🖼 Обери з бібліотеки</h3>
+            <button id="ret-picker-close" style="background:transparent; border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer;">✕</button>
+          </div>
+          <div style="margin-bottom:10px; color:var(--ash); font-size:12px;">Клікни щоб додати. Доданий креатив підсвічується. Натисни ще раз — приберти.</div>
+          <div id="ret-picker-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px;"></div>
+          <div style="margin-top:14px; text-align:right;"><button id="ret-picker-done" style="background:var(--red, #E30613); color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:600;">✓ Готово</button></div>
+        </div>`;
+        document.body.appendChild(picker);
+        const pickerGrid = picker.querySelector('#ret-picker-grid');
+        const renderPicker = () => {
+          const sel = new Set(window.retState.modalCreatives || []);
+          pickerGrid.innerHTML = items.map(c => {
+            const thumb = c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
+            const isSel = sel.has(c.id);
+            return `<div data-cid="${c.id}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:2px solid ${isSel ? 'var(--red, #E30613)' : 'var(--steel)'}; border-radius:6px; overflow:hidden; cursor:pointer;">
+              ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:30px;">${c.type === 'video' ? '🎬' : '🖼'}</div>`}
+              ${isSel ? '<div style="position:absolute; top:4px; right:4px; background:var(--red, #E30613); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px;">✓</div>' : ''}
+              ${c.type === 'video' ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff;">▶</div>' : ''}
+            </div>`;
+          }).join('');
+          pickerGrid.querySelectorAll('[data-cid]').forEach(el => {
+            el.onclick = () => {
+              const cid = el.dataset.cid;
+              const cur = window.retState.modalCreatives || [];
+              window.retState.modalCreatives = cur.includes(cid) ? cur.filter(x => x !== cid) : [...cur, cid];
+              renderPicker();
+            };
+          });
+        };
+        renderPicker();
+        picker.querySelector('#ret-picker-close').onclick = () => picker.remove();
+        picker.querySelector('#ret-picker-done').onclick = () => { picker.remove(); renderGrid(); overlay.dataset.dirty = '1'; };
+      };
+    } catch(e) { console.warn('[creatives init]', e); }
+  })();
   // #367 (12.06.2026 Vadym): 3-кнопковий dirty-confirm dialog як у Tasks app-tasks-fixes.js.
   // Назад редагувати / Видалити чернетку / Зберегти зараз — замість silent autosave.
   ensureRetDirtyConfirmCss();
@@ -1077,6 +1189,16 @@ async function saveForm(form, id, overlay, opts){
       await supabase.from('retention_message_responsibles').delete().eq('message_id', msgId).in('user_id', toDel);
     }
   } catch(e) { console.warn('[responsibles sync]', e); }
+  // #417 Sync creatives — pivot creative_retention_messages
+  try {
+    const selected = (window.retState && window.retState.modalCreatives) || [];
+    await supabase.from('creative_retention_messages').delete().eq('retention_message_id', msgId);
+    if (selected.length) {
+      const rows = selected.map((cid, i) => ({ retention_message_id: msgId, creative_id: cid, sort_order: i }));
+      const { error: cErr } = await supabase.from('creative_retention_messages').insert(rows);
+      if (cErr) console.warn('[creatives insert]', cErr);
+    }
+  } catch(e) { console.warn('[creatives sync]', e); }
   // #215 (Vira UX): andSubmit → переводимо у status='review' тим самим запитом
   if (opts && opts.andSubmit) {
     try {
