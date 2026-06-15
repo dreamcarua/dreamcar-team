@@ -245,7 +245,7 @@
     state.projects = await loadProjects();
     var html = ['<div class="dcp-view">'];
     html.push('<h1>📁 ПРОЄКТИ</h1>');
-    html.push('<div class="dcp-sub">Запуски, проекти, кампанії. Усе що має життєвий цикл і ROI. URL поки <code>/hq/#projects</code>, у майбутньому винесемо у <code>/projects/</code>.</div>');
+    html.push('<div class="dcp-sub">Проєкти, кампанії. Усе що має життєвий цикл і ROI. URL поки <code>/hq/#projects</code>, у майбутньому винесемо у <code>/projects/</code>.</div>');
     html.push('<div id="dcp-toolbar"></div>');
     html.push('<div id="dcp-body"></div>');
     html.push('</div>');

@@ -288,7 +288,7 @@ function openCreative(id) {
 function renderLaunches(root) {
   root.innerHTML = `
     <div class="view-header">
-      <h1>Запуски</h1>
+      <h1>Проєкти</h1>
       <span class="view-meta">· ${Store.launches().length} активних</span>
     </div>
     <div class="library-wrap">
@@ -559,7 +559,7 @@ function renderCardBody(p) {
             </div>
           </div>
           <div class="meta-item">
-            <span class="ml-label">Зв'язаний із запуском</span>
+            <span class="ml-label">Зв'язаний із проєктом</span>
             <select id="f_launch" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px;">
               <option value="">— Немає —</option>
               ${Store.launches().map(l => `<option value="${l.id}" ${p.launch===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}

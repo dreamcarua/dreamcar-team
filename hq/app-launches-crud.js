@@ -62,7 +62,7 @@
     sc.className = 'hq-launch-modal';
     sc.innerHTML =
       '<div class="hq-launch-form-card">' +
-        '<h2>' + (isEdit ? '✎ Редагувати запуск' : '+ Новий запуск') + '</h2>' +
+        '<h2>' + (isEdit ? '✎ Редагувати проєкт' : '+ Новий проєкт') + '</h2>' +
         '<div class="hq-launch-form">' +
           '<div><label>Назва *</label><input id="lnf_name" maxlength="80" value="' + escapeHtml(l.name) + '" placeholder="AUDI E-TRON 2026"/></div>' +
           '<div class="row">' +
@@ -97,7 +97,7 @@
 
       var sb = window.supabase;
       if (!window.HQ_BACKEND || !sb) {
-        if (typeof toast === 'function') toast('Demo-режим', 'warn', 'Запуск не збережено');
+        if (typeof toast === 'function') toast('Demo-режим', 'warn', 'Проєкт не збережено');
         sc.remove();
         return;
       }
@@ -155,7 +155,7 @@
   }
 
   async function deleteLaunch(launchId, launchName) {
-    if (!confirm('Видалити запуск «' + launchName + '»?\n\nПовʼязані публікації не будуть видалені, але вони втратять прив\'язку до запуску.')) return;
+    if (!confirm('Видалити проєкт «' + launchName + '»?\n\nПовʼязані публікації не будуть видалені, але вони втратять прив\'язку до проєкту.')) return;
     var sb = window.supabase;
     if (!sb) return;
     try {
@@ -187,12 +187,12 @@
     var main = document.getElementById('main');
     if (!main) return;
 
-    // Add «+ Новий запуск» button у view-header якщо ще нема
+    // Add «+ Новий проєкт» button у view-header якщо ще нема
     var header = main.querySelector('.view-header .actions, .view-header');
     if (header && !header.querySelector('.hq-launch-add-btn')) {
       var addBtn = document.createElement('button');
       addBtn.className = 'hq-launch-add-btn';
-      addBtn.textContent = '+ Новий запуск';
+      addBtn.textContent = '+ Новий проєкт';
       addBtn.onclick = function () { showFormModal(null); };
       var actions = main.querySelector('.view-header .actions');
       if (actions) actions.appendChild(addBtn);
@@ -211,7 +211,7 @@
         var panel = document.createElement('div');
         panel.className = 'hq-launches-list-fallback';
         panel.style.cssText = 'padding: 18px 28px; max-width: 900px; margin: 0 auto;';
-        panel.innerHTML = '<h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);margin-bottom:10px;font-weight:700;">⚙️ Управління запусками (admin)</h3>' +
+        panel.innerHTML = '<h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);margin-bottom:10px;font-weight:700;">⚙️ Управління проєктами (admin)</h3>' +
           launches.map(function (l) {
             return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid ' + escapeHtml(l.color || '#E30613') + ';border-radius:6px;margin-bottom:6px;">' +
               '<span style="font-weight:700;color:#fff;flex:1;">' + escapeHtml(l.name || '') + '</span>' +
