@@ -8,6 +8,18 @@
 
 ---
 
+## 15.06.2026 — #399 Team bot quiet hours 00:00–09:00 Київ (Давид)
+
+### TG team bot
+- 🔴 Раніше `team-tasks-notify` мав quiet hours, але у `Europe/Warsaw` (CET) з дефолтами `quiet_from=22, quiet_to=8`. Тобто реально quiet починався о 23:00 Київ (літом). Plus `cron-reminders` НЕ мав quiet hours узагалі.
+- 🆕 SQL helper: `public.is_quiet_hours_kyiv(p_at)` повертає true якщо година Київ <9. `public.next_send_time_kyiv(p_at)` повертає 09:00 Київ якщо ще quiet, інакше переданий час.
+- 🆕 Інфраструктура queue: `public.tg_notify_queue` table + `public.enqueue_tg_notify()` SECURITY DEFINER + Edge fn `tg-notify-queue-flush` що читає pending і шле через TG. Pg_cron `tg-notify-queue-flush-minute` (`* * * * *`).
+- 🔧 `team-tasks-notify` v8: timezone → Europe/Kyiv. Дефолти `team_task_user_prefs.quiet_from=0, quiet_to=9` (раніше 22/8). Урgent whitelist (mention/overdue/reminder_1h/creator_done) тримається — критичні events не блокуються.
+- 🔧 `cron-reminders` v4: early-return у quiet hours — G2/G3/G4/G6 нагадування про публікації не стріляють вночі. T+10хв (пропущена публікація) має 24h anti-spam → ранком о 09:00 розбудить нагадуванням якщо треба.
+- ✅ Verified: 23:30 Київ → send-now, 00:30/08:30 → quiet, 09:00 → send-now, ніч → scheduled на 09:00 наступного дня.
+
+---
+
 ## 15.06.2026 — #398 Finance Dashboard P0 — швидке завантаження + правильна виручка
 
 ### Finance / Dashboard
