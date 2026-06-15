@@ -44,7 +44,7 @@ async function fetchPage(id: string, token: string, startDate: string, endDate: 
   return r.json();
 }
 
-// фактичні залишки по рахунках
+// фактичні залишки: перший (найсвіжіший) рядок на кожен рахунок
 async function refreshBalances(cred: any, pacc: any[], cache: Map<string, string>) {
   const u = new URL(ACP_BAL);
   u.searchParams.set("startDate", ddmmyyyy(new Date()));
@@ -53,11 +53,13 @@ async function refreshBalances(cred: any, pacc: any[], cache: Map<string, string
   if (!r.ok) return 0;
   const data = await r.json();
   const now = new Date().toISOString();
+  const seen = new Set<string>();
   let n = 0;
   for (const b of data.balances || []) {
     const acc = b.acc || b.account || "";
-    const bal = parseFloat(b.balanceOut ?? b.balanceOutEq ?? b.balance ?? "0");
-    if (!acc) continue;
+    if (!acc || seen.has(acc)) continue; // лише найсвіжіший рядок на рахунок
+    seen.add(acc);
+    const bal = parseFloat(b.balanceOutEq ?? b.balanceOut ?? "0");
     const accId = await resolveAccount(acc, cred.label, cache, pacc);
     await sb.from("kasa_accounts").update({ api_balance: bal, api_balance_at: now }).eq("id", accId);
     n++;
@@ -119,17 +121,14 @@ async function syncCred(cred: any) {
   const pacc = pa || [];
   const cache = new Map<string, string>();
 
-  // 0) фактичні залишки
   let bal = 0; try { bal = await refreshBalances(cred, pacc, cache); } catch (_) {}
 
-  // 1) інкрементал (останні 35 днів)
   const incFrom = new Date(); incFrom.setDate(incFrom.getDate() - 35);
   const inc = await pullWindow(cred, ddmmyyyy(incFrom), ddmmyyyy(today), pacc, cache);
 
   const patch: any = { last_inc: new Date().toISOString(), last_status: `bal:${bal} inc:${inc.upserted}` };
   let bf: any = null;
 
-  // 2) одне вікно backfill (не глибше target)
   let cursor = cred.synced_from ? new Date(cred.synced_from) : null;
   if (!cursor) { cursor = new Date(incFrom); patch.synced_from = dayStr(incFrom); }
   else if (cursor > target) {
