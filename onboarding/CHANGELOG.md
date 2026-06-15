@@ -11,6 +11,18 @@
 ## 15.06.2026 — #407 Каса — внутрішні перекази не рахуються в П&Л
 
 ### Kasa
+## 15.06.2026 — #421+#422 Cross-system координація SMM ⇄ Retention
+
+### Calendar / Library
+- 🆕 RPC `ghost_calendar_events(p_source, p_from, p_to)` — повертає планові події з іншої системи (SMM публікації для Retention, retention розсилки для SMM). Filter: status NOT IN draft/cancelled/failed/rework.
+- 🆕 #421 У `/retention/#calendar` — ghost SMM пости як приглушені chips (синя смужка 📢, opacity 0.7, неклікабельні). Hover показує канал+час+назву. fetch у boot.
+- 🆕 #421 У `/hq/#calendar` (SMM) — ghost retention розсилки (фіолетова смужка 🤖). Render у renderMonth перед публікаціями. Vira і Олександр одразу бачать конкуренцію часу.
+- 🆕 VIEW `v_creative_usages` (creative_id, source, ref_id, ref_title, ref_at, channels) — UNION creative_publications + creative_retention_messages з JOIN на publications/retention_messages.
+- 🆕 #422 Used-бейдж 🔗 N у retention picker: лівий верхній кут картки, фіолетовий 85%. Hover/click показує tooltip зі списком: «📢 SMM · назва · 14.06 12:00 / 🤖 Ret · назва · 15.06 18:00». Перші 8 + counter "+ще N".
+- 📖 Мета: оператори SMM і Retention не пересікаються по часу і не дублюють креативи між каналами.
+
+---
+
 ## 15.06.2026 — #416-#418 Retention: креативи + спільна бібліотека
 
 ### Retention / Library
