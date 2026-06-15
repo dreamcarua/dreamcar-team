@@ -45,6 +45,15 @@
     tg: 'Telegram', ig: 'Instagram', fb: 'Facebook', tt: 'TikTok', yt: 'YouTube',
     threads: 'Threads', email: 'Email', push: 'Push', sms: 'SMS', viber: 'Viber', other: 'Інше'
   };
+  // #420 (15.06.2026 Vadym): різні emoji для TG-канал (SMM) vs TG-бот (Retention)
+  function chEmoji(c, src) {
+    if (c === 'tg') return src === 'retention' ? '🤖' : '📢';
+    return CHANNEL_LABEL[c] || (c || '').toUpperCase();
+  }
+  function chFullName(c, src) {
+    if (c === 'tg') return src === 'retention' ? 'TG-бот (Retention)' : 'TG-канал (SMM)';
+    return CHANNEL_NAME[c] || c;
+  }
   var STATUS_LABEL = { draft: 'Чорнетка', planned: 'Заплановано', review: 'На погодженні', approved: 'Затверджено', ready: 'Готово', scheduled: 'Заплановано', publishing: 'Публікація', published: 'Опубліковано', sent: 'Відправлено', sending: 'Розсилка', failed: 'Помилка', cancelled: 'Скасовано' };
 
   var state = {
@@ -429,7 +438,7 @@
   function eventChipHtml(e) {
     var time = hhmm(new Date(e.scheduled_at));
     var ch = (e.channels || [])[0];
-    var chLbl = CHANNEL_LABEL[ch] || (ch || '').toUpperCase();
+    var chLbl = chEmoji(ch, e.source);
     var warn = e.hasConflict ? '<span class="warn" title="Конфлікт каналу">⚠</span>' : '';
     return '<div class="uc-event src-' + e.source + (e.hasConflict ? ' has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '" title="' + escapeHtml(e.title) + '">' +
       '<span class="chip">' + chLbl + '</span>' +
@@ -534,8 +543,8 @@
     events.forEach(function (e) {
       var dt = new Date(e.scheduled_at);
       var when = ddmm(dt) + ' ' + hhmm(dt);
-      // #364: emoji-піктограми каналів замість літер
-      var chips = (e.channels || []).map(function (c) { return CHANNEL_LABEL[c] || c.toUpperCase(); }).join(' ');
+      // #364: emoji-піктограми каналів замість літер · #420: TG-канал vs TG-бот
+      var chips = (e.channels || []).map(function (c) { return chEmoji(c, e.source); }).join(' ');
       h.push('<div class="row ' + (e.hasConflict ? 'has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '">');
       h.push('<div class="when">' + when + '</div>');
       h.push('<div class="src src-' + e.source + '">' + SOURCE_LABEL[e.source] + '</div>');
@@ -569,7 +578,7 @@
       '<h2>' + escapeHtml(ev.title || '— без назви —') + '</h2>',
       '<div class="row"><span class="lbl">СИСТЕМА</span><span style="color:' + SOURCE_COLOR[ev.source] + ';font-weight:700;">' + SOURCE_LABEL[ev.source] + '</span></div>',
       '<div class="row"><span class="lbl">КОЛИ</span><span>' + ddmm(dt) + ' · ' + hhmm(dt) + '</span></div>',
-      '<div class="row"><span class="lbl">КАНАЛИ</span><span>' + (ev.channels || []).map(function (c) { return c.toUpperCase(); }).join(' · ') + '</span></div>',
+      '<div class="row"><span class="lbl">КАНАЛИ</span><span>' + (ev.channels || []).map(function (c) { return chEmoji(c, ev.source) + ' ' + chFullName(c, ev.source); }).join(' · ') + '</span></div>',
       '<div class="row"><span class="lbl">ТИП</span><span>' + (ev.ctype || '—').toUpperCase() + '</span></div>',
       '<div class="row"><span class="lbl">СТАТУС</span><span>' + statusLbl + '</span></div>',
       '<div class="row"><span class="lbl">ВИКОНАВЕЦЬ</span><span>' + escapeHtml(ev.owner_name || '—') + '</span></div>',
