@@ -1248,15 +1248,32 @@ function renderWeek(start, pubs) {
   for (let i = 0; i < 7; i++) {
     const day = addDays(start, i);
     const isToday = day.getTime() === today.getTime();
-    const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
-    const cards = dayPubs.map(p => `
-      <div class="week-card s-${p.status}" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}">
-        ${p.contentType ? `<div class="wc-ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
-        <div class="wc-time" style="font-weight:700;color:#fff;font-size:11px;">${fmtTime(p.dateTime)}</div>
-        <div class="wc-title">${escapeHtml(p.title)}</div>
-        <div class="wc-meta">${platformIcons(p.platforms)} · <span class="status ${p.status}" style="font-size:8px;padding:1px 5px;">${STATUS_BY_ID[p.status].label}</span></div>
-      </div>
-    `).join('');
+    // #425 merged: pubs + ghost retention sorted by time
+    const dayPubs = pubs.filter(p => sameDate(p.dateTime, day));
+    const dayGhosts = (App.retentionGhost || []).filter(g => sameDate(g.scheduled_at, day));
+    const merged = [
+      ...dayPubs.map(p => ({ _ts: new Date(p.dateTime).getTime(), _kind: 'pub', data: p })),
+      ...dayGhosts.map(g => ({ _ts: new Date(g.scheduled_at).getTime(), _kind: 'ghost', data: g })),
+    ].sort((a, b) => a._ts - b._ts);
+    const cards = merged.map(item => {
+      if (item._kind === 'pub') {
+        const p = item.data;
+        return `<div class="week-card s-${p.status}" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}">
+          ${p.contentType ? `<div class="wc-ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
+          <div class="wc-time" style="font-weight:700;color:#fff;font-size:11px;">${fmtTime(p.dateTime)}</div>
+          <div class="wc-title">${escapeHtml(p.title)}</div>
+          <div class="wc-meta">${platformIcons(p.platforms)} · <span class="status ${p.status}" style="font-size:8px;padding:1px 5px;">${STATUS_BY_ID[p.status].label}</span></div>
+        </div>`;
+      } else {
+        const g = item.data;
+        const t = new Date(g.scheduled_at);
+        const hh = String(t.getHours()).padStart(2,'0');
+        const mm = String(t.getMinutes()).padStart(2,'0');
+        const ch = (g.channels || [])[0] || 'tg';
+        const icon = ch === 'tg' ? '🤖' : ch === 'email' ? '📧' : ch === 'push' ? '🔔' : '📤';
+        return `<div class="cal-ghost" title="Retention · ${icon} · ${hh}:${mm} · ${escapeHtml(g.title || '')}" style="background:rgba(168,85,247,0.10);border-left:3px solid rgba(168,85,247,0.55);border-radius:5px;padding:5px 7px;color:rgba(255,255,255,0.55);opacity:0.7;cursor:default;margin:4px 0;"><div style="font-size:10px;">${icon} · Retention</div><div style="font-size:11px;margin-top:2px;"><span style="font-weight:700;">${hh}:${mm}</span> · ${escapeHtml((g.title || '').slice(0, 30))}</div></div>`;
+      }
+    }).join('');
     html += `<div class="week-col" data-date="${day.toISOString().slice(0,10)}">
       <div class="col-head ${isToday?'today':''}">
         <div class="day-num">${day.getDate()}</div>
@@ -1268,9 +1285,35 @@ function renderWeek(start, pubs) {
 }
 function renderDay(date, pubs) {
   const day = new Date(date); day.setHours(0,0,0,0);
-  const dayPubs = pubs.filter(p => sameDate(p.dateTime, day)).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
-  if (!dayPubs.length) return '<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">Жодної публікації на цей день</div><div>Натисни «+ Нова публікація» щоб створити</div></div>';
-  return '<div style="display:grid;gap:10px;">' + dayPubs.map(p => `
+  // #425 merged: pubs + ghost retention sorted by time
+  const dayPubs = pubs.filter(p => sameDate(p.dateTime, day));
+  const dayGhosts = (App.retentionGhost || []).filter(g => sameDate(g.scheduled_at, day));
+  const merged = [
+    ...dayPubs.map(p => ({ _ts: new Date(p.dateTime).getTime(), _kind: 'pub', data: p })),
+    ...dayGhosts.map(g => ({ _ts: new Date(g.scheduled_at).getTime(), _kind: 'ghost', data: g })),
+  ].sort((a, b) => a._ts - b._ts);
+  if (!merged.length) return '<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">Жодної публікації на цей день</div><div>Натисни «+ Нова публікація» щоб створити</div></div>';
+  return '<div style="display:grid;gap:10px;">' + merged.map(item => {
+    if (item._kind === 'ghost') {
+      const g = item.data;
+      const t = new Date(g.scheduled_at);
+      const hh = String(t.getHours()).padStart(2,'0');
+      const mm = String(t.getMinutes()).padStart(2,'0');
+      const ch = (g.channels || [])[0] || 'tg';
+      const icon = ch === 'tg' ? '🤖' : ch === 'email' ? '📧' : ch === 'push' ? '🔔' : '📤';
+      return `<div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.30);border-left:4px solid rgba(168,85,247,0.65);border-radius:10px;padding:14px 22px;cursor:default;opacity:0.75;"><div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="text-align:center;min-width:60px;">
+          <div style="font-size:22px;font-weight:800;color:rgba(255,255,255,0.7);">${hh}:${mm}</div>
+          <div style="font-size:10px;color:rgba(168,85,247,0.9);text-transform:uppercase;letter-spacing:1px;">${icon} Retention</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:4px;">${escapeHtml(g.title || '')}</div>
+          <div style="font-size:11px;color:rgba(168,85,247,0.8);">Cross-system · приглушено · інформаційно</div>
+        </div>
+      </div></div>`;
+    }
+    const p = item.data;
+    return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid;border-left-color:${STATUS_BY_ID[p.status].color};border-radius:10px;padding:18px 22px;cursor:pointer;" data-id="${p.id}" class="week-card">
       <div style="display:flex;gap:18px;align-items:flex-start;">
         <div style="text-align:center;min-width:60px;">
@@ -1288,7 +1331,8 @@ function renderDay(date, pubs) {
         </div>
       </div>
     </div>
-  `).join('') + '</div>';
+  `;
+  }).join('') + '</div>';
 }
 function attachWeekHandlers() {
   document.querySelectorAll('.week-card').forEach(el => {
