@@ -8,6 +8,16 @@
 
 ---
 
+## 15.06.2026 — #400 Ad Spend атрибуція у P&L — fuzzy + period fallback
+
+### Finance / Ads attribution
+- 🔧 У `dashboard_project_pnl` Ad Spend був 0₴ для всіх запусків. Причина: 91% spend у `dashboard_ads_data` (3.66M₴) має `utm_campaign=NULL`, а решта 9% має campaign-назви типу `audiq7_anons`, `bmw_iphone_anons`, `ob|atrib1d|bmw+iphone|video|adv|17.01`. Старий regex `\m{ALIAS}\M` (word-boundary) на utm_campaign не зловлював.
+- 🔧 RPC v7: трирівнева attribution. **L1 explicit**: ILIKE substring проти `utm_campaign` АБО `campaign_name` (FB Ads Manager назви). **L2 period fallback**: для рядків з NULL обома полями — рівномірно ділити spend між запусками що активні у той день. Lifetime/idea запуски (DreamCar CONTENT, HUMMER H2) виключені, щоб не поглинати все.
+- 🔧 Розширив `launches.deal_aliases`: AUDI E-TRON 2026 → +audi_etron/etron, BMW X5 #17 → +bmw_x5, Мото → +moto, iPhone → +iphone17/айфон 17.
+- ✅ Verified prod: AUDI 560.8k₴ spend (ROAS 13.6×), BMW X5 466k (ROAS 4.0×), Мото 154.7k (ROAS 8.8×), iPhone 32.6k (ROAS 17×). True margin 66-85% замість 91.5% (тепер з рекламою).
+
+---
+
 ## 15.06.2026 — #399 Team bot quiet hours 00:00–09:00 Київ (Давид)
 
 ### TG team bot
