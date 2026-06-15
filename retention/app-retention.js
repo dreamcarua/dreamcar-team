@@ -381,10 +381,13 @@ function renderCalendar(main){
     byDay[k].push(m);
   });
   // #421 Ghost events з SMM: показуємо як приглушені нашого календаря
+  // #423 fix: RPC ghost_calendar_events повертає `scheduled_at`, не `publish_at`
   (Store.ghostSmm || []).forEach(g => {
-    const k = ymd(g.publish_at);
+    const ts = g.scheduled_at || g.publish_at;
+    if (!ts) return;
+    const k = ymd(ts);
     if (!byDay[k]) byDay[k] = [];
-    byDay[k].push({ ...g, _ghost: 'smm' });
+    byDay[k].push({ ...g, _ghost: 'smm', publish_at: ts });
   });
   Object.values(byDay).forEach(arr => arr.sort((a,b) => new Date(a.publish_at) - new Date(b.publish_at)));
 
@@ -860,7 +863,8 @@ function openMessageDetail(id){
           pickerGrid.innerHTML = items.map(c => {
             const thumb = thumbOf(c);
             const isSel = sel.has(c.id);
-            const emojiPlaceholder = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; font-size:32px; gap:4px;"><span>${c.type === 'video' ? '🎬' : '🖼'}</span><span style="font-size:9px; color:var(--ash); padding:0 6px; text-align:center; word-break:break-all; line-height:1.2;">${(c.name || '').slice(0, 20)}</span></div>`;
+            const safeName = (c.name || '').replace(/[<>&"]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]));
+            const emojiIcon = c.type === 'video' ? '🎬' : '🖼';
             // #422 used-бейдж
             const uses = usagesByCid[c.id] || [];
             let usedBadge = '';
@@ -870,15 +874,24 @@ function openMessageDetail(id){
                 const dt = u.ref_at ? new Date(u.ref_at).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', dateStyle: 'short', timeStyle: 'short' }) : '';
                 return `${ic} · ${(u.ref_title || '').slice(0, 30)} · ${dt}`;
               }).join('\n') + (uses.length > 8 ? `\n+ще ${uses.length - 8}` : '');
-              usedBadge = `<div style="position:absolute; top:4px; left:4px; background:rgba(168,85,247,0.85); color:#fff; border-radius:10px; padding:1px 6px; font-size:10px; font-weight:700; z-index:2; cursor:help;" title="${tipLines.replace(/"/g,'&quot;')}">🔗 ${uses.length}</div>`;
+              usedBadge = `<div style="position:absolute; top:4px; left:4px; background:rgba(168,85,247,0.85); color:#fff; border-radius:10px; padding:1px 6px; font-size:10px; font-weight:700; z-index:2; cursor:help;" title="${tipLines.replace(/[<>&"]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]))}">🔗 ${uses.length}</div>`;
             }
-            return `<div data-cid="${c.id}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:2px solid ${isSel ? 'var(--red, #E30613)' : 'var(--steel)'}; border-radius:6px; overflow:hidden; cursor:pointer;" title="${(c.name||'').replace(/"/g,'&quot;')}">
-              ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.display='none'; this.parentNode.insertAdjacentHTML('afterbegin', ${JSON.stringify(emojiPlaceholder)});">` : emojiPlaceholder}
+            return `<div data-cid="${c.id}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:2px solid ${isSel ? 'var(--red, #E30613)' : 'var(--steel)'}; border-radius:6px; overflow:hidden; cursor:pointer;" title="${safeName}">
+              ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : ''}
+              <div class="cre-emoji-fallback" style="position:absolute; inset:0; display:${thumb ? 'none' : 'flex'}; flex-direction:column; align-items:center; justify-content:center; font-size:32px; gap:4px; pointer-events:none; background:var(--bg-2);"><span>${emojiIcon}</span><span style="font-size:9px; color:var(--ash); padding:0 6px; text-align:center; word-break:break-all; line-height:1.2;">${safeName.slice(0, 20)}</span></div>
               ${usedBadge}
               ${isSel ? '<div style="position:absolute; top:4px; right:4px; background:var(--red, #E30613); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px; z-index:2;">✓</div>' : ''}
               ${c.type === 'video' ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff; z-index:2;">▶ VIDEO</div>' : ''}
             </div>`;
           }).join('');
+          // Після рендеру — bind img onerror через JS (без HTML attribute escape проблем)
+          pickerGrid.querySelectorAll('img').forEach(img => {
+            img.onerror = () => {
+              img.style.display = 'none';
+              const fb = img.parentNode.querySelector('.cre-emoji-fallback');
+              if (fb) fb.style.display = 'flex';
+            };
+          });
           pickerGrid.querySelectorAll('[data-cid]').forEach(el => {
             el.onclick = () => {
               const cid = el.dataset.cid;
