@@ -12,6 +12,18 @@
 
 ### Kasa
 - 🆕 Таблиця `kasa_bank_creds` (bank/label/token/privat_id) + `kasa_config(cron_key)`. Токени вводяться у вкладці «🔑 Банки» (RLS, лише 2 email; cron_key недоступний фронту).
+## 15.06.2026 — #412b Dashboard швидкість — fewer waits
+
+### Dashboard / DB
+- ⚡ **Filter dropdowns: 1-4с → 10мс** (`pay_provider` / `tariff` / `project` / `customer_type` / `utm_*` dropdowns). Раніше: 936 викликів × distinct query = ~40 хв waiting. Тепер: 1 раз кеш + 30хв refresh.
+- 🆕 Materialized view `mv_dashboard_filter_options(field, val)` + UNIQUE INDEX (field, val) + `mv_filter_options_field` для швидкого `.eq('field', ...)`.
+- 🆕 pg_cron `mv-filter-options-30min` `6,36 * * * *` → `refresh_mv_dashboard_filter_options()`.
+- 🔧 Frontend `loadTariffs` / `loadPayProviders` тепер читають з matview через `from('mv_dashboard_filter_options').select('val').eq('field', 'tariff')`. Fallback на старий distinct sql якщо matview недоступна.
+- 🆕 **UNIQUE INDEX `mv_utm_agg_pk` (field, key, project, day, COALESCE(tt, ''))** на `mv_dashboard_utm_agg` — тепер cron може REFRESH CONCURRENTLY (раніше блокував читачів на 25-34с × 4 рази/год). Cron `mv-utm-agg-refresh-15min` оновлено.
+- 🚀 Cache: `dc-build` → `20260615-speed-412b`.
+- 📖 Залишилось: dashboard_extended_kpi RPC 53с avg, max 132с — буде окремо у #412c (matview по основних пресетах today/7d/30d).
+
+---
 ## 15.06.2026 — #412 P0 Finance швидкість — matview + SWR cache (17.4с → ~50мс)
 
 ### Finance / DB
