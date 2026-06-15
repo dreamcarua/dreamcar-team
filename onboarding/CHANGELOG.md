@@ -12,6 +12,21 @@
 
 ### Kasa
 - 🆕 Таблиця `kasa_bank_creds` (bank/label/token/privat_id) + `kasa_config(cron_key)`. Токени вводяться у вкладці «🔑 Банки» (RLS, лише 2 email; cron_key недоступний фронту).
+## 15.06.2026 — #412c Dashboard RPC cache + катастрофа врятована
+
+### Dashboard / DB
+- ⚡ **dashboard_kpi_summary 92с → 13мс на cache hit (7100×)**. Universal RPC cache layer (`dashboard_rpc_cache` table) + `dashboard_kpi_summary_cached()` wrapper з 15хв TTL.
+- 🆕 Cache cleanup cron `rpc-cache-cleanup-30min` (видаляє >2год).
+- 🆕 Expression index `idx_deals_is_paid` на `is_paid_deal(utm_campaign, utm_content, utm_term)` — раніше Postgres сканував всі 211k рядків при traffic_type filter.
+- 🔧 Frontend `kpiSummaryRPC` дзвонить cached RPC, fallback на оригінальну якщо помилка.
+
+### КАТАСТРОФА #432 + рятування
+- 💥 P0: `python3 << 'PYEOF'` heredoc у Desktop Commander **обрізав docs/index.html з 5404 → 220 рядків**. Push a34789e (-2200 deletions) пройшов на prod.
+- 🛡 Rescue: `git revert a34789e` (commit 39c77f1) → файл повернувся до 5404. Прод працює.
+- 🚀 Правильна заміна через `sed -i.bak` (1 рядок змінено, 5404 збережено). Commit b74f0de.
+- 📖 HARD RULE до пам'яті: НЕ python heredoc для великих HTML — тільки `sed` / `Edit` tool. Завжди `wc -l` + `git diff --stat` перед push. Якщо `-2000 deletions` → revert НЕГАЙНО.
+
+---
 ## 15.06.2026 — #412b Dashboard швидкість — fewer waits
 
 ### Dashboard / DB
