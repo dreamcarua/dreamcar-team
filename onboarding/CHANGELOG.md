@@ -8,6 +8,22 @@
 
 ---
 
+## 15.06.2026 — #397 BIG Finance Dashboard v2 — повноцінний аналітичний огляд
+
+### Finance / Dashboard
+- 🆕 `/finance/` — новий перший таб **📈 Огляд** (default).
+- 🆕 **6 KPI cards** (Hero): Net Profit (gold, 38px), Revenue, Margin %, Total Cost, CAC/AOV ratio, Daily Run Rate. Кожна з delta vs попередній рівнозначний період і target-badge.
+- 🆕 **Period switcher**: 7d / 30d / Цей місяць / 90d / YTD / All + кастомні from/to. Active state з gold underline на DC red.
+- 🆕 **Revenue & Profit Trend** combo chart (Chart.js): bars (daily revenue) + line (cumulative profit gradient gold→transparent). 2 осі.
+- 🆕 **Cost breakdown** horizontal bars (НЕ donut — Stephen Few rule): Реклама / % з угод / Fixed / Призовий / Variable, sorted by sum.
+- 🆕 **P&L таблиця** 14 колонок з conditional formatting (margin&lt;20% жовтий, &lt;0 червоний; ROI&lt;100% жовтий, &lt;0 червоний), sticky first col, footer totals.
+- 🆕 **MTD Forecast**: progress bar поточного місяця + run-rate end-of-month projection.
+- 🆕 **Top &amp; losers**: топ-3 по net profit + 2 з найнижчою маржею.
+- 🆕 **Auto insights**: margin, revenue delta vs попередній період, ROI&gt;500%, проекти з негативним прибутком, AOV/CAC ratio &lt;3×.
+- ✅ Verified: Revenue 11.37M ₴ / Profit 10.40M ₴ / Margin 91.5% / CAC×AOV 11.8× / MTD прогноз 480.3k ₴. 7 P&L рядків + footer. 4 insights, 4 ranking. CRUD таби intact.
+
+---
+
 ## 15.06.2026 — #396 Daily AI Analyst v6 — більше не алярмить по завершених проектах
 
 ### AI/Analytics
