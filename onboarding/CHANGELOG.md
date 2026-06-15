@@ -11,6 +11,15 @@
 ## 15.06.2026 — #405 Каса — фактичні API-баланси банків + детектор розбіжностей
 
 ### Kasa
+## 15.06.2026 — #415 Каса Privat — кодування Windows-1251
+
+### Kasa
+- 🔧 Privat ACP API віддає JSON у Windows-1251 (не UTF-8). `r.json()` декодував кирилицю як UTF-8 → `?????`. Vadym показав скрін з крякозябрами.
+- 🔧 Fix у `kasa-sync-privat` v5: `arrayBuffer()` + `TextDecoder("windows-1251").decode()` + `JSON.parse`. Auto-detect charset з Content-Type.
+- 🛡 Видалено крякозябрні рядки з `kasa_transactions`. Resync 10089 транзакцій з правильним декодуванням. Verify: "DCI-moto-... за iнформацiйнi послуги (1 токен). Без ПДВ." ✓
+
+---
+
 - 🆕 `kasa_accounts.api_balance/api_balance_at` — реальний залишок з API банку: monobank `client-info.balance` (щогодини), Privat `statements/balance` (щозапуску). Дашборд показує саме його, не суму операцій.
 - 🆕 Детектор розбіжностей: якщо API-баланс ≠ (opening + операції) → позначка «⚠ розбіжність з операціями» на картці (поки історія добирається).
 - 🔧 Активні лише 4 бізнес-рахунки (mono fop ·0536/·1764 + Privat ФОП ·9785/·2155); порожні/особисті картки вимкнено.
