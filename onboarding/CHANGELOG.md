@@ -11,6 +11,20 @@
 ## 15.06.2026 — #406 Каса — fix кодування ПриватБанк (windows-1251)
 
 ### Kasa
+## 15.06.2026 — #413 + #414 Finance: edit % rate + Запуски → Проєкти
+
+### Finance
+- 🆕 #413 Поле «📊 Поточна ставка %» у modal редагування категорії типу «% з угод» (PCT_BANK / PCT_FOP / PCT_ZSU / PCT_ACC). Save → UPDATE `percent_rates.rate_pct` для active row або INSERT нової. P&L matview оновлюється /15min — нова ставка перераховує всі проєкти.
+- 🔤 #414 Глобальний rename «Запуски» → «Проєкти» у всіх UI labels:
+  - /finance/: 11 lables (Запуски (приз) / P&L по запусках / Запуск select / Пошук запуску / тощо)
+  - /kasa/: th Запуск → Проєкт у Income/Expense/Cash таблицях
+  - app-dashboard-extras.js: Pulse bar «Активні запуски» → «Активні проєкти»
+  - /hq/: launches CRUD, projects sub, autopost-status, views
+  - /projects/, /info/, /onboarding/, /orgchart-full/, index.html
+  - БД launches таблиця / launch_id ідентифікатори — НЕ чіпали
+
+---
+
 - 🔧 Privat ACP віддає тіло у windows-1251 — декодую через `TextDecoder('windows-1251')` (раніше UTF-8 → кирилиця = сміття).
 - 🔧 upsert операцій тепер оновлює existing рядки (onConflict без ignoreDuplicates), `?repair=1` скидає курсор для повного перетягу. ~10k рядків перезаписано з правильним текстом.
 
