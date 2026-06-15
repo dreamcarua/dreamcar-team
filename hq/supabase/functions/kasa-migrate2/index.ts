@@ -1,2 +1,2 @@
-// disabled one-off (kasa-monoinfo)
+// disabled one-off (kasa-migrate2)
 Deno.serve(() => new Response("gone", { status: 410 }));

@@ -1,2 +1,2 @@
-// One-off addcred — виконано і вимкнено. Креди вводяться у UI (вкладка «Банки»).
+// disabled one-off (kasa-addcred)
 Deno.serve(() => new Response("gone", { status: 410 }));

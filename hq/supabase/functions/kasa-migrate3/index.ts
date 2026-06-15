@@ -1,2 +1,2 @@
-// One-off migrate3 — виконано і вимкнено.
+// disabled one-off (kasa-migrate3)
 Deno.serve(() => new Response("gone", { status: 410 }));
