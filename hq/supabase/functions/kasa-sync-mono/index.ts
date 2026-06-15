@@ -1,7 +1,8 @@
 // ============================================================================
 // kasa-sync-mono — синк виписок monobank (особисті токени ФОП) у kasa_transactions.
-// Креди беруться з таблиці public.kasa_bank_creds (bank='monobank', is_active).
-// Поважає ліміт monobank: <= 1 statement-запит /60с на ТОКЕН (1 виклик/токен за раз).
+// Креди з public.kasa_bank_creds (bank='monobank', is_active).
+// Backfill НЕ глибше KASA_BACKFILL_FROM (дефолт 2026-03-01).
+// Ліміт monobank: <= 1 statement/60с на токен (1 виклик/токен за раз).
 // Guard: header x-cron-key (або ?key=) == kasa_config.cron_key.
 // ============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -9,7 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const MONO_API = "https://api.monobank.ua";
 const WINDOW_DAYS = 31;
 const INC_REFRESH_MIN = 55;
-const BACKFILL_DAYS = Number(Deno.env.get("KASA_MONO_BACKFILL_DAYS") || 1095);
+const BACKFILL_FROM = Deno.env.get("KASA_BACKFILL_FROM") || "2026-03-01";
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -69,7 +70,7 @@ async function upsertStatement(accId: string, items: any[]) {
 }
 
 async function syncOneCallForToken(token: string, label: string) {
-  const target = new Date(); target.setDate(target.getDate() - BACKFILL_DAYS);
+  const target = new Date(BACKFILL_FROM);
 
   const { data: accs } = await sb.from("kasa_accounts")
     .select("*").eq("bank", "monobank").eq("mono_token_label", label).eq("is_active", true).order("sort_order");
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
   if (!(await guardOk(req))) return new Response("forbidden", { status: 403 });
   const { data: creds } = await sb.from("kasa_bank_creds").select("*").eq("bank", "monobank").eq("is_active", true);
   if (!creds || !creds.length) {
-    return new Response(JSON.stringify({ ok: true, note: "no monobank creds in kasa_bank_creds" }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, note: "no monobank creds" }), { headers: { "Content-Type": "application/json" } });
   }
   const results: any[] = [];
   for (const c of creds) {
