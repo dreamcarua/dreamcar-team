@@ -1,11 +1,9 @@
-// ОДНОРАЗОВА: додати occurred_ts (повний час), backfill з raw, тригер на майбутнє, kasa_search RPC.
-// Guard ?key=dckasa-time-Nv6
+// ОДНОРАЗОВА: occurred_ts (час) + тригер + kasa_search + kasa_internal_flow. Guard ?key=dckasa-time-Nv6
 import postgres from "npm:postgres@3.4.4";
 const GUARD = "dckasa-time-Nv6";
 const SQL = `
 alter table public.kasa_transactions add column if not exists occurred_ts timestamptz;
 
--- backfill з raw
 update public.kasa_transactions set occurred_ts = case
   when source='monobank' and (raw ? 'time') then to_timestamp((raw->>'time')::bigint)
   when source='privatbank' and (raw ? 'DATE_TIME_DAT_OD_TIM_P')
@@ -13,7 +11,6 @@ update public.kasa_transactions set occurred_ts = case
   else occurred_at::timestamptz end
 where occurred_ts is null;
 
--- тригер: is_internal + occurred_ts на майбутнє
 create or replace function public.kasa_mark_internal() returns trigger language plpgsql as $fn$
 begin
   if NEW.source in ('monobank','privatbank') then
@@ -39,7 +36,6 @@ begin
   return NEW;
 end $fn$;
 
--- пошук: текст (опис/контрагент) + діапазон суми, лише активні рахунки
 create or replace function public.kasa_search(p_text text, p_min numeric, p_max numeric, p_limit int default 300)
 returns table(occurred_ts timestamptz, occurred_at date, account_id uuid, description text, counterparty text, direction text, amount_uah numeric, source text, is_internal boolean)
 language sql stable security invoker as $$
@@ -53,6 +49,20 @@ language sql stable security invoker as $$
   limit greatest(1, least(p_limit, 1000));
 $$;
 grant execute on function public.kasa_search(text,numeric,numeric,int) to authenticated;
+
+-- внутрішні переміщення по рахунках (is_internal): надійшло / відправлено
+create or replace function public.kasa_internal_flow(p_from date, p_to date)
+returns table(account_id uuid, moved_in numeric, moved_out numeric)
+language sql stable security invoker as $$
+  select t.account_id,
+    coalesce(sum(t.amount_uah) filter (where t.direction='in'),0)  as moved_in,
+    coalesce(sum(t.amount_uah) filter (where t.direction='out'),0) as moved_out
+  from public.kasa_transactions t
+  join public.kasa_accounts a on a.id = t.account_id and a.is_active
+  where t.is_internal and t.occurred_at >= p_from and t.occurred_at <= p_to
+  group by t.account_id;
+$$;
+grant execute on function public.kasa_internal_flow(date,date) to authenticated;
 `;
 Deno.serve(async (req) => {
   if (new URL(req.url).searchParams.get("key") !== GUARD) return new Response("forbidden", { status: 403 });
@@ -60,10 +70,10 @@ Deno.serve(async (req) => {
   try {
     sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, ssl: "require", max: 1 });
     await sql.unsafe(SQL).simple();
-    const s = await sql`select occurred_ts, left(description,40) d, amount_uah from public.kasa_search('комісія', null, null, 3)`;
     const nn = await sql`select count(*)::int n, count(occurred_ts)::int with_ts from public.kasa_transactions`;
+    const inf = await sql`select * from public.kasa_internal_flow('2026-05-01', now()::date)`;
     await sql.end();
-    return new Response(JSON.stringify({ ok: true, counts: nn, sample: s }, null, 2), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, counts: nn, internal_flow: inf }, null, 2), { headers: { "Content-Type": "application/json" } });
   } catch (e) {
     try { if (sql) await sql.end(); } catch (_) {}
     return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), { status: 500 });
