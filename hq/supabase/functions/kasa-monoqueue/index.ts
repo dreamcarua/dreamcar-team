@@ -1,4 +1,4 @@
-// ОДНОРАЗОВА: черга вікон для повного захоплення monobank (обхід ліміту 500/запит).
+// ОДНОРАЗОВА: черга вікон для повного захоплення monobank (обхід ліміту 500/запит + 31 день).
 // Guard ?key=dckasa-monoqueue-Yd5
 import postgres from "npm:postgres@3.4.4";
 const GUARD = "dckasa-monoqueue-Yd5";
@@ -16,11 +16,13 @@ create index if not exists kasa_mono_queue_status on public.kasa_mono_queue(stat
 
 insert into public.kasa_mono_queue(account_id, mono_account_id, from_unix, to_unix)
 select a.id, a.mono_account_id,
-   extract(epoch from timestamp '2026-03-01 00:00:00')::bigint,
-   extract(epoch from now())::bigint
+   extract(epoch from gs)::bigint,
+   least(extract(epoch from gs + interval '30 days'), extract(epoch from now()))::bigint
 from public.kasa_accounts a
+cross join generate_series(timestamp '2026-03-01 00:00:00', now(), interval '30 days') gs
 where a.bank='monobank' and a.is_active and a.mono_account_id is not null
-  and not exists (select 1 from public.kasa_mono_queue q where q.account_id=a.id and q.status='pending');
+  and not exists (select 1 from public.kasa_mono_queue q where q.account_id=a.id)
+  and extract(epoch from gs) < extract(epoch from now());
 `;
 Deno.serve(async (req) => {
   if (new URL(req.url).searchParams.get("key") !== GUARD) return new Response("forbidden", { status: 403 });
@@ -28,7 +30,7 @@ Deno.serve(async (req) => {
   try {
     sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, ssl: "require", max: 1 });
     await sql.unsafe(SQL).simple();
-    const q = await sql`select account_id, status, count(*)::int c from public.kasa_mono_queue group by 1,2`;
+    const q = await sql`select status, count(*)::int c from public.kasa_mono_queue group by status`;
     await sql.end();
     return new Response(JSON.stringify({ ok: true, queue: q }, null, 2), { headers: { "Content-Type": "application/json" } });
   } catch (e) {
