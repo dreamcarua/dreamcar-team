@@ -12,6 +12,19 @@
 
 ### Kasa
 - 🆕 Таблиця `kasa_bank_creds` (bank/label/token/privat_id) + `kasa_config(cron_key)`. Токени вводяться у вкладці «🔑 Банки» (RLS, лише 2 email; cron_key недоступний фронту).
+## 15.06.2026 — #412 P0 Finance швидкість — matview + SWR cache (17.4с → ~50мс)
+
+### Finance / DB
+- ⚡ **870× швидше:** `dashboard_project_pnl()` 17.4с → `dashboard_project_pnl_cached()` ~20мс. Vadym: «це біда» — підвантаження 15-20с при кожному відкритті /finance/ — виправлено.
+- 🆕 Materialized view `mv_dashboard_project_pnl` (UNIQUE INDEX на launch_id) — snapshot повної P&L по запусках.
+- 🆕 pg_cron job `mv-pnl-refresh` `*/15 * * * *` → `refresh_mv_dashboard_project_pnl()` (CONCURRENTLY, з fallback на non-concurrent). Лог тривалості у `dashboard_settings.mv_pnl_last_refresh`.
+- 🆕 RPC `dashboard_project_pnl_cached()` повертає `{data jsonb, refreshed_at, age_seconds}` — frontend знає вік даних для індикатора.
+- 🆕 Frontend stale-while-revalidate: `fetchPnlSWR(onData)` — кеш у `localStorage` (`dc_finance_pnl_cache_v1`, TTL 10хв). Рендерить миттєво з кешу → у фоні тягне fresh → перерендерює.
+- 🔧 `reloadOverview` показує статус-бар: «⚡ З кешу (5с) · свіже» / «Показано з кешу (3хв) · оновлюю...» / «⚡ Оновлено · matview 16:42 Київ» — користувач бачить що дані актуальні.
+- 🚀 Cache version: `finance-build` → `20260615-pnl-cache`. Cloudflare Pages auto-deploy + _headers purge.
+- 📖 Метрика: при першому відкритті — 1с (server matview); при повторному (cache hit) — миттєво (0с); фон refresh не блокує UI.
+
+---
 ## 15.06.2026 — #411 DC Media archive — автопостинг published у архівну групу
 
 ### SMM / Telegram
