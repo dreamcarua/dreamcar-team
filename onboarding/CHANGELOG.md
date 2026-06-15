@@ -12,6 +12,20 @@
 
 ### Kasa
 - 🆕 Таблиця `kasa_bank_creds` (bank/label/token/privat_id) + `kasa_config(cron_key)`. Токени вводяться у вкладці «🔑 Банки» (RLS, лише 2 email; cron_key недоступний фронту).
+## 15.06.2026 — #411 DC Media archive — автопостинг published у архівну групу
+
+### SMM / Telegram
+- 🆕 Edge fn `dc-media-archive` v3 — постить публікацію у групу **«DreamCar Media»** (`-1003912295530`) як media-group (до 10 креативів) з caption = `<b>title</b> + text_body + дата Київ`.
+- 🆕 DB trigger `dc_media_archive_on_published` (AFTER UPDATE OF status ON publications WHEN NEW.status='published' AND OLD.status<>'published') → `net.http_post` до Edge fn. Помилка HTTP не ламає main update.
+- 🛡 Probe-mode `?probe=1` (без secret) — викликає `getChat` на всіх listening chats, auto-register групу з 'media' у title. Знайдено: `Group 6` (-1003912295530) → live title «DreamCar Media». Записано у `dashboard_settings.dc_media_chat_id`.
+- 🔧 Виправлено заголовки у `tg_listening_chats` для Group 3 (DreamCar TECH), Group 4 (DreamCar BOARD), Group 5 (DreamCar потєряшкі), Group 6 (DreamCar Media).
+- 🔧 Caption: TG HTML parse_mode (`<b>`/`<i>`/`<u>` рендеряться), text_body не strip-ається, `<br>`→`\n`, інші теги залишені, обріз 1024 chars (HARD RULE caption ліміт).
+- 🔧 `disable_notification: true` — архів без піків у учасників групи.
+- 🚀 Тест: `ff35c79f-eab8-48dc-99cf-4aefbb42eab7` (#383) → `{ok:true, mode:'media-group', media_count:1, chat_id:-1003912295530}`. Доставлено у DreamCar Media.
+- 📖 Запит Давида: «коли публікація переходить в статус опубліковано Бот постить в групі медіа з текстом і креативами — для архіву і легкої передачі для гугл едс».
+
+---
+
 - 🔧 `kasa-sync-mono` + `kasa-sync-privat` тепер читають креди з БД (мульти-ФОП), guard по cron_key. Privat — backfill-курсор per-cred; mono — 1 statement/60с на токен.
 - 🚀 Автосинк через `pg_cron` job `kasa-sync` кожні 10 хв → `net.http_post` обох функцій. Історія підтягується backfill-вікнами (~3 роки).
 - 🆕 Вкладка «🔑 Банки» у Касі: CRUD підключень + статус останнього синку.
