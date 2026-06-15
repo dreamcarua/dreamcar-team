@@ -11,6 +11,18 @@
 ## 15.06.2026 — #407 Каса — внутрішні перекази не рахуються в П&Л
 
 ### Kasa
+## 15.06.2026 — #416-#418 Retention: креативи + спільна бібліотека
+
+### Retention / Library
+- 🆕 #416 DB pivot `creative_retention_messages (retention_message_id, creative_id, sort_order)` як `creative_publications` для SMM. RLS authenticated read+write.
+- 🆕 `creatives.scopes text[]` (GIN index) + триггери на INSERT у `creative_publications` → tag 'smm', на INSERT у `creative_retention_messages` → tag 'retention'. Backfill: 45 креативів вже tagged 'smm'.
+- 🆕 #417 У Retention modal блок «📸 КРЕАТИВИ» між Нотатками і Погоджують. Кнопки «🖼 З бібліотеки» (picker overlay multi-select з 200 останніх креативів) + «📤 Завантажити нові →» (новa вкладка /hq/#library).
+- 🆕 Render thumbnail grid (відео з ▶ label) + кнопка × для прибирання. Save sync: DELETE+INSERT у `creative_retention_messages`.
+- 🆕 #418 Sidebar Retention: новий nav-item «🖼 Бібліотека креативів» → /hq/#library (нова вкладка).
+- 📖 Vadym + Davyd UX request: Vira не могла додавати фото/відео у retention — тепер може.
+
+---
+
 - 🆕 `kasa_transactions.is_internal` + тригер `kasa_mark_internal`: авто-визначає перекази між власними рахунками (контрагент = наш IBAN, або імʼя Спірін/Заяць, або «переказ власних коштів»).
 - 🔧 Дашборд: внутрішні виключені з доходів/витрат і графіка cashflow; показуються з тегом «🔄 внутр.». На баланси рахунків впливають як і раніше. Знайдено 30 таких операцій.
 
