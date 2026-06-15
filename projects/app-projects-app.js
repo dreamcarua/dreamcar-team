@@ -192,7 +192,7 @@
     state.projects = await loadProjects();
     var html = ['<div class="dcp-view">'];
     html.push('<h1>📁 ПРОЄКТИ</h1>');
-    html.push('<div class="dcp-sub">Запуски, проекти, кампанії — усе що має життєвий цикл і ROI. Cross-link з SMM (launch_id), Retention (project_id) та Tasks (project_id).</div>');
+    html.push('<div class="dcp-sub">Проєкти та кампанії — усе що має життєвий цикл і ROI. Cross-link з SMM (launch_id), Retention (project_id) та Tasks (project_id).</div>');
     html.push('<div class="dcp-toolbar">');
     html.push('<button class="dcp-tab ' + (state.view === 'kanban' ? 'active' : '') + '" data-view="kanban">📋 Kanban</button>');
     html.push('<button class="dcp-tab ' + (state.view === 'list' ? 'active' : '') + '" data-view="list">📃 Список</button>');
