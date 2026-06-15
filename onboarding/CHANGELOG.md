@@ -8,6 +8,16 @@
 
 ---
 
+## 15.06.2026 — #402 Finance trend chart — Виручка vs Реклама (замість cumulative profit)
+
+### Finance UI
+- 🔧 На «Revenue & Profit Trend» прибрав золоту лінію cumulative profit (Vadym: не потрібна, краще витрати).
+- 🆕 RPC `dashboard_finance_overview` тепер повертає `ad_spend` (total) + `daily_ads` array (по днях).
+- 🆕 `drawTrend` рендерить два grouped bars: «Виручка» (DC red) + «Реклама» (gold). За 30 днів видно дисбаланс: 7.24M ₴ revenue vs 856k ₴ spend → ROAS ~8.5×.
+- 🔤 Заголовок чарта: «💰 Виручка та витрати на рекламу».
+
+---
+
 ## 15.06.2026 — #401 Finance Категорії — accordion tree замість таблиці
 
 ### Finance UI
