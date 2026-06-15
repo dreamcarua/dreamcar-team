@@ -2,13 +2,15 @@
 // kasa-sync-mono — monobank: фактичний баланс (client-info) + ПОВНЕ захоплення
 // виписок через чергу вікон kasa_mono_queue (обхід ліміту ~500 операцій/запит).
 // Якщо вікно впирається в 500 — ділиться навпіл і доганяється. 1 запит/60с на токен.
+// Баланс і виписки йдуть у РІЗНІ цикли крону (по 1 запиту/токен/запуск), тож
+// часте оновлення балансу не порушує ліміт monobank.
 // Guard: x-cron-key == kasa_config.cron_key.
 // ============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const MONO_API = "https://api.monobank.ua";
 const PAGE_LIMIT = 500;        // ліміт monobank на один statement-запит
-const BAL_REFRESH_MIN = 55;
+const BAL_REFRESH_MIN = 5;     // як часто освіжати API-баланс (хв). Менше = менша розбіжність із операціями.
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -83,7 +85,7 @@ async function processToken(token: string, label: string) {
   }
   const accIds = accs.map((a) => a.id);
 
-  // 1) баланс із API (щогодини)
+  // 1) баланс із API (кожні BAL_REFRESH_MIN хв)
   const balStale = accs.some((a) => !a.api_balance_at || (Date.now() - new Date(a.api_balance_at).getTime()) > BAL_REFRESH_MIN * 60000);
   if (balStale) { const r = await refreshFromClientInfo(token, label); return { token: label, action: "balances", ...r }; }
 
