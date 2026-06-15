@@ -1,13 +1,13 @@
 // ============================================================================
-// kasa-sync-privat — синк виписок ПриватБанк (Автоклієнт) для кількох ФОП.
-// Креди з public.kasa_bank_creds (bank='privatbank', is_active): privat_id + token + label.
-// Кожен запуск: інкрементал (35 днів) + одне вікно backfill (курсор synced_from).
-// Backfill НЕ глибше KASA_BACKFILL_FROM (дефолт 2026-03-01).
-// Guard: header x-cron-key (або ?key=) == kasa_config.cron_key.
+// kasa-sync-privat — ПриватБанк (Автоклієнт), кілька ФОП.
+// Фактичний баланс через /api/statements/balance -> api_balance (щозапуску).
+// Виписки: інкрементал (35 днів) + backfill (курсор, не глибше 2026-03-01).
+// Guard: x-cron-key == kasa_config.cron_key.
 // ============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ACP = "https://acp.privatbank.ua/api/statements/transactions";
+const ACP_BAL = "https://acp.privatbank.ua/api/statements/balance";
 const WINDOW_DAYS = 31;
 const BACKFILL_FROM = Deno.env.get("KASA_BACKFILL_FROM") || "2026-03-01";
 
@@ -42,6 +42,27 @@ async function fetchPage(id: string, token: string, startDate: string, endDate: 
   const r = await fetch(u.toString(), { headers: { id, token, "Content-Type": "application/json" } });
   if (!r.ok) throw new Error(`privat ${r.status}: ${await r.text()}`);
   return r.json();
+}
+
+// фактичні залишки по рахунках
+async function refreshBalances(cred: any, pacc: any[], cache: Map<string, string>) {
+  const u = new URL(ACP_BAL);
+  u.searchParams.set("startDate", ddmmyyyy(new Date()));
+  u.searchParams.set("limit", "100");
+  const r = await fetch(u.toString(), { headers: { id: cred.privat_id, token: cred.token, "Content-Type": "application/json" } });
+  if (!r.ok) return 0;
+  const data = await r.json();
+  const now = new Date().toISOString();
+  let n = 0;
+  for (const b of data.balances || []) {
+    const acc = b.acc || b.account || "";
+    const bal = parseFloat(b.balanceOut ?? b.balanceOutEq ?? b.balance ?? "0");
+    if (!acc) continue;
+    const accId = await resolveAccount(acc, cred.label, cache, pacc);
+    await sb.from("kasa_accounts").update({ api_balance: bal, api_balance_at: now }).eq("id", accId);
+    n++;
+  }
+  return n;
 }
 
 async function resolveAccount(acc: string, label: string, cache: Map<string, string>, pacc: any[]) {
@@ -98,14 +119,17 @@ async function syncCred(cred: any) {
   const pacc = pa || [];
   const cache = new Map<string, string>();
 
+  // 0) фактичні залишки
+  let bal = 0; try { bal = await refreshBalances(cred, pacc, cache); } catch (_) {}
+
   // 1) інкрементал (останні 35 днів)
   const incFrom = new Date(); incFrom.setDate(incFrom.getDate() - 35);
   const inc = await pullWindow(cred, ddmmyyyy(incFrom), ddmmyyyy(today), pacc, cache);
 
-  const patch: any = { last_inc: new Date().toISOString(), last_status: `inc:${inc.upserted}` };
+  const patch: any = { last_inc: new Date().toISOString(), last_status: `bal:${bal} inc:${inc.upserted}` };
   let bf: any = null;
 
-  // 2) одне вікно backfill (курсор synced_from), не глибше target
+  // 2) одне вікно backfill (не глибше target)
   let cursor = cred.synced_from ? new Date(cred.synced_from) : null;
   if (!cursor) { cursor = new Date(incFrom); patch.synced_from = dayStr(incFrom); }
   else if (cursor > target) {
@@ -113,11 +137,11 @@ async function syncCred(cred: any) {
     if (from < target) from.setTime(target.getTime());
     bf = await pullWindow(cred, ddmmyyyy(from), ddmmyyyy(to), pacc, cache);
     patch.synced_from = dayStr(from);
-    patch.last_status = `inc:${inc.upserted} bf:${bf.upserted} (${dayStr(from)})`;
+    patch.last_status = `bal:${bal} inc:${inc.upserted} bf:${bf.upserted} (${dayStr(from)})`;
   }
 
   await sb.from("kasa_bank_creds").update(patch).eq("id", cred.id);
-  return { label: cred.label, incremental: inc, backfill: bf };
+  return { label: cred.label, balances: bal, incremental: inc, backfill: bf };
 }
 
 Deno.serve(async (req) => {
