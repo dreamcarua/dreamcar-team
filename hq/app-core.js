@@ -65,8 +65,11 @@ const Store = {
 
   async _loadFromBackend() {
     const sb = window.supabase;
+    // #421: ghost retention розсилки для cross-system калерндаря
+    const ghostFrom = new Date(); ghostFrom.setMonth(ghostFrom.getMonth() - 2);
+    const ghostTo = new Date(); ghostTo.setMonth(ghostTo.getMonth() + 6);
     // Fetch all in parallel
-    const [users, rubrics, launches, creatives, pubs, platforms, resp, apr, crePubs, comments, history] = await Promise.all([
+    const [users, rubrics, launches, creatives, pubs, platforms, resp, apr, crePubs, comments, history, ghostRet] = await Promise.all([
       sb.from('users').select('*'),
       sb.from('rubrics').select('*').order('sort_order'),
       sb.from('launches').select('*').eq('is_active', true),
@@ -78,7 +81,13 @@ const Store = {
       sb.from('creative_publications').select('*'),
       sb.from('comments').select('*').is('deleted_at', null).order('created_at'),
       sb.from('publication_history').select('*').order('at'),
+      sb.rpc('ghost_calendar_events', { p_source: 'retention', p_from: ghostFrom.toISOString(), p_to: ghostTo.toISOString() }),
     ]);
+    if (typeof App !== 'undefined') {
+      App.retentionGhost = (ghostRet && !ghostRet.error) ? (ghostRet.data || []) : [];
+    } else {
+      window._pendingGhostRetention = (ghostRet && !ghostRet.error) ? (ghostRet.data || []) : [];
+    }
     // Map publications with nested arrays (frontend shape compatible with old JS)
     const platformsByPub = groupBy(platforms.data, 'publication_id');
     const respByPub = groupBy(resp.data, 'publication_id');
@@ -852,6 +861,7 @@ const App = {
   filters: { statuses: new Set(), platforms: new Set() },
   selectedPubs: new Set(),
   searchQuery: '',
+  retentionGhost: window._pendingGhostRetention || [],  // #421
 };
 
 /* ============ Toast ============ */
@@ -1160,9 +1170,20 @@ function renderMonth(d, pubs) {
         <span class="title">${escapeHtml(p.title)}</span>
       </div>
     `).join('');
+    // #421 Ghost retention розсилки — приглушений вид, неклікабельні
+    const ghosts = (App.retentionGhost || []).filter(g => sameDate(g.scheduled_at, day))
+      .sort((a,b)=> new Date(a.scheduled_at) - new Date(b.scheduled_at))
+      .slice(0, 3).map(g => {
+        const t = new Date(g.scheduled_at);
+        const hh = String(t.getHours()).padStart(2,'0');
+        const mm = String(t.getMinutes()).padStart(2,'0');
+        const ch = (g.channels || [])[0] || 'tg';
+        const icon = ch === 'tg' ? '🤖' : ch === 'email' ? '📧' : ch === 'push' ? '🔔' : '📤';
+        return `<div class="cal-ghost" title="Retention · ${icon} · ${hh}:${mm} · ${escapeHtml(g.title || '')}" style="display:flex;align-items:center;gap:4px;font-size:10px;padding:3px 5px;background:rgba(168,85,247,0.10);border-left:3px solid rgba(168,85,247,0.55);border-radius:3px;color:rgba(255,255,255,0.55);opacity:0.7;cursor:default;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0;"><span>${icon}</span><span style="font-weight:700;font-variant-numeric:tabular-nums;">${hh}:${mm}</span><span style="opacity:.7;">· Ret</span></div>`;
+      }).join('');
     const more = dayPubs.length > 3 ? `<span class="more" data-date="${day.toISOString().slice(0,10)}">+${dayPubs.length-3} ще</span>` : '';
     html += `<div class="cal-day ${isOther?'other-month':''} ${isToday?'today':''}" data-date="${day.toISOString().slice(0,10)}">
-      <div class="day-num">${day.getDate()}</div>${cards}${more}</div>`;
+      <div class="day-num">${day.getDate()}</div>${ghosts}${cards}${more}</div>`;
   }
   html += '</div>';
   return html;
