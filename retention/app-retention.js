@@ -838,14 +838,19 @@ function openMessageDetail(id){
         window.retState._creativesCache = cache;
         const picker = document.createElement('div');
         picker.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1500; display:flex; align-items:center; justify-content:center; padding:20px;';
-        picker.innerHTML = `<div style="background:var(--bg-1, #1a1a1a); border:1px solid var(--steel); border-radius:8px; padding:18px; max-width:900px; width:100%; max-height:80vh; overflow:auto;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <h3 style="margin:0; color:#fff;">🖼 Обери з бібліотеки</h3>
-            <button id="ret-picker-close" style="background:transparent; border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer;">✕</button>
+        picker.innerHTML = `<div style="background:var(--bg-1, #1a1a1a); border:1px solid var(--steel); border-radius:8px; max-width:900px; width:100%; max-height:85vh; display:flex; flex-direction:column;">
+          <div style="flex:0 0 auto; padding:14px 18px 12px; border-bottom:1px solid var(--steel); display:flex; justify-content:space-between; align-items:center; background:var(--bg-1, #1a1a1a); border-radius:8px 8px 0 0;">
+            <h3 style="margin:0; color:#fff; font-size:16px;">🖼 Обери з бібліотеки</h3>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span id="ret-picker-counter" style="color:var(--ash); font-size:12px;"></span>
+              <button id="ret-picker-done" style="background:var(--red, #E30613); color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px;">✓ Готово</button>
+              <button id="ret-picker-close" title="Закрити без збереження" style="background:transparent; border:1px solid var(--steel); color:#fff; padding:7px 12px; border-radius:6px; cursor:pointer;">✕</button>
+            </div>
           </div>
-          <div style="margin-bottom:10px; color:var(--ash); font-size:12px;">Клікни щоб додати. Доданий креатив підсвічується. Натисни ще раз — прибрати.</div>
-          <div id="ret-picker-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px;"></div>
-          <div style="margin-top:14px; text-align:right;"><button id="ret-picker-done" style="background:var(--red, #E30613); color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:600;">✓ Готово</button></div>
+          <div style="flex:1 1 auto; overflow:auto; padding:14px 18px;">
+            <div style="margin-bottom:10px; color:var(--ash); font-size:12px;">Клікни щоб додати. Доданий креатив підсвічується. Натисни ще раз — прибрати.</div>
+            <div id="ret-picker-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px;"></div>
+          </div>
         </div>`;
         document.body.appendChild(picker);
         const pickerGrid = picker.querySelector('#ret-picker-grid');
@@ -898,10 +903,17 @@ function openMessageDetail(id){
               const cur = window.retState.modalCreatives || [];
               window.retState.modalCreatives = cur.includes(cid) ? cur.filter(x => x !== cid) : [...cur, cid];
               renderPicker();
+              updateCounter();
             };
           });
         };
         renderPicker();
+        const counter = picker.querySelector('#ret-picker-counter');
+        const updateCounter = () => {
+          const n = (window.retState.modalCreatives || []).length;
+          if (counter) counter.textContent = n > 0 ? `Обрано: ${n}` : '';
+        };
+        updateCounter();
         picker.querySelector('#ret-picker-close').onclick = () => picker.remove();
         picker.querySelector('#ret-picker-done').onclick = () => { picker.remove(); renderGrid(); overlay.dataset.dirty = '1'; };
       };
