@@ -11,7 +11,7 @@
     if (!AC) return;
     try {
       window.__hqAudioCtxPersist = new AC();
-      console.log('%cDreamCar HQ Audio %c· eager init, state=' + window.__hqAudioCtxPersist.state,
+      if (window.DEBUG) console.log('%cDreamCar HQ Audio %c· eager init, state=' + window.__hqAudioCtxPersist.state,
         'color:#fbbf24;font-weight:700;', 'color:#888;');
     } catch (e) { console.warn('audio init:', e); }
   })();
@@ -78,7 +78,7 @@
       })
       .subscribe();
     window.__hqSoundsRtChan = chan;
-    console.log('%cDreamCar HQ Sounds RT %c· subscribed (all-in-one)',
+    if (window.DEBUG) console.log('%cDreamCar HQ Sounds RT %c· subscribed (all-in-one)',
       'color:#fbbf24;font-weight:700;', 'color:#888;');
   }
   setTimeout(subscribeSoundsRealtime, 2500);
@@ -109,7 +109,7 @@
       Store.pubs = function () {
         return (this._data && this._data.publications) ? this._data.publications.filter(function (p) { return !p._trashed; }) : [];
       };
-      console.log('%cDreamCar HQ %c· rolled back per-platform expansion',
+      if (window.DEBUG) console.log('%cDreamCar HQ %c· rolled back per-platform expansion',
         'color:#ff6577;font-weight:700;', 'color:#888;');
       if (typeof window.navigate === 'function') { try { window.navigate(); } catch (_) {} }
     }
@@ -208,7 +208,7 @@
         if (!c.drive_file_id && e.drive_file_id) c.drive_file_id = e.drive_file_id;
       });
       if (updated > 0) {
-        console.log('%cDreamCar HQ Rescue %c· ' + updated + ' creatives + force navigate',
+        if (window.DEBUG) console.log('%cDreamCar HQ Rescue %c· ' + updated + ' creatives + force navigate',
           'color:#7ab0ff;font-weight:700;', 'color:#888;');
         if (typeof window.navigate === 'function') { try { window.navigate(); } catch (_) {} }
       }
@@ -250,6 +250,6 @@
     document.head.appendChild(s);
   });
 
-  console.log('%cDreamCar HQ Pravky-2 ALL-IN-ONE %c· loaded + bootstrapping additional patches',
+  if (window.DEBUG) console.log('%cDreamCar HQ Pravky-2 ALL-IN-ONE %c· loaded + bootstrapping additional patches',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

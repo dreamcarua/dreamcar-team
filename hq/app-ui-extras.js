@@ -333,12 +333,12 @@
       })
       .subscribe();
     window.__hqSoundsChan = chan;
-    console.log('%cDreamCar HQ Sounds %c· realtime subscribed',
+    if (window.DEBUG) console.log('%cDreamCar HQ Sounds %c· realtime subscribed',
       'color:#fbbf24;font-weight:700;', 'color:#888;');
   }
   setTimeout(subscribeSounds, 2500);
   setTimeout(subscribeSounds, 6000);
 
-  console.log('%cDreamCar HQ UI Extras %c· sidebar+theme+sounds+pending-approvers',
+  if (window.DEBUG) console.log('%cDreamCar HQ UI Extras %c· sidebar+theme+sounds+pending-approvers',
     'color:#93c5fd;font-weight:700;', 'color:#888;');
 })();

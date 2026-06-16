@@ -40,7 +40,7 @@
       // Не передаємо scope — браузер сам використає directory скрипта як scope.
       navigator.serviceWorker.register('service-worker.js')
         .then(function (reg) {
-          console.log('%cDreamCar HQ PWA %c· SW registered', 'color:#4ade80;font-weight:700;', 'color:#888;', reg.scope);
+          if (window.DEBUG) console.log('%cDreamCar HQ PWA %c· SW registered', 'color:#4ade80;font-weight:700;', 'color:#888;', reg.scope);
           reg.addEventListener('updatefound', function () {
             var newWorker = reg.installing;
             if (newWorker) {
@@ -209,5 +209,5 @@
     return arr;
   }
 
-  console.log('%cDreamCar HQ PWA %c· wired (topbar install + SW + push)', 'color:#4ade80;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ PWA %c· wired (topbar install + SW + push)', 'color:#4ade80;font-weight:700;', 'color:#888;');
 })();

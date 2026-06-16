@@ -58,7 +58,7 @@
       };
     });
 
-    console.log('%cDreamCar HQ Approvers 2d %c· rerendered ' + users.length + ' users (з members)',
+    if (window.DEBUG) console.log('%cDreamCar HQ Approvers 2d %c· rerendered ' + users.length + ' users (з members)',
       'color:#fbbf24;font-weight:700;', 'color:#888;');
     return true;
   }
@@ -126,6 +126,6 @@
     }, ms);
   });
 
-  console.log('%cDreamCar HQ Pravky-2d %c· f_appr direct fix active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Pravky-2d %c· f_appr direct fix active',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

@@ -118,5 +118,5 @@
   [400, 1500, 3500].forEach(function (ms) { setTimeout(decorateAll, ms); });
   setInterval(refreshAges, 60000);
 
-  console.log('%cDreamCar HQ SLA %c· review timer ready', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ SLA %c· review timer ready', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

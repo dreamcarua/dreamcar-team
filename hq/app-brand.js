@@ -203,5 +203,5 @@
   var obs = new MutationObserver(runAll);
   obs.observe(document.body, { childList: true, subtree: true });
 
-  console.log('%cDreamCar HQ Brand %c· Visual identity applied', 'color:#E30613;font-weight:800;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Brand %c· Visual identity applied', 'color:#E30613;font-weight:800;', 'color:#888;');
 })();

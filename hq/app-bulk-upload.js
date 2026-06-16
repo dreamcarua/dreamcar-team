@@ -155,5 +155,5 @@
     return b.toFixed(b < 10 ? 1 : 0) + ' ' + u[i];
   }
 
-  console.log('[hq-bulk-upload] ✓ drag-drop ready (anywhere on page)');
+  if (window.DEBUG) console.log('[hq-bulk-upload] ✓ drag-drop ready (anywhere on page)');
 })();

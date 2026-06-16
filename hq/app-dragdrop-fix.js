@@ -142,7 +142,7 @@
       if (isNaN(newDt.getTime())) return;
       var newDateStr = safeFmtDate(newDt);
       if (oldDate === newDateStr) {
-        console.log('[DDFv3] same date, skip');
+        if (window.DEBUG) console.log('[DDFv3] same date, skip');
         trackedX = -1; trackedY = -1;
         return;
       }
@@ -154,7 +154,7 @@
       try { if (S.addHistory) S.addHistory(p.id, 'move', oldDate + ' → ' + newDateStr); } catch (_) {}
 
       safeToast('Перенесено', 'success', (p.title || 'Пост') + ' → ' + newDateStr);
-      console.log('[DDFv3] ' + p.id + ': ' + oldDate + ' → ' + newDateStr +
+      if (window.DEBUG) console.log('[DDFv3] ' + p.id + ': ' + oldDate + ' → ' + newDateStr +
         ' | target=' + target.dataset.date + ' | bound=' + el.dataset.date +
         ' | cursor=(' + x + ',' + y + ')');
 
@@ -181,6 +181,6 @@
   setTimeout(bindAllCells, 1500);
   setTimeout(bindAllCells, 4000);
 
-  console.log('%cDreamCar HQ DragDrop Fix v3 %c· tracked cursor + bounding-rect scan',
+  if (window.DEBUG) console.log('%cDreamCar HQ DragDrop Fix v3 %c· tracked cursor + bounding-rect scan',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

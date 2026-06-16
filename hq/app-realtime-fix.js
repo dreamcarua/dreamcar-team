@@ -185,6 +185,6 @@
   setTimeout(subscribeBellRefresh, 2000);
   setTimeout(subscribeBellRefresh, 5000);
 
-  console.log('%cDreamCar HQ Real-time fix %c· refresh без F5 active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Real-time fix %c· refresh без F5 active',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

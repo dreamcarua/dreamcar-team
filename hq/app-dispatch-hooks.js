@@ -42,7 +42,7 @@
         console.warn('[dispatch] failed', r.status, j);
         return { ok: false, status: r.status, body: j };
       }
-      console.log('[dispatch] ✓', workflow, j);
+      if (window.DEBUG) console.log('[dispatch] ✓', workflow, j);
       return { ok: true, body: j };
     } catch (e) {
       console.warn('[dispatch] error', e);
@@ -61,7 +61,7 @@
         (payload) => {
           const c = payload.new || {};
           if (c.type === 'video' && c.compressed_status === 'pending') {
-            console.log('[dispatch] New video creative — triggering compress', c.id);
+            if (window.DEBUG) console.log('[dispatch] New video creative — triggering compress', c.id);
             dispatchWorkflow('compress');
           }
         })
@@ -78,7 +78,7 @@
         (payload) => {
           const q = payload.new || {};
           if (q.status === 'pending') {
-            console.log('[dispatch] New autopost queue — triggering autopost', q.id);
+            if (window.DEBUG) console.log('[dispatch] New autopost queue — triggering autopost', q.id);
             // 5-секундний debounce — даємо DB врегулюватись
             setTimeout(() => dispatchWorkflow('autopost'), 5000);
           }
@@ -89,12 +89,12 @@
   // ── Init ──
   function init() {
     if (!window.HQ_BACKEND) {
-      console.log('[dispatch] demo mode — skip realtime hooks');
+      if (window.DEBUG) console.log('[dispatch] demo mode — skip realtime hooks');
       return;
     }
     watchCreativeInserts();
     watchAutopostQueueInserts();
-    console.log('[dispatch] ✓ Realtime hooks armed');
+    if (window.DEBUG) console.log('[dispatch] ✓ Realtime hooks armed');
   }
 
   // Public API — можна викликати вручну

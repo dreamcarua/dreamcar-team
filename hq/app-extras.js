@@ -261,7 +261,7 @@
     }
   });
 
-  console.log('%cDreamCar HQ Extras v3 %c· Store via typeof, bind-block fixed', 'color:#a78bfa;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Extras v3 %c· Store via typeof, bind-block fixed', 'color:#a78bfa;font-weight:700;', 'color:#888;');
 
   // ============================================================
   // LOADER CHAIN — підвантажуємо app-drive.js

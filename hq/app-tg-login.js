@@ -59,7 +59,7 @@
     }
   };
 
-  console.log('%cDreamCar HQ TG Login %c· onTgAuth wired to tg-login-verify', 'color:#0088cc;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ TG Login %c· onTgAuth wired to tg-login-verify', 'color:#0088cc;font-weight:700;', 'color:#888;');
 
   // ============================================================
   // LOADER CHAIN

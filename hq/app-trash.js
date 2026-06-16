@@ -234,5 +234,5 @@
   setTimeout(init, 800);
   setTimeout(init, 2500);
 
-  console.log('[HQ trash] v2 loaded — 30-day soft-delete + restore');
+  if (window.DEBUG) console.log('[HQ trash] v2 loaded — 30-day soft-delete + restore');
 })();

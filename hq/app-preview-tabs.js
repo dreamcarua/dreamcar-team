@@ -230,6 +230,6 @@
   setTimeout(installTabs, 1500);
   setTimeout(installTabs, 4000);
 
-  console.log('%cDreamCar HQ Preview Tabs %c· per-platform tabs + datetime (#119)',
+  if (window.DEBUG) console.log('%cDreamCar HQ Preview Tabs %c· per-platform tabs + datetime (#119)',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

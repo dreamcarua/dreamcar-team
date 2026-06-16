@@ -194,7 +194,7 @@
   // re-injection if label was recreated, console.log for debug, body delegation fallback.
   function bindTplHandler(btn) {
     var handler = function (e) {
-      console.log('[#296 hq-tpl-btn click]', e && e.type);
+      if (window.DEBUG) console.log('[#296 hq-tpl-btn click]', e && e.type);
       if (e) { e.preventDefault(); e.stopPropagation(); }
       try { showPickerModal(); } catch (err) {
         console.error('[#296 showPickerModal err]', err);
@@ -245,7 +245,7 @@
       // якщо native onclick відпрацював — не дублюємо
       if (btn.__hqTplHandledAt && (Date.now() - btn.__hqTplHandledAt) < 500) return;
       btn.__hqTplHandledAt = Date.now();
-      console.log('[#296 hq-tpl-btn delegated click]');
+      if (window.DEBUG) console.log('[#296 hq-tpl-btn delegated click]');
       e.preventDefault();
       e.stopPropagation();
       try { showPickerModal(); } catch (err) { console.error(err); }
@@ -305,5 +305,5 @@
   window.addEventListener('hashchange', maybeRunSettings);
   maybeRunSettings();
 
-  console.log('%cDreamCar HQ Templates %c· Pub templates ready', 'color:#93c5fd;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Templates %c· Pub templates ready', 'color:#93c5fd;font-weight:700;', 'color:#888;');
 })();

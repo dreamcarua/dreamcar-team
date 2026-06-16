@@ -181,5 +181,5 @@
   window.addEventListener('hashchange', maybeRun);
   maybeRun();
 
-  console.log('%cDreamCar HQ Vacation %c· Auto-delegation ready', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Vacation %c· Auto-delegation ready', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

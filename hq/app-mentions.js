@@ -265,6 +265,6 @@
   setTimeout(highlightMentionsInComments, 1000);
   setTimeout(highlightMentionsInComments, 3000);
 
-  console.log('%cDreamCar HQ Mentions %c· @user autocomplete + highlight active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Mentions %c· @user autocomplete + highlight active',
     'color:#7ab0ff;font-weight:700;', 'color:#888;');
 })();

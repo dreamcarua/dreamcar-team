@@ -271,5 +271,5 @@
   window.addEventListener('hashchange', maybeRoute);
   [400, 1500].forEach(function (ms) { setTimeout(maybeRoute, ms); });
 
-  console.log('%cDreamCar HQ Analytics %c· KPI dashboard ready', 'color:#4ade80;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Analytics %c· KPI dashboard ready', 'color:#4ade80;font-weight:700;', 'color:#888;');
 })();

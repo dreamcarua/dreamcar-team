@@ -192,7 +192,7 @@
   // re-injection if label was recreated, console.log for debug, body delegation fallback.
   function bindAiHandler(btn) {
     var handler = function (e) {
-      console.log('[#296 hq-ai-btn click]', e && e.type);
+      if (window.DEBUG) console.log('[#296 hq-ai-btn click]', e && e.type);
       if (e) { e.preventDefault(); e.stopPropagation(); }
       try { showModal(getPubFromCard()); } catch (err) {
         console.error('[#296 AI showModal err]', err);
@@ -241,12 +241,12 @@
       if (!btn) return;
       if (btn.__hqAiHandledAt && (Date.now() - btn.__hqAiHandledAt) < 500) return;
       btn.__hqAiHandledAt = Date.now();
-      console.log('[#296 hq-ai-btn delegated click]');
+      if (window.DEBUG) console.log('[#296 hq-ai-btn delegated click]');
       e.preventDefault();
       e.stopPropagation();
       try { showModal(getPubFromCard()); } catch (err) { console.error(err); }
     }, false);
   }
 
-  console.log('%cDreamCar HQ AI Copy %c· Claude assistant wired (DreamCar-only)', 'color:#8b5cf6;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ AI Copy %c· Claude assistant wired (DreamCar-only)', 'color:#8b5cf6;font-weight:700;', 'color:#888;');
 })();

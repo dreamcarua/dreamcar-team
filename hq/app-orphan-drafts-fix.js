@@ -39,7 +39,7 @@
     var isReload = navEntry && navEntry.type === 'reload';
     // Якщо це reload АБО навігація з історії (back/forward) — reset; інакше зовнішній клік → лишаємо
     if (isReload) {
-      console.log('[orphan-drafts] reload detected on #publication — reset to #calendar');
+      if (window.DEBUG) console.log('[orphan-drafts] reload detected on #publication — reset to #calendar');
       history.replaceState(null, '', location.pathname + location.search + '#calendar');
     }
   })();
@@ -53,7 +53,7 @@
     });
     var removed = before - Store._data.publications.length;
     if (removed > 0) {
-      console.log('[orphan-cleanup] removed', removed, 'empty drafts from memory');
+      if (window.DEBUG) console.log('[orphan-cleanup] removed', removed, 'empty drafts from memory');
       try { Store._saveLocal && Store._saveLocal(); } catch (_) {}
     }
   }

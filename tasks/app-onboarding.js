@@ -581,7 +581,7 @@
         drAnalytics.parentNode.insertBefore(drOnb, drAnalytics);
       }
     }
-    console.log('[tasks-onb] chip injected. me:', !!me, '· progress:', prog.done + '/' + prog.total);
+    if (window.DEBUG) console.log('[tasks-onb] chip injected. me:', !!me, '· progress:', prog.done + '/' + prog.total);
     return true;
   }
 
@@ -602,7 +602,7 @@
     _initAttempts++;
     var topbar = document.getElementById('topbarActions');
     var hasChip = !!document.getElementById('onbBtn');
-    console.log('[tasks-onb] init attempt', _initAttempts, '· topbar:', !!topbar, '· chip:', hasChip);
+    if (window.DEBUG) console.log('[tasks-onb] init attempt', _initAttempts, '· topbar:', !!topbar, '· chip:', hasChip);
     if (topbar && !hasChip) {
       injectChip();
       maybeRenderBanner();
@@ -651,5 +651,5 @@
     if (location.hash !== '#onboarding') location.hash = '#onboarding';
     else maybeRoute();
   };
-  console.log('%cDreamCar Tasks Onboarding v1.1 %c· 10 steps loaded · retry до 30 сек', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar Tasks Onboarding v1.1 %c· 10 steps loaded · retry до 30 сек', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

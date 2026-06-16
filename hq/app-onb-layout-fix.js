@@ -45,7 +45,7 @@
     });
 
     if (moved > 0) {
-      console.log('%cDreamCar HQ Onb layout fix %c· repaired ' + moved + ' stray nodes', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+      if (window.DEBUG) console.log('%cDreamCar HQ Onb layout fix %c· repaired ' + moved + ' stray nodes', 'color:#fbbf24;font-weight:700;', 'color:#888;');
     }
     return moved > 0;
   }
@@ -89,5 +89,5 @@
     }, 1500);
   }
 
-  console.log('%cDreamCar HQ Onb layout repair %c· installed', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Onb layout repair %c· installed', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

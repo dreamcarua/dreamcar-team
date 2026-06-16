@@ -38,7 +38,7 @@
         if (!c.url && e.thumbnail_url) { c.url = e.thumbnail_url; updated++; }
       });
       if (updated > 0) {
-        console.log('%cDreamCar HQ Rescue 2e %c· ' + updated + ' creatives',
+        if (window.DEBUG) console.log('%cDreamCar HQ Rescue 2e %c· ' + updated + ' creatives',
           'color:#7ab0ff;font-weight:700;', 'color:#888;');
         // Triggers
         if (typeof window.refreshPreview === 'function' && window.__hqCurrentPub) {
@@ -108,6 +108,6 @@
   // 4. Initial
   [400, 1200, 2500, 5000].forEach(function (ms) { setTimeout(rescueCreatives, ms); });
 
-  console.log('%cDreamCar HQ Pravky-2e %c· creatives rescue на hashchange active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Pravky-2e %c· creatives rescue на hashchange active',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

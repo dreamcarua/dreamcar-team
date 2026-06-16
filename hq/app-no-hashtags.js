@@ -117,6 +117,6 @@
     }, 250);
   }
 
-  console.log('%cDreamCar HQ No Hashtags %c· #E active — AI + posts без hashtags',
+  if (window.DEBUG) console.log('%cDreamCar HQ No Hashtags %c· #E active — AI + posts без hashtags',
     'color:#7ab0ff;font-weight:700;', 'color:#888;');
 })();

@@ -94,5 +94,5 @@
   setTimeout(patchFilteredPubs, 600);
   setTimeout(patchFilteredPubs, 2000);
 
-  console.log('%cDreamCar HQ FTS %c· tsvector search wired', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ FTS %c· tsvector search wired', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
 })();

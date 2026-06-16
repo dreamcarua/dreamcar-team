@@ -474,7 +474,7 @@
       if (isEmpty) return window._origOpenCard(id);
       return showOverview(id);
     };
-    console.log('[hq] overview-modal v4.1 installed (empty-pub direct-edit)');
+    if (window.DEBUG) console.log('[hq] overview-modal v4.1 installed (empty-pub direct-edit)');
   }
   installPatch();
 })();

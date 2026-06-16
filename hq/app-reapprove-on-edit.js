@@ -115,6 +115,6 @@
     };
   }
 
-  console.log('%cDreamCar HQ Re-approve %c· auto-revert >' + THRESHOLD + ' chars active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Re-approve %c· auto-revert >' + THRESHOLD + ' chars active',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

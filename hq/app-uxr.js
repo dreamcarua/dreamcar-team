@@ -47,7 +47,7 @@
         '.pub-card-layout { gap: 20px !important; }' +
       '}';
     document.head.appendChild(css);
-    console.log('%cHQ UXR %c· #134 spacing injected', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
+    if (window.DEBUG) console.log('%cHQ UXR %c· #134 spacing injected', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
   })();
 
   // =================================================================
@@ -112,7 +112,7 @@
       // Light theme override
       'body.hq-light .cal-day:not(:has(.cal-card)):not(:has(.more)):hover::before { color: rgba(216,0,4,0.6); }';
     document.head.appendChild(css);
-    console.log('%cHQ UXR %c· #133 calendar affordance injected', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
+    if (window.DEBUG) console.log('%cHQ UXR %c· #133 calendar affordance injected', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
   })();
 
   // =================================================================
@@ -147,7 +147,7 @@
         if (tryPatch() || tries++ > 30) clearInterval(iv);
       }, 300);
     }
-    console.log('%cHQ UXR %c· #132 transition flow patched', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
+    if (window.DEBUG) console.log('%cHQ UXR %c· #132 transition flow patched', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
   })();
 
   // =================================================================
@@ -281,6 +281,6 @@
   setTimeout(function () { patchPreviewThumbnail(); injectFeedGrid(); }, 1500);
   setTimeout(function () { patchPreviewThumbnail(); injectFeedGrid(); }, 4000);
 
-  console.log('%cDreamCar HQ UXR %c· #132-#136 завантажено (5 фіксів)',
+  if (window.DEBUG) console.log('%cDreamCar HQ UXR %c· #132-#136 завантажено (5 фіксів)',
     'color:#7ab0ff;font-weight:700;', 'color:#888;');
 })();

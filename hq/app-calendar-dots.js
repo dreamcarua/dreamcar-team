@@ -95,6 +95,6 @@
   setTimeout(processAll, 1500);
   setTimeout(processAll, 4000);
 
-  console.log('%cDreamCar HQ Calendar Dots %c· бренд-кольори платформ (#118)',
+  if (window.DEBUG) console.log('%cDreamCar HQ Calendar Dots %c· бренд-кольори платформ (#118)',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

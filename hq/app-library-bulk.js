@@ -153,6 +153,6 @@
   setTimeout(installBulkTagButton, 1500);
   setTimeout(installBulkTagButton, 4000);
 
-  console.log('%cDreamCar HQ Library Bulk Tag %c· (#121)',
+  if (window.DEBUG) console.log('%cDreamCar HQ Library Bulk Tag %c· (#121)',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();
