@@ -155,7 +155,7 @@
     start: startLock, end: endLock, ping: pingLock, refresh: refreshBanner,
     current: function () { return _currentLockPubId; },
   };
-  console.log('%cDreamCar HQ Soft-Lock %c· active', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Soft-Lock %c· active', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 
   // ============================================================
   // LOADER CHAIN — підвантажуємо app-extras.js

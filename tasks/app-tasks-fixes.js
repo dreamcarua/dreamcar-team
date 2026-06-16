@@ -368,12 +368,12 @@
     // 3) Fallback fetch напряму (БЕЗ .eq('is_active',true) — RLS вже фільтрує)
     if (!window.supabase) { console.error('[watchers] no supabase client'); return []; }
     try {
-      console.log('[watchers] fallback fetch from API');
+      if (window.DEBUG) console.log('[watchers] fallback fetch from API');
       var r = await window.supabase.from('users').select('id,name,email,role,is_active').order('name');
       var users = (r.data || []).filter(function(u){ return u.is_active !== false; });
       _watchersCache = users;
       if (window.state) state.users = users;
-      console.log('[watchers] fallback loaded:', users.length, 'users; rpc err:', r.error);
+      if (window.DEBUG) console.log('[watchers] fallback loaded:', users.length, 'users; rpc err:', r.error);
       return users;
     } catch (e) {
       console.error('[watchers] fallback fetch error', e);

@@ -311,6 +311,6 @@
     } catch (_) {}
   }
 
-  console.log('%cDreamCar HQ Analytics v2 %c· #126 time-in-status + rework + velocity',
+  if (window.DEBUG) console.log('%cDreamCar HQ Analytics v2 %c· #126 time-in-status + rework + velocity',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

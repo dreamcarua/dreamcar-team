@@ -36,7 +36,7 @@
       });
 
       if (updated > 0) {
-        console.log('%cDreamCar HQ Rescue 2f %c· hydrated, force navigate()',
+        if (window.DEBUG) console.log('%cDreamCar HQ Rescue 2f %c· hydrated, force navigate()',
           'color:#7ab0ff;font-weight:700;', 'color:#888;');
         // FORCE re-render через navigate() — це переробить .lib-tile / .cal-card etc
         if (typeof window.navigate === 'function') {
@@ -83,6 +83,6 @@
     mo.observe(document.body, { childList: true, subtree: true });
   }
 
-  console.log('%cDreamCar HQ Pravky-2f %c· rescue + force navigate active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Pravky-2f %c· rescue + force navigate active',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

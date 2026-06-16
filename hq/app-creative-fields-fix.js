@@ -36,7 +36,7 @@
         updated++;
       });
 
-      console.log('%cDreamCar HQ Creative fields %c· hydrated ' + updated + ' creatives',
+      if (window.DEBUG) console.log('%cDreamCar HQ Creative fields %c· hydrated ' + updated + ' creatives',
         'color:#7ab0ff;font-weight:700;', 'color:#888;');
 
       // Якщо ми на сторінці що залежить від creatives — перерендерити
@@ -79,5 +79,5 @@
     }
   }, 1800);
 
-  console.log('%cDreamCar HQ Creative-fields fix %c· installed', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Creative-fields fix %c· installed', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
 })();

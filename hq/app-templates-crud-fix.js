@@ -290,5 +290,5 @@
   window.addEventListener('hashchange', maybeRunSettings);
   maybeRunSettings();
 
-  console.log('%cDreamCar HQ Templates CRUD %c· create/edit ready', 'color:#93c5fd;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Templates CRUD %c· create/edit ready', 'color:#93c5fd;font-weight:700;', 'color:#888;');
 })();

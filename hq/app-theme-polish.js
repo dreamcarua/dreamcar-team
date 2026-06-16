@@ -350,6 +350,6 @@
   setTimeout(inject, 3000);
   setTimeout(inject, 6000);
 
-  console.log('%cDreamCar HQ Theme Polish v3 %c· повне покриття + inline overrides',
+  if (window.DEBUG) console.log('%cDreamCar HQ Theme Polish v3 %c· повне покриття + inline overrides',
     'color:#E30613;font-weight:800;', 'color:#888;');
 })();

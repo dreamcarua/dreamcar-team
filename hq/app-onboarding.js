@@ -611,5 +611,5 @@
   window.addEventListener('hashchange', maybeRoute);
   [500, 1800].forEach(function (ms) { setTimeout(maybeRoute, ms); });
 
-  console.log('%cDreamCar HQ Onboarding v2 %c· full training ready', 'color:#fbbf24;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Onboarding v2 %c· full training ready', 'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

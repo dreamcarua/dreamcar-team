@@ -178,6 +178,6 @@
   setTimeout(installButton, 1500);
   setTimeout(installButton, 4000);
 
-  console.log('%cDreamCar HQ Duplicate To %c· (#120)',
+  if (window.DEBUG) console.log('%cDreamCar HQ Duplicate To %c· (#120)',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

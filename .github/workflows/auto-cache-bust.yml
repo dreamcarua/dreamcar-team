@@ -49,13 +49,17 @@ jobs:
       - name: Bump version у script src URLs
         run: |
           VERSION="${{ steps.ver.outputs.version }}"
-          # Замінити ?v=<щось> на ?v=<новий> у всіх .html
-          # Скрипт обережний — тільки patterns "?v=20YYY..." (наша конвенція)
+          # 16.06.2026 — FULL REPLACE.
+          # Раніше pattern match-ив тільки початок (?v=202606151639) а tail
+          # (-3052237135-ca00dbad33-...-ead45b7a) лишався у файлі і нескінченно
+          # ріс кожного push. Тепер захоплюємо ВЕСЬ tail до next " або &.
+          # Patterns:
+          #   1) Наша TS+SHA конвенція: ?v=20YYYYMMDDHHMM[-hex-hex-...]
+          #   2) Legacy short hash: ?v=20YYYYMMDD[a-z]?
           for f in hq/index.html tasks/index.html projects/index.html retention/index.html dashboard/index.html brand-book/index.html; do
             if [ -f "$f" ]; then
-              # Замінити ?v=20XXXX[a-z]? на ?v=$VERSION
-              sed -i -E "s/\?v=20[0-9]{6,8}[a-z]?/?v=$VERSION/g" "$f"
-              sed -i -E "s/\?v=[0-9]{12}-[a-f0-9]{8}/?v=$VERSION/g" "$f"
+              # 1) Жадібно поглинаємо весь tail [0-9a-f-] до " або & або #
+              sed -i -E "s/\?v=20[0-9]{6,8}[a-z]?[-a-f0-9]*/?v=$VERSION/g" "$f"
               echo "Updated $f"
             fi
           done

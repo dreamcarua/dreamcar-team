@@ -296,7 +296,7 @@
       return await _orig.call(this, compressed, pub);
     };
     window.uploadCreativeFile.__clientCompressPatched = true;
-    console.log('%cDreamCar HQ Client-Compress %c· photo (BIC + heic2any) + video (ffmpeg.wasm) · FREE, no server worker', 'color:#10b981;font-weight:700;', 'color:#888;');
+    if (window.DEBUG) console.log('%cDreamCar HQ Client-Compress %c· photo (BIC + heic2any) + video (ffmpeg.wasm) · FREE, no server worker', 'color:#10b981;font-weight:700;', 'color:#888;');
     return true;
   }
 

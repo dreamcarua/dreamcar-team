@@ -188,5 +188,5 @@
     poll: pollPending,
     pendingIds: pendingIds,
   };
-  console.log('%cDreamCar HQ Compress Preview %c· polling every 8s · auto-swap when ready', 'color:#10b981;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Compress Preview %c· polling every 8s · auto-swap when ready', 'color:#10b981;font-weight:700;', 'color:#888;');
 })();

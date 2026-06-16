@@ -620,6 +620,6 @@
     mo2.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-creative-id', 'data-cid'] });
   }
 
-  console.log('%cDreamCar HQ Preview v2 %c· pixel-perfect TG/IG/TT/TH/YT/FB (#328)',
+  if (window.DEBUG) console.log('%cDreamCar HQ Preview v2 %c· pixel-perfect TG/IG/TT/TH/YT/FB (#328)',
     'color:#10b981;font-weight:700;', 'color:#888;');
 })();

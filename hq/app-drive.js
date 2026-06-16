@@ -381,7 +381,7 @@
     uploadViaR2: uploadViaR2,
     threshold: R2_THRESHOLD_BYTES,
   };
-  console.log('%cDreamCar HQ Upload %c· R2 direct for >49MB · Supabase Storage for ≤49MB · UUID creative-id fix active', 'color:#f6821f;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Upload %c· R2 direct for >49MB · Supabase Storage for ≤49MB · UUID creative-id fix active', 'color:#f6821f;font-weight:700;', 'color:#888;');
 
   // ============================================================
   // LOADER CHAIN — підвантажуємо app-context-menu.js

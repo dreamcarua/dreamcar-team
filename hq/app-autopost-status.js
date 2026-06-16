@@ -177,6 +177,6 @@
   }
   setTimeout(subscribeAutopostRT, 3000);
 
-  console.log('%cDreamCar HQ Autopost Status %c· #143 polling + realtime',
+  if (window.DEBUG) console.log('%cDreamCar HQ Autopost Status %c· #143 polling + realtime',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

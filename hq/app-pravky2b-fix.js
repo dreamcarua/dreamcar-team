@@ -63,7 +63,7 @@
       };
     });
 
-    console.log('%cDreamCar HQ Approvers re-render %c· ' + users.length + ' users (з members)',
+    if (window.DEBUG) console.log('%cDreamCar HQ Approvers re-render %c· ' + users.length + ' users (з members)',
       'color:#fbbf24;font-weight:700;', 'color:#888;');
   }
 
@@ -127,7 +127,7 @@
       if (!AC) return;
       if (!window.__hqAudioCtxPersist) {
         window.__hqAudioCtxPersist = new AC();
-        console.log('%cDreamCar HQ Audio %c· context created, state=' + window.__hqAudioCtxPersist.state,
+        if (window.DEBUG) console.log('%cDreamCar HQ Audio %c· context created, state=' + window.__hqAudioCtxPersist.state,
           'color:#fbbf24;font-weight:700;', 'color:#888;');
       }
     } catch (e) { console.warn('eager audio init:', e); }
@@ -142,7 +142,7 @@
     }
     if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
       ctx.resume().then(function () {
-        console.log('%cDreamCar HQ Audio %c· resumed, state=' + ctx.state,
+        if (window.DEBUG) console.log('%cDreamCar HQ Audio %c· resumed, state=' + ctx.state,
           'color:#fbbf24;font-weight:700;', 'color:#888;');
       }).catch(function () {});
     }
@@ -161,7 +161,7 @@
     if (!sb || !sb.realtime || !sb.realtime.channels) return;
     var channels = sb.realtime.channels;
     var states = channels.map(function (c) { return c.topic + ':' + c.state; });
-    console.log('%cDreamCar HQ RT channels %c· ' + states.join(', '),
+    if (window.DEBUG) console.log('%cDreamCar HQ RT channels %c· ' + states.join(', '),
       'color:#7ab0ff;font-weight:700;', 'color:#888;');
     // Якщо comments-card-rt відсутній — re-subscribe
     var hasCommentsRT = channels.some(function (c) {
@@ -177,6 +177,6 @@
     }
   }, 3000);
 
-  console.log('%cDreamCar HQ Pravky-2b %c· approvers fix + audio eager + cur-pub fix active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Pravky-2b %c· approvers fix + audio eager + cur-pub fix active',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

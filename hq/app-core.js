@@ -312,7 +312,7 @@ const Store = {
     // Bug 8 fix: перевіряємо safeStatus (реальний старий статус), а не existing.status
     const _wasApproved = safeStatus === 'approved';
     if (_wasApproved && targetStatus !== 'published') {
-      console.log('[re-approval] pub', pub.id, '— was approved, editing detected → reset to review');
+      if (window.DEBUG) console.log('[re-approval] pub', pub.id, '— was approved, editing detected → reset to review');
       pub.status = 'review';
     }
     const resolvedStatus = pub.status || 'draft';

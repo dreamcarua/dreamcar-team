@@ -346,6 +346,6 @@
     }, 300);
   }
 
-  console.log('%cDreamCar HQ Rework Modal %c· #122 structured feedback (9 reasons + details)',
+  if (window.DEBUG) console.log('%cDreamCar HQ Rework Modal %c· #122 structured feedback (9 reasons + details)',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

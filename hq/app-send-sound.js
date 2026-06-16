@@ -62,6 +62,6 @@
     }
   }, true);
 
-  console.log('%cDreamCar HQ Send sound %c· active for own comments',
+  if (window.DEBUG) console.log('%cDreamCar HQ Send sound %c· active for own comments',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

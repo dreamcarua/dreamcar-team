@@ -19,7 +19,7 @@
   function injectWidget() {
     var bot = getBotUsername();
     if (!bot) {
-      console.log('TG Login Widget: TG_BOT_USERNAME не задано — пропускаю');
+      if (window.DEBUG) console.log('TG Login Widget: TG_BOT_USERNAME не задано — пропускаю');
       return false;
     }
     var holder = document.getElementById('authTgWidget');
@@ -63,7 +63,7 @@
       }
     }, 4000);
 
-    console.log('%cDreamCar HQ TG Login Widget %c· injected for @' + bot,
+    if (window.DEBUG) console.log('%cDreamCar HQ TG Login Widget %c· injected for @' + bot,
       'color:#0088cc;font-weight:700;', 'color:#888;');
     return true;
   }
@@ -97,6 +97,6 @@
   // Retry safeguard
   [400, 1500, 3500].forEach(function (ms) { setTimeout(tryInject, ms); });
 
-  console.log('%cDreamCar HQ TG Login Widget %c· installer ready',
+  if (window.DEBUG) console.log('%cDreamCar HQ TG Login Widget %c· installer ready',
     'color:#0088cc;font-weight:700;', 'color:#888;');
 })();

@@ -101,6 +101,6 @@
     });
   }
 
-  console.log('%cDreamCar HQ Per-platform expansion %c· active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Per-platform expansion %c· active',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

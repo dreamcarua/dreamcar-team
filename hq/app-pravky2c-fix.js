@@ -123,7 +123,7 @@
       };
     });
 
-    console.log('%cDreamCar HQ Approvers 2c %c· rerendered ' + users.length + ' chips',
+    if (window.DEBUG) console.log('%cDreamCar HQ Approvers 2c %c· rerendered ' + users.length + ' chips',
       'color:#fbbf24;font-weight:700;', 'color:#888;');
     return true;
   }
@@ -166,6 +166,6 @@
   // 5. Initial — якщо вже відкрита модалка
   [500, 1500, 3000].forEach(function (ms) { setTimeout(rerenderApprovers, ms); });
 
-  console.log('%cDreamCar HQ Pravky-2c %c· robust approvers + meta fix active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Pravky-2c %c· robust approvers + meta fix active',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

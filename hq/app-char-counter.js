@@ -150,6 +150,6 @@
   setTimeout(rebind, 1500);
   setTimeout(rebind, 4000);
 
-  console.log('%cDreamCar HQ Char Counter %c· per-platform limits (#117)',
+  if (window.DEBUG) console.log('%cDreamCar HQ Char Counter %c· per-platform limits (#117)',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();

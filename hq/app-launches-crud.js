@@ -268,6 +268,6 @@
   window.addEventListener('hashchange', maybeRun);
   maybeRun();
 
-  console.log('%cDreamCar HQ Launches CRUD %c· admin actions ready',
+  if (window.DEBUG) console.log('%cDreamCar HQ Launches CRUD %c· admin actions ready',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

@@ -296,6 +296,6 @@
     }, 250);
   }
 
-  console.log('%cDreamCar HQ Library Delete %c· single + bulk delete active',
+  if (window.DEBUG) console.log('%cDreamCar HQ Library Delete %c· single + bulk delete active',
     'color:#ff6577;font-weight:700;', 'color:#888;');
 })();

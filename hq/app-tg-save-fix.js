@@ -123,5 +123,5 @@
   // Замінити глобальну функцію якщо доступна
   window.saveTgChatId = saveTgChatIdSafe;
 
-  console.log('%cDreamCar HQ TG save fix %c· defensive save with row-count check installed', 'color:#0088cc;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ TG save fix %c· defensive save with row-count check installed', 'color:#0088cc;font-weight:700;', 'color:#888;');
 })();

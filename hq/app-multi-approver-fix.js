@@ -141,6 +141,6 @@
 
   window.HQ_registerApproval = registerApproval;
 
-  console.log('%cDreamCar HQ Multi-approver %c· AND logic у board + card modal',
+  if (window.DEBUG) console.log('%cDreamCar HQ Multi-approver %c· AND logic у board + card modal',
     'color:#6ee7b7;font-weight:700;', 'color:#888;');
 })();

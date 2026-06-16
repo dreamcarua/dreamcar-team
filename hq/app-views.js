@@ -1115,7 +1115,7 @@ function attachCardHandlers(p) {
           const peek = await resp.clone().json().catch(() => ({}));
           const reason = String(peek.reason || '');
           if (reason.startsWith('token_expired') || reason.startsWith('getuser_error') || reason === 'no_user_in_token') {
-            console.log('[tg-test] 401 reason=' + reason + ' → refreshSession + retry');
+            if (window.DEBUG) console.log('[tg-test] 401 reason=' + reason + ' → refreshSession + retry');
             try {
               await window.supabase.auth.refreshSession();
               token = await getToken();
@@ -1661,7 +1661,7 @@ async function boot() {
               var ssoStr = encodeURIComponent(btoa(JSON.stringify(sso)));
               var path = nextParam && /^\/[\w/#-]*$/.test(nextParam) ? nextParam : '/';
               var dashUrl = 'https://dashboard.dreamcar.ua' + path + '#sso=' + ssoStr;
-              console.log('[auth] SSO bridge → dashboard');
+              if (window.DEBUG) console.log('[auth] SSO bridge → dashboard');
               setTimeout(function () { window.location.href = dashUrl; }, 100);
             } catch (e) {
               console.error('[auth] SSO bridge fail', e);
@@ -1683,13 +1683,13 @@ async function boot() {
                   expires_at: sess.expires_at,
                 };
                 var ssoStr = encodeURIComponent(btoa(JSON.stringify(sso)));
-                console.log('[auth] SSO bridge → ' + nextParam);
+                if (window.DEBUG) console.log('[auth] SSO bridge → ' + nextParam);
                 setTimeout(function () { window.location.href = nextParam + '#sso=' + ssoStr; }, 200);
                 return;
               }
             } catch (e) { console.warn('[auth] SSO bridge to Tasks fail:', e); }
             // Fallback — простий redirect
-            console.log('[auth] login complete → redirect to', nextParam);
+            if (window.DEBUG) console.log('[auth] login complete → redirect to', nextParam);
             setTimeout(function () { window.location.href = nextParam; }, 200);
           })();
         }
@@ -1730,7 +1730,7 @@ async function boot() {
     }
     if (returnTo && /^\/(tasks|projects|retention|brand)(\/|$)/.test(returnTo)) {
       try { sessionStorage.removeItem('dc_auth_next'); } catch(_) {}
-      console.log('[auth] return-to:', returnTo);
+      if (window.DEBUG) console.log('[auth] return-to:', returnTo);
       location.replace(returnTo);
       return; // Не продовжуємо HQ boot — переходимо у target app
     }
@@ -1759,7 +1759,7 @@ window.HQ = {
   signOut: () => Auth.signOut(),
 };
 
-console.log('%cDreamCar HQ %cv0.2 (Supabase-aware)', 'color:#E30613;font-weight:800;font-size:14px;', 'color:#888;');
-console.log('Команди: HQ.reset() — скинути demo дані. HQ.signOut() — вийти. HQ.store — інспектор.');
+if (window.DEBUG) console.log('%cDreamCar HQ %cv0.2 (Supabase-aware)', 'color:#E30613;font-weight:800;font-size:14px;', 'color:#888;');
+if (window.DEBUG) console.log('Команди: HQ.reset() — скинути demo дані. HQ.signOut() — вийти. HQ.store — інспектор.');
 
 boot();

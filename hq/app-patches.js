@@ -731,5 +731,5 @@
     };
   }
 
-  console.log('%cDreamCar HQ Patches v3 %c· all UX-фіксы active + per-platform schedule', 'color:#4ade80;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Patches v3 %c· all UX-фіксы active + per-platform schedule', 'color:#4ade80;font-weight:700;', 'color:#888;');
 })();

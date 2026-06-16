@@ -39,7 +39,7 @@
           u.onboarding_completed_at = extra.onboarding_completed_at;
           u.push_subscription = extra.push_subscription;
         });
-        console.log('%cDreamCar HQ User fields %c· hydrated', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
+        if (window.DEBUG) console.log('%cDreamCar HQ User fields %c· hydrated', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
       } catch (e) { console.warn('user fields hydrate exception:', e); }
     };
     Store._loadFromBackend.__userFieldsPatched = true;
@@ -82,5 +82,5 @@
     }
   }, 2000);
 
-  console.log('%cDreamCar HQ User-fields fix %c· installed', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ User-fields fix %c· installed', 'color:#7ab0ff;font-weight:700;', 'color:#888;');
 })();
