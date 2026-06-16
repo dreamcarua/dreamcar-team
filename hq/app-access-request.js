@@ -110,5 +110,5 @@
   setTimeout(autoCheck, 2000);
   setTimeout(autoCheck, 5000);
 
-  console.log('%cDreamCar HQ Access %c· No-access screen ready', 'color:#E30613;font-weight:700;', 'color:#888;');
+  if (window.DEBUG) console.log('%cDreamCar HQ Access %c· No-access screen ready', 'color:#E30613;font-weight:700;', 'color:#888;');
 })();
