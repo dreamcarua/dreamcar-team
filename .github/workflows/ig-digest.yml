@@ -1,0 +1,34 @@
+name: IG Daily Digest (09:00 Kyiv)
+
+# Щоденний AI-дайджест Instagram-органіки → Supabase dashboard_ig_ai_daily + DM Вадиму (@dreamcar_team_bot).
+# Метрики 2025-26 + rule-based сигнали + Claude-наратив. Дати — Europe/Kyiv.
+# Secrets: HQ_DB_URL, HQ_DB_SERVICE_KEY, ANTHROPIC_API_KEY (опц.), TG_BOT_TOKEN, TG_CHAT_ID.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 09:00 Kyiv (EEST = UTC+3)
+  workflow_dispatch:
+
+concurrency:
+  group: ig-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Run IG digest
+        env:
+          HQ_DB_URL:          ${{ secrets.HQ_DB_URL }}
+          HQ_DB_SERVICE_KEY:  ${{ secrets.HQ_DB_SERVICE_KEY }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL:    ${{ vars.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001' }}
+          TG_BOT_TOKEN:       ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID:         ${{ secrets.TG_CHAT_ID }}
+        run: python etl/ig_digest.py

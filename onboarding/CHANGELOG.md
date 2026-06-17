@@ -65,6 +65,40 @@
 - ✅ 1 active conn, 0 LWLock waits, 0 cron failures за 15 хв (раніше десятки)
 - ✅ DB size 787 MB (раніше 1.2 GB до VACUUM)
 - ✅ Peak cron load: 4 jobs/min (раніше 6+)
+## 17.06.2026 — IG-аналітика: цикл ↔ продажі
+
+### IG-аналітика
+- 🆕 Цикл-рівнева кореляція органіки і продажів: RPC ig_cycle_sales (security definer, paid-угоди+виручка по dashboard_projects×dashboard_deals, Kyiv tz). Таблиця циклів отримала колонки «Угоди»/«Виручка», + скатер «охоплення циклу ↔ виручка». Directional, не атрибуція (канали змішані).
+
+---
+
+## 17.06.2026 — IG-аналітика: hook-кластери + Stories
+
+### IG-аналітика
+- 🆕 Hook-кластери: AI-класифікатор у ig_digest (Anthropic) тегує капшни (intrigue/proof/urgency/prize/social/value) + has_cta → блок «Гаки» (ER/sends по типу). Keyword-fallback поки AI не протегував. Колонки hook_type/has_cta.
+- 🆕 Stories у ETL → dashboard_ig_stories (forward-only, IG віддає активні ~24 год) + блок на дашборді.
+
+---
+
+## 17.06.2026 — IG-аналітика v3 (ревізія маркетолога)
+
+### IG-аналітика (team.dreamcar.ua/hq/instagram-analytics.html)
+- 🔧 Переосмислено за критикою senior-маркетолога: акаунт міряємо не як медіа-бренд, а з поправкою на giveaway-базу.
+- 🆕 Когорти по циклах запусків (dashboard_projects): метрики цикл-до-циклу замість пласких 90д (прибрали хибне «ER -51%» від сезонності).
+- 🆕 RAG проти ВЛАСНОЇ цілі = базлайн +50% (мотивація), а не проти ринкових бенчмарків. Метрики: останні 30д vs попередні 60д.
+- 🆕 Power-пости (saves×sends квадрант), блок «Аудиторія» (досяжність/відток), Reels plays/reach.
+- 🔧 Демоут vanity: sends/reach прибрано з hero (тепер ER by reach + досяжна аудиторія); ER-by-followers більше не червоний алярм (спотворений giveaway-базою); best-time heatmap з n-count і сірими комірками при n<3; аномалії — в межах фази.
+- 🗑 Revenue-блок свідомо НЕ додано (атрибуція IG-органіки брудна через інші канали).
+
+---
+
+## 17.06.2026 — Instagram-аналітика (HQ) + AI-дайджест
+
+### IG-аналітика (team.dreamcar.ua/hq/instagram-analytics.html)
+- 🆕 Нова сторінка HQ «Instagram» (пункт у сайдбарі): KPI 2025-26 (sends/reach, saves/reach, reach rate, ER by reach/followers), формати Reels vs стрічка, ER-тренд з аномаліями, частота×ER, best-time heatmap, топ/слабкі пости, рекомендації, бенчмарк конкурентів. Читає dashboard_ig_* напряму (anon+RLS).
+- 🆕 ETL sync_ig_insights.py + cron 2x/день (dreamcar-dashboard) → dashboard_ig_account_daily / dashboard_ig_media. @dreamcar.ua, IG_USER_ID 17841403783002317.
+- 🆕 AI-дайджест etl/ig_digest.py + cron 09:00 Київ → dashboard_ig_ai_daily + DM Вадиму (@dreamcar_team_bot). Claude-наратив (ANTHROPIC_API_KEY) з fallback на rule-based сигнали.
+- 🛡 RLS select-політики на dashboard_ig_* для authenticated.
 
 ---
 
