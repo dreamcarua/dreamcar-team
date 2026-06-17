@@ -569,6 +569,17 @@ async function uploadCreativeFile(file, pub) {
       storage_path: up.path,
     });
     if (!creative) { removeProgressItem(); return; }
+    // #516 FIX: pub може бути null при upload з Бібліотеки (без контексту публікації).
+    // У цьому випадку креатив просто потрапляє у БД-таблицю creatives, без UI strip.
+    if (!pub) {
+      removeProgressItem();
+      toast('Готово', 'success', file.name);
+      // Сигнал бібліотеці що з'явився новий креатив (renderLibrary підхопить)
+      if (typeof window.renderLibrary === 'function' && location.hash.startsWith('#library')) {
+        try { window.renderLibrary(document.querySelector('.main')); } catch(_) {}
+      }
+      return;
+    }
     // Додаємо у pub.creatives і робимо autosave
     pub.creatives = [...(pub.creatives || []), creative.id];
 
