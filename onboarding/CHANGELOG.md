@@ -8,6 +8,14 @@
 
 ---
 
+## 17.06.2026 — IG-аналітика: hook-кластери + Stories
+
+### IG-аналітика
+- 🆕 Hook-кластери: AI-класифікатор у ig_digest (Anthropic) тегує капшни (intrigue/proof/urgency/prize/social/value) + has_cta → блок «Гаки» (ER/sends по типу). Keyword-fallback поки AI не протегував. Колонки hook_type/has_cta.
+- 🆕 Stories у ETL → dashboard_ig_stories (forward-only, IG віддає активні ~24 год) + блок на дашборді.
+
+---
+
 ## 17.06.2026 — IG-аналітика v3 (ревізія маркетолога)
 
 ### IG-аналітика (team.dreamcar.ua/hq/instagram-analytics.html)
