@@ -8,6 +8,52 @@
 
 ---
 
+## 17.06.2026 — Marketing Critic UI + Alert + DC Media + BOARD bot fix
+
+### Marketing Critic (NEW)
+- 🆕 RPC `dashboard_marketing_critic(p_from, p_to, p_project, p_min_spend)` — verdicts: winner/ad_fatigue/low_ctr/overspend/ok з benchmark CTR. Frequency = impressions/raw_data->>'reach'.
+- 🆕 UI сторінка `dashboard.dreamcar.ua/marketing-critic/` — KPI cards + таблиця з verdict badges + date pickers + project filter. Sidebar parity з `/meta-analytics/`.
+- 🆕 Edge fn `marketing-critic-alert` v1 + pg_cron jobid 1506 (щодня 10:00 Київ): шле TG alert у BOARD chat -1003883456849 при fatigue/overspend/low_ctr або winners. Silent якщо все ok.
+- 🔧 Marketing-critic sticky th — `top:0` замість `top:64px` (sticky relative до scroll container, не topbar).
+
+### DC Media Archive (#411 fixed)
+- 🔧 `dashboard_settings.dc_media_chat_id` був порожній. Probe знайшов і зареєстрував `-1003912295530` ("DreamCar Media"). Нові published тепер автоматично архівуються через trigger.
+
+### Quiet Hours (#494 verified)
+- ✅ Виявлено що `team-tasks-notify` v8 ВЖЕ має власну quiet hours логіку через `team_task_notifications.next_attempt_at` + urgent whitelist (mention/overdue/reminder_1h/creator_done). Refactor не потрібен.
+- ✅ Створено helper RPC `enqueue_tg_notify(...)` для ad-hoc нотифікацій з auto quiet-hours scheduling.
+
+### BOARD bot (#490 P0)
+- 🔧 `tg-task-extract` v12: 3-pattern robust JSON extractor + graceful fallback + system prompt інструкція вибирати першу задачу з multi-task list. Раніше 500 "LLM returned invalid JSON" на повідомленнях з 1./2./3. структурою.
+
+### Supabase Optimization (Шар 2.x)
+- ⚡ SHAR 2.1: `kasa-sync-privat` cron 10хв→15хв (-27 хв CPU/добу).
+- ⚡ SHAR 2.3: `mv_dashboard_project_pnl` UNIQUE INDEX → CONCURRENTLY refresh працює fast-path (6.7s→3.4s).
+- ⚡ SHAR 2.4: Realtime cleanup -2 unused tables (dashboard_ads_data 18MB, dashboard_projects).
+- 🖥 Compute upgrade: Micro → **Small** (2GB RAM, 2-core ARM, $15/міс). Параметри auto-tuned.
+
+---
+
+## 17.06.2026 — P0 Dashboard #472: iPhone 06.06 single-day collapse
+
+### Dashboard (dashboard.dreamcar.ua)
+- 🔧 **#472 P0**: completed/single-day проект (наприклад iPhone 17 PRO MAX: starts_on=2026-06-06, ends_on=2026-06-06) + preset "Сьогодні" (17.06) → `spEnd < toDate` → `toDate=06.06` → `fromDate=17.06 > toDate=06.06` → trivial empty `1900-01-01` → **дашборд показував 0/0/0/0**.
+- ✅ Fix у `_rpcParams()` (docs/index.html line 2349-2360): якщо проект вибраний і period не перетинається → **fallback на проектний період** замість 1900-01-01. Trivial empty залишається тільки коли проект НЕ вибраний (raw filter без sp).
+- 📊 Тепер iPhone з preset "Сьогодні" або "Тиждень" → показує дані за повний проектний день 06.06.
+
+---
+
+## 17.06.2026 — P0 Retention TG approval: відео-креатив
+
+### Edge Function notify-tg v35 (v12)
+- 🔧 **#488 P0** (Vira: «воно не показує тут відео що я додала»): `handleRetentionMessageEvent` НЕ завантажував креативи, шле тільки текст. SMM publication review ВЖЕ мав sendPubReviewToChat з media, retention — ні. Регресія аналогічна #225/#315 для retention pipeline.
+- ✅ Додано `loadAllRetentionCreatives()` (query на `creative_retention_messages` за `retention_message_id`)
+- ✅ Додано `sendRetReviewToChat()` — full SMM-parity: single media → sendPhoto/sendVideo з caption + buttons; multi → sendMediaGroup + окреме повідомлення з кнопками.
+- ✅ Caption обрізаний до 1024 chars (TG limit) з smartHtml pass-through.
+- 🔄 Ретригер для повідомлення `98b2a1ae-e6ce-47e6-92dd-fa4b2e238ad0` («Відео про Зірве дах…») — відео-креатив 45.5MB доставлений у retention груп-чат + DM Vira/Давиду.
+
+---
+
 ## 17.06.2026 — Шар 2: Edge fn audit + MV CONCURRENTLY
 
 ### Supabase Performance
