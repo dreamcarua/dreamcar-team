@@ -8,6 +8,20 @@
 
 ---
 
+## 17.06.2026 — Шар 2: Edge fn audit + MV CONCURRENTLY
+
+### Supabase Performance
+- ⚡ **SHAR 2.1**: `kasa-sync-privat` cron 10хв → 15хв (`7,22,37,52 * * * *`). Найважча Edge fn (28-32 sec/call). Звільнено ~27 хв CPU/добу.
+- ⚡ **SHAR 2.3**: `mv_dashboard_project_pnl` — додано `UNIQUE INDEX (launch_id)`. Функція `refresh_mv_dashboard_project_pnl()` вже мала `CONCURRENTLY` з fallback — тепер працює fast-path. Refresh 6.7s → 3.4s (-50%), ZERO block на /finance/. Усі 8 MV тепер CONCURRENTLY-refresh.
+- 📊 Edge fn audit (top-5 жорти): kasa-sync-privat (45 хв CPU/добу після -27), kasa-sync-mono (5 хв), daily-morning-runner (146 sec/добу 1×), daily-ai-analyst (49.6 sec 1×), tg-notify-queue-flush (1440 calls/добу).
+
+### Supabase Health post-Шар 1+1.7
+- ✅ 1 active conn, 0 LWLock waits, 0 cron failures за 15 хв (раніше десятки)
+- ✅ DB size 787 MB (раніше 1.2 GB до VACUUM)
+- ✅ Peak cron load: 4 jobs/min (раніше 6+)
+
+---
+
 ## 16.06.2026 — Каса: стабільна ширина (скролбар)
 
 ### Каса (dashboard.dreamcar.ua/kasa)
