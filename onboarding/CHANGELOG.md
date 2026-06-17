@@ -8,6 +8,22 @@
 
 ---
 
+## 17.06.2026 — Finance Period P&L: 920× швидше + presets "Сьогодні/7д/30д/MTD" + skeleton
+
+### Performance (#509)
+- ⚡ Створено `mv_finance_daily_pnl` (matview daily aggregation): revenue/ad_spend/percent/fixed/prize/variable/active_projects по днях.
+- ⚡ Новий RPC `dashboard_period_pnl_v2(p_from, p_to, p_granularity)` читає з matview → **8119мс → 8.8мс** (920×).
+- 🔧 pg_cron `refresh-mv-finance-daily-pnl`: щогодини о :07 та :37 хвилині (CONCURRENTLY).
+- 🔧 Frontend: автоматично перемикається на v2 коли немає project filter (v1 використовується для проектного фільтру).
+
+### UX (#509)
+- 🆕 Range presets: **Сьогодні / 7 днів / 30 днів / Цей місяць (MTD)** + 3м / 6м / YTD / 12м / Все.
+- 🆕 Auto-granularity: вибір range автоматично перемикає granularity (today→day, 30d→day, YTD→month, all→quarter). Можна перевизначити вручну.
+- 🆕 Помітний skeleton-loader: KPI cards, chart-блок ⏳ "агрегую дані…", 5 skeleton-рядків у таблиці. Більше не "майже невидимий лоадер".
+- 🆕 Display elapsed time у meta (типу "по днях · 17.05 → 17.06 · 31 рядків · 12мс").
+
+---
+
 ## 17.06.2026 — Finance: P&L по періодах + fix tooltip "Структура витрат"
 
 ### Finance (`dashboard.dreamcar.ua/finance/`)
