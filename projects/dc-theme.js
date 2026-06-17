@@ -73,6 +73,9 @@
       '.dc-theme-toggle{background:transparent;border:1px solid currentColor;color:inherit;cursor:pointer;padding:6px 10px;border-radius:6px;font-size:14px;line-height:1;}',
       /* Status chips — зберігаємо колір але робимо світлий фон */
       'html[data-dc-theme="light"] body :is(.chip-status-draft,.chip-status-review,.chip-status-approved,.chip-status-published,.chip-status-rework){background:#ffffff!important;border-width:1.5px;}',
+      /* #511 Ghost блоки (cross-system calendar) у Retention + SMM — текст темно-сірий у світлій темі (Vira UX) */
+      'html[data-dc-theme="light"] body :is(.cal-item-ghost,.cal-ghost){color:#475569!important;background:rgba(59,130,246,0.08)!important;border-left-color:rgba(59,130,246,0.45)!important;}',
+      'html[data-dc-theme="light"] body :is(.cal-item-ghost,.cal-ghost) *{color:#475569!important;}',
       /* #220: Vira UX — sidebar text contrast. Inline color:var(--ash) було #5e5e66 (light) → тепер #3c3c43 (WCAG AAA) */
       'html[data-dc-theme="light"] body [style*="color:var(--ash"]{color:#3c3c43!important;}',
       'html[data-dc-theme="light"] body [style*="color:var(--grey"]{color:#3c3c43!important;}',
