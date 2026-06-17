@@ -206,10 +206,57 @@ def send_tg(mt, summary, signals):
     log(f'  {"✓" if r.status_code == 200 else "⚠"} TG {r.status_code}: {r.text[:150] if r.status_code!=200 else "sent"}')
 
 
+def classify_hooks():
+    """AI-тегування гаків для постів без hook_type (Anthropic, тільки нові). Пише назад у dashboard_ig_media."""
+    if not ANTHROPIC_KEY:
+        return
+    try:
+        rows = sb_get('dashboard_ig_media?select=media_id,caption&hook_type=is.null&limit=150') or []
+    except Exception as e:
+        log(f'  ⚠ hooks select: {e}'); return
+    rows = [r for r in rows if (r.get('caption') or '').strip()]
+    if not rows:
+        log('  ℹ hooks: усі класифіковані'); return
+    sysp = ("Класифікуй Instagram-капшни DreamCar за ТИПОМ ГАКА. Поверни ТІЛЬКИ JSON-масив "
+            "[{\"id\":\"<media_id>\",\"hook_type\":\"<type>\",\"has_cta\":true|false}] без пояснень. "
+            "hook_type ∈ intrigue (інтрига/вгадай/загадка), proof (пруф/переможець/відгук/результат), "
+            "urgency (терміновість/дедлайн/тільки сьогодні), prize (показ призу/виграй авто), "
+            "social (заклик коментувати/обрати/тегнути), value (користь/поради/чек-лист), other. "
+            "has_cta=true якщо є явний заклик дії (купи/тисни/переходь/встигни/реєструйся).")
+    done = 0
+    for i in range(0, len(rows), 40):
+        chunk = rows[i:i+40]
+        items = [{'id': r['media_id'], 'caption': (r.get('caption') or '')[:280]} for r in chunk]
+        try:
+            r = requests.post('https://api.anthropic.com/v1/messages',
+                headers={'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
+                json={'model': ANTHROPIC_MODEL, 'max_tokens': 2000, 'system': sysp,
+                      'messages': [{'role': 'user', 'content': json.dumps(items, ensure_ascii=False)}]}, timeout=90)
+            if r.status_code != 200:
+                log(f'  ⚠ hooks AI {r.status_code}'); continue
+            txt = ''.join(b.get('text', '') for b in r.json().get('content', []))
+            arr = json.loads(txt[txt.index('['):txt.rindex(']')+1])
+        except Exception as e:
+            log(f'  ⚠ hooks parse: {e}'); continue
+        for it in arr:
+            mid = it.get('id'); ht = it.get('hook_type'); cta = it.get('has_cta')
+            if not mid or not ht:
+                continue
+            try:
+                requests.patch(f'{SB_URL}/rest/v1/dashboard_ig_media?media_id=eq.{mid}',
+                    headers={**H, 'Content-Type': 'application/json', 'Prefer': 'return=minimal'},
+                    json={'hook_type': ht, 'has_cta': bool(cta)}, timeout=30)
+                done += 1
+            except Exception:
+                pass
+    log(f'  ✓ hooks класифіковано: {done}')
+
+
 def main():
     if not (SB_URL and SB_KEY):
         log('❌ нема HQ_DB_URL/HQ_DB_SERVICE_KEY'); raise SystemExit(1)
     log('🚀 IG digest')
+    classify_hooks()
     mt, M = compute()
     log(f'  метрики: ER reach {mt["er_reach"]}% · sends/reach {mt["sends_r"]}% · постів {mt["posts_90d"]}')
     signals = rule_signals(mt)

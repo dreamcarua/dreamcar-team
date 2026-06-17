@@ -117,7 +117,9 @@
     <a class="nav-item" href="#cycles"><span class="ico">🏁</span><span>Цикли запусків</span></a>
     <a class="nav-item" href="#trends"><span class="ico">📈</span><span>Тренди</span></a>
     <a class="nav-item" href="#reels"><span class="ico">🎬</span><span>Reels-скоркард</span></a>
+    <a class="nav-item" href="#stories"><span class="ico">📲</span><span>Stories</span></a>
     <a class="nav-item" href="#power"><span class="ico">⚡</span><span>Power-пости</span></a>
+    <a class="nav-item" href="#hooks"><span class="ico">🪝</span><span>Гаки/капшни</span></a>
     <a class="nav-item" href="#audience"><span class="ico">👥</span><span>Аудиторія</span></a>
     <a class="nav-item" href="#besttime"><span class="ico">🕘</span><span>Найкращий час</span></a>
     <a class="nav-item" href="#content"><span class="ico">🏆</span><span>Контент</span></a>
@@ -165,6 +167,10 @@
         <div class="kpi-grid" id="reels-kpi"></div>
         <p class="note">Hold-rate (% перегляду від тривалості) недоступний — IG Graph API не віддає тривалість reel. Орієнтир: середній перегляд + повтори + plays/reach.</p>
 
+        <div class="sec-tag" id="stories">/// Stories</div>
+        <div class="kpi-grid" id="stories-kpi"></div>
+        <p class="note" id="stories-note">Stories збираються лише вперед (IG віддає активні ~24 год), тож історії немає — статистика накопичуватиметься з сьогодні.</p>
+
         <div class="sec-tag" id="power">/// Power-пости (saves × sends)</div>
         <div class="card"><div class="hint">Верхній-правий = «power posts»: і зберігають, і пересилають (найсильніші сигнали 2026). Розмір = охоплення.</div><canvas id="c-power"></canvas></div>
 
@@ -179,6 +185,12 @@
         <div class="grid">
           <div class="card"><h3>Топ за залученістю (ER by reach)</h3><table id="t-top"><thead><tr><th>Дата</th><th>Тип</th><th>Reach</th><th>ER%</th><th>Saves</th><th>Sends</th><th>Watch</th><th></th></tr></thead><tbody></tbody></table></div>
           <div class="card"><h3>Найслабші (злив охоплення)</h3><table id="t-weak"><thead><tr><th>Дата</th><th>Тип</th><th>Reach</th><th>ER%</th><th>Sends</th><th></th></tr></thead><tbody></tbody></table></div>
+        </div>
+
+        <div class="sec-tag" id="hooks">/// Гаки / типи капшнів</div>
+        <div class="grid">
+          <div class="card"><h3>ER та репости за типом гака</h3><div class="hint">AI-класифікація капшнів (поки немає — евристика за ключовими словами). Що реально «заходить».</div><canvas id="c-hooks"></canvas></div>
+          <div class="card"><h3>Гаки — деталі</h3><table id="t-hooks"><thead><tr><th>Гак</th><th>Постів</th><th>ER%</th><th>Sends/reach%</th><th>Сер. reach</th><th>CTA%</th></tr></thead><tbody></tbody></table></div>
         </div>
 
         <div class="sec-tag" id="competitors">/// Бенчмарк ринку <span style="color:#666;text-transform:none;letter-spacing:0">(контекст)</span></div>
@@ -212,18 +224,29 @@ document.addEventListener('click',e=>{const a=e.target.closest('a.nav-item[href^
 window.addEventListener('dc-auth-ok',async()=>{
   try{
     const sb=window.supabase;
-    const [acctR,mediaR,aiR,compR,projR]=await Promise.all([
+    const [acctR,mediaR,aiR,compR,projR,storiesR]=await Promise.all([
       sb.from('dashboard_ig_account_daily').select('*').order('date'),
       sb.from('dashboard_ig_media').select('*').order('published_at'),
       sb.from('dashboard_ig_ai_daily').select('*').order('date',{ascending:false}).limit(1),
       sb.from('dashboard_ig_competitors').select('*').order('followers',{ascending:false,nullsFirst:false}),
       sb.from('dashboard_projects').select('code,name,car_model,date_start,date_end,status,color').order('date_end',{ascending:false}),
+      sb.from('dashboard_ig_stories').select('*').order('published_at',{ascending:false}).limit(80),
     ]);
-    render(acctR.data||[],mediaR.data||[],(aiR.data||[])[0],compR.data||[],projR.data||[]);
+    render(acctR.data||[],mediaR.data||[],(aiR.data||[])[0],compR.data||[],projR.data||[],storiesR.data||[]);
   }catch(e){console.error(e);document.getElementById('loading').textContent='Помилка: '+e.message;}
 });
 
-function render(acct,media,ai,comp,projects){
+function kwHook(c){c=(c||'').toLowerCase();
+  if(/тільки сьогодні|до 23:59|встигни|залишил|останн|дедлайн|сьогодні до/.test(c))return 'urgency';
+  if(/переможц|переможець|власник|забрав|відгук|реальн.{0,6}історі/.test(c))return 'proof';
+  if(/вгадай|що це|загадк|як думаєш|кому з/.test(c))return 'intrigue';
+  if(/пиши в коментар|обери|тегни|комент|хто хоче/.test(c))return 'social';
+  if(/чек-?лист|поради|як обрати|гайд|інструкц/.test(c))return 'value';
+  if(/виграй|приз|розіграш|jackpot|грн|toyota|bmw|audi|ford|mustang|iphone|мотоцикл|авто/.test(c))return 'prize';
+  return 'other';}
+function drawHooks(hooks,LBL){const el=document.getElementById('c-hooks');if(!el)return;
+  new Chart(el,{type:'bar',data:{labels:hooks.map(h=>LBL[h.h]||h.h),datasets:[{label:'ER by reach %',data:hooks.map(h=>pct(h.er)),backgroundColor:'#E30613'},{label:'Sends/reach %',data:hooks.map(h=>pct(h.sends)),backgroundColor:'#7ab0ff'}]},options:{plugins:{legend:{labels:{color:'#fff',font:{size:11}}}},scales:{x:{ticks:{color:'#aaa'},grid:{display:false}},y:{ticks:{color:'#aaa'},grid:{color:'#2A2A2A'},beginAtZero:true}}}});}
+function render(acct,media,ai,comp,projects,stories){
   document.getElementById('loading').style.display='none';
   document.getElementById('content').style.display='block';
   const today=acct.length?acct[acct.length-1]:{};
@@ -323,6 +346,25 @@ function render(acct,media,ai,comp,projects){
   document.querySelector('#t-top tbody').innerHTML=top.map(m=>`<tr><td>${m.dt?m.dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'}):''}</td><td><span class="badge ${m.fmt==='REELS'?'reels':'feed'}">${FMT[m.fmt]||m.fmt}</span></td><td>${fmtNum(m.reach)}</td><td>${pct(m.erReach)}</td><td>${fmtNum(m.saved)}</td><td>${fmtNum(m.shares)}</td><td>${m.avg_watch_sec!=null?pct(m.avg_watch_sec,1)+'с':'—'}</td><td><a href="${m.permalink}" target="_blank" rel="noopener">↗</a></td></tr>`).join('');
   const weak=[...M].filter(m=>m.reach>=1500).sort((a,b)=>a.erReach-b.erReach).slice(0,8);
   document.querySelector('#t-weak tbody').innerHTML=weak.map(m=>`<tr><td>${m.dt?m.dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'}):''}</td><td><span class="badge ${m.fmt==='REELS'?'reels':'feed'}">${FMT[m.fmt]||m.fmt}</span></td><td>${fmtNum(m.reach)}</td><td>${pct(m.erReach)}</td><td>${fmtNum(m.shares)}</td><td><a href="${m.permalink}" target="_blank" rel="noopener">↗</a></td></tr>`).join('');
+
+  // hooks / типи капшнів
+  const HOOK_LBL={intrigue:'Інтрига',proof:'Пруф/переможець',urgency:'Терміновість',prize:'Приз/виграй',social:'Соц-заклик',value:'Користь',other:'Інше'};
+  const hg={};M.forEach(m=>{const h=m.hook_type||kwHook(m.caption);(hg[h]=hg[h]||[]).push(m);});
+  const hooks=Object.keys(hg).map(h=>({h,n:hg[h].length,er:avg(hg[h],x=>x.erReach),sends:avg(hg[h],x=>x.sendsR),reach:avg(hg[h],x=>x.reach),cta:hg[h].filter(x=>x.has_cta).length/hg[h].length*100})).sort((a,b)=>(b.er||0)-(a.er||0));
+  document.querySelector('#t-hooks tbody').innerHTML=hooks.map(x=>`<tr><td>${HOOK_LBL[x.h]||x.h}</td><td>${x.n}</td><td>${pct(x.er)}</td><td>${pct(x.sends)}</td><td>${fmtNum(x.reach)}</td><td>${pct(x.cta,0)}%</td></tr>`).join('');
+  drawHooks(hooks,HOOK_LBL);
+
+  // stories
+  const S=stories||[];
+  if(S.length){
+    document.getElementById('stories-kpi').innerHTML=[
+      kpiInfo({label:'Stories зібрано',value:S.length,sub:'forward-only'}),
+      kpiInfo({label:'Сер. охоплення',value:fmtNum(avg(S,x=>x.reach)),sub:'на сторі'}),
+      kpiInfo({label:'Сер. відповіді',value:fmtNum(avg(S,x=>x.replies)),sub:'replies'}),
+      kpiInfo({label:'Сер. виходи',value:fmtNum(avg(S,x=>x.exits)),sub:'exits — відвал'}),
+    ].join('');
+    document.getElementById('stories-note').textContent='Stories збираються вперед (IG віддає активні ~24 год). Метрики: охоплення, відповіді, переходи, виходи.';
+  }
 
   drawCharts(M,recent,base,fAgg);drawHeat(M);
 }
