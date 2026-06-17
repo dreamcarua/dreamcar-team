@@ -195,8 +195,8 @@
         </div>
 
         <div class="sec-tag" id="competitors">/// Бенчмарк ринку <span style="color:#666;text-transform:none;letter-spacing:0">(контекст)</span></div>
-        <div class="card"><div class="hint">Публічні дані. ER конкурентів IG не віддає публічно (n/a) — порівнюємо масштаб і модель.</div>
-          <table id="t-comp"><thead><tr><th>Акаунт</th><th>Підписники</th><th>Формат</th><th>Що це</th></tr></thead><tbody></tbody></table></div>
+        <div class="card"><div class="hint">★ — ваш конкурентний сет; решта — схожі (знайдені). Найрелевантніші за моделлю — <b>giveaway/розіграш</b>. ER конкурентів IG публічно не віддає (n/a) — порівнюємо масштаб і модель.</div>
+          <table id="t-comp"><thead><tr><th>Акаунт</th><th>Тип</th><th>Підписники</th><th>Формат</th><th>Що це</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
   </main>
@@ -229,7 +229,7 @@ window.addEventListener('dc-auth-ok',async()=>{
       sb.from('dashboard_ig_account_daily').select('*').order('date'),
       sb.from('dashboard_ig_media').select('*').order('published_at'),
       sb.from('dashboard_ig_ai_daily').select('*').order('date',{ascending:false}).limit(1),
-      sb.from('dashboard_ig_competitors').select('*').order('followers',{ascending:false,nullsFirst:false}),
+      sb.from('dashboard_ig_competitors').select('*').order('is_user_pick',{ascending:false}).order('followers',{ascending:false,nullsFirst:false}),
       sb.from('dashboard_projects').select('code,name,car_model,date_start,date_end,status,color').order('date_end',{ascending:false}),
       sb.from('dashboard_ig_stories').select('*').order('published_at',{ascending:false}).limit(80),
       sb.rpc('ig_cycle_sales'),
@@ -346,7 +346,8 @@ function render(acct,media,ai,comp,projects,stories,sales){
 
   if(ai){document.getElementById('ai-body').textContent=ai.summary||'—';document.getElementById('ai-meta').textContent=`${ai.model||'claude'} · ${ai.date||''}`;}
 
-  document.querySelector('#t-comp tbody').innerHTML=comp.map(c=>`<tr><td><strong>@${c.username}</strong><br><span style="color:#888;font-size:11px">${c.display_name||''}</span></td><td>${c.followers?fmtNum(c.followers):'n/a'}</td><td><span class="badge">${c.format_mix||'—'}</span></td><td style="font-size:12px;color:#bbb">${c.notes||''}</td></tr>`).join('');
+  const CAT={giveaway:['Розіграш','rgba(227,6,19,.18)','#ff5b66'],blogger:['Блогер','rgba(59,130,246,.18)','#7ab0ff'],dealer:['Дилер','rgba(136,136,136,.2)','#bbb'],instructor:['Інструктор','rgba(245,158,11,.18)','#F59E0B']};
+  document.querySelector('#t-comp tbody').innerHTML=comp.map(c=>{const ct=CAT[c.category]||['—','#2A2A2A','#aaa'];return `<tr style="${c.is_user_pick?'background:rgba(227,6,19,.04)':''}"><td>${c.is_user_pick?'<span style="color:#E30613">★</span> ':''}<a href="https://${c.source&&c.source.startsWith('instagram')?c.source:'instagram.com/'+c.username}" target="_blank" rel="noopener"><strong>@${c.username}</strong></a><br><span style="color:#888;font-size:11px">${c.display_name||''}</span></td><td><span class="badge" style="background:${ct[1]};color:${ct[2]}">${ct[0]}</span></td><td>${c.followers?fmtNum(c.followers):'n/a'}</td><td><span class="badge">${c.format_mix||'—'}</span></td><td style="font-size:12px;color:#bbb">${c.notes||''}</td></tr>`;}).join('');
 
   const top=[...M].filter(m=>m.reach>=2000).sort((a,b)=>b.erReach-a.erReach).slice(0,10);
   document.querySelector('#t-top tbody').innerHTML=top.map(m=>`<tr><td>${m.dt?m.dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'}):''}</td><td><span class="badge ${m.fmt==='REELS'?'reels':'feed'}">${FMT[m.fmt]||m.fmt}</span></td><td>${fmtNum(m.reach)}</td><td>${pct(m.erReach)}</td><td>${fmtNum(m.saved)}</td><td>${fmtNum(m.shares)}</td><td>${m.avg_watch_sec!=null?pct(m.avg_watch_sec,1)+'с':'—'}</td><td><a href="${m.permalink}" target="_blank" rel="noopener">↗</a></td></tr>`).join('');
