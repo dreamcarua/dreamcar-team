@@ -8,6 +8,21 @@
 
 ---
 
+## 17.06.2026 — Finance: P&L по періодах + fix tooltip "Структура витрат"
+
+### Finance (`dashboard.dreamcar.ua/finance/`)
+- 🆕 **Новий блок "P&L по періодах"** під таблицею проектів. Агрегований P&L по часовим інтервалам.
+- 🆕 RPC `dashboard_period_pnl(p_from, p_to, p_granularity, p_project_ids)` — повертає рядки з period_start/end/label, active_projects, revenue, ad_spend, % з угод, fixed, призовий, variable, total_cost, net_profit, margin_pct.
+- 🆕 Granularity selector: **День / Тиждень / Місяць (default) / Квартал / Рік**.
+- 🆕 Range presets: 3 міс / 6 міс / YTD (default) / 12 міс / Все. + custom date pickers + Проєкт filter.
+- 🆕 KPI cards: Σ Revenue, Σ Total Cost, Σ Net Profit, Avg Margin %, найкращий/найгірший період.
+- 🆕 Stacked Chart.js: Revenue (bar) + Total Cost (bar) + Net Profit (line) по періодах.
+- 🆕 Таблиця: 12 колонок включаючи **Δ Net vs prev period** (наглядно видно growth/decline).
+- ⚙️ Алгоритм: TZ Europe/Kyiv (paid_at AT TIME ZONE), амортизація призового по днях проекту, fixed розмазаний по днях, виключення CONTENT + idea/planning launches.
+- 🔧 **Fix `chartCommon()` tooltip**: chCost "Структура витрат" показував NaN/3₴/1₴ замість значень. Причина: для горизонтального bar (`indexAxis:'y'`) `ctx.parsed.y` повертає індекс label-а, не значення. Тепер `ctx.raw` → справжнє число.
+
+---
+
 ## 17.06.2026 — Finance P&L: Net/день + дати+днів проекту
 
 ### Finance (`dashboard.dreamcar.ua/finance/`)
