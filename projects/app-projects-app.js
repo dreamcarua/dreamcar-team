@@ -289,7 +289,7 @@
   // ============================================================
   function openProjectModal(p) {
     var isEdit = !!p;
-    var data = p || { name: '', code: '', status: 'active', description: '', color: '#E30613', starts_on: '', ends_on: '', budget_plan: '', notes: '' };
+    var data = p || { name: '', code: '', status: 'active', description: '', color: '#E30613', starts_on: '', ends_on: '', budget_plan: '', notes: '', excl_from_finance: false };
     var overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML =
@@ -305,6 +305,11 @@
           inp('Бюджет (план, грн)', 'budget_plan', data.budget_plan, 'number') +
           inp('Колір', 'color', data.color, 'color') +
           ta('Нотатки', 'notes', data.notes) +
+          // 17.06.2026: чекбокс «Виключити з фінансів» (для нефінансових заглушок типу DreamCar CONTENT)
+          '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#bbb;font-size:13px;cursor:pointer;">' +
+            '<input type="checkbox" name="excl_from_finance" ' + (data.excl_from_finance ? 'checked' : '') + ' style="width:18px;height:18px;accent-color:#E30613;cursor:pointer;">' +
+            '<span><b style="color:#fff;">Виключити з фінансів</b><br><span style="font-size:11px;color:#888;">Проєкт не береться у P&L, ROI, fixed allocation, % з угод. Для контентних заглушок.</span></span>' +
+          '</label>' +
         '</div>' +
         '<div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">' +
           '<button class="dcp-btn" id="dcp-cancel">Скасувати</button>' +
@@ -319,6 +324,9 @@
         var el = overlay.querySelector('[name="' + k + '"]');
         if (el) payload[k] = el.value || null;
       });
+      // 17.06.2026: checkbox excl_from_finance (читається через .checked, не .value)
+      var exclEl = overlay.querySelector('[name="excl_from_finance"]');
+      payload.excl_from_finance = exclEl ? !!exclEl.checked : false;
       if (!payload.name) { alert('Введи назву'); return; }
       var res;
       if (isEdit) res = await window.supabase.from('launches').update(payload).eq('id', p.id);
