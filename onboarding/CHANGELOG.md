@@ -8,6 +8,16 @@
 
 ---
 
+## 17.06.2026 — Instagram-аналітика (HQ) + AI-дайджест
+
+### IG-аналітика (team.dreamcar.ua/hq/instagram-analytics.html)
+- 🆕 Нова сторінка HQ «Instagram» (пункт у сайдбарі): KPI 2025-26 (sends/reach, saves/reach, reach rate, ER by reach/followers), формати Reels vs стрічка, ER-тренд з аномаліями, частота×ER, best-time heatmap, топ/слабкі пости, рекомендації, бенчмарк конкурентів. Читає dashboard_ig_* напряму (anon+RLS).
+- 🆕 ETL sync_ig_insights.py + cron 2x/день (dreamcar-dashboard) → dashboard_ig_account_daily / dashboard_ig_media. @dreamcar.ua, IG_USER_ID 17841403783002317.
+- 🆕 AI-дайджест etl/ig_digest.py + cron 09:00 Київ → dashboard_ig_ai_daily + DM Вадиму (@dreamcar_team_bot). Claude-наратив (ANTHROPIC_API_KEY) з fallback на rule-based сигнали.
+- 🛡 RLS select-політики на dashboard_ig_* для authenticated.
+
+---
+
 ## 16.06.2026 — Каса: стабільна ширина (скролбар)
 
 ### Каса (dashboard.dreamcar.ua/kasa)
