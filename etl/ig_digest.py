@@ -19,7 +19,7 @@ Env (secrets dreamcar-team):
   ANTHROPIC_MODEL                  — опц., дефолт claude-haiku-4-5-20251001
   TG_BOT_TOKEN, TG_CHAT_ID         — DM Вадима
 """
-import os, json, statistics
+import os, json, html
 from datetime import datetime, timedelta, timezone
 import requests
 
@@ -196,9 +196,9 @@ def send_tg(mt, summary, signals):
         f'• Reach rate: <b>{mt["reach_rate"]}%</b> {arrow(mt["reach_rate_trend_pct"])}   • Постів/90д: {mt["posts_90d"]}',
     ]
     if summary:
-        lines += ['', '<b>AI-аналітик:</b>', summary]
+        lines += ['', '<b>AI-аналітик:</b>', html.escape(summary)]
     else:
-        lines += ['', '<b>Сигнали:</b>'] + [f'• {s}' for s in signals[:5]]
+        lines += ['', '<b>Сигнали:</b>'] + [f'• {html.escape(s)}' for s in signals[:5]]
     lines += ['', f'📊 <a href="{DASH_URL}">Повний дашборд</a>']
     text = '\n'.join(lines)[:4000]
     r = requests.post(f'https://api.telegram.org/bot{TG_TOKEN}/sendMessage',
@@ -215,7 +215,8 @@ def main():
     signals = rule_signals(mt)
     summary = ai_summary(mt, signals)
     log(f'  AI: {"✓ " + ANTHROPIC_MODEL if summary else "fallback rule-based"}')
-    upsert_ai(kyiv_now().date().isoformat(), summary, signals, mt)
+    display = summary or ('Авто-сигнали (AI-наратив активується після підключення ANTHROPIC_API_KEY):\n' + '\n'.join('• ' + s for s in signals))
+    upsert_ai(kyiv_now().date().isoformat(), display, signals, mt)
     send_tg(mt, summary, signals)
     log('✅ done')
 
