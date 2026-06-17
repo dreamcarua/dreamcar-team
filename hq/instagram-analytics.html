@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>DreamCar HQ · Instagram-аналітика</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<link rel="stylesheet" href="/assets/brand-tokens.css">
+<script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
+<script src="/hq/config.js" defer></script>
+<script src="/assets/auth-guard.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0A0A0A;color:#fff;font-family:var(--dc-font-body);min-height:100vh;padding-bottom:60px}
+  .container{max-width:1320px;margin:0 auto;padding:24px}
+  h1{font-family:var(--dc-font-display);font-size:38px;letter-spacing:0.02em;margin-bottom:6px}
+  .h1-tag{font-family:var(--dc-font-mono);font-size:11px;color:#E30613;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px}
+  .h1-sub{color:#888;font-size:14px;margin-bottom:24px}
+  .back{display:inline-flex;align-items:center;gap:6px;color:#888;text-decoration:none;font-family:var(--dc-font-mono);font-size:12px;letter-spacing:0.1em;margin-bottom:18px}
+  .back:hover{color:#E30613}
+  .loading{text-align:center;padding:60px 20px;color:#888;font-size:14px}
+  .sec-tag{font-family:var(--dc-font-mono);font-size:10px;color:#E30613;letter-spacing:0.2em;text-transform:uppercase;margin:30px 0 12px}
+  /* KPI */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:8px}
+  .kpi{background:#141414;border:1px solid #2A2A2A;border-radius:10px;padding:16px 18px;position:relative;overflow:hidden}
+  .kpi::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:#E30613}
+  .kpi.rag-green::before{background:#10B981}.kpi.rag-amber::before{background:#F59E0B}.kpi.rag-red::before{background:#DC2626}
+  .kpi-label{font-family:var(--dc-font-mono);font-size:10px;color:#888;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:6px}
+  .kpi-value{font-family:var(--dc-font-display);font-size:30px;line-height:1}
+  .kpi-sub{font-size:11px;color:#888;margin-top:5px}
+  .kpi-delta{font-family:var(--dc-font-mono);font-size:11px;margin-left:6px}
+  .delta-up{color:#10B981}.delta-down{color:#DC2626}.delta-flat{color:#888}
+  .kpi spark{display:block;margin-top:8px}
+  .hero{background:linear-gradient(135deg,#1a0608,#141414);border:1px solid #E30613;border-radius:12px;padding:22px 26px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:24px;align-items:center}
+  .hero-main{flex:1;min-width:240px}
+  .hero-k{font-family:var(--dc-font-mono);font-size:11px;color:#E30613;letter-spacing:0.2em;text-transform:uppercase}
+  .hero-v{font-family:var(--dc-font-display);font-size:46px;line-height:1.05}
+  .hero-sub{color:#bbb;font-size:13px;margin-top:4px}
+  .hero-badge{font-family:var(--dc-font-mono);font-size:12px;padding:5px 12px;border-radius:999px;letter-spacing:0.08em}
+  .bg-green{background:rgba(16,185,129,.15);color:#10B981;border:1px solid #10B981}
+  .bg-amber{background:rgba(245,158,11,.15);color:#F59E0B;border:1px solid #F59E0B}
+  .bg-red{background:rgba(220,38,38,.15);color:#DC2626;border:1px solid #DC2626}
+  /* grid + cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:18px;margin-bottom:8px}
+  .card{background:#141414;border:1px solid #2A2A2A;border-radius:10px;padding:18px 22px;margin-bottom:18px}
+  .card h3{font-family:var(--dc-font-display);font-size:18px;letter-spacing:0.02em;margin-bottom:4px}
+  .card .hint{color:#777;font-size:12px;margin-bottom:14px}
+  canvas{max-height:300px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 11px;text-align:left;border-bottom:1px solid #2A2A2A;vertical-align:top}
+  th{font-family:var(--dc-font-mono);font-size:10px;color:#E30613;letter-spacing:0.16em;text-transform:uppercase;border-bottom:1px solid #E30613}
+  tr:hover td{background:rgba(255,255,255,0.02)}
+  td a{color:#3B82F6;text-decoration:none}td a:hover{text-decoration:underline}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-family:var(--dc-font-mono);font-size:10px;letter-spacing:0.08em;background:#2A2A2A}
+  .badge.reels{background:rgba(227,6,19,.18);color:#ff5b66}.badge.feed{background:rgba(59,130,246,.18);color:#7ab0ff}
+  /* recommendations */
+  .recs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .rec{border-radius:10px;padding:16px 18px;border:1px solid #2A2A2A;background:#141414;border-left-width:4px}
+  .rec.win{border-left-color:#10B981}.rec.issue{border-left-color:#DC2626}.rec.opp{border-left-color:#F59E0B}
+  .rec-h{font-family:var(--dc-font-mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:7px}
+  .rec.win .rec-h{color:#10B981}.rec.issue .rec-h{color:#DC2626}.rec.opp .rec-h{color:#F59E0B}
+  .rec-t{font-size:14px;line-height:1.5;color:#e8e8e8}
+  .ai-card{background:linear-gradient(135deg,#0d1117,#141414);border:1px solid #3B82F6}
+  .ai-card h3{color:#7ab0ff}
+  .ai-body{font-size:14px;line-height:1.65;color:#dfe7f0;white-space:pre-wrap}
+  .ai-meta{font-family:var(--dc-font-mono);font-size:10px;color:#666;margin-top:10px;letter-spacing:0.1em}
+  /* heatmap */
+  .heat{display:grid;grid-template-columns:auto repeat(6,1fr);gap:3px;font-size:11px}
+  .heat .hcell{height:30px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--dc-font-mono);font-size:10px}
+  .heat .hlabel{color:#888;font-family:var(--dc-font-mono);font-size:10px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+  .heat .hhead{color:#888;font-family:var(--dc-font-mono);font-size:9px;text-align:center}
+  @media (max-width:900px){
+    .container{padding:14px 12px 60px}
+    h1{font-size:24px}.hero-v{font-size:34px}
+    .grid{grid-template-columns:1fr;gap:12px}
+    .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+    .kpi{padding:12px;border-radius:0}.kpi-value{font-size:23px}
+    .card{padding:14px;border-radius:0}.card h3{font-size:15px}
+    canvas{max-height:240px}table{font-size:11px}th,td{padding:7px 6px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/hq/" class="back">← Назад до HQ</a>
+  <div class="h1-tag">/// INSTAGRAM ANALYTICS</div>
+  <h1>Instagram-аналітика <span style="color:#E30613">@dreamcar.ua</span></h1>
+  <p class="h1-sub">Органіка · рішення на основі даних · <span id="period-lbl">останні 90 днів</span></p>
+
+  <div id="loading" class="loading">Завантажую дані з Supabase…</div>
+  <div id="content" style="display:none">
+
+    <!-- HERO -->
+    <div id="hero"></div>
+
+    <!-- KPI -->
+    <div class="sec-tag">/// Ключові показники</div>
+    <div class="kpi-grid" id="kpis"></div>
+    <p style="color:#666;font-size:11px;margin:6px 0 4px">RAG — порівняння з бенчмарком тиру 100K–1M. ER by reach — для рішень по контенту, ER by followers — для порівняння з ринком.</p>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="sec-tag">/// Рекомендації — що робити</div>
+    <div class="recs" id="recs"></div>
+
+    <!-- AI -->
+    <div class="sec-tag">/// AI-аналітик</div>
+    <div class="card ai-card"><h3>Щоденний висновок Claude</h3><div class="ai-body" id="ai-body">AI-коментар з'явиться після першого ранкового запуску (09:00).</div><div class="ai-meta" id="ai-meta"></div></div>
+
+    <!-- TRENDS -->
+    <div class="sec-tag">/// Тренди</div>
+    <div class="grid">
+      <div class="card"><h3>ER by reach — тренд + аномалії</h3><div class="hint">Точки &gt;2σ від середнього — 🟢 повторити / 🔴 розібрати</div><canvas id="c-er"></canvas></div>
+      <div class="card"><h3>Формати: Reels vs Стрічка</h3><div class="hint">ER, sends/reach, saves/reach — куди вкладати продакшн</div><canvas id="c-format"></canvas></div>
+      <div class="card"><h3>Частота vs залученість</h3><div class="hint">Постів/тиждень × середній ER — чи не перенасичуємо</div><canvas id="c-cadence"></canvas></div>
+      <div class="card"><h3>Охоплення: розподіл постів</h3><div class="hint">Хіт-драйв vs стабільність</div><canvas id="c-dist"></canvas></div>
+    </div>
+
+    <!-- BEST TIME -->
+    <div class="card"><h3>Найкращий час публікації</h3><div class="hint">Середнє охоплення за днем тижня × слот (Київ). Темніше-червоне = вище охоплення.</div><div id="heat"></div></div>
+
+    <!-- TOP POSTS -->
+    <div class="sec-tag">/// Контент</div>
+    <div class="grid">
+      <div class="card"><h3>Топ за залученістю (ER by reach)</h3><table id="t-top"><thead><tr><th>Дата</th><th>Тип</th><th>Reach</th><th>ER%</th><th>Saves</th><th>Sends</th><th>Пост</th></tr></thead><tbody></tbody></table></div>
+      <div class="card"><h3>Найслабші (злив охоплення)</h3><table id="t-weak"><thead><tr><th>Дата</th><th>Тип</th><th>Reach</th><th>ER%</th><th>Пост</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <!-- COMPETITORS -->
+    <div class="sec-tag">/// Бенчмарк ринку</div>
+    <div class="card"><h3>Конкуренти (UA авто/розіграш)</h3><div class="hint">Публічні дані. ER конкурентів IG не віддає публічно (n/a) — порівнюємо масштаб і модель.</div>
+      <table id="t-comp"><thead><tr><th>Акаунт</th><th>Підписники</th><th>Формат</th><th>Що це</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<script>
+const FMT = { REELS:'Reels', FEED:'Стрічка/каруселі', STORY:'Stories' };
+// Бенчмарки тиру 100K–1M (2025–2026)
+const BM = {
+  er_by_followers_avg: 0.48,
+  er_by_followers_fmt: { REELS:0.51, FEED:0.55, IMAGE:0.36 },
+  reach_rate_good: 25,        // % reach/followers
+  follower_growth_good: 1.0,  // %/міс
+  profile_to_follow: 13.5,    // %
+  mix_reels: [60,70]
+};
+const fmtNum = n => n==null?'—':Math.round(n).toLocaleString('uk-UA');
+const pct = (n,d=2) => n==null?'—':(Math.round(n*Math.pow(10,d))/Math.pow(10,d));
+
+function sparkline(vals,color='#E30613',w=150,h=30){
+  const v=vals.filter(x=>x!=null); if(v.length<2) return '';
+  const mn=Math.min(...v),mx=Math.max(...v),rg=(mx-mn)||1;
+  const pts=v.map((x,i)=>`${(i/(v.length-1))*w},${h-((x-mn)/rg)*(h-4)-2}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${color}" stroke-width="1.5" points="${pts}"/></svg>`;
+}
+function kpiCard(o){
+  const rag=o.rag?`rag-${o.rag}`:'';
+  let d='';
+  if(o.delta!=null){const cls=o.delta>0?'delta-up':(o.delta<0?'delta-down':'delta-flat');const ar=o.delta>0?'▲':(o.delta<0?'▼':'■');d=`<span class="kpi-delta ${cls}">${ar}${Math.abs(o.delta)}${o.deltaUnit||'%'}</span>`;}
+  return `<div class="kpi ${rag}"><div class="kpi-label">${o.label}</div><div class="kpi-value">${o.value}${d}</div>${o.sub?`<div class="kpi-sub">${o.sub}</div>`:''}${o.spark||''}</div>`;
+}
+
+window.addEventListener('dc-auth-ok', async () => {
+  try {
+    const sb = window.supabase;
+    const [acctR, mediaR, aiR, compR] = await Promise.all([
+      sb.from('dashboard_ig_account_daily').select('*').order('date'),
+      sb.from('dashboard_ig_media').select('*').order('published_at'),
+      sb.from('dashboard_ig_ai_daily').select('*').order('date',{ascending:false}).limit(1),
+      sb.from('dashboard_ig_competitors').select('*').order('followers',{ascending:false,nullsFirst:false}),
+    ]);
+    render(acctR.data||[], mediaR.data||[], (aiR.data||[])[0], compR.data||[]);
+  } catch (e) { console.error(e); document.getElementById('loading').textContent='Помилка: '+e.message; }
+});
+
+function render(acct, media, ai, comp){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('content').style.display='block';
+  const today = acct.length ? acct[acct.length-1] : {};
+  const followers = today.followers_count || 350000;
+
+  // ---- derive per-post rates ----
+  const M = media.filter(m=>m.reach && m.reach>0).map(m=>{
+    const inter = m.total_interactions ?? ((m.like_count||0)+(m.comments_count||0)+(m.saved||0)+(m.shares||0));
+    return {...m,
+      erReach: inter/m.reach*100,
+      erFoll: ((m.like_count||0)+(m.comments_count||0))/followers*100,
+      sendsR: (m.shares||0)/m.reach*100,
+      savesR: (m.saved||0)/m.reach*100,
+      reachRate: m.reach/followers*100,
+      dt: m.published_at?new Date(m.published_at):null,
+      fmt: (m.media_product_type||'FEED').toUpperCase()
+    };
+  });
+  const avg = (arr,f)=>{const v=arr.map(f).filter(x=>x!=null&&!isNaN(x));return v.length?v.reduce((s,n)=>s+n,0)/v.length:null;};
+  const erReachAvg=avg(M,x=>x.erReach), sendsRAvg=avg(M,x=>x.sendsR), savesRAvg=avg(M,x=>x.savesR), reachRateAvg=avg(M,x=>x.reachRate);
+  const erFollAvg=avg(M,x=>x.erFoll);
+
+  // weekly aggregates for sparklines / trend
+  const byWeek={};
+  M.forEach(m=>{if(!m.dt)return;const wk=new Date(m.dt);wk.setDate(wk.getDate()-((wk.getDay()+6)%7));const k=wk.toISOString().slice(0,10);(byWeek[k]=byWeek[k]||[]).push(m);});
+  const weeks=Object.keys(byWeek).sort();
+  const wkER=weeks.map(k=>avg(byWeek[k],x=>x.erReach));
+  const wkSends=weeks.map(k=>avg(byWeek[k],x=>x.sendsR));
+  const wkReachRate=weeks.map(k=>avg(byWeek[k],x=>x.reachRate));
+  const wkCount=weeks.map(k=>byWeek[k].length);
+  const half=Math.floor(weeks.length/2);
+  const deltaPct=(arr)=>{const a=arr.slice(0,half).filter(x=>x!=null),b=arr.slice(half).filter(x=>x!=null);if(!a.length||!b.length)return null;const am=a.reduce((s,n)=>s+n,0)/a.length,bm=b.reduce((s,n)=>s+n,0)/b.length;return am?Math.round((bm-am)/am*100):null;};
+
+  // ---- HERO: ER by reach vs nothing-of-its-kind; use ER-by-followers vs benchmark for RAG ----
+  const erFollRag = erFollAvg>=BM.er_by_followers_avg?'green':(erFollAvg>=BM.er_by_followers_avg*0.7?'amber':'red');
+  const erTrend=deltaPct(wkER);
+  document.getElementById('hero').innerHTML=`
+    <div class="hero-main">
+      <div class="hero-k">Sends / reach · північна зірка 2026</div>
+      <div class="hero-v">${pct(sendsRAvg)}%</div>
+      <div class="hero-sub">Репости у DM на охоплення — найсильніший сигнал алгоритму. Saves/reach ${pct(savesRAvg)}% · ER by reach ${pct(erReachAvg)}%</div>
+    </div>
+    <div style="text-align:right">
+      <div class="hero-badge bg-${erFollRag}">ER by followers ${pct(erFollAvg)}% vs ринок ${BM.er_by_followers_avg}%</div>
+      <div class="hero-sub" style="margin-top:8px">ER by reach тренд: <b style="color:${erTrend>=0?'#10B981':'#DC2626'}">${erTrend>=0?'+':''}${erTrend}%</b> (друга половина періоду)</div>
+    </div>`;
+
+  // ---- KPI CARDS ----
+  const cards=[];
+  cards.push(kpiCard({label:'Підписники',value:fmtNum(followers),sub:acct.length>1?'тренд будується':'знімок сьогодні',
+    spark:sparkline(acct.map(a=>a.followers_count).filter(x=>x),'#10B981')}));
+  cards.push(kpiCard({label:'ER by reach',value:pct(erReachAvg)+'%',delta:deltaPct(wkER),
+    rag:erReachAvg>=4?'green':(erReachAvg>=2.5?'amber':'red'),sub:'якість контенту',spark:sparkline(wkER,'#E30613')}));
+  cards.push(kpiCard({label:'Sends / reach',value:pct(sendsRAvg)+'%',delta:deltaPct(wkSends),
+    rag:sendsRAvg>=1?'green':(sendsRAvg>=0.4?'amber':'red'),sub:'репости — драйвер reach',spark:sparkline(wkSends,'#7ab0ff')}));
+  cards.push(kpiCard({label:'Saves / reach',value:pct(savesRAvg)+'%',
+    rag:savesRAvg>=0.5?'green':'amber',sub:'збереження = цінність'}));
+  cards.push(kpiCard({label:'Reach rate',value:pct(reachRateAvg,1)+'%',delta:deltaPct(wkReachRate),
+    rag:reachRateAvg>=BM.reach_rate_good?'green':(reachRateAvg>=15?'amber':'red'),sub:'reach / підписники'}));
+  cards.push(kpiCard({label:'ER by followers',value:pct(erFollAvg)+'%',rag:erFollRag,sub:`ринок ${BM.er_by_followers_avg}%`}));
+  cards.push(kpiCard({label:'Перегляди профілю',value:fmtNum(today.profile_views),sub:'за 30 днів'}));
+  cards.push(kpiCard({label:'Кліки на сайт',value:fmtNum(today.website_clicks),sub:'за 30 днів · гроші DreamCar'}));
+  document.getElementById('kpis').innerHTML=cards.join('');
+
+  // ---- FORMAT breakdown ----
+  const fmts=['REELS','FEED'];
+  const fAgg=fmts.map(f=>{const a=M.filter(m=>m.fmt===f);return{f,n:a.length,er:avg(a,x=>x.erReach),sends:avg(a,x=>x.sendsR),saves:avg(a,x=>x.savesR),reach:avg(a,x=>x.reach)};});
+
+  // ---- RECOMMENDATIONS (rule-based) ----
+  const recs=[];
+  // cadence vs ER
+  if(erTrend!=null && erTrend<=-15) recs.push({k:'issue',h:'Залученість падає',t:`ER by reach впав на ${Math.abs(erTrend)}% у другій половині періоду. Перевір, чи не забагато промо-постів і чи не задорого за обсягом — якість важливіша за кількість.`});
+  // format
+  const reelsF=fAgg.find(x=>x.f==='REELS'),feedF=fAgg.find(x=>x.f==='FEED');
+  if(reelsF&&feedF&&reelsF.er&&feedF.er){
+    if(feedF.er>reelsF.er*1.2) recs.push({k:'opp',h:'Більше каруселей',t:`Стрічка/каруселі дають ER ${pct(feedF.er)}% проти ${pct(reelsF.er)}% у Reels (+${Math.round((feedF.er/reelsF.er-1)*100)}%). Додай каруселей-добірок — вони тримають увагу і збори.`});
+    else if(reelsF.er>feedF.er*1.2) recs.push({k:'win',h:'Reels виграють',t:`Reels дають ER ${pct(reelsF.er)}% проти ${pct(feedF.er)}% — масштабуй короткі відео з сильним гаком у перші 3 сек.`});
+  }
+  // saves/sends signal
+  if(savesRAvg!=null&&savesRAvg<0.5) recs.push({k:'opp',h:'Підняти збереження',t:`Saves/reach ${pct(savesRAvg)}% нижче орієнтиру 0.5%. Роби контент із «зберігальною» цінністю: чек-листи авто, поради, добірки призів.`});
+  if(sendsRAvg!=null&&sendsRAvg>=1) recs.push({k:'win',h:'Сильні репости',t:`Sends/reach ${pct(sendsRAvg)}% — контент активно пересилають у DM (головний сигнал 2026). Підсилюй «вірусні» гаки та інтриги.`});
+  // reach cooling
+  const rcΔ=deltaPct(wkReachRate);
+  if(rcΔ!=null&&rcΔ<=-10) recs.push({k:'issue',h:'Охоплення холоне',t:`Reach rate знизився на ${Math.abs(rcΔ)}%. Освіжи формати/гаки і розшир аудиторію — поки не позначилось на прирості підписників.`});
+  // top hook
+  const topPost=[...M].sort((a,b)=>b.sendsR-a.sendsR)[0];
+  if(topPost) recs.push({k:'win',h:'Реплікувати лідера',t:`Найбільше репостів зібрав пост ${topPost.dt?topPost.dt.toLocaleDateString('uk-UA'):''} (sends/reach ${pct(topPost.sendsR)}%). Розклади його гак на формулу і повтори.`});
+  // ER by followers vs market
+  if(erFollAvg!=null&&erFollAvg<BM.er_by_followers_avg) recs.push({k:'opp',h:'ER нижче ринку',t:`ER by followers ${pct(erFollAvg)}% проти ринкових ${BM.er_by_followers_avg}%. При 350k це означає недозалучення наявної бази — більше інтерактиву (питання, опитування) у перші 2 години.`});
+  document.getElementById('recs').innerHTML=recs.map(r=>`<div class="rec ${r.k}"><div class="rec-h">${r.k==='win'?'✅ Виграш':r.k==='issue'?'⚠ Проблема':'◆ Можливість'}</div><div class="rec-t">${r.t}</div></div>`).join('') || '<div class="rec opp"><div class="rec-t">Даних поки замало для рекомендацій.</div></div>';
+
+  // ---- AI block ----
+  if(ai){
+    document.getElementById('ai-body').textContent=ai.summary||'—';
+    document.getElementById('ai-meta').textContent=`${ai.model||'claude'} · ${ai.date||''}`;
+  }
+
+  // ---- competitors ----
+  document.querySelector('#t-comp tbody').innerHTML=comp.map(c=>`<tr><td><strong>@${c.username}</strong><br><span style="color:#888;font-size:11px">${c.display_name||''}</span></td><td>${c.followers?fmtNum(c.followers):'n/a'}</td><td><span class="badge">${c.format_mix||'—'}</span></td><td style="font-size:12px;color:#bbb">${c.notes||''}</td></tr>`).join('');
+
+  // ---- top / weak tables ----
+  const top=[...M].filter(m=>m.reach>=2000).sort((a,b)=>b.erReach-a.erReach).slice(0,10);
+  document.querySelector('#t-top tbody').innerHTML=top.map(m=>`<tr><td>${m.dt?m.dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'}):''}</td><td><span class="badge ${m.fmt==='REELS'?'reels':'feed'}">${FMT[m.fmt]||m.fmt}</span></td><td>${fmtNum(m.reach)}</td><td>${pct(m.erReach)}</td><td>${fmtNum(m.saved)}</td><td>${fmtNum(m.shares)}</td><td><a href="${m.permalink}" target="_blank" rel="noopener">↗</a></td></tr>`).join('');
+  const weak=[...M].filter(m=>m.reach>=1500).sort((a,b)=>a.erReach-b.erReach).slice(0,8);
+  document.querySelector('#t-weak tbody').innerHTML=weak.map(m=>`<tr><td>${m.dt?m.dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'}):''}</td><td><span class="badge ${m.fmt==='REELS'?'reels':'feed'}">${FMT[m.fmt]||m.fmt}</span></td><td>${fmtNum(m.reach)}</td><td>${pct(m.erReach)}</td><td><a href="${m.permalink}" target="_blank" rel="noopener">↗</a></td></tr>`).join('');
+
+  drawCharts(M,weeks,wkER,wkCount,fAgg);
+  drawHeat(M);
+}
+
+function drawCharts(M,weeks,wkER,wkCount,fAgg){
+  const gridC='#2A2A2A',tick='#aaa';
+  const baseOpt=(extra={})=>Object.assign({plugins:{legend:{labels:{color:'#fff',font:{size:11}}}},scales:{x:{ticks:{color:tick},grid:{display:false}},y:{ticks:{color:tick},grid:{color:gridC},beginAtZero:true}}},extra);
+  // ER trend + anomalies
+  const ers=M.filter(m=>m.dt).sort((a,b)=>a.dt-b.dt);
+  const mean=ers.reduce((s,m)=>s+m.erReach,0)/(ers.length||1);
+  const sd=Math.sqrt(ers.reduce((s,m)=>s+Math.pow(m.erReach-mean,2),0)/(ers.length||1));
+  new Chart(document.getElementById('c-er'),{type:'line',
+    data:{labels:ers.map(m=>m.dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'})),
+      datasets:[{label:'ER by reach %',data:ers.map(m=>Math.round(m.erReach*100)/100),borderColor:'#E30613',backgroundColor:'rgba(227,6,19,.08)',fill:true,tension:.3,
+        pointBackgroundColor:ers.map(m=>m.erReach>mean+2*sd?'#10B981':(m.erReach<mean-2*sd?'#DC2626':'#E30613')),
+        pointRadius:ers.map(m=>Math.abs(m.erReach-mean)>2*sd?5:2)}]},
+    options:baseOpt()});
+  // format comparison
+  new Chart(document.getElementById('c-format'),{type:'bar',
+    data:{labels:fAgg.map(f=>FMT[f.f]||f.f),datasets:[
+      {label:'ER by reach %',data:fAgg.map(f=>pct(f.er)),backgroundColor:'#E30613'},
+      {label:'Sends/reach %',data:fAgg.map(f=>pct(f.sends)),backgroundColor:'#7ab0ff'},
+      {label:'Saves/reach %',data:fAgg.map(f=>pct(f.saves)),backgroundColor:'#10B981'}]},
+    options:baseOpt()});
+  // cadence vs ER
+  new Chart(document.getElementById('c-cadence'),{type:'scatter',
+    data:{datasets:[{label:'Тиждень',data:weeks.map((k,i)=>({x:wkCount[i],y:Math.round((wkER[i]||0)*100)/100})),backgroundColor:'#F59E0B',pointRadius:6}]},
+    options:baseOpt({scales:{x:{title:{display:true,text:'постів/тиждень',color:tick},ticks:{color:tick},grid:{color:gridC},beginAtZero:true},y:{title:{display:true,text:'ER by reach %',color:tick},ticks:{color:tick},grid:{color:gridC},beginAtZero:true}}})});
+  // reach distribution
+  const buckets=[0,2000,5000,10000,20000,40000,1e9],bl=['<2k','2–5k','5–10k','10–20k','20–40k','40k+'];
+  const counts=bl.map((_,i)=>M.filter(m=>m.reach>=buckets[i]&&m.reach<buckets[i+1]).length);
+  new Chart(document.getElementById('c-dist'),{type:'bar',
+    data:{labels:bl,datasets:[{label:'Постів',data:counts,backgroundColor:'#3B82F6'}]},
+    options:baseOpt({plugins:{legend:{display:false}}})});
+}
+
+function drawHeat(M){
+  const days=['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+  const slots=[['00-06',0,6],['06-09',6,9],['09-12',9,12],['12-15',12,15],['15-19',15,19],['19-24',19,24]];
+  const cell={};let mx=0;
+  M.forEach(m=>{if(!m.dt)return;const d=(m.dt.getDay()+6)%7;const h=m.dt.getHours();const si=slots.findIndex(s=>h>=s[1]&&h<s[2]);if(si<0)return;const k=d+'_'+si;(cell[k]=cell[k]||[]).push(m.reach);});
+  const avgC={};Object.keys(cell).forEach(k=>{avgC[k]=cell[k].reduce((s,n)=>s+n,0)/cell[k].length;mx=Math.max(mx,avgC[k]);});
+  let html='<div class="heat"><div class="hhead"></div>'+slots.map(s=>`<div class="hhead">${s[0]}</div>`).join('');
+  days.forEach((dn,di)=>{html+=`<div class="hlabel">${dn}</div>`+slots.map((s,si)=>{const v=avgC[di+'_'+si];if(v==null)return '<div class="hcell" style="background:#1a1a1a;color:#444">·</div>';const t=v/mx;const bg=`rgba(227,6,19,${0.15+t*0.85})`;return `<div class="hcell" style="background:${bg}" title="${dn} ${s[0]}: ${Math.round(v).toLocaleString('uk-UA')} reach">${Math.round(v/1000)}k</div>`;}).join('');});
+  html+='</div>';
+  document.getElementById('heat').innerHTML=html;
+}
+</script>
+</body>
+</html>
