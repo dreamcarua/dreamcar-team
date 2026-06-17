@@ -152,8 +152,9 @@
         <div class="card ai-card"><h3>Щоденний висновок Claude</h3><div class="ai-body" id="ai-body">AI-коментар з'явиться після ранкового запуску (09:00).</div><div class="ai-meta" id="ai-meta"></div></div>
 
         <div class="sec-tag" id="cycles">/// Цикли запусків — порівняння</div>
-        <div class="card"><div class="hint">Метрики по кожному циклу розіграшу (пости в межах дат проєкту). Порівнюй цикл-до-циклу, не календарні половини.</div>
-          <table id="t-cycles"><thead><tr><th>Цикл</th><th>Дати</th><th>Постів</th><th>Сер. reach</th><th>ER reach%</th><th>Sends/reach%</th><th>Saves/reach%</th></tr></thead><tbody></tbody></table></div>
+        <div class="card"><div class="hint">Метрики по кожному циклу розіграшу (пости в межах дат проєкту) + продажі циклу. Порівнюй цикл-до-циклу. Виручка = ВСІ оплати циклу (всі канали), не атрибуція IG.</div>
+          <table id="t-cycles"><thead><tr><th>Цикл</th><th>Дати</th><th>Постів</th><th>Сер. reach</th><th>ER%</th><th>Sends%</th><th>Угоди</th><th>Виручка ₴</th></tr></thead><tbody></tbody></table></div>
+        <div class="card"><h3>Охоплення циклу ↔ продажі</h3><div class="hint">Чи сильніші за охопленням органічні цикли = більші продажі. Directional-кореляція (канали змішані), не атрибуція. Розмір точки = постів.</div><canvas id="c-cyc"></canvas></div>
 
         <div class="sec-tag" id="trends">/// Тренди</div>
         <div class="grid">
@@ -224,15 +225,16 @@ document.addEventListener('click',e=>{const a=e.target.closest('a.nav-item[href^
 window.addEventListener('dc-auth-ok',async()=>{
   try{
     const sb=window.supabase;
-    const [acctR,mediaR,aiR,compR,projR,storiesR]=await Promise.all([
+    const [acctR,mediaR,aiR,compR,projR,storiesR,salesR]=await Promise.all([
       sb.from('dashboard_ig_account_daily').select('*').order('date'),
       sb.from('dashboard_ig_media').select('*').order('published_at'),
       sb.from('dashboard_ig_ai_daily').select('*').order('date',{ascending:false}).limit(1),
       sb.from('dashboard_ig_competitors').select('*').order('followers',{ascending:false,nullsFirst:false}),
       sb.from('dashboard_projects').select('code,name,car_model,date_start,date_end,status,color').order('date_end',{ascending:false}),
       sb.from('dashboard_ig_stories').select('*').order('published_at',{ascending:false}).limit(80),
+      sb.rpc('ig_cycle_sales'),
     ]);
-    render(acctR.data||[],mediaR.data||[],(aiR.data||[])[0],compR.data||[],projR.data||[],storiesR.data||[]);
+    render(acctR.data||[],mediaR.data||[],(aiR.data||[])[0],compR.data||[],projR.data||[],storiesR.data||[],salesR.data||[]);
   }catch(e){console.error(e);document.getElementById('loading').textContent='Помилка: '+e.message;}
 });
 
@@ -246,7 +248,7 @@ function kwHook(c){c=(c||'').toLowerCase();
   return 'other';}
 function drawHooks(hooks,LBL){const el=document.getElementById('c-hooks');if(!el)return;
   new Chart(el,{type:'bar',data:{labels:hooks.map(h=>LBL[h.h]||h.h),datasets:[{label:'ER by reach %',data:hooks.map(h=>pct(h.er)),backgroundColor:'#E30613'},{label:'Sends/reach %',data:hooks.map(h=>pct(h.sends)),backgroundColor:'#7ab0ff'}]},options:{plugins:{legend:{labels:{color:'#fff',font:{size:11}}}},scales:{x:{ticks:{color:'#aaa'},grid:{display:false}},y:{ticks:{color:'#aaa'},grid:{color:'#2A2A2A'},beginAtZero:true}}}});}
-function render(acct,media,ai,comp,projects,stories){
+function render(acct,media,ai,comp,projects,stories,sales){
   document.getElementById('loading').style.display='none';
   document.getElementById('content').style.display='block';
   const today=acct.length?acct[acct.length-1]:{};
@@ -311,17 +313,21 @@ function render(acct,media,ai,comp,projects,stories){
   const fAgg=['REELS','FEED'].map(f=>{const a=M.filter(m=>m.fmt===f);return{f,n:a.length,er:avg(a,x=>x.erReach),sends:avg(a,x=>x.sendsR),saves:avg(a,x=>x.savesR),reach:avg(a,x=>x.reach)};});
 
   // cycles cohort
+  const salesMap={};(sales||[]).forEach(s=>{salesMap[s.name]={deals:s.paid_deals,revenue:s.revenue};});
   const cyc=[];
   (projects||[]).forEach(p=>{
     if(!p.date_start||!p.date_end)return;
     const s=new Date(p.date_start+'T00:00:00'),e=new Date(p.date_end+'T23:59:59');
     const posts=M.filter(m=>m.dt&&m.dt>=s&&m.dt<=e);
     if(!posts.length)return;
+    const sm=salesMap[p.name]||{};
     cyc.push({name:p.name,car:p.car_model,from:p.date_start,to:p.date_end,status:p.status,n:posts.length,
-      reach:avg(posts,x=>x.reach),er:avg(posts,x=>x.erReach),sends:avg(posts,x=>x.sendsR),saves:avg(posts,x=>x.savesR)});
+      reach:avg(posts,x=>x.reach),er:avg(posts,x=>x.erReach),sends:avg(posts,x=>x.sendsR),saves:avg(posts,x=>x.savesR),
+      deals:sm.deals,revenue:sm.revenue});
   });
   cyc.sort((a,b)=>new Date(b.to)-new Date(a.to));
-  document.querySelector('#t-cycles tbody').innerHTML=cyc.length?cyc.map(c=>`<tr><td><strong>${c.name}</strong>${c.status==='active'?' <span class="badge cur">активний</span>':''}${c.car?`<br><span style="color:#888;font-size:11px">${c.car}</span>`:''}</td><td style="font-family:var(--dc-font-mono);font-size:11px;color:#aaa">${c.from.slice(5)}→${c.to.slice(5)}</td><td>${c.n}</td><td>${fmtNum(c.reach)}</td><td>${pct(c.er)}</td><td>${pct(c.sends)}</td><td>${pct(c.saves)}</td></tr>`).join(''):'<tr><td colspan="7" style="color:#888">Пости не мапляться на цикли проєктів за цей період.</td></tr>';
+  document.querySelector('#t-cycles tbody').innerHTML=cyc.length?cyc.map(c=>`<tr><td><strong>${c.name}</strong>${c.status==='active'?' <span class="badge cur">активний</span>':''}${c.car?`<br><span style="color:#888;font-size:11px">${c.car}</span>`:''}</td><td style="font-family:var(--dc-font-mono);font-size:11px;color:#aaa">${c.from.slice(5)}→${c.to.slice(5)}</td><td>${c.n}</td><td>${fmtNum(c.reach)}</td><td>${pct(c.er)}</td><td>${pct(c.sends)}</td><td>${c.deals!=null?fmtNum(c.deals):'—'}</td><td>${c.revenue!=null?fmtNum(c.revenue):'—'}</td></tr>`).join(''):'<tr><td colspan="8" style="color:#888">Пости не мапляться на цикли проєктів за цей період.</td></tr>';
+  (function(){const el=document.getElementById('c-cyc');if(!el)return;const pts=cyc.filter(c=>c.revenue!=null&&c.reach!=null).map(c=>({x:Math.round(c.reach),y:Math.round(c.revenue),r:Math.max(5,Math.min(20,Math.sqrt(c.n)*4)),name:c.name}));if(!pts.length)return;new Chart(el,{type:'bubble',data:{datasets:[{label:'Цикл',data:pts,backgroundColor:'rgba(227,6,19,.5)'}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.name}: reach ${c.raw.x.toLocaleString('uk-UA')} · ${(c.raw.y/1000000).toFixed(1)}М₴`}}},scales:{x:{title:{display:true,text:'сер. охоплення поста',color:'#aaa'},ticks:{color:'#aaa'},grid:{color:'#2A2A2A'}},y:{title:{display:true,text:'виручка циклу ₴',color:'#aaa'},ticks:{color:'#aaa',callback:v=>(v/1000000)+'М'},grid:{color:'#2A2A2A'}}}}});})();
 
   // recommendations
   const recs=[];
