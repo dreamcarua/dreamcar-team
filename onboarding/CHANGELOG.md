@@ -8,6 +8,23 @@
 
 ---
 
+## 17.06.2026 — Daily Finance TG Report (09:30 Київ) + ghost-блоки fix + % з угод
+
+### Daily Finance Report (#513)
+- 🆕 Edge fn `daily-finance-report` + pg_cron jobid 1520 (щодня 06:30 UTC = **09:30 Київ**). Шле DM Vadym + Артем (CFO).
+- 🆕 RPC `dashboard_daily_finance_report(p_date)` повертає JSON з: P&L вчора (revenue/ad_spend/% з угод/fixed/призовий/variable/net), порівняння з позавчора, MTD сума, каса (надходження/витрати + к-сть транзакцій без internal/excl_pnl), баланси активних рахунків.
+- 🆕 Формат TG: 💰 заголовок → 📊 P&L з emoji 🟢/🔴 на net → 📈 vs prev day → 📅 MTD → 🏦 каса за день → 💼 баланси Σ + breakdown по рахунках. Лінки на /finance/ + /kasa/.
+- ⚙️ TZ Europe/Kyiv (yesterday вираховується з kyivYesterday()).
+
+### Ghost блоки світла тема (#511, Vira UX)
+- 🔧 У світлій темі `cal-item-ghost` (Retention) і `cal-ghost` (SMM) — текст темно-сірий #475569 (slate-600). Фон блакитний rgba(59,130,246,0.08).
+- 🔧 Sync `dc-theme.js` на 5 системах: hq/retention/tasks/projects/inventory. Раніше тільки hq мав останню версію.
+
+### Period P&L (#512)
+- 🔧 % з угод тепер коректно береться з таблиці `percent_rates` (ФОП 3% + ФОПоводи 5% + Бух 2% + ВЗ 2% = **12%**) × daily revenue. Раніше було 0 ₴ бо matview підтягував з project_costs.
+
+---
+
 ## 17.06.2026 — Finance Period P&L: 920× швидше + presets "Сьогодні/7д/30д/MTD" + skeleton
 
 ### Performance (#509)
