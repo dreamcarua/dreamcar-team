@@ -8,12 +8,20 @@
 
 ---
 
-## 19.06.2026 — Daily TG Finance BOARD Report (09:30 Київ) #524
+## 19.06.2026 — Daily TG Finance BOARD Report (09:30 Київ) #524–525
 
 ### Daily BOARD Report
 - 🆕 Edge fn `daily-finance-board-report` + pg_cron jobid 1777 (щодня 06:30 UTC = **09:30 Київ**). Шле у BOARD chat `-1003883456849` (4 учасники: Vadym/Артем/Давид + ще).
 - 🆕 RPC `dashboard_active_projects_lifetime(p_to)` повертає JSON з усіма `status='active'` проектами і lifetime метриками (від `starts_on` до `p_to`): revenue, ad_spend, % з угод, fixed, prize (amortized), variable, total_cost, net_profit, margin_pct + days_active + days_to_finish.
 - 🆕 Формат TG: 💰 P&L вчора (як для DM) → 📈 vs позавчора → 📅 MTD → 🏁 **Активні проєкти (від старту)** з повним lifetime breakdown + дати/днів. **Без блоку каси** (це відмінність від DM-звіту).
+
+### Daily BOARD Report v2 — блок ПО ВИКОНАВЦЯХ (#525, Vadym UX)
+- 🆕 RPC `dashboard_executors_stats(p_from, p_to)` — агрегація по `utm_term` з `dashboard_deals` + spend з `dashboard_ads_data`. Повертає `executor / leads / paid / revenue / ad_spend`. SECURITY DEFINER, ::date через `AT TIME ZONE 'Europe/Kyiv'`.
+- 🆕 Edge fn v2: викликає `dashboard_executors_stats` тричі — `(yesterday, yesterday)`, `(day_before, day_before)`, `(starts_on, yesterday)` для кожного активного проекту.
+- 🆕 Нормалізація у 4 buckets: **Vadym (Meta)** = paid · **Vira (ретеншн)** = organic · **Artem (органіка)** = organic · **Інші** = решта (`claude/dreamcar/ai_dreamcar/club_dreamcar/inший` сумуються разом).
+- 🆕 Блок «👥 Виконавці (вчора vs позавчора)» — revenue + paid count + Δ% vs позавчора + spend (для Vadym).
+- 🆕 Під кожним активним проектом — «*👥 Виконавці за весь проєкт*» — revenue + % частка від загального + paid count + spend.
+- ⚙️ Тест на 18.06.2026: 200 OK, text_length=1458, sent.ok=true.
 
 ---
 
