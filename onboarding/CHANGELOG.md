@@ -8,6 +8,15 @@
 
 ---
 
+## 19.06.2026 — Daily TG Finance BOARD Report (09:30 Київ) #524
+
+### Daily BOARD Report
+- 🆕 Edge fn `daily-finance-board-report` + pg_cron jobid 1777 (щодня 06:30 UTC = **09:30 Київ**). Шле у BOARD chat `-1003883456849` (4 учасники: Vadym/Артем/Давид + ще).
+- 🆕 RPC `dashboard_active_projects_lifetime(p_to)` повертає JSON з усіма `status='active'` проектами і lifetime метриками (від `starts_on` до `p_to`): revenue, ad_spend, % з угод, fixed, prize (amortized), variable, total_cost, net_profit, margin_pct + days_active + days_to_finish.
+- 🆕 Формат TG: 💰 P&L вчора (як для DM) → 📈 vs позавчора → 📅 MTD → 🏁 **Активні проєкти (від старту)** з повним lifetime breakdown + дати/днів. **Без блоку каси** (це відмінність від DM-звіту).
+
+---
+
 ## 17.06.2026 — Daily Finance TG Report (09:30 Київ) + ghost-блоки fix + % з угод
 
 ### Daily Finance Report (#513)
