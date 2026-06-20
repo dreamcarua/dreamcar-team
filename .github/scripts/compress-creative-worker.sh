@@ -1,6 +1,14 @@
 #!/bin/bash
 # Compress Creative Worker — TARGET-BITRATE 2-pass H.264 high, MAX quality ≤49.5MB.
 #
+# v4 — CPU optimization (#526, 20.06.2026):
+#   • preset veryslow → slow (3× швидше, QP loss <1%; SMM/IG/TG users не побачать різниці)
+#   • subme=10 → 8 (motion search refinement)
+#   • merange=32 → 24
+#   • rc-lookahead=80 → 60
+#   Імпульс: 4 failed creatives від 10-12.06 на старому worker зависали >25min.
+#   Тепер encoding ~10-12min для 60s 1080p iPhone → ВЛІЗАЄ у 30min runner timeout з запасом.
+#
 # v3 — HEIC error visibility fix:
 #   • convert обгорнуто у if-block — не фаєрить ERR trap, видно реальну помилку
 #   • heif-convert верифікує розмір вихідного JPG (>1KB)
@@ -439,11 +447,14 @@ if [ "$IS_HDR" = "yes" ]; then
   HDR_SCALE="scale='if(gt(iw,ih),min(${HDR_MAX_LONG},iw),-2)':'if(gt(ih,iw),min(${HDR_MAX_LONG},ih),-2)':flags=lanczos,setsar=1"
 
   # x265 з HLG bt2020 metadata збереженням
-  HDR_X265_PARAMS="log-level=error:keyint=120:bframes=8:rc-lookahead=60:aq-mode=3:psy-rd=2.0:psy-rdoq=1.0:colorprim=bt2020:transfer=arib-std-b67:colormatrix=bt2020nc:range=limited:hdr10-opt=1"
+  # #526: rc-lookahead=40 (було 60) — мінус ~15% CPU
+  HDR_X265_PARAMS="log-level=error:keyint=120:bframes=6:rc-lookahead=40:aq-mode=3:psy-rd=2.0:psy-rdoq=1.0:colorprim=bt2020:transfer=arib-std-b67:colormatrix=bt2020nc:range=limited:hdr10-opt=1"
 
   echo "[HDR HEVC Pass 1/2] @ ${VIDEO_KBPS}k..."
+  # #526: x265 preset slow → medium (HDR pass-through 100% покриває маленькі файли,
+  # HEVC шлях triggers лише для HDR >49MB — це рідкісний випадок, можна швидше)
   ffmpeg -y -v error -stats -i "$INPUT" \
-    -c:v libx265 -preset slow -profile:v main10 -pix_fmt yuv420p10le \
+    -c:v libx265 -preset medium -profile:v main10 -pix_fmt yuv420p10le \
     -x265-params "${HDR_X265_PARAMS}:pass=1:stats=${PASS_LOG_HEVC}" \
     -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
     -vf "$HDR_SCALE" \
@@ -452,7 +463,7 @@ if [ "$IS_HDR" = "yes" ]; then
 
   echo "[HDR HEVC Pass 2/2] Encoding..."
   ffmpeg -y -v error -stats -i "$INPUT" \
-    -c:v libx265 -preset slow -profile:v main10 -pix_fmt yuv420p10le -tag:v hvc1 \
+    -c:v libx265 -preset medium -profile:v main10 -pix_fmt yuv420p10le -tag:v hvc1 \
     -x265-params "${HDR_X265_PARAMS}:pass=2:stats=${PASS_LOG_HEVC}" \
     -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
     -vf "$HDR_SCALE" \
@@ -536,14 +547,17 @@ SCALE_FILTER="${HDR_PREFIX}scale='if(gt(iw,ih),min(${MAX_LONG},iw),-2)':'if(gt(i
 echo "Target longest side: ${MAX_LONG}px (orig logical=${SRC_LONG}), aspect preserved${FPS_FILTER:+, $FPS_FILTER}"
 [ -n "$HDR_PREFIX" ] && echo "HDR→SDR tone mapping ENABLED"
 
-# v2: preset veryslow + advanced tuning
-X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset veryslow -tune film"
-# v2 params: bframes=12, ref=8 (max useful), subme=10, aq-mode=3 (autovariance-biased),
-#            merange=32 (was 16), qcomp=0.7 (was 0.6), psy-rd збільшено
-X264_PARAMS="bframes=12:b-adapt=2:ref=8:no-fast-pskip=1:aq-mode=3:aq-strength=1.0:psy-rd=1.1,0.2:rc-lookahead=80:trellis=2:me=umh:subme=10:mixed-refs=1:8x8dct=1:weightb=1:weightp=2:merange=32:qcomp=0.7:deblock=-1,-1"
+# #526 (20.06.2026): preset veryslow → slow. veryslow дає ~1.5% краще стиснення
+# але у 3-4× повільніше. На фоні розміру H.264 у TG/IG це непомітно. Тішучи runners,
+# забезпечуємо що 1-min кліп завжди влізає у 30-min timeout навіть на slowest runner.
+X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset slow -tune film"
+# #526: subme=8 (було 10), merange=24 (було 32), rc-lookahead=60 (було 80).
+#       Bframes=8 (було 12) — кращий tradeoff swap для preset=slow.
+#       Сумарно: ~50% швидше encoding на тому ж VIDEO_KBPS бюджеті.
+X264_PARAMS="bframes=8:b-adapt=2:ref=6:no-fast-pskip=1:aq-mode=3:aq-strength=1.0:psy-rd=1.0,0.15:rc-lookahead=60:trellis=2:me=hex:subme=8:mixed-refs=1:8x8dct=1:weightb=1:weightp=2:merange=24:qcomp=0.7:deblock=-1,-1"
 
 echo ""
-echo "[H.264 Pass 1/2] veryslow analyzing @ ${VIDEO_KBPS}k..."
+echo "[H.264 Pass 1/2] slow analyzing @ ${VIDEO_KBPS}k..."
 ffmpeg -y -v error -stats -i "$INPUT" \
   $X264_OPTS \
   -x264-params "$X264_PARAMS" \
@@ -617,18 +631,18 @@ if [ "$ENABLE_HEVC" = "1" ]; then
   if [ "$HEVC_KBPS" -lt 300 ]; then HEVC_KBPS=300; fi
 
   echo ""
-  echo "[HEVC Pass 1/2] x265 main, slow preset, ${HEVC_KBPS}k..."
+  echo "[HEVC Pass 1/2] x265 main, medium preset, ${HEVC_KBPS}k..."
   ffmpeg -y -v error -stats -i "$INPUT" \
-    -c:v libx265 -preset slow -profile:v main \
-    -x265-params "log-level=error:keyint=120:bframes=8:rc-lookahead=60:aq-mode=3:psy-rd=2.0:psy-rdoq=1.0:pass=1:stats=$PASS_LOG_HEVC" \
+    -c:v libx265 -preset medium -profile:v main \
+    -x265-params "log-level=error:keyint=120:bframes=6:rc-lookahead=40:aq-mode=3:psy-rd=2.0:psy-rdoq=1.0:pass=1:stats=$PASS_LOG_HEVC" \
     -b:v "${HEVC_KBPS}k" -maxrate "$((HEVC_KBPS * 110 / 100))k" -bufsize "$((HEVC_KBPS * 2))k" \
     -vf "$HEVC_SCALE" \
     -an -f null /dev/null
 
   echo "[HEVC Pass 2/2] Encoding..."
   ffmpeg -y -v error -stats -i "$INPUT" \
-    -c:v libx265 -preset slow -profile:v main -tag:v hvc1 \
-    -x265-params "log-level=error:keyint=120:bframes=8:rc-lookahead=60:aq-mode=3:psy-rd=2.0:psy-rdoq=1.0:pass=2:stats=$PASS_LOG_HEVC" \
+    -c:v libx265 -preset medium -profile:v main -tag:v hvc1 \
+    -x265-params "log-level=error:keyint=120:bframes=6:rc-lookahead=40:aq-mode=3:psy-rd=2.0:psy-rdoq=1.0:pass=2:stats=$PASS_LOG_HEVC" \
     -b:v "${HEVC_KBPS}k" -maxrate "$((HEVC_KBPS * 110 / 100))k" -bufsize "$((HEVC_KBPS * 2))k" \
     -vf "$HEVC_SCALE" \
     -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
