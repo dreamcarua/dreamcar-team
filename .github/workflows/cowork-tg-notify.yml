@@ -91,8 +91,10 @@ jobs:
               info|*) EMOJI="🤖" ;;
             esac
             TS=$(date -u +"%H:%M UTC · %d.%m")
-            SAFE_TEXT=$(echo "$TEXT" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
-            MSG="${EMOJI} <b>Cowork</b> · ${TS}${NL}${NL}${SAFE_TEXT}"
+            # v2 (#531, 20.06.2026): прибрано sed escape <,>,& — payload містить
+            # навмисний HTML (<b>, <i>, <a>) який TG має рендерити. Раніше escape
+            # ламав <b> → &lt;b&gt; і у чаті теги відображались літерально.
+            MSG="${EMOJI} <b>Cowork</b> · ${TS}${NL}${NL}${TEXT}"
             if [ -n "$LINK" ] && [ "$LINK" != "null" ]; then
               MSG="${MSG}${NL}${NL}🔗 <a href=\"${LINK}\">Відкрити</a>"
             fi
