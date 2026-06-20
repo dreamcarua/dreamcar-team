@@ -105,11 +105,26 @@ jobs:
               -d "parse_mode=HTML" \
               -d "disable_web_page_preview=true")
             if [ "$HTTP" != "200" ]; then
-              echo "::error::TG send failed for $file (HTTP $HTTP):"
+              # v3 (#534): fallback на plain-text якщо HTML parse fail (наприклад unclosed <b>)
+              # Замість того щоб workflow крашився — відправляємо без parse_mode
+              # і тег виглядатиме як plain text. Краще ніж втратити нотифікацію.
+              echo "::warning::HTML parse fail (HTTP $HTTP), fallback to plain text:"
               cat /tmp/tg-resp.txt
-              exit 1
+              PLAIN_MSG=$(echo "$MSG" | sed -E 's|</?(b|i|u|s|a|code|pre|em|strong|tg-spoiler)[^>]*>||gi')
+              HTTP2=$(curl -s -o /tmp/tg-resp2.txt -w "%{http_code}" \
+                "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
+                -d "chat_id=$TG_CHAT_ID" \
+                --data-urlencode "text=$PLAIN_MSG" \
+                -d "disable_web_page_preview=true")
+              if [ "$HTTP2" != "200" ]; then
+                echo "::error::Even plain-text fallback failed for $file (HTTP $HTTP2):"
+                cat /tmp/tg-resp2.txt
+                exit 1
+              fi
+              echo "⚠️ Sent as plain-text fallback: $file"
+            else
+              echo "✅ Sent: $file"
             fi
-            echo "✅ Sent: $file"
           done <<< "$FILES"
 
       - name: Archive sent files
