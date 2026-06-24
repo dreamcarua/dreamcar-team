@@ -837,9 +837,32 @@ function renderAuthChip(){
   const tgDot = tgOk
     ? '<span title="Telegram привʼязано" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 6px rgba(16,185,129,0.6);margin-right:6px;vertical-align:middle;"></span>'
     : '<a href="https://t.me/dreamcar_team_bot?start=bind" target="_blank" title="Підключи TG для нотифікацій" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F59E0B;box-shadow:0 0 6px rgba(245,158,11,0.6);margin-right:6px;vertical-align:middle;text-decoration:none;animation:tgPulse 1.5s infinite;"></a>';
-  document.getElementById('authChip').innerHTML=`<span class="user-chip">${tgDot}✓ ${escapeHtml(name.toUpperCase().slice(0,16))}</span> <button class="filter-btn" id="signOutBtn">EXIT</button>`;
-  document.getElementById('signOutBtn').onclick=async()=>{await supabase.auth.signOut();location.reload();};
+  document.getElementById('authChip').innerHTML=`<span class="user-chip">${tgDot}✓ ${escapeHtml(name.toUpperCase().slice(0,16))}</span> <button class="filter-btn" id="signOutBtn" onclick="window.__bulletproofSignOut()">EXIT</button>`;
 }
+// #548 24.06.2026: bulletproof signOut — Vadym EXIT не працював.
+// Причина: supabase.auth.signOut() чистить localStorage, але dc-shared-storage cookie + SSO bridge відновлює session при reload.
+// Fix: clear cookies (.dreamcar.ua), localStorage sb-/dc-, sessionStorage, replace URL.
+window.__bulletproofSignOut = async function() {
+  try { await supabase.auth.signOut(); } catch(_){}
+  try {
+    // Clear cookies для .dreamcar.ua і всіх path
+    document.cookie.split(";").forEach(function(c){
+      var eq = c.indexOf("=");
+      var name = (eq > -1 ? c.substr(0, eq) : c).trim();
+      if (name.startsWith('sb-') || name.startsWith('dc-')) {
+        var expire = '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+        document.cookie = name + expire;
+        document.cookie = name + expire + ';domain=dreamcar.ua';
+        document.cookie = name + expire + ';domain=.dreamcar.ua';
+        document.cookie = name + expire + ';domain=team.dreamcar.ua';
+      }
+    });
+    Object.keys(localStorage).forEach(function(k){ if(k.startsWith('sb-')||k.startsWith('dc-')) localStorage.removeItem(k); });
+    Object.keys(sessionStorage).forEach(function(k){ if(k.startsWith('sb-')||k.startsWith('dc-')) sessionStorage.removeItem(k); });
+  } catch(e) { console.warn('signOut cleanup error', e); }
+  // Force navigate на чисту URL без hash (SSO bridge не спрацює)
+  location.replace('/tasks/');
+};
 
 document.getElementById('loginGoogle').onclick=async()=>{
   // 05.06.2026: direct Google login — cookie storage shared with /hq/, /brand/, etc.
