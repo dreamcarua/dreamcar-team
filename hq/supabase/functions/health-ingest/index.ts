@@ -1,14 +1,15 @@
 // health-ingest — receiver for Apple Health data.
-// Accepts TWO payload shapes:
+// Accepts THREE payload shapes:
 //   A) Health Auto Export:  { data: { metrics: [ {name, units, data:[{date, qty}]} ] } }
-//   B) Apple Shortcuts flat: { measured_at?: ISO, source?: str,
-//                              samples: { "<code>": <number>, ... }  OR
-//                              samples: [ {code|metric, value, measured_at?}, ... ] }
+//   B) Shortcuts wrapped:   { measured_at?, source?, samples: {code:value} | [{code,value,measured_at?}] }
+//   C) Shortcuts bare dict:  { "resting_hr": 58, "steps": 8423, ... }  (optional measured_at/source keys)
 // Auth: header `Authorization: Bearer <token>` or `x-ingest-token: <token>`
 //       matched against health.ingest_tokens. Writes into health.measurements.
 // Deployed with --no-verify-jwt (own token auth).
 
 import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+
+const RESERVED = new Set(["measured_at", "source", "samples", "data", "metrics"]);
 
 // Health Auto Export metric name -> [catalog code, category]
 const MAP: Record<string, [string, string]> = {
@@ -103,7 +104,6 @@ Deno.serve(async (req) => {
     };
 
     const metrics: any[] = body?.data?.metrics ?? body?.metrics ?? [];
-    const flat = body?.samples;
 
     if (Array.isArray(metrics) && metrics.length) {
       // --- Shape A: Health Auto Export ---
@@ -119,18 +119,27 @@ Deno.serve(async (req) => {
           if (when && val !== null) await insertMeas(code, when, val, "apple_health", p);
         }
       }
-    } else if (flat) {
-      // --- Shape B: Shortcuts flat ---
+    } else if (body && typeof body === "object") {
+      // --- Shapes B & C: Shortcuts ---
       const source = String(body?.source ?? "shortcuts");
       const defaultWhen = String(body?.measured_at ?? new Date().toISOString());
       const entries: Array<[string, unknown, string]> = [];
+      const flat = body?.samples;
       if (Array.isArray(flat)) {
         for (const e of flat) {
           const code = e?.code ?? e?.metric;
           if (code) entries.push([String(code), e?.value ?? e?.qty, String(e?.measured_at ?? defaultWhen)]);
         }
-      } else if (typeof flat === "object") {
+      } else if (flat && typeof flat === "object") {
         for (const [k, v] of Object.entries(flat)) entries.push([k, v, defaultWhen]);
+      } else {
+        // bare dict: top-level keys are metric codes
+        for (const [k, v] of Object.entries(body)) {
+          if (!RESERVED.has(k)) entries.push([k, v, defaultWhen]);
+        }
+      }
+      if (!entries.length) {
+        return new Response(JSON.stringify({ error: "no recognizable samples in body" }), { status: 400, headers: { "content-type": "application/json" } });
       }
       for (const [code, raw, when] of entries) {
         const val = toNum(raw);
@@ -139,7 +148,7 @@ Deno.serve(async (req) => {
         await insertMeas(code, when, val, source, { code, value: val });
       }
     } else {
-      return new Response(JSON.stringify({ error: "no metrics or samples in body" }), { status: 400, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify({ error: "empty body" }), { status: 400, headers: { "content-type": "application/json" } });
     }
 
     await client.queryArray`update health.ingest_tokens set last_used = now() where token = ${token}`;
