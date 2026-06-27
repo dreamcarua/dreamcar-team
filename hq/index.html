@@ -9,13 +9,13 @@
 <meta http-equiv="Expires" content="0">
 <title>DreamCar HQ · Стіл SMM</title>
 <!-- GLOBAL BRAND HEADER — обов'язково на ВСІХ сторінках проекту для навігації -->
-<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202606271205-74496d89" defer></script>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202606271211-b8d3af6c" defer></script>
 <script src="config.js"></script>
 <!-- 08.06.2026 R2 (Давид login loop fix): підключаємо shared storage у HQ -->
 <!-- Раніше HQ використовував дефолтний localStorage без cookie sync — це могло
      створювати ситуацію коли Tasks через cookie бачив старий expired token,
      а HQ свіжий → cross-app session drift → login loop. -->
-<script src="dc-shared-storage.js?v=202606271205-74496d89"></script>
+<script src="dc-shared-storage.js?v=202606271211-b8d3af6c"></script>
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config
   if (window.HQ_CONFIG?.SUPABASE_URL && window.HQ_CONFIG?.SUPABASE_ANON_KEY) {
@@ -1715,7 +1715,7 @@
     .fab-create { display: flex; }
   }
 </style>
-<script src="dc-theme.js?v=202606271205-74496d89" defer></script>
+<script src="dc-theme.js?v=202606271211-b8d3af6c" defer></script>
 </head>
 <body>
 
@@ -1895,15 +1895,15 @@
 })();
 </script>
 
-<script src="app-core.js?v=202606271205-74496d89" defer></script>
-<script src="app-views.js?v=202606271205-74496d89" defer></script>
+<script src="app-core.js?v=202606271211-b8d3af6c" defer></script>
+<script src="app-views.js?v=202606271211-b8d3af6c" defer></script>
 <!-- 09.06.2026 #207/#208/#209: loader chain (app-locks → app-extras → ...) на production не стартувала.
      Через це app-overview-modal.js, app-extras.js, app-duplicate-to.js НЕ завантажувались.
      Олександр і Давид бачили старий edit modal без кнопки Дублювати + без креативів у preview.
      Тепер вантажимо chain напряму. -->
-<script src="app-locks.js?v=202606271205-74496d89" defer></script>
-<script src="app-overview-modal.js?v=202606271205-74496d89" defer></script>
-<script src="app-duplicate-to.js?v=202606271205-74496d89" defer></script>
+<script src="app-locks.js?v=202606271211-b8d3af6c" defer></script>
+<script src="app-overview-modal.js?v=202606271211-b8d3af6c" defer></script>
+<script src="app-duplicate-to.js?v=202606271211-b8d3af6c" defer></script>
 
 </body>
 </html>
