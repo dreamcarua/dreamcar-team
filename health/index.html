@@ -34,6 +34,15 @@ th{color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase}tr:last
 .fl-high{background:#fde8e8;color:#b42318}.fl-low{background:#fef0e2;color:#b54708}.fl-critical{background:#b42318;color:#fff}
 details{margin-top:8px;background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:0 4px}
 summary{cursor:pointer;color:#6b7280;font-size:12.5px;padding:9px 12px;list-style:none}
+.rd{display:flex;gap:14px;align-items:center;border:1px solid #e6e8eb;border-radius:14px;padding:14px 16px;margin-top:6px}
+.rd .sc{font-size:34px;font-weight:700;line-height:1;min-width:64px;text-align:center}
+.rd .nm{font-size:15px;font-weight:650}.rd .mt{font-size:12px;color:#6b7280;margin-top:3px}
+.rd-green{background:#eaf7ee;border-color:#bfe3c9}.rd-amber{background:#fdf4e8;border-color:#f3d9b0}.rd-red{background:#fdeaea;border-color:#f3c0c0}
+.al{background:#fde8e8;color:#b42318;border-radius:8px;padding:4px 8px;font-size:11.5px;margin-top:5px;display:inline-block}
+.rem{background:#eef2ff;border:1px solid #cdd6ff;color:#3538cd;border-radius:11px;padding:9px 13px;font-size:12.5px;margin-top:8px}
+.lt{margin:8px 0}.lt .row{font-size:12.5px;display:flex;justify-content:space-between}
+.lt .b{height:7px;background:#eef0f2;border-radius:6px;position:relative;margin-top:4px}
+.lt .b i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}.lt .b s{position:absolute;top:-2px;bottom:-2px;width:2px;background:#1a1d21}
 .msg{padding:40px 16px;text-align:center;color:#6b7280}
 </style></head><body><div class="wrap">
 <h1>🫀 Health Cockpit</h1><div class="sub" id="sub">Завантаження…</div>
@@ -47,17 +56,39 @@ function delta(cur,prev,good){cur=num(cur);prev=num(prev);if(cur==null||prev==nu
 function kc(lab,val,unit,sub,d){return '<div class="card"><div class="lab"><span>'+lab+'</span>'+(d||'')+'</div><div class="big">'+val+'<small> '+(unit||'')+'</small></div><div class="meta">'+(sub||'')+'</div></div>';}
 function flagBadge(fl){if(!fl||fl==='normal')return '<span class="sub">норма</span>';const m={high:'вище',low:'нижче',critical:'критично'};return '<span class="fl fl-'+fl+'">'+(m[fl]||fl)+'</span>';}
 function labRow(r){const ref=(r.ref_low!=null||r.ref_high!=null)?((r.ref_low!=null?f(r.ref_low,2):'')+'–'+(r.ref_high!=null?f(r.ref_high,2):'')):'';const val=r.value!=null?('<b>'+f(r.value,2)+'</b> '+esc(r.unit||'')):esc(r.value_text||'—');return '<tr><td>'+esc(r.raw_name)+'</td><td>'+val+'</td><td class="sub">'+ref+'</td><td>'+flagBadge(r.flag)+'</td></tr>';}
+function readiness(rd){
+ if(!rd||rd.score==null)return '';
+ const sc=num(rd.score);const cls=sc>=75?'rd-green':(sc>=55?'rd-amber':'rd-red');
+ const acwr=rd.acwr!=null?num(rd.acwr):null;
+ const loadtxt=acwr==null?'—':(acwr>1.4?acwr+' ⚠️ висока':(acwr<0.8?acwr+' низька':acwr+' оптим.'));
+ let mt='😴 '+f(rd.sleep,1)+' год · 📈 HRV '+f(rd.hrv)+'/'+f(rd.hrv_base)+' · ❤️ пульс '+f(rd.rhr)+'/'+f(rd.rhr_base)+' · 🏋️ '+loadtxt;
+ const dr=(rd.drivers||[]);const al=(rd.alerts||[]);
+ let h='<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div><div class="nm">Готовність дня: '+esc(rd.status)+'</div><div class="mt">'+mt+'</div>';
+ if(dr.length)h+='<div class="mt">'+dr.map(esc).join(' · ')+'</div>';
+ if(al.length)h+='<div class="al">⚠️ '+al.map(esc).join('; ')+'</div>';
+ h+='</div></div>';
+ return h;
+}
+function lipidTrack(labs){
+ const find=nm=>{const r=(labs.results||[]).find(x=>x.raw_name===nm);return r?num(r.value):null;};
+ const items=[['Холестерин загальний',find('Холестерин загальний'),190],['ЛПНЩ (LDL)',find('ЛПНЩ (LDL)'),115],['Не-HDL',find('Не-HDL холестерин'),130]];
+ let h='';
+ for(const [nm,val,tgt] of items){if(val==null)continue;const over=val>tgt;const fill=Math.min(100,val/(tgt*1.5)*100);const tl=tgt/(tgt*1.5)*100;
+  h+='<div class="lt"><div class="row"><span>'+nm+'</span><span><b>'+f(val)+'</b> / ціль &lt;'+tgt+' '+(over?'<span class="fl fl-high">+'+f(val-tgt)+'</span>':'<span class="fl" style="background:#e6f4ea;color:#1a7f37">ок</span>')+'</span></div><div class="b"><i style="width:'+fill+'%;background:'+(over?'#b42318':'#1a7f37')+'"></i><s style="left:'+tl+'%"></s></div></div>';}
+ return h?('<div class="panel" style="padding:10px 14px"><div class="sub" style="margin-bottom:4px">🎯 Ліпідні цілі (PTL/PTDL)</div>'+h+'</div>'):'';
+}
 function render(D){
- const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||[],cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[];
+ const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||[],cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[],rem=D.reminders||[];
  document.getElementById('sub').innerHTML='Дані Apple Health · <b>'+f(k.total)+'</b> замірів · з '+(k.since||'')+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
  let h='';
+ h+=readiness(D.readiness);
+ if(rem.length){h+='<div class="rem">🔔 '+rem.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ')+'</div>';}
  if(D.insights&&D.insights.body){h+='<h2>🤖 AI-аналіз та рекомендації</h2><div class="ai">'+D.insights.body+'<div class="sub" style="margin-top:8px">згенеровано '+(D.insights.at?new Date(D.insights.at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'}):'')+'</div></div>';}
- // LABS
  if(labs.results&&labs.results.length){
    const flagged=labs.results.filter(r=>r.flag&&r.flag!=='normal');
    h+='<h2>🧪 Лабораторні аналізи · '+(labs.date||'')+'</h2>';
-   if(flagged.length){h+='<div class="panel"><table><thead><tr><th>Поза нормою</th><th>Значення</th><th>Реф.</th><th></th></tr></thead><tbody>';for(const r of flagged)h+=labRow(r);h+='</tbody></table></div>';}
-   else{h+='<div class="panel"><div class="sub" style="padding:14px">Усі показники в межах норми ✅</div></div>';}
+   h+=lipidTrack(labs);
+   if(flagged.length){h+='<div class="panel" style="margin-top:8px"><table><thead><tr><th>Поза нормою</th><th>Значення</th><th>Реф.</th><th></th></tr></thead><tbody>';for(const r of flagged)h+=labRow(r);h+='</tbody></table></div>';}
    h+='<details><summary>Усі показники ('+labs.results.length+')</summary><table><tbody>';for(const r of labs.results)h+=labRow(r);h+='</tbody></table></details>';
  }
  h+='<h2>Огляд · 90 днів</h2><div class="cards">';
