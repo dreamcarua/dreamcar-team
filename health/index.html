@@ -28,6 +28,8 @@ th{color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase}tr:last
 .recs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .rec{background:#fff;border:1px solid #e6e8eb;border-radius:11px;padding:11px;text-align:center}
 .rec .v{font-size:20px;font-weight:650}.rec .l{font-size:11px;color:#6b7280;margin-top:2px}
+.ai{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:2px 16px 14px}
+.ai h4{font-size:14px;margin:14px 0 5px}.ai p{margin:4px 0}.ai ul{margin:4px 0;padding-left:20px}.ai li{margin:3px 0}
 .msg{padding:40px 16px;text-align:center;color:#6b7280}
 </style></head><body><div class="wrap">
 <h1>🫀 Health Cockpit</h1><div class="sub" id="sub">Завантаження…</div>
@@ -42,6 +44,7 @@ function render(D){
  const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||[],cov=D.coverage||[];
  document.getElementById('sub').innerHTML='Дані Apple Health · <b>'+f(k.total)+'</b> замірів · з '+(k.since||'')+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
  let h='';
+ if(D.insights&&D.insights.body){h+='<h2>🤖 AI-аналіз та рекомендації</h2><div class="ai">'+D.insights.body+'<div class="sub" style="margin-top:8px">згенеровано '+(D.insights.at?new Date(D.insights.at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'}):'')+'</div></div>';}
  h+='<h2>Огляд · 90 днів</h2><div class="cards">';
  h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'));
  h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'));
