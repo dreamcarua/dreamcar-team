@@ -1,0 +1,83 @@
+<!doctype html><html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Health Cockpit</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root{color-scheme:light}*{box-sizing:border-box}
+body{margin:0;background:#f6f7f9;color:#1a1d21;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 16px 70px}
+h1{font-size:21px;margin:0 0 2px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin:26px 0 10px}
+.sub{color:#6b7280;font-size:12.5px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.card{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:13px 15px}
+.card .lab{color:#6b7280;font-size:12px;display:flex;justify-content:space-between;gap:6px}
+.card .big{font-size:23px;font-weight:650;margin-top:3px}.card .big small{font-size:12px;font-weight:500;color:#6b7280}
+.card .meta{font-size:11px;color:#6b7280;margin-top:2px}
+.delta{font-size:11px;font-weight:600;padding:1px 6px;border-radius:20px;white-space:nowrap}
+.up{background:#e6f4ea;color:#1a7f37}.down{background:#fde8e8;color:#b42318}.flat{background:#eef0f2;color:#6b7280}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.cbox{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:11px 13px}
+.cbox h4{margin:0 0 2px;font-size:13px}.cbox .cw{position:relative;height:160px}
+.panel{background:#fff;border:1px solid #e6e8eb;border-radius:13px;overflow:hidden}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 14px;border-bottom:1px solid #f0f1f3;font-size:13px}
+th{color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase}tr:last-child td{border-bottom:none}
+.corr{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.crow{background:#fff;border:1px solid #e6e8eb;border-radius:11px;padding:11px 13px}
+.crow .p{font-size:13px;font-weight:600}.crow .bar{height:7px;border-radius:6px;background:#eef0f2;margin:7px 0 5px;position:relative}
+.crow .bar i{position:absolute;top:0;bottom:0;border-radius:6px}.crow .t{font-size:11.5px;color:#6b7280}
+.recs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.rec{background:#fff;border:1px solid #e6e8eb;border-radius:11px;padding:11px;text-align:center}
+.rec .v{font-size:20px;font-weight:650}.rec .l{font-size:11px;color:#6b7280;margin-top:2px}
+.msg{padding:40px 16px;text-align:center;color:#6b7280}
+</style></head><body><div class="wrap">
+<h1>🫀 Health Cockpit</h1><div class="sub" id="sub">Завантаження…</div>
+<div id="root"></div></div>
+<script>
+const API="https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/health-dashboard";
+const num=v=>v==null?null:(typeof v==='number'?v:parseFloat(v));
+const f=(v,d=0)=>v==null||isNaN(v)?'—':Number(v).toLocaleString('uk-UA',{maximumFractionDigits:d});
+function delta(cur,prev,good){cur=num(cur);prev=num(prev);if(cur==null||prev==null||!prev)return '<span class="delta flat">—</span>';const dp=(cur-prev)/prev*100;const better=good==='lower'?cur<prev:cur>prev;const cls=Math.abs(dp)<1.5?'flat':(better?'up':'down');const ar=dp>0?'▲':(dp<0?'▼':'•');return '<span class="delta '+cls+'">'+ar+' '+Math.abs(dp).toFixed(0)+'%</span>';}
+function kc(lab,val,unit,sub,d){return '<div class="card"><div class="lab"><span>'+lab+'</span>'+(d||'')+'</div><div class="big">'+val+'<small> '+(unit||'')+'</small></div><div class="meta">'+(sub||'')+'</div></div>';}
+function render(D){
+ const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||[],cov=D.coverage||[];
+ document.getElementById('sub').innerHTML='Дані Apple Health · <b>'+f(k.total)+'</b> замірів · з '+(k.since||'')+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
+ let h='';
+ h+='<h2>Огляд · 90 днів</h2><div class="cards">';
+ h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'));
+ h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'));
+ h+=kc('VO₂max',f(k.vo2_180,1),'','180 дн','');
+ h+=kc('Сон',f(k.sleep_90,1),'год','норма 7-9',delta(k.sleep_90,k.sleep_prev,'higher'));
+ h+=kc('Кроки',f(k.steps_90),'/день','',delta(k.steps_90,k.steps_prev,'higher'));
+ h+=kc('Активні ккал',f(k.act_90),'/день','','');
+ h+=kc('Тренування',f(k.ex_90),'хв/день','','');
+ h+=kc('Вага',f(k.w_last,1),'кг','','');
+ h+='</div>';
+ h+='<h2>Тренди (помісячно)</h2><div class="charts" id="charts"></div>';
+ h+='<h2>Звʼязки показників</h2><div class="corr">';
+ const CD=[['hrv_rhr','HRV ↔ Пульс спокою'],['sleep_hrv','Сон ↔ HRV'],['sleep_rhr','Сон ↔ Пульс'],['ex_rhr','Тренування ↔ Пульс'],['vo2_rhr','VO₂max ↔ Пульс'],['day_sleep','Світло ↔ Сон']];
+ for(const [key,lab] of CD){const r=num(co[key]);if(r==null)continue;const w=Math.min(100,Math.abs(r)*100);const pos=r>=0;const col=pos?'#2563eb':'#b42318';const strong=Math.abs(r)>=0.3;h+='<div class="crow"><div class="p">'+lab+' <span style="color:'+(strong?'#2563eb':'#9aa0a8')+'">r='+r.toFixed(2)+'</span></div><div class="bar"><i style="left:'+(pos?'50%':(50-w/2)+'%')+';width:'+(w/2)+'%;background:'+col+'"></i><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#cbd2d9"></span></div><div class="t">'+(strong?'виражений звʼязок':'слабкий')+'</div></div>';}
+ h+='</div>';
+ h+='<h2>Рекорди</h2><div class="recs">';
+ h+='<div class="rec"><div class="v">'+f(rc.rhr_min)+'</div><div class="l">мін. пульс спокою</div></div>';
+ h+='<div class="rec"><div class="v">'+f(rc.hrv_max)+'</div><div class="l">пік HRV</div></div>';
+ h+='<div class="rec"><div class="v">'+f(rc.vo2_max,1)+'</div><div class="l">пік VO₂max</div></div>';
+ h+='<div class="rec"><div class="v">'+f(rc.steps_max)+'</div><div class="l">рекорд кроків</div></div>';
+ h+='<div class="rec"><div class="v">'+f(rc.d10k)+'</div><div class="l">днів ≥10k кроків</div></div>';
+ h+='<div class="rec"><div class="v">'+f(rc.dex30)+'</div><div class="l">днів трен. ≥30хв</div></div>';
+ h+='</div>';
+ if(wk.length){h+='<h2>Останні тренування</h2><div class="panel"><table><thead><tr><th>Дата</th><th>Тип</th><th>Хв</th><th>Км</th><th>Ккал</th></tr></thead><tbody>';for(const w of wk){h+='<tr><td class="sub">'+(w.d||'')+'</td><td>'+(w.workout_type||'')+'</td><td>'+f(w.duration_min)+'</td><td>'+f(w.distance_km,1)+'</td><td>'+f(w.active_kcal)+'</td></tr>';}h+='</tbody></table></div>';}
+ h+='<h2>Що відстежується ('+cov.length+')</h2><div class="panel"><table><thead><tr><th>Показник</th><th>Днів</th><th>Останній</th></tr></thead><tbody>';for(const c of cov){h+='<tr><td>'+(c.name_uk||'')+'</td><td>'+f(c.days)+'</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></div>';
+ document.getElementById('root').innerHTML=h;
+ const defs=[['resting_hr','Пульс спокою','#b42318'],['hrv_ms','HRV','#2563eb'],['vo2max','VO₂max','#7c3aed'],['sleep_hours','Сон','#0891b2'],['weight_kg','Вага','#b54708'],['steps','Кроки','#1a7f37'],['active_kcal','Активні ккал','#db2777'],['walking_speed','Швидкість ходи','#475569']];
+ const host=document.getElementById('charts');
+ for(const [code,name,col] of defs){const vals=mon.map(r=>num(r[code]));if(vals.every(v=>v==null))continue;const box=document.createElement('div');box.className='cbox';box.innerHTML='<h4>'+name+'</h4><div class="cw"><canvas></canvas></div>';host.appendChild(box);new Chart(box.querySelector('canvas'),{type:'line',data:{labels:mon.map(r=>r.m),datasets:[{data:vals,borderColor:col,backgroundColor:col+'14',fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6,font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9}},grid:{color:'#f0f1f3'}}}}});}
+}
+(function(){
+ let t=location.hash.slice(1); if(t.indexOf('k=')===0)t=t.slice(2);
+ if(!t){document.getElementById('sub').innerHTML='<div class="msg">Додай токен у посилання: <code>#k=ТВІЙ_ТОКЕН</code></div>';return;}
+ fetch(API+'?k='+encodeURIComponent(t)).then(r=>r.json()).then(D=>{
+   if(!D||D.error){document.getElementById('sub').innerHTML='<div class="msg">Невірний токен або немає даних.</div>';return;}
+   render(D);
+ }).catch(e=>{document.getElementById('sub').innerHTML='<div class="msg">Помилка завантаження: '+e+'</div>';});
+})();
+</script></body></html>
