@@ -30,6 +30,10 @@ th{color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase}tr:last
 .rec .v{font-size:20px;font-weight:650}.rec .l{font-size:11px;color:#6b7280;margin-top:2px}
 .ai{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:2px 16px 14px}
 .ai h4{font-size:14px;margin:14px 0 5px}.ai p{margin:4px 0}.ai ul{margin:4px 0;padding-left:20px}.ai li{margin:3px 0}
+.fl{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600}
+.fl-high{background:#fde8e8;color:#b42318}.fl-low{background:#fef0e2;color:#b54708}.fl-critical{background:#b42318;color:#fff}
+details{margin-top:8px;background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:0 4px}
+summary{cursor:pointer;color:#6b7280;font-size:12.5px;padding:9px 12px;list-style:none}
 .msg{padding:40px 16px;text-align:center;color:#6b7280}
 </style></head><body><div class="wrap">
 <h1>🫀 Health Cockpit</h1><div class="sub" id="sub">Завантаження…</div>
@@ -38,13 +42,24 @@ th{color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase}tr:last
 const API="https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/health-dashboard";
 const num=v=>v==null?null:(typeof v==='number'?v:parseFloat(v));
 const f=(v,d=0)=>v==null||isNaN(v)?'—':Number(v).toLocaleString('uk-UA',{maximumFractionDigits:d});
+const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function delta(cur,prev,good){cur=num(cur);prev=num(prev);if(cur==null||prev==null||!prev)return '<span class="delta flat">—</span>';const dp=(cur-prev)/prev*100;const better=good==='lower'?cur<prev:cur>prev;const cls=Math.abs(dp)<1.5?'flat':(better?'up':'down');const ar=dp>0?'▲':(dp<0?'▼':'•');return '<span class="delta '+cls+'">'+ar+' '+Math.abs(dp).toFixed(0)+'%</span>';}
 function kc(lab,val,unit,sub,d){return '<div class="card"><div class="lab"><span>'+lab+'</span>'+(d||'')+'</div><div class="big">'+val+'<small> '+(unit||'')+'</small></div><div class="meta">'+(sub||'')+'</div></div>';}
+function flagBadge(fl){if(!fl||fl==='normal')return '<span class="sub">норма</span>';const m={high:'вище',low:'нижче',critical:'критично'};return '<span class="fl fl-'+fl+'">'+(m[fl]||fl)+'</span>';}
+function labRow(r){const ref=(r.ref_low!=null||r.ref_high!=null)?((r.ref_low!=null?f(r.ref_low,2):'')+'–'+(r.ref_high!=null?f(r.ref_high,2):'')):'';const val=r.value!=null?('<b>'+f(r.value,2)+'</b> '+esc(r.unit||'')):esc(r.value_text||'—');return '<tr><td>'+esc(r.raw_name)+'</td><td>'+val+'</td><td class="sub">'+ref+'</td><td>'+flagBadge(r.flag)+'</td></tr>';}
 function render(D){
- const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||[],cov=D.coverage||[];
+ const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||[],cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[];
  document.getElementById('sub').innerHTML='Дані Apple Health · <b>'+f(k.total)+'</b> замірів · з '+(k.since||'')+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
  let h='';
  if(D.insights&&D.insights.body){h+='<h2>🤖 AI-аналіз та рекомендації</h2><div class="ai">'+D.insights.body+'<div class="sub" style="margin-top:8px">згенеровано '+(D.insights.at?new Date(D.insights.at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'}):'')+'</div></div>';}
+ // LABS
+ if(labs.results&&labs.results.length){
+   const flagged=labs.results.filter(r=>r.flag&&r.flag!=='normal');
+   h+='<h2>🧪 Лабораторні аналізи · '+(labs.date||'')+'</h2>';
+   if(flagged.length){h+='<div class="panel"><table><thead><tr><th>Поза нормою</th><th>Значення</th><th>Реф.</th><th></th></tr></thead><tbody>';for(const r of flagged)h+=labRow(r);h+='</tbody></table></div>';}
+   else{h+='<div class="panel"><div class="sub" style="padding:14px">Усі показники в межах норми ✅</div></div>';}
+   h+='<details><summary>Усі показники ('+labs.results.length+')</summary><table><tbody>';for(const r of labs.results)h+=labRow(r);h+='</tbody></table></details>';
+ }
  h+='<h2>Огляд · 90 днів</h2><div class="cards">';
  h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'));
  h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'));
@@ -68,8 +83,10 @@ function render(D){
  h+='<div class="rec"><div class="v">'+f(rc.d10k)+'</div><div class="l">днів ≥10k кроків</div></div>';
  h+='<div class="rec"><div class="v">'+f(rc.dex30)+'</div><div class="l">днів трен. ≥30хв</div></div>';
  h+='</div>';
- if(wk.length){h+='<h2>Останні тренування</h2><div class="panel"><table><thead><tr><th>Дата</th><th>Тип</th><th>Хв</th><th>Км</th><th>Ккал</th></tr></thead><tbody>';for(const w of wk){h+='<tr><td class="sub">'+(w.d||'')+'</td><td>'+(w.workout_type||'')+'</td><td>'+f(w.duration_min)+'</td><td>'+f(w.distance_km,1)+'</td><td>'+f(w.active_kcal)+'</td></tr>';}h+='</tbody></table></div>';}
- h+='<h2>Що відстежується ('+cov.length+')</h2><div class="panel"><table><thead><tr><th>Показник</th><th>Днів</th><th>Останній</th></tr></thead><tbody>';for(const c of cov){h+='<tr><td>'+(c.name_uk||'')+'</td><td>'+f(c.days)+'</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></div>';
+ if(meds.length){h+='<h2>💊 Препарати та добавки</h2><div class="panel"><table><thead><tr><th>Назва</th><th>Графік</th><th>Призначення</th></tr></thead><tbody>';for(const m of meds)h+='<tr><td><b>'+esc(m.name)+'</b></td><td class="sub">'+esc(m.schedule||'')+'</td><td class="sub">'+esc(m.purpose||'')+'</td></tr>';h+='</tbody></table></div>';}
+ if(img.length){h+='<h2>🩻 Обстеження та висновки</h2><div class="panel"><table><tbody>';for(const j of img)h+='<tr><td class="sub" style="white-space:nowrap;vertical-align:top">'+esc(j.d||'')+'</td><td><b>'+esc(j.title||'')+'</b><br><span class="sub">'+esc(j.body||'')+'</span></td></tr>';h+='</tbody></table></div>';}
+ if(wk.length){h+='<h2>Останні тренування</h2><div class="panel"><table><thead><tr><th>Дата</th><th>Тип</th><th>Хв</th><th>Км</th><th>Ккал</th></tr></thead><tbody>';for(const w of wk){h+='<tr><td class="sub">'+(w.d||'')+'</td><td>'+esc(w.workout_type||'')+'</td><td>'+f(w.duration_min)+'</td><td>'+f(w.distance_km,1)+'</td><td>'+f(w.active_kcal)+'</td></tr>';}h+='</tbody></table></div>';}
+ h+='<h2>Що відстежується ('+cov.length+')</h2><details><summary>Показати реєстр</summary><table><tbody>';for(const c of cov){h+='<tr><td>'+esc(c.name_uk||'')+'</td><td>'+f(c.days)+' дн</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></details>';
  document.getElementById('root').innerHTML=h;
  const defs=[['resting_hr','Пульс спокою','#b42318'],['hrv_ms','HRV','#2563eb'],['vo2max','VO₂max','#7c3aed'],['sleep_hours','Сон','#0891b2'],['weight_kg','Вага','#b54708'],['steps','Кроки','#1a7f37'],['active_kcal','Активні ккал','#db2777'],['walking_speed','Швидкість ходи','#475569']];
  const host=document.getElementById('charts');
