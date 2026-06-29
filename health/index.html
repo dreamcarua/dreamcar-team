@@ -8,6 +8,7 @@ body{margin:0;background:#f6f7f9;color:#1a1d21;font-family:-apple-system,BlinkMa
 .wrap{max-width:1100px;margin:0 auto;padding:18px 16px 70px}
 h1{font-size:21px;margin:0 0 2px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin:26px 0 10px}
 .sub{color:#6b7280;font-size:12.5px}
+.dlbtn{display:inline-block;margin-top:10px;background:#1f3a5f;color:#fff;text-decoration:none;border-radius:9px;padding:8px 15px;font-size:13px;font-weight:600}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .card{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:13px 15px}
 .card .lab{color:#6b7280;font-size:12px;display:flex;justify-content:space-between;gap:6px}
@@ -48,6 +49,7 @@ summary{cursor:pointer;color:#6b7280;font-size:12.5px;padding:9px 12px;list-styl
 ul.tight{margin:6px 0 0;padding-left:18px;font-size:12.5px}ul.tight li{margin:2px 0}
 </style></head><body><div class="wrap">
 <h1>🫀 Health Cockpit</h1><div class="sub" id="sub">Завантаження…</div>
+<a class="dlbtn" href="#" onclick="window.open('report.html'+location.hash);return false">⬇️ Звіт для лікаря (PDF)</a>
 <div id="root"></div></div>
 <script>
 const API="https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/health-dashboard";
