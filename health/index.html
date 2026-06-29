@@ -43,6 +43,7 @@ summary{cursor:pointer;color:#6b7280;font-size:12.5px;padding:9px 12px;list-styl
 .rd ul{margin:4px 0 0;padding-left:18px}.rd li{font-size:12px;margin:2px 0}
 .al{background:#fde8e8;color:#b42318;border-radius:8px;padding:4px 8px;font-size:11.5px;margin-top:5px;display:inline-block}
 .rem{background:#eef2ff;border:1px solid #cdd6ff;color:#3538cd;border-radius:11px;padding:9px 13px;font-size:12.5px;margin-top:8px}
+.warn{background:#fff4ec;border:1px solid #f3d9b0;color:#b54708;border-radius:11px;padding:9px 13px;font-size:12.5px;margin-top:8px}
 .lt{margin:8px 0}.lt .row{font-size:12.5px;display:flex;justify-content:space-between}
 .lt .b{height:7px;background:#eef0f2;border-radius:6px;position:relative;margin-top:4px}
 .lt .b i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}.lt .b s{position:absolute;top:-2px;bottom:-2px;width:2px;background:#1a1d21}
@@ -86,6 +87,42 @@ function readiness(rd){
  lh+='</div></div>';
  return h+lh;
 }
+function illnessBanner(il){
+ if(!il||!il.level||il.level==='низький')return '';
+ const sig=(il.signals||[]).map(esc).join(', ');
+ return '<div class="warn">🌡 <b>Раннє попередження ('+esc(il.level)+'):</b> '+esc(il.note)+(sig?' — '+sig:'')+'</div>';
+}
+function strainCard(s){
+ if(!s||s.recovery==null)return '';
+ const pct=Math.min(100,num(s.pct)||0);
+ let h='<h2>⚡ Ціль навантаження сьогодні</h2><div class="panel" style="padding:12px 15px">';
+ h+='<div style="font-size:13.5px"><b>'+esc(s.level||'')+'</b> <span class="sub">· під відновлення '+f(s.recovery)+'/100</span></div>';
+ h+='<div class="sub" style="margin-top:5px">Активність '+f(s.done_kcal)+' / '+f(s.target_kcal)+' ккал · Тренування '+f(s.done_min)+' / '+f(s.target_min)+' хв</div>';
+ h+='<div class="b" style="height:8px;background:#eef0f2;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#1a7f37"></i></div></div>';
+ return h;
+}
+function sleepRecovery(D){
+ const sd=D.sleep_debt||{}, sw=D.sleep_window||{}, sq=D.sleep_q||{};
+ if(sd.debt==null&&sw.bedtime==null)return '';
+ let h='<h2>😴 Сон та відновлення</h2><div class="cards">';
+ if(sd.debt!=null)h+=kc('Борг сну',f(sd.debt,1),'год','14 діб · '+esc(sd.note||''),num(sd.debt)>3?'<span class="delta down">борг</span>':'<span class="delta up">ок</span>');
+ if(sw.bedtime)h+=kc('Відбій сьогодні',esc(sw.bedtime),'',(sw.target||'')+' год до '+(sw.wake||'07:00'),'');
+ if(sq.avg!=null)h+=kc('Сер. сон 30д',f(sq.avg,1),'год',num(sq.avg)>=7?'добре':'нижче норми','');
+ if(sq.regularity!=null)h+=kc('Регулярність',f(sq.regularity),'/100',num(sq.regularity)>=70?'стабільно ✅':'нестабільно','');
+ if(sq.deep!=null)h+=kc('Глибокий сон',f(sq.deep,1),'год','','');
+ if(sq.rem!=null)h+=kc('REM',f(sq.rem,1),'год','','');
+ h+='</div>';
+ if(sq.deep==null&&sq.rem==null)h+='<div class="sub">Стадії сну зʼявляться, коли увімкнеш детальний експорт сну в Health Auto Export.</div>';
+ return h;
+}
+function streaksBlock(st){
+ if(!st)return '';
+ let h='<h2>🔥 Серії підряд</h2><div class="recs">';
+ h+='<div class="rec"><div class="v">'+f(st.sleep)+'</div><div class="l">днів сон 7.5+</div></div>';
+ h+='<div class="rec"><div class="v">'+f(st.steps)+'</div><div class="l">днів 8k+ кроків</div></div>';
+ h+='<div class="rec"><div class="v">'+f(st.exercise)+'</div><div class="l">днів трен. 20+</div></div>';
+ h+='</div>';return h;
+}
 function cvRisk(cv){
  if(!cv||!cv.level)return '';
  const col=cv.level==='низький'?'#1a7f37':(cv.level==='помірний'?'#b54708':'#b42318');
@@ -109,18 +146,6 @@ function formBlock(fm){
  h+=kc('Тренування',f(fm.exercise_min_30d),'хв/день','30 дн','');
  h+=kc('Тренувань',f(fm.workouts_30d),'/30 дн','','');
  h+='</div>';return h;
-}
-function sleepQ(sq){
- if(!sq||sq.avg==null)return '';
- const reg=num(sq.regularity);
- let h='<h2>😴 Якість сну (30 дн)</h2><div class="cards">';
- h+=kc('Тривалість',f(sq.avg,1),'год',num(sq.avg)>=7?'добре':'нижче норми','');
- h+=kc('Регулярність',f(reg),'/100',reg>=70?'стабільно ✅':'нестабільно — лягати в той самий час','');
- if(sq.deep!=null)h+=kc('Глибокий сон',f(sq.deep,1),'год','','');
- if(sq.rem!=null)h+=kc('REM',f(sq.rem,1),'год','','');
- h+='</div>';
- if(sq.deep==null&&sq.rem==null)h+='<div class="sub">Стадії сну зʼявляться, коли увімкнеш детальний експорт сну в Health Auto Export.</div>';
- return h;
 }
 function secondary(s){
  if(!s)return '';
@@ -163,8 +188,11 @@ function render(D){
  const ser=c=>mon.map(r=>num(r[c]));
  document.getElementById('sub').innerHTML='Дані Apple Health · <b>'+f(k.total)+'</b> замірів · з '+(k.since||'')+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
  let h='';
+ h+=illnessBanner(D.illness);
  h+=readiness(D.readiness);
+ h+=strainCard(D.strain);
  if(rem.length){h+='<div class="rem">🔔 '+rem.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ')+'</div>';}
+ h+=streaksBlock(D.streaks);
  if(D.insights&&D.insights.body){h+='<h2>🤖 AI-аналіз та рекомендації</h2><div class="ai">'+D.insights.body+'<div class="sub" style="margin-top:8px">згенеровано '+(D.insights.at?new Date(D.insights.at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'}):'')+'</div></div>';}
  if(labs.results&&labs.results.length){
    const flagged=labs.results.filter(r=>r.flag&&r.flag!=='normal');
@@ -186,7 +214,7 @@ function render(D){
  h+=kc('Вага',f(k.w_last,1),'кг','','',spark(ser('weight_kg'),'#b54708'));
  h+='</div>';
  h+=formBlock(D.form);
- h+=sleepQ(D.sleep_q);
+ h+=sleepRecovery(D);
  h+=secondary(D.secondary);
  h+=nutrition(D.nutrition);
  h+='<h2>Тренди (помісячно)</h2><div class="charts" id="charts"></div>';
