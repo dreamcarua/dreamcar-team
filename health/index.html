@@ -66,18 +66,25 @@ function kc(lab,val,unit,sub,d,sp){return '<div class="card"><div class="lab"><s
 function flagBadge(fl){if(!fl||fl==='normal')return '<span class="sub">норма</span>';const m={high:'вище',low:'нижче',critical:'критично'};return '<span class="fl fl-'+fl+'">'+(m[fl]||fl)+'</span>';}
 function labRow(r){const ref=(r.ref_low!=null||r.ref_high!=null)?((r.ref_low!=null?f(r.ref_low,2):'')+'–'+(r.ref_high!=null?f(r.ref_high,2):'')):'';const val=r.value!=null?('<b>'+f(r.value,2)+'</b> '+esc(r.unit||'')):esc(r.value_text||'—');return '<tr><td>'+esc(r.raw_name)+'</td><td>'+val+'</td><td class="sub">'+ref+'</td><td>'+flagBadge(r.flag)+'</td></tr>';}
 function readiness(rd){
- if(!rd||rd.score==null)return '';
- const sc=num(rd.score);const cls=sc>=75?'rd-green':(sc>=55?'rd-amber':'rd-red');
- const acwr=rd.acwr!=null?num(rd.acwr):null;
- const loadtxt=acwr==null?'—':(acwr>1.4?acwr+' ⚠️ висока':(acwr<0.8?acwr+' низька':acwr+' оптим.'));
- let mt='😴 '+f(rd.sleep,1)+' год · 📈 HRV '+f(rd.hrv)+'/'+f(rd.hrv_base)+' · ❤️ пульс '+f(rd.rhr)+'/'+f(rd.rhr_base)+' · 🏋️ '+loadtxt;
- const dr=(rd.drivers||[]);const al=(rd.alerts||[]);const t100=(rd.to100||[]);
- let h='<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div style="flex:1"><div class="nm">Готовність дня: '+esc(rd.status)+'</div><div class="mt">'+mt+'</div>';
- if(dr.length)h+='<div class="mt">'+dr.map(esc).join(' · ')+'</div>';
+ if(!rd)return '';
+ const r=rd.recovery||rd, ld=rd.load||{};
+ if(r.score==null)return '';
+ const sc=num(r.score);const cls=sc>=75?'rd-green':(sc>=55?'rd-amber':'rd-red');
+ let mt='😴 Сон '+f(r.sleep,1)+' год · 📈 HRV '+f(r.hrv)+'/'+f(r.hrv_base)+' · ❤️ нічний пульс '+f(r.rhr)+'/'+f(r.rhr_base);
+ const al=(r.alerts||[]);const t100=(r.to100||[]);
+ let h='<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div style="flex:1"><div class="nm">🌙 Відновлення: '+esc(r.status)+' <span class="sub" style="font-weight:400">(за ніч · фіксується зранку)</span></div><div class="mt">'+mt+'</div>';
  if(al.length)h+='<div class="al">⚠️ '+al.map(esc).join('; ')+'</div>';
- if(t100.length){h+='<div class="mt" style="margin-top:7px"><b>🎯 Щоб ближче до 100:</b></div><ul>';for(const a of t100.slice(0,3))h+='<li>'+esc(a.text)+(a.gain?' <span class="sub">(≈ +'+a.gain+')</span>':'')+'</li>';h+='</ul>';}
+ if(t100.length){h+='<div class="mt" style="margin-top:7px"><b>🎯 Щоб відновлення ближче до 100:</b></div><ul>';for(const a of t100.slice(0,3))h+='<li>'+esc(a.text)+(a.gain?' <span class="sub">(≈ +'+a.gain+')</span>':'')+'</li>';h+='</ul>';}
  h+='</div></div>';
- return h;
+ const acwr=ld.acwr!=null?num(ld.acwr):null;
+ const lvlcol=ld.level==='висока'?'#b42318':(ld.level==='низька'?'#b54708':'#1a7f37');
+ const stp=num(ld.steps)||0, goal=num(ld.steps_goal)||8000; const pct=Math.min(100,stp/goal*100);
+ let lh='<div class="rd" style="background:#fff;margin-top:10px"><div style="flex:1"><div class="nm">⚡ Денне навантаження <span class="sub" style="font-weight:400">(зростає протягом дня)</span></div>';
+ lh+='<div class="mt">👟 '+f(stp)+' / '+f(goal)+' кроків · 🔥 '+f(ld.active)+' ккал'+(ld.exercise!=null?' · 🏋️ '+f(ld.exercise)+' хв трен.':'')+'</div>';
+ lh+='<div class="b" style="height:8px;background:#eef0f2;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#1a7f37"></i></div>';
+ lh+='<div class="mt">Навантаження 7д:28д <b style="color:'+lvlcol+'">'+(acwr!=null?acwr:'—')+' '+esc(ld.level||'')+'</b> · '+esc(ld.note||'')+'</div>';
+ lh+='</div></div>';
+ return h+lh;
 }
 function cvRisk(cv){
  if(!cv||!cv.level)return '';
