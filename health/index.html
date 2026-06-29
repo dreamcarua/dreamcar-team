@@ -45,6 +45,7 @@ summary{cursor:pointer;color:#6b7280;font-size:12.5px;padding:9px 12px;list-styl
 .lt .b{height:7px;background:#eef0f2;border-radius:6px;position:relative;margin-top:4px}
 .lt .b i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}.lt .b s{position:absolute;top:-2px;bottom:-2px;width:2px;background:#1a1d21}
 .msg{padding:40px 16px;text-align:center;color:#6b7280}
+ul.tight{margin:6px 0 0;padding-left:18px;font-size:12.5px}ul.tight li{margin:2px 0}
 </style></head><body><div class="wrap">
 <h1>🫀 Health Cockpit</h1><div class="sub" id="sub">Завантаження…</div>
 <div id="root"></div></div>
@@ -71,23 +72,69 @@ function readiness(rd){
  h+='</div></div>';
  return h;
 }
+function cvRisk(cv){
+ if(!cv||!cv.level)return '';
+ const col=cv.level==='низький'?'#1a7f37':(cv.level==='помірний'?'#b54708':'#b42318');
+ let h='<h2>❤️‍🩹 Кардіо-ризик — <span style="color:'+col+'">'+esc(cv.level)+'</span></h2><div class="corr">';
+ h+='<div class="crow"><div class="p" style="color:#b42318">⚠️ Фактори ризику</div><ul class="tight">'+(cv.risks||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
+ h+='<div class="crow"><div class="p" style="color:#1a7f37">✅ Захисні фактори</div><ul class="tight">'+(cv.protective||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
+ h+='</div><div class="sub" style="margin-top:6px">'+esc(cv.note||'')+'</div>';
+ return h;
+}
+function labTrendsBlock(lt){
+ if(!lt||!lt.length)return '';
+ let rows='';for(const m of lt){const s=m.series||[];if(s.length<2)continue;const a=s[0],b=s[s.length-1];const ar=num(b.v)>num(a.v)?'▲':(num(b.v)<num(a.v)?'▼':'→');rows+='<tr><td>'+esc(m.nm)+'</td><td>'+f(a.v,2)+' → <b>'+f(b.v,2)+'</b> '+esc(m.unit||'')+' '+ar+'</td></tr>';}
+ if(!rows)return '';
+ return '<h2>📉 Динаміка аналізів</h2><div class="panel"><table><tbody>'+rows+'</tbody></table></div>';
+}
+function formBlock(fm){
+ if(!fm||fm.vo2==null)return '';
+ let h='<h2>🏃 Форма (аеробна)</h2><div class="cards">';
+ h+=kc('VO₂max',f(fm.vo2,1),'мл/кг/хв',esc(fm.vo2_cat||''),'');
+ if(fm.hr_recovery!=null)h+=kc('Відновлення пульсу',f(fm.hr_recovery),'уд/хв',num(fm.hr_recovery)>=25?'відмінно ✅':'ок','');
+ h+=kc('Тренування',f(fm.exercise_min_30d),'хв/день','30 дн','');
+ h+=kc('Тренувань',f(fm.workouts_30d),'/30 дн','','');
+ h+='</div>';return h;
+}
+function sleepQ(sq){
+ if(!sq||sq.avg==null)return '';
+ const reg=num(sq.regularity);
+ let h='<h2>😴 Якість сну (30 дн)</h2><div class="cards">';
+ h+=kc('Тривалість',f(sq.avg,1),'год',num(sq.avg)>=7?'добре':'нижче норми','');
+ h+=kc('Регулярність',f(reg),'/100',reg>=70?'стабільно ✅':'нестабільно — лягати в той самий час','');
+ if(sq.deep!=null)h+=kc('Глибокий сон',f(sq.deep,1),'год','','');
+ if(sq.rem!=null)h+=kc('REM',f(sq.rem,1),'год','','');
+ h+='</div>';
+ if(sq.deep==null&&sq.rem==null)h+='<div class="sub">Стадії сну зʼявляться, коли увімкнеш детальний експорт сну в Health Auto Export.</div>';
+ return h;
+}
 function secondary(s){
  if(!s)return '';
  let h='<h2>🚶 Мобільність та хода (сер. 30 дн)</h2><div class="cards">';
- h+=kc('Швидкість ходьби',f(s.walking_speed,2),'км/год', num(s.walking_speed)>=4?'добре':'норма','');
- h+=kc('Стійкість ходи',f(s.steadiness,1),'%', num(s.steadiness)>=85?'OK ✅':'спостерігати','');
+ h+=kc('Швидкість ходьби',f(s.walking_speed,2),'км/год',num(s.walking_speed)>=4?'добре':'норма','');
+ h+=kc('Стійкість ходи',f(s.steadiness,1),'%',num(s.steadiness)>=85?'OK ✅':'спостерігати','');
  if(s.step_length!=null)h+=kc('Довжина кроку',f(s.step_length),'см','','');
- if(s.asym!=null)h+=kc('Асиметрія ходи',f(s.asym,1),'%', num(s.asym)<=3?'добре':'спостерігати','');
+ if(s.asym!=null)h+=kc('Асиметрія ходи',f(s.asym,1),'%',num(s.asym)<=3?'добре':'спостерігати','');
  if(s.dsup!=null)h+=kc('Подвійна опора',f(s.dsup,1),'%','норма ~20–40','');
  h+=kc('Сходи',f(s.flights),'/день','','');
  h+='</div>';
  h+='<h2>👂 Слух та активність (сер. 30 дн)</h2><div class="cards">';
- h+=kc('Гучність навушників',f(s.hp_audio),'дБ', num(s.hp_audio)<80?'безпечно ✅':'високо ⚠️','');
+ h+=kc('Гучність навушників',f(s.hp_audio),'дБ',num(s.hp_audio)<80?'безпечно ✅':'високо ⚠️','');
  h+=kc('Шум середовища',f(s.env_audio),'дБ','','');
- h+=kc('Денне світло',f(s.daylight),'хв/день', num(s.daylight)>=40?'добре':'мало — більше зранку','');
+ h+=kc('Денне світло',f(s.daylight),'хв/день',num(s.daylight)>=40?'добре':'мало — більше зранку','');
  h+=kc('Час стоячи',f(s.stand_min),'хв/день','','');
- h+='</div>';
- return h;
+ h+='</div>';return h;
+}
+function nutrition(nn){
+ if(!nn||(nn.kcal==null&&nn.protein==null&&nn.water==null))return '';
+ let h='<h2>🍽 Харчування (сер. 30 дн)</h2><div class="cards">';
+ if(nn.kcal!=null)h+=kc('Калорії',f(nn.kcal),'ккал','','');
+ if(nn.protein!=null)h+=kc('Білок',f(nn.protein),'г','','');
+ if(nn.carbs!=null)h+=kc('Вуглеводи',f(nn.carbs),'г','','');
+ if(nn.fat!=null)h+=kc('Жири',f(nn.fat),'г','','');
+ if(nn.fiber!=null)h+=kc('Клітковина',f(nn.fiber),'г','','');
+ if(nn.water!=null)h+=kc('Вода',f(nn.water),'мл','','');
+ h+='</div>';return h;
 }
 function lipidTrack(labs){
  const find=nm=>{const r=(labs.results||[]).find(x=>x.raw_name===nm);return r?num(r.value):null;};
@@ -111,6 +158,8 @@ function render(D){
    if(flagged.length){h+='<div class="panel" style="margin-top:8px"><table><thead><tr><th>Поза нормою</th><th>Значення</th><th>Реф.</th><th></th></tr></thead><tbody>';for(const r of flagged)h+=labRow(r);h+='</tbody></table></div>';}
    h+='<details><summary>Усі показники ('+labs.results.length+')</summary><table><tbody>';for(const r of labs.results)h+=labRow(r);h+='</tbody></table></details>';
  }
+ h+=cvRisk(D.cv);
+ h+=labTrendsBlock(D.lab_trends);
  h+='<h2>Огляд · 90 днів</h2><div class="cards">';
  h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'));
  h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'));
@@ -121,7 +170,10 @@ function render(D){
  h+=kc('Тренування',f(k.ex_90),'хв/день','','');
  h+=kc('Вага',f(k.w_last,1),'кг','','');
  h+='</div>';
+ h+=formBlock(D.form);
+ h+=sleepQ(D.sleep_q);
  h+=secondary(D.secondary);
+ h+=nutrition(D.nutrition);
  h+='<h2>Тренди (помісячно)</h2><div class="charts" id="charts"></div>';
  h+='<h2>Звʼязки показників</h2><div class="corr">';
  const CD=[['hrv_rhr','HRV ↔ Пульс спокою'],['sleep_hrv','Сон ↔ HRV'],['sleep_rhr','Сон ↔ Пульс'],['ex_rhr','Тренування ↔ Пульс'],['vo2_rhr','VO₂max ↔ Пульс'],['day_sleep','Світло ↔ Сон']];
