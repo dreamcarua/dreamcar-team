@@ -95,6 +95,20 @@ html, body {
 .nav-item.active { background: rgba(227,6,19,0.08); border-left-color: var(--red); color: #fff; }
 .nav-item .ico { font-size: 15px; }
 .nav-item .count { margin-left: auto; font-size: 11px; color: var(--ash); }
+/* #547 29.06.2026 — Davyd UX: фільтр-чипи у sidebar для блоку "Рубрика" */
+.ret-filter-group { padding: 6px 14px 4px; }
+.ret-filter-label { font-size: 10px; color: var(--ash); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+.ret-filter-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; margin: 3px 0;
+  background: var(--bg-2); border: 1px solid var(--steel); border-radius: 6px;
+  color: #ccc; font-size: 12px; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ret-filter-chip:hover { background: rgba(255,255,255,0.04); color: #fff; }
+.ret-filter-chip.on { background: rgba(227,6,19,0.10); border-color: var(--red); color: #fff; }
+.ret-filter-chip .ret-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ret-filter-chip .ret-cnt { margin-left: auto; font-size: 10px; color: var(--ash); }
 
 .main { padding: 0; overflow-y: auto; }
 
@@ -287,6 +301,10 @@ html, body {
     <a class="nav-item" href="/hq/#library" target="_blank" rel="noopener"><span class="ico">🖼</span><span>Бібліотека креативів</span></a>
     <a class="nav-item" data-route="settings" href="#settings"><span class="ico">⚙</span><span>Налаштування</span></a>
     <a class="nav-item" data-route="archive" href="#st-archived"><span class="ico">🗃</span><span>Архів</span></a>
+
+    <!-- #547 29.06.2026 — Davyd UX: фільтр по рубриках (multi-select chips) -->
+    <div class="nav-section">Рубрика</div>
+    <div class="ret-filter-group" id="retSidebarRubric"></div>
   </aside>
 
   <main class="main" id="appMain"></main>
@@ -393,7 +411,7 @@ document.getElementById('signOutBtn').onclick = async (e) => {
 </script>
 
 <!-- Retention app logic -->
-<script src="app-retention.js?v=202606291039-04125fadrubric" defer></script>
+<script src="app-retention.js?v=202606291100-547filters" defer></script>
 
 </body>
 </html>
