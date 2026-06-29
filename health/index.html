@@ -71,6 +71,24 @@ function readiness(rd){
  h+='</div></div>';
  return h;
 }
+function secondary(s){
+ if(!s)return '';
+ let h='<h2>🚶 Мобільність та хода (сер. 30 дн)</h2><div class="cards">';
+ h+=kc('Швидкість ходьби',f(s.walking_speed,2),'км/год', num(s.walking_speed)>=4?'добре':'норма','');
+ h+=kc('Стійкість ходи',f(s.steadiness,1),'%', num(s.steadiness)>=85?'OK ✅':'спостерігати','');
+ if(s.step_length!=null)h+=kc('Довжина кроку',f(s.step_length),'см','','');
+ if(s.asym!=null)h+=kc('Асиметрія ходи',f(s.asym,1),'%', num(s.asym)<=3?'добре':'спостерігати','');
+ if(s.dsup!=null)h+=kc('Подвійна опора',f(s.dsup,1),'%','норма ~20–40','');
+ h+=kc('Сходи',f(s.flights),'/день','','');
+ h+='</div>';
+ h+='<h2>👂 Слух та активність (сер. 30 дн)</h2><div class="cards">';
+ h+=kc('Гучність навушників',f(s.hp_audio),'дБ', num(s.hp_audio)<80?'безпечно ✅':'високо ⚠️','');
+ h+=kc('Шум середовища',f(s.env_audio),'дБ','','');
+ h+=kc('Денне світло',f(s.daylight),'хв/день', num(s.daylight)>=40?'добре':'мало — більше зранку','');
+ h+=kc('Час стоячи',f(s.stand_min),'хв/день','','');
+ h+='</div>';
+ return h;
+}
 function lipidTrack(labs){
  const find=nm=>{const r=(labs.results||[]).find(x=>x.raw_name===nm);return r?num(r.value):null;};
  const items=[['Холестерин загальний',find('Холестерин загальний'),190],['ЛПНЩ (LDL)',find('ЛПНЩ (LDL)'),115],['Не-HDL',find('Не-HDL холестерин'),130]];
@@ -103,6 +121,7 @@ function render(D){
  h+=kc('Тренування',f(k.ex_90),'хв/день','','');
  h+=kc('Вага',f(k.w_last,1),'кг','','');
  h+='</div>';
+ h+=secondary(D.secondary);
  h+='<h2>Тренди (помісячно)</h2><div class="charts" id="charts"></div>';
  h+='<h2>Звʼязки показників</h2><div class="corr">';
  const CD=[['hrv_rhr','HRV ↔ Пульс спокою'],['sleep_hrv','Сон ↔ HRV'],['sleep_rhr','Сон ↔ Пульс'],['ex_rhr','Тренування ↔ Пульс'],['vo2_rhr','VO₂max ↔ Пульс'],['day_sleep','Світло ↔ Сон']];
