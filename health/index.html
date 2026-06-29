@@ -34,10 +34,11 @@ th{color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase}tr:last
 .fl-high{background:#fde8e8;color:#b42318}.fl-low{background:#fef0e2;color:#b54708}.fl-critical{background:#b42318;color:#fff}
 details{margin-top:8px;background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:0 4px}
 summary{cursor:pointer;color:#6b7280;font-size:12.5px;padding:9px 12px;list-style:none}
-.rd{display:flex;gap:14px;align-items:center;border:1px solid #e6e8eb;border-radius:14px;padding:14px 16px;margin-top:6px}
-.rd .sc{font-size:34px;font-weight:700;line-height:1;min-width:64px;text-align:center}
+.rd{display:flex;gap:14px;align-items:flex-start;border:1px solid #e6e8eb;border-radius:14px;padding:14px 16px;margin-top:6px}
+.rd .sc{font-size:34px;font-weight:700;line-height:1;min-width:64px;text-align:center;padding-top:4px}
 .rd .nm{font-size:15px;font-weight:650}.rd .mt{font-size:12px;color:#6b7280;margin-top:3px}
 .rd-green{background:#eaf7ee;border-color:#bfe3c9}.rd-amber{background:#fdf4e8;border-color:#f3d9b0}.rd-red{background:#fdeaea;border-color:#f3c0c0}
+.rd ul{margin:4px 0 0;padding-left:18px}.rd li{font-size:12px;margin:2px 0}
 .al{background:#fde8e8;color:#b42318;border-radius:8px;padding:4px 8px;font-size:11.5px;margin-top:5px;display:inline-block}
 .rem{background:#eef2ff;border:1px solid #cdd6ff;color:#3538cd;border-radius:11px;padding:9px 13px;font-size:12.5px;margin-top:8px}
 .lt{margin:8px 0}.lt .row{font-size:12.5px;display:flex;justify-content:space-between}
@@ -62,10 +63,11 @@ function readiness(rd){
  const acwr=rd.acwr!=null?num(rd.acwr):null;
  const loadtxt=acwr==null?'—':(acwr>1.4?acwr+' ⚠️ висока':(acwr<0.8?acwr+' низька':acwr+' оптим.'));
  let mt='😴 '+f(rd.sleep,1)+' год · 📈 HRV '+f(rd.hrv)+'/'+f(rd.hrv_base)+' · ❤️ пульс '+f(rd.rhr)+'/'+f(rd.rhr_base)+' · 🏋️ '+loadtxt;
- const dr=(rd.drivers||[]);const al=(rd.alerts||[]);
- let h='<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div><div class="nm">Готовність дня: '+esc(rd.status)+'</div><div class="mt">'+mt+'</div>';
+ const dr=(rd.drivers||[]);const al=(rd.alerts||[]);const t100=(rd.to100||[]);
+ let h='<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div style="flex:1"><div class="nm">Готовність дня: '+esc(rd.status)+'</div><div class="mt">'+mt+'</div>';
  if(dr.length)h+='<div class="mt">'+dr.map(esc).join(' · ')+'</div>';
  if(al.length)h+='<div class="al">⚠️ '+al.map(esc).join('; ')+'</div>';
+ if(t100.length){h+='<div class="mt" style="margin-top:7px"><b>🎯 Щоб ближче до 100:</b></div><ul>';for(const a of t100.slice(0,3))h+='<li>'+esc(a.text)+(a.gain?' <span class="sub">(≈ +'+a.gain+')</span>':'')+'</li>';h+='</ul>';}
  h+='</div></div>';
  return h;
 }
