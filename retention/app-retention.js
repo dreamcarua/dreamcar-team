@@ -32,6 +32,9 @@ const Store = window.retStore = {
   byId: new Map(),
   users: [],
   projects: [],
+  // #547 14.06: рубрики для border-left на card (синхронно зі SMM Store.rubrics)
+  rubrics: [],
+  rubricsById: new Map(),
   route: 'all',
   loading: false,
   selected: null,
@@ -42,6 +45,13 @@ const Store = window.retStore = {
   channelFilter: new Set(),   // filter chips
   statusFilter: new Set(),
 };
+
+// #547: helper для кольору border-left по rubric_id
+function rubricColor(rubricId){
+  if (!rubricId) return '#666';
+  const r = Store.rubricsById.get(rubricId);
+  return (r && r.color) ? r.color : '#666';
+}
 
 function ymd(d){ const dd = new Date(d); const y=dd.getFullYear(); const m=String(dd.getMonth()+1).padStart(2,'0'); const day=String(dd.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
 function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
@@ -72,7 +82,7 @@ async function loadAll(){
     // #421: окрім своїх — підвантажуємо SMM ghost-події для cross-system візуалізації
     const ghostFrom = new Date(); ghostFrom.setMonth(ghostFrom.getMonth() - 2);
     const ghostTo = new Date(); ghostTo.setMonth(ghostTo.getMonth() + 6);
-    const [msgs, users, projects, approvers, responsibles, ghostSmm] = await Promise.all([
+    const [msgs, users, projects, approvers, responsibles, ghostSmm, rubrics] = await Promise.all([
       supabase.from('retention_messages').select('*').is('deleted_at', null).order('publish_at', { ascending: false }).limit(500),
       // 08.06.2026 Vira fix: users.deleted_at НЕ ІСНУЄ → запит повертав null → dropdowns approvers/responsibles порожні.
       supabase.from('users').select('id,name,email,role').eq('is_active', true).order('name'),
@@ -81,7 +91,11 @@ async function loadAll(){
       supabase.from('retention_message_approvers').select('*'),
       supabase.from('retention_message_responsibles').select('*'),
       supabase.rpc('ghost_calendar_events', { p_source: 'smm', p_from: ghostFrom.toISOString(), p_to: ghostTo.toISOString() }),
+      // #547: rubrics для border-left card-кольору
+      supabase.from('rubrics').select('id,name,color').order('sort_order'),
     ]);
+    Store.rubrics = (rubrics && !rubrics.error) ? (rubrics.data || []) : [];
+    Store.rubricsById = new Map(Store.rubrics.map(r => [r.id, r]));
     Store.ghostSmm = (ghostSmm && !ghostSmm.error) ? (ghostSmm.data || []) : [];
     if (msgs.error) throw msgs.error;
     const aMap = new Map();
@@ -217,8 +231,10 @@ function renderList(main){
     const ch = CH_LABELS[m.channel] || CH_LABELS.other;
     const st = ST_LABELS[m.status] || ST_LABELS.draft;
     const proj = m.project_id ? (Store.projects.find(p => p.id === m.project_id)?.name || '—') : '—';
+    // #547: border-left=рубрика-колір
+    const rc = rubricColor(m.rubric_id);
     return `
-      <div class="msg-row" data-id="${m.id}">
+      <div class="msg-row" data-id="${m.id}" style="border-left:4px solid ${rc};">
         <span class="chip ${ch.cls}">${ch.ic} ${escHtml(ch.name)}</span>
         <span class="chip ${st.cls}">${escHtml(st.name)}</span>
         <div>
@@ -256,8 +272,10 @@ function renderBoard(main){
         <div style="display:flex; flex-direction:column; gap:8px;">
           ${groups[c].map(m => {
             const ch = CH_LABELS[m.channel] || CH_LABELS.other;
+            // #547: border-left=рубрика-колір
+            const rc = rubricColor(m.rubric_id);
             return `
-              <div class="msg-card" data-id="${m.id}" style="background:var(--bg-3); border:1px solid var(--line); border-radius:6px; padding:10px; cursor:pointer;">
+              <div class="msg-card" data-id="${m.id}" style="background:var(--bg-3); border:1px solid var(--line); border-left:4px solid ${rc}; border-radius:6px; padding:10px; cursor:pointer;">
                 <div style="display:flex; gap:6px; margin-bottom:6px;">
                   <span class="chip ${ch.cls}">${ch.ic}</span>
                 </div>
@@ -515,19 +533,21 @@ function calItem(m, size){
   const hh = String(dt.getHours()).padStart(2,'0');
   const mm = String(dt.getMinutes()).padStart(2,'0');
   const title = (m.title || '(без назви)');
+  // #547: border-left=рубрика-колір (fallback var(--red))
+  const rc = m.rubric_id ? rubricColor(m.rubric_id) : 'var(--red)';
   if (size === 'short') {
     // #350 Vira UX: час перед назвою у Month view (раніше було тільки ch.ic + title)
-    return `<div class="cal-item" data-id="${m.id}" title="${hh}:${mm} · ${escHtml(title)}" style="cursor:pointer; font-size:10px; padding:3px 5px; background:var(--bg-3); border-radius:3px; border-left:3px solid var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ch.ic} <span style="color:#fff; font-weight:700; font-variant-numeric:tabular-nums;">${hh}:${mm}</span> <span style="color:var(--ash);">·</span> ${escHtml(title).slice(0, 18)}</div>`;
+    return `<div class="cal-item" data-id="${m.id}" title="${hh}:${mm} · ${escHtml(title)}" style="cursor:pointer; font-size:10px; padding:3px 5px; background:var(--bg-3); border-radius:3px; border-left:3px solid ${rc}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ch.ic} <span style="color:#fff; font-weight:700; font-variant-numeric:tabular-nums;">${hh}:${mm}</span> <span style="color:var(--ash);">·</span> ${escHtml(title).slice(0, 18)}</div>`;
   }
   if (size === 'medium') {
     // #350: жирний час як префікс title для консистентності з Month
-    return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; padding:6px 8px; background:var(--bg-3); border-radius:5px; border-left:3px solid var(--red);">
+    return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; padding:6px 8px; background:var(--bg-3); border-radius:5px; border-left:3px solid ${rc};">
       <div style="font-size:10px; color:var(--ash);">${ch.ic} ${st.name ? '· ' + escHtml(st.name) : ''}</div>
       <div style="font-size:11px; color:#fff; margin-top:2px;"><span style="color:#fff; font-weight:700; font-variant-numeric:tabular-nums;">${hh}:${mm}</span> <span style="color:var(--ash);">·</span> ${escHtml(title).slice(0, 50)}</div>
       <span class="chip ${st.cls}" style="margin-top:4px;">${escHtml(st.name)}</span>
     </div>`;
   }
-  return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; padding:10px 12px; background:var(--bg-3); border-radius:6px; border-left:4px solid var(--red); display:flex; gap:10px; align-items:center;">
+  return `<div class="cal-item" data-id="${m.id}" style="cursor:pointer; padding:10px 12px; background:var(--bg-3); border-radius:6px; border-left:4px solid ${rc}; display:flex; gap:10px; align-items:center;">
     <span class="chip ${ch.cls}">${ch.ic} ${ch.name}</span>
     <div style="flex:1;">
       <div style="color:#fff; font-weight:700;">${escHtml(title)}</div>
@@ -544,7 +564,9 @@ function renderCalList(main, items){
     sorted.length ? sorted.map(m => {
       const ch = CH_LABELS[m.channel] || CH_LABELS.other;
       const st = ST_LABELS[m.status] || ST_LABELS.draft;
-      return `<div class="msg-row" data-id="${m.id}">
+      // #547: border-left=рубрика-колір
+      const rc = rubricColor(m.rubric_id);
+      return `<div class="msg-row" data-id="${m.id}" style="border-left:4px solid ${rc};">
         <span class="chip ${ch.cls}">${ch.ic} ${escHtml(ch.name)}</span>
         <span class="chip ${st.cls}">${escHtml(st.name)}</span>
         <div>

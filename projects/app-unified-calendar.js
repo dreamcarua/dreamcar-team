@@ -68,8 +68,18 @@
       onlyConflicts: false,
     },
     users: [],
+    // #547 14.06: рубрики id→{name,color} для border-left
+    rubrics: [],
+    rubricsById: {},
     selected: null,
   };
+
+  // #547: helper для кольору рубрики
+  function rubricColor(rubricId) {
+    if (!rubricId) return '#666';
+    var r = state.rubricsById[rubricId];
+    return (r && r.color) ? r.color : '#666';
+  }
 
   function loadPrefs() {
     try {
@@ -231,6 +241,17 @@
     } catch (_) {}
   }
 
+  // #547: rubrics для border-left на cards
+  async function loadRubricsIfNeeded() {
+    if (state.rubrics.length) return;
+    try {
+      var r = await window.supabase.from('rubrics').select('id,name,color').order('sort_order');
+      state.rubrics = r.data || [];
+      state.rubricsById = {};
+      state.rubrics.forEach(function (rb) { state.rubricsById[rb.id] = rb; });
+    } catch (_) {}
+  }
+
   function injectCss() {
     if (document.getElementById('uc-css')) return;
     var css = [
@@ -328,6 +349,7 @@
     if (!root) return;
     root.innerHTML = '<div class="uc-wrap" style="padding:40px;text-align:center;color:#888;">Завантажую…</div>';
     await loadUsersIfNeeded();
+    await loadRubricsIfNeeded();
     await loadEvents();
     var visible = applyFilters(state.events);
 
@@ -440,7 +462,10 @@
     var ch = (e.channels || [])[0];
     var chLbl = chEmoji(ch, e.source);
     var warn = e.hasConflict ? '<span class="warn" title="Конфлікт каналу">⚠</span>' : '';
-    return '<div class="uc-event src-' + e.source + (e.hasConflict ? ' has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '" title="' + escapeHtml(e.title) + '">' +
+    // #547: border-left=рубрика-колір (override CSS src-* колір)
+    var rc = e.rubric_id ? rubricColor(e.rubric_id) : (SOURCE_COLOR[e.source] || '#666');
+    var styleOverride = ' style="border-left:3px solid ' + rc + ';"';
+    return '<div class="uc-event src-' + e.source + (e.hasConflict ? ' has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '"' + styleOverride + ' title="' + escapeHtml(e.title) + '">' +
       '<span class="chip">' + chLbl + '</span>' +
       '<span class="time">' + time + '</span>' +
       warn +
@@ -525,7 +550,9 @@
         cellEvents.forEach(function (e) {
           var time = hhmm(new Date(e.scheduled_at));
           var warn = e.hasConflict ? ' ⚠' : '';
-          h.push('<div class="grid-event src-' + e.source + (e.hasConflict ? ' has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '" title="' + escapeHtml(e.title) + '">' + time + warn + ' ' + escapeHtml((e.title || '').slice(0, 40)) + '</div>');
+          // #547: border-left=рубрика-колір
+          var rc = e.rubric_id ? rubricColor(e.rubric_id) : (SOURCE_COLOR[e.source] || '#666');
+          h.push('<div class="grid-event src-' + e.source + (e.hasConflict ? ' has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '" style="border-left:3px solid ' + rc + ';padding-left:6px;" title="' + escapeHtml(e.title) + '">' + time + warn + ' ' + escapeHtml((e.title || '').slice(0, 40)) + '</div>');
         });
         h.push('</div>');
       }
@@ -545,7 +572,9 @@
       var when = ddmm(dt) + ' ' + hhmm(dt);
       // #364: emoji-піктограми каналів замість літер · #420: TG-канал vs TG-бот
       var chips = (e.channels || []).map(function (c) { return chEmoji(c, e.source); }).join(' ');
-      h.push('<div class="row ' + (e.hasConflict ? 'has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '">');
+      // #547: border-left=рубрика-колір
+      var rc = e.rubric_id ? rubricColor(e.rubric_id) : (SOURCE_COLOR[e.source] || '#666');
+      h.push('<div class="row ' + (e.hasConflict ? 'has-conflict' : '') + '" data-evid="' + e.id + '" data-src="' + e.source + '" style="box-shadow:inset 4px 0 0 ' + rc + ';">');
       h.push('<div class="when">' + when + '</div>');
       h.push('<div class="src src-' + e.source + '">' + SOURCE_LABEL[e.source] + '</div>');
       h.push('<div class="title">' + escapeHtml(e.title || '— без назви —') + '</div>');
