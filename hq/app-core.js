@@ -242,6 +242,12 @@ const Store = {
   },
   user(id) { return this._data?.users.find(u => u.id === id); },
   rubrics() { return this._data?.rubrics || []; },
+  // #547 14.06: швидкий доступ до кольору рубрики для border-left на cards у календарі/board.
+  rubricColor(rubricId) {
+    if (!rubricId) return '#666';
+    const r = (this._data?.rubrics || []).find(x => x.id === rubricId);
+    return (r && r.color) ? r.color : '#666';
+  },
   launches() { return this._data?.launches || []; },
   currentUser() { return this.user(this._data?.currentUserId); },
 
@@ -1182,7 +1188,9 @@ function renderMonth(d, pubs) {
     const items = merged.slice(0, 6).map(item => {
       if (item._kind === 'pub') {
         const p = item.data;
-        return `<div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}">
+        // #547: border-left=рубрика-колір
+        const rc = Store.rubricColor(p.rubric);
+        return `<div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};">
           ${p.contentType ? `<div class="ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
           <span class="time" style="font-weight:700;color:#fff;">${fmtTime(p.dateTime)}</span>
           ${platformIcons(p.platforms)}
@@ -1269,7 +1277,9 @@ function renderWeek(start, pubs) {
     const cards = merged.map(item => {
       if (item._kind === 'pub') {
         const p = item.data;
-        return `<div class="week-card s-${p.status}" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}">
+        // #547: border-left=рубрика-колір
+        const rc = Store.rubricColor(p.rubric);
+        return `<div class="week-card s-${p.status}" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};">
           ${p.contentType ? `<div class="wc-ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
           <div class="wc-time" style="font-weight:700;color:#fff;font-size:11px;">${fmtTime(p.dateTime)}</div>
           <div class="wc-title">${escapeHtml(p.title)}</div>
@@ -1324,8 +1334,10 @@ function renderDay(date, pubs) {
       </div></div>`;
     }
     const p = item.data;
+    // #547: border-left=рубрика-колір (fallback до status color якщо рубрика не задана)
+    const rc = p.rubric ? Store.rubricColor(p.rubric) : STATUS_BY_ID[p.status].color;
     return `
-    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid;border-left-color:${STATUS_BY_ID[p.status].color};border-radius:10px;padding:18px 22px;cursor:pointer;" data-id="${p.id}" class="week-card">
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid;border-left-color:${rc};border-radius:10px;padding:18px 22px;cursor:pointer;" data-id="${p.id}" class="week-card">
       <div style="display:flex;gap:18px;align-items:flex-start;">
         <div style="text-align:center;min-width:60px;">
           <div style="font-size:22px;font-weight:800;color:#fff;">${fmtTime(p.dateTime)}</div>
@@ -1356,7 +1368,9 @@ function renderList(pubs) {
   let rows = pubs.map(p => {
     const r = Store.rubrics().find(x=>x.id===p.rubric);
     const respNames = (p.responsibles||[]).map(id=>Store.user(id)?.name).filter(Boolean).join(', ') || '—';
-    return `<tr data-id="${p.id}" class="${App.selectedPubs.has(p.id)?'selected':''}">
+    // #547: border-left=рубрика-колір на першій колонці рядка
+    const rc = Store.rubricColor(p.rubric);
+    return `<tr data-id="${p.id}" class="${App.selectedPubs.has(p.id)?'selected':''}" style="box-shadow:inset 4px 0 0 ${rc};">
       <td class="col-check"><input type="checkbox" data-pub="${p.id}" ${App.selectedPubs.has(p.id)?'checked':''}/></td>
       <td>${fmtDateTime(p.dateTime)}</td>
       <td><div class="pub-title">${escapeHtml(p.title)}</div><div class="pub-meta">${p.contentType}</div></td>

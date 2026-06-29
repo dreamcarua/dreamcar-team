@@ -54,7 +54,9 @@ function boardCard(p) {
     return { txt: fmtDate(p.dateTime) + ' · ' + fmtTime(p.dateTime), cls: '' };
   })();
   const respNames = (p.responsibles||[]).map(id => Store.user(id)?.name).filter(Boolean).join(', ');
-  return `<div class="board-card ${urgency}" data-id="${p.id}">
+  // #547: border-left=рубрика-колір
+  const rc = Store.rubricColor(p.rubric);
+  return `<div class="board-card ${urgency}" data-id="${p.id}" style="border-left:4px solid ${rc};">
     <div class="bc-head">
       <div class="bc-thumb">${thumb}</div>
       <div class="bc-body">

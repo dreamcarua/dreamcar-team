@@ -8,6 +8,35 @@
 
 ---
 
+## 29.06.2026 — Календарі: рубрика-колір на cards (Давид UX)
+
+### SMM / Retention / Projects (#547)
+- 🆕 Усі картки публікацій/розсилок у календарях (Місяць/Тиждень/День/Список/Дошка) тепер мають `border-left: 4px solid <rubric.color>` — миттєво видно тип контенту: 🔴 Продажний `#ff6577` · 🔵 Експертний `#7ab0ff` · 🟡 Розважальний `#fbbf24` · 🟢 Новинний `#6ee7b7` · 🟣 Партнерський `#c89af0`. Fallback `#666` коли рубрика не задана.
+- 🆕 DB migration `unified_calendar_events_add_rubric_id` — RPC `unified_calendar_events(...)` повертає нову колонку `rubric_id uuid` (UNION з `publications.rubric_id` + `retention_messages.rubric_id`). Не ламаюча зміна — старі виклики продовжать працювати.
+- 🆕 `hq/app-core.js` — `Store.rubricColor(rubricId)` helper. Застосовано у `renderMonth/Week/Day/List` + `boardCard` (`app-views.js`).
+- 🆕 `retention/app-retention.js` — рубрики тепер вантажаться у `Store.rubrics` + `Store.rubricsById`. Helper `rubricColor()`. Застосовано у `calItem(short/medium/full)` + `renderList` + `renderBoard` + `renderCalList`.
+- 🆕 `projects/app-unified-calendar.js` — `state.rubrics/rubricsById` + `loadRubricsIfNeeded()` + `rubricColor()` helper. Застосовано у `eventChipHtml` (Month/Week/Day) + `renderGrid` + `renderList`.
+
+---
+
+## 20.06.2026 — Compress оптимізація + SMM published_at + Health Report fixes
+
+### Compress Worker (#526, Vadym P0)
+- ⚡ `preset veryslow → slow` (3× швидше CPU, втрата стиснення <1.5% непомітна у TG/IG/Reels). Тепер 1-min iPhone клип компресує ~10-12 хв (було 25-30 хв). 30-min runner timeout з запасом.
+- ⚡ x264 params: `subme=10→8`, `merange=32→24`, `rc-lookahead=80→60`, `bframes=12→8`, `ref=8→6` — сумарно ~50% швидше encoding.
+- ⚡ HDR HEVC: `preset slow → medium`, `bframes=8→6`, `rc-lookahead=60→40` (HDR pass-through покриває 99% iPhone — HEVC шлях рідкий, можна швидше).
+- 🔧 Reset 4 failed creatives (IMG_7942 ×2, IMG_8473, Captions_7D6B54.MP4) — старі fail від 10-12.06 ще на HDR mobius logic. Тепер новий worker (HDR pass-through #385) їх повторно обробить.
+
+### SMM Publications (#527, Vadym P0)
+- 🛡 Trigger `fn_publications_auto_published_at` (BEFORE UPDATE/INSERT): автоматично заповнює `published_at = now()` коли status→published. Раніше код фронтенду іноді не виставляв timestamp → 52 публікації мали `status='published'` АЛЕ `published_at IS NULL`.
+- 🔧 Backfill 52 записів: `published_at = COALESCE(updated_at, created_at)`. Тепер DC Media archive ETL, /finance/, dashboard sort by published_at працюють правильно для історичних публікацій.
+- 📖 **Корінь Олександр-issue**: 3 публікації від ранку 20.06 висять у `status='review'` бо `approver_policy='all'` чекає підтвердження ВСІХ approvers. Давид схвалив 1 → status=approved. Інші чекають Vira/Vadym. Це бізнес-логіка, не bug.
+
+### TG Олександр "Спамер" (#528, Vadym P1)
+- 📖 Це **Telegram custom_title** (адмін заголовок) у чаті DreamCar SMM. Виставляється у Telegram chat settings → Адміни → custom title. Vadym/Артем як власники чату можуть прибрати: TG → Адміни → Олександр → custom title = очистити поле. Не системний bug.
+
+---
+
 ## 19.06.2026 — Daily TG Finance BOARD Report (09:30 Київ) #524–525
 
 ### Daily BOARD Report
