@@ -44,6 +44,8 @@ const Store = window.retStore = {
   search: '',
   channelFilter: new Set(),   // filter chips
   statusFilter: new Set(),
+  // #547 29.06.2026 — Davyd UX: фільтр по рубриках (продажний/експертний/розважальний/новинний/партнерський)
+  rubricFilter: new Set(),
 };
 
 // #547: helper для кольору border-left по rubric_id
@@ -161,7 +163,40 @@ function setCount(id, n){ const e = document.getElementById(id); if (e) e.textCo
 function renderAll(){
   updateCounters();
   highlightRoute();
+  renderRubricSidebar();
   renderMain();
+}
+
+// #547 29.06.2026 — Davyd UX: рендер блоку "Рубрика" у sidebar (multi-select chips)
+function renderRubricSidebar(){
+  const host = document.getElementById('retSidebarRubric');
+  if (!host) return;
+  const rubrics = Store.rubrics || [];
+  if (!rubrics.length) {
+    host.innerHTML = '<div style="color:var(--ash); font-size:11px; padding:4px 0;">— немає рубрик —</div>';
+    return;
+  }
+  host.innerHTML = rubrics.map(r => {
+    const cnt = Store.messages.filter(m => m.rubric_id === r.id).length;
+    const on = Store.rubricFilter && Store.rubricFilter.has(r.id);
+    const color = r.color || '#666';
+    const name = String(r.name || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    return `<div class="ret-filter-chip ${on ? 'on' : ''}" data-rub="${r.id}">
+      <span class="ret-dot" style="background:${color}"></span>
+      <span>${name}</span>
+      <span class="ret-cnt">${cnt}</span>
+    </div>`;
+  }).join('');
+  host.querySelectorAll('.ret-filter-chip').forEach(el => {
+    el.onclick = () => {
+      const id = el.dataset.rub;
+      if (!Store.rubricFilter) Store.rubricFilter = new Set();
+      if (Store.rubricFilter.has(id)) Store.rubricFilter.delete(id);
+      else Store.rubricFilter.add(id);
+      renderRubricSidebar();
+      renderMain();
+    };
+  });
 }
 
 function highlightRoute(){
@@ -206,7 +241,8 @@ function getRouteLabel(){
 }
 
 function renderList(main){
-  const items = Store.messages.filter(getRouteFilter());
+  // #547 29.06.2026 — Davyd UX: + фільтр по рубриках
+  const items = applyRubricFilter(Store.messages.filter(getRouteFilter()));
   const headHtml = `
     <div class="section-head">
       <h1>📬 ${escHtml(getRouteLabel())} <span style="color:var(--ash); font-size:14px; margin-left:8px;">(${items.length})</span></h1>
@@ -257,7 +293,8 @@ function renderList(main){
 function renderBoard(main){
   const cols = ['draft','review','approved','scheduled','sent','failed'];
   const f = getRouteFilter();
-  const items = Store.messages.filter(f);
+  // #547 29.06.2026 — Davyd UX: + фільтр по рубриках
+  const items = applyRubricFilter(Store.messages.filter(f));
   const groups = {};
   cols.forEach(c => groups[c] = []);
   items.forEach(m => { if (groups[m.status]) groups[m.status].push(m); });
@@ -311,9 +348,18 @@ function filteredMessages(){
   return Store.messages.filter(m => {
     if (Store.channelFilter.size && !Store.channelFilter.has(m.channel)) return false;
     if (Store.statusFilter.size && !Store.statusFilter.has(m.status)) return false;
+    // #547 29.06.2026 — Davyd UX: фільтр по рубриках
+    if (Store.rubricFilter && Store.rubricFilter.size && (!m.rubric_id || !Store.rubricFilter.has(m.rubric_id))) return false;
     if (q && !((m.title||'').toLowerCase().includes(q) || (m.body||'').toLowerCase().includes(q) || (m.preview_text||'').toLowerCase().includes(q))) return false;
     return true;
   });
+}
+
+// #547 29.06.2026 — Davyd UX: helper для фільтру по рубриках, який застосовується
+// поверх getRouteFilter() (для renderList/renderBoard).
+function applyRubricFilter(items){
+  if (!Store.rubricFilter || !Store.rubricFilter.size) return items;
+  return items.filter(m => m.rubric_id && Store.rubricFilter.has(m.rubric_id));
 }
 
 function calRangeLabel(){

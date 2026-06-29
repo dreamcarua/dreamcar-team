@@ -875,7 +875,9 @@ const App = {
   view: 'calendar',
   calendarMode: _defaultCalMode(),
   calendarDate: new Date(),
-  filters: { statuses: new Set(), platforms: new Set() },
+  // #547 29.06.2026 — Davyd UX: фільтри по типу контенту (stories/reels/post)
+  // і по рубриках (продажний/експертний/розважальний/новинний/партнерський)
+  filters: { statuses: new Set(), platforms: new Set(), contentTypes: new Set(), rubrics: new Set() },
   selectedPubs: new Set(),
   searchQuery: '',
   retentionGhost: window._pendingGhostRetention || [],  // #421
@@ -979,6 +981,58 @@ function renderSidebarFilters() {
       navigate();
     };
   });
+
+  // #547 29.06.2026 — Davyd UX: блок "Тип контенту" (stories/reels/post)
+  // contentType зберігається у frontend як українська мітка (див. contentTypeFromDb).
+  const fct = document.getElementById('filterContentType');
+  if (fct) {
+    const CT_OPTIONS = [
+      { id: 'Сторис', label: 'Stories', emoji: '📸' },
+      { id: 'Reels',  label: 'Reels',   emoji: '🎬' },
+      { id: 'Пост',   label: 'Post',    emoji: '📝' },
+    ];
+    fct.innerHTML = CT_OPTIONS.map(o => {
+      const cnt = Store.pubs().filter(pub => pub.contentType === o.id).length;
+      const on = App.filters.contentTypes.has(o.id);
+      return `<div class="filter-chip ${on ? 'on' : ''}" data-ct="${o.id}">
+        <span class="swatch" style="background:#666">${o.emoji}</span><span>${o.label}</span><span class="cnt">${cnt}</span></div>`;
+    }).join('');
+    fct.querySelectorAll('.filter-chip').forEach(el => {
+      el.onclick = () => {
+        const id = el.dataset.ct;
+        if (App.filters.contentTypes.has(id)) App.filters.contentTypes.delete(id);
+        else App.filters.contentTypes.add(id);
+        renderSidebarFilters();
+        navigate();
+      };
+    });
+  }
+
+  // #547 29.06.2026 — Davyd UX: блок "Рубрика" (5 рубрик з кольоровими крапками)
+  const fr = document.getElementById('filterRubric');
+  if (fr) {
+    const rubrics = Store.rubrics() || [];
+    if (!rubrics.length) {
+      fr.innerHTML = '<div style="color:var(--grey-2); font-size:11px; padding:4px 8px;">— немає рубрик —</div>';
+    } else {
+      fr.innerHTML = rubrics.map(r => {
+        const cnt = Store.pubs().filter(pub => pub.rubric === r.id).length;
+        const on = App.filters.rubrics.has(r.id);
+        const color = r.color || '#666';
+        return `<div class="filter-chip ${on ? 'on' : ''}" data-rub="${r.id}">
+          <span class="swatch" style="background:${color}"></span><span>${escapeHtml(r.name)}</span><span class="cnt">${cnt}</span></div>`;
+      }).join('');
+      fr.querySelectorAll('.filter-chip').forEach(el => {
+        el.onclick = () => {
+          const id = el.dataset.rub;
+          if (App.filters.rubrics.has(id)) App.filters.rubrics.delete(id);
+          else App.filters.rubrics.add(id);
+          renderSidebarFilters();
+          navigate();
+        };
+      });
+    }
+  }
 }
 
 /* ============ Apply filters ============ */
@@ -986,6 +1040,14 @@ function filteredPubs() {
   let pubs = Store.pubs();
   if (App.filters.statuses.size > 0) pubs = pubs.filter(p => App.filters.statuses.has(p.status));
   if (App.filters.platforms.size > 0) pubs = pubs.filter(p => p.platforms.some(pl => App.filters.platforms.has(pl)));
+  // #547 29.06.2026 — Davyd UX: фільтр по типу контенту (stories/reels/post)
+  if (App.filters.contentTypes && App.filters.contentTypes.size > 0) {
+    pubs = pubs.filter(p => App.filters.contentTypes.has(p.contentType));
+  }
+  // #547 29.06.2026 — Davyd UX: фільтр по рубриках (продажний/експертний/...)
+  if (App.filters.rubrics && App.filters.rubrics.size > 0) {
+    pubs = pubs.filter(p => p.rubric && App.filters.rubrics.has(p.rubric));
+  }
   if (App.searchQuery) {
     const q = App.searchQuery.toLowerCase();
     pubs = pubs.filter(p => (p.title + ' ' + (p.text||'') + ' ' + (p.hashtags||[]).join(' ')).toLowerCase().includes(q));

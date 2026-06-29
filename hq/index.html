@@ -1805,6 +1805,16 @@
         <div class="filter-label">Майданчик</div>
         <div id="filterPlatform"></div>
       </div>
+      <!-- #547 29.06.2026 — Davyd UX: фільтр по типу контенту (Stories/Reels/Post) -->
+      <div class="filter-group">
+        <div class="filter-label">Тип контенту</div>
+        <div id="filterContentType"></div>
+      </div>
+      <!-- #547 29.06.2026 — Davyd UX: фільтр по рубриках (5 рубрик з кольоровими крапками) -->
+      <div class="filter-group">
+        <div class="filter-label">Рубрика</div>
+        <div id="filterRubric"></div>
+      </div>
     </div>
   </aside>
 
@@ -1895,8 +1905,8 @@
 })();
 </script>
 
-<script src="app-core.js?v=202606291039-04125fadrubric" defer></script>
-<script src="app-views.js?v=202606291039-04125fadrubric" defer></script>
+<script src="app-core.js?v=202606291100-547filters" defer></script>
+<script src="app-views.js?v=202606291100-547filters" defer></script>
 <!-- 09.06.2026 #207/#208/#209: loader chain (app-locks → app-extras → ...) на production не стартувала.
      Через це app-overview-modal.js, app-extras.js, app-duplicate-to.js НЕ завантажувались.
      Олександр і Давид бачили старий edit modal без кнопки Дублювати + без креативів у preview.
