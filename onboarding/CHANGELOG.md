@@ -8,6 +8,15 @@
 
 ---
 
+## 30.06.2026 — SMM: drag-drop карток у Тиждень-view календаря (#555)
+
+### SMM (#555)
+- 🔧 `hq/app-core.js` — `.week-card` тепер `draggable="true"`; `attachWeekHandlers` навішує `ondragstart/ondragend`. Картку у тижні можна перетягувати між колонками днів → дата публікації змінюється.
+- 🔧 `hq/app-dragdrop-fix.js` v3→v4 — той самий tracked-cursor + bounding-rect scan тепер працює і для week-view (`.week-col[data-date]`), не лише month (`.cal-day`). Уникає off-by-one.
+- 🛡 `hq/index.html` — **app-dragdrop-fix.js взагалі НЕ був у loader-chain** → не вантажився. Через це (1) month drag-drop йшов лише через старий inline attach зі off-by-one, (2) week drag-drop не існував. Додано `<script>` напряму (паралель до #554 board-view fix). + CSS `.week-col.drop-over`, `.week-card[draggable]` grab-cursor, `.week-card.dragging`.
+
+---
+
 ## 29.06.2026 — Календарі: рубрика-колір на cards (Давид UX)
 
 ### SMM / Retention / Projects (#547)
