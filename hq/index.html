@@ -9,13 +9,13 @@
 <meta http-equiv="Expires" content="0">
 <title>DreamCar HQ · Стіл SMM</title>
 <!-- GLOBAL BRAND HEADER — обов'язково на ВСІХ сторінках проекту для навігації -->
-<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202606302109-b0e88712" defer></script>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202606302053-08c602e8" defer></script>
 <script src="config.js"></script>
 <!-- 08.06.2026 R2 (Давид login loop fix): підключаємо shared storage у HQ -->
 <!-- Раніше HQ використовував дефолтний localStorage без cookie sync — це могло
      створювати ситуацію коли Tasks через cookie бачив старий expired token,
      а HQ свіжий → cross-app session drift → login loop. -->
-<script src="dc-shared-storage.js?v=202606302109-b0e88712"></script>
+<script src="dc-shared-storage.js?v=202606302053-08c602e8"></script>
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config
   if (window.HQ_CONFIG?.SUPABASE_URL && window.HQ_CONFIG?.SUPABASE_ANON_KEY) {
@@ -710,6 +710,10 @@
     cursor: pointer;
   }
   .week-card:hover { background: var(--bg-hover); }
+  .week-card[draggable="true"] { cursor: grab; }
+  .week-card[draggable="true"]:active { cursor: grabbing; }
+  .week-card.dragging { opacity: 0.45; }
+  .week-col.drop-over { background: rgba(74,222,128,0.1); outline: 1px dashed var(--green); outline-offset: -2px; }
   .week-card.s-draft     { border-left-color: var(--grey); }
   .week-card.s-in_work   { border-left-color: var(--blue); }
   .week-card.s-review    { border-left-color: var(--gold); }
@@ -1687,7 +1691,7 @@
     .filter-rad::-webkit-scrollbar { display: none; }
     .filter-rad > * { flex-shrink: 0; }
 
-    /* Drawer-trigger візуальний бейдж для unread */
+    /* Drawer-trigger візuальний бейдж для unread */
     .topbar-burger {
       position: relative;
     }
@@ -1715,7 +1719,7 @@
     .fab-create { display: flex; }
   }
 </style>
-<script src="dc-theme.js?v=202606302109-b0e88712" defer></script>
+<script src="dc-theme.js?v=202606302053-08c602e8" defer></script>
 </head>
 <body>
 
@@ -1905,17 +1909,19 @@
 })();
 </script>
 
-<script src="app-core.js?v=202606302109-b0e88712ilters" defer></script>
-<script src="app-views.js?v=202606302109-b0e88712ilters" defer></script>
+<script src="app-core.js?v=202606302259-ddf4week" defer></script>
+<script src="app-views.js?v=202606302053-08c602e8ilters" defer></script>
 <!-- 09.06.2026 #207/#208/#209: loader chain (app-locks → app-extras → ...) на production не стартувала.
      Через це app-overview-modal.js, app-extras.js, app-duplicate-to.js НЕ завантажувались.
      Олександр і Давид бачили старий edit modal без кнопки Дублювати + без креативів у preview.
      Тепер вантажимо chain напряму. -->
-<script src="app-locks.js?v=202606302109-b0e88712" defer></script>
-<script src="app-overview-modal.js?v=202606302109-b0e88712" defer></script>
-<script src="app-duplicate-to.js?v=202606302109-b0e88712" defer></script>
+<script src="app-locks.js?v=202606302053-08c602e8" defer></script>
+<script src="app-overview-modal.js?v=202606302053-08c602e8" defer></script>
+<script src="app-duplicate-to.js?v=202606302053-08c602e8" defer></script>
 <!-- 30.06.2026 #554 (P0 SMM drag-drop): app-board-view.js (режим Дошка / kanban з drag-drop карток між статусами) НЕ був у loader-chain і не вантажився → картки на Дошці не перетягувались взагалі. Підключаємо напряму. -->
-<script src="app-board-view.js?v=202606302109-b0e88712oard" defer></script>
+<script src="app-board-view.js?v=202606302053-08c602e8oard" defer></script>
+<!-- 30.06.2026 #555 (P0 SMM weekly drag-drop): app-dragdrop-fix.js (v4) НЕ був у loader-chain → не вантажився взагалі. Через це (1) місяць-view drag-drop йшов лише через inline attachCalendarHandlers зі старим off-by-one, (2) тиждень-view карток (.week-card) не можна було перетягувати між днями. v4 = той самий bounding-rect scan для .cal-day + .week-col[data-date]. Підключаємо напряму. -->
+<script src="app-dragdrop-fix.js?v=202606302053-ddf4week" defer></script>
 
 </body>
 </html>
