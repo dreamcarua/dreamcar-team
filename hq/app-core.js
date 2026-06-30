@@ -1341,7 +1341,7 @@ function renderWeek(start, pubs) {
         const p = item.data;
         // #547: border-left=рубрика-колір
         const rc = Store.rubricColor(p.rubric);
-        return `<div class="week-card s-${p.status}" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};">
+        return `<div class="week-card s-${p.status}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};">
           ${p.contentType ? `<div class="wc-ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
           <div class="wc-time" style="font-weight:700;color:#fff;font-size:11px;">${fmtTime(p.dateTime)}</div>
           <div class="wc-title">${escapeHtml(p.title)}</div>
@@ -1420,7 +1420,17 @@ function renderDay(date, pubs) {
   }).join('') + '</div>';
 }
 function attachWeekHandlers() {
+  // Drop-логіку для .week-col (week view) обробляє app-dragdrop-fix.js (v4)
+  // тим самим bounding-rect scan, що й .cal-day — щоб уникнути off-by-one.
   document.querySelectorAll('.week-card').forEach(el => {
+    if (el.getAttribute('draggable') === 'true') {
+      el.ondragstart = (e) => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/plain', el.dataset.id);
+        el.classList.add('dragging');
+      };
+      el.ondragend = () => el.classList.remove('dragging');
+    }
     el.onclick = () => { if (el.dataset.id) location.hash = '#publication/' + el.dataset.id; };
   });
 }
