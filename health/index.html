@@ -101,6 +101,40 @@ function strainCard(s){
  h+='<div class="b" style="height:8px;background:#eef0f2;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#1a7f37"></i></div></div>';
  return h;
 }
+function bpBlock(bp){
+ if(!bp)return '';
+ if(bp.sys_last==null)return '<div class="warn">🩺 Тиск ще не вимірюється — для повного кардіо-ризику потрібен тонометр (Omron). Заміри підтягнуться автоматично через Apple Health.</div>';
+ const s=num(bp.sys_last),d=num(bp.dia_last);
+ const col=(s>=140||d>=90)?'#b42318':((s>=130||d>=85)?'#b54708':'#1a7f37');
+ const st=(s>=140||d>=90)?'високий':((s>=130||d>=85)?'підвищений':'норма');
+ let h='<h2>🩺 Артеріальний тиск</h2><div class="cards">';
+ h+=kc('Останній','<span style="color:'+col+'">'+f(s)+'/'+f(d)+'</span>','мм рт.ст.',st,'');
+ if(bp.sys7!=null)h+=kc('Сер. 7 днів',f(bp.sys7)+'/'+f(bp.dia7),'мм рт.ст.',f(bp.n)+' замірів','');
+ h+='</div>';return h;
+}
+function bodyComp(b){
+ if(!b)return '';
+ if(!['body_fat','lean','muscle','water','visceral','bmr'].some(x=>b[x]!=null))return '';
+ let h='<h2>🧍 Склад тіла</h2><div class="cards">';
+ if(b.body_fat!=null)h+=kc('Жир тіла',f(b.body_fat,1),'%',num(b.body_fat)<=17?'оптимум':(num(b.body_fat)<=20?'норма':'вище'),'');
+ if(b.lean!=null)h+=kc('Тоща маса',f(b.lean,1),'кг','','');
+ if(b.muscle!=null)h+=kc('Мʼязова маса',f(b.muscle,1),'кг','','');
+ if(b.water!=null)h+=kc('Вода',f(b.water,1),'%','','');
+ if(b.visceral!=null)h+=kc('Вісцеральний жир',f(b.visceral,1),'',num(b.visceral)<10?'норма ✅':'високо','');
+ if(b.bmr!=null)h+=kc('BMR',f(b.bmr),'ккал','базовий метаб.','');
+ h+='</div>';return h;
+}
+function strengthCard(st){
+ if(!st||st.sessions30==null)return '';
+ const n=num(st.sessions30);
+ return '<h2>🏋️ Силові тренування</h2><div class="cards">'+kc('Силові сесії',f(n),'/30 дн',n>=8?'добре (~2/тиж) ✅':'ціль ~2/тиж','')+'</div>';
+}
+function historyBlock(hist){
+ if(!hist||!hist.length)return '';
+ let h='<h2>🧬 Анамнез та вакцинація</h2><div class="panel"><table><tbody>';
+ for(const x of hist)h+='<tr><td><b>'+esc(x.title)+'</b><br><span class="sub">'+esc(x.body||'')+'</span></td></tr>';
+ h+='</tbody></table></div>';return h;
+}
 function sleepRecovery(D){
  const sd=D.sleep_debt||{}, sw=D.sleep_window||{}, sq=D.sleep_q||{};
  if(sd.debt==null&&sw.bedtime==null)return '';
@@ -202,6 +236,7 @@ function render(D){
    h+='<details><summary>Усі показники ('+labs.results.length+')</summary><table><tbody>';for(const r of labs.results)h+=labRow(r);h+='</tbody></table></details>';
  }
  h+=cvRisk(D.cv);
+ h+=bpBlock(D.bp);
  h+=labTrendsBlock(D.lab_trends);
  h+='<h2>Огляд · 90 днів <span class="sub" style="text-transform:none;letter-spacing:0">(графік — помісячна динаміка)</span></h2><div class="cards">';
  h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'),spark(ser('resting_hr'),'#b42318'));
@@ -213,7 +248,9 @@ function render(D){
  h+=kc('Тренування',f(k.ex_90),'хв/день','','',spark(ser('exercise_min'),'#0891b2'));
  h+=kc('Вага',f(k.w_last,1),'кг','','',spark(ser('weight_kg'),'#b54708'));
  h+='</div>';
+ h+=bodyComp(D.body);
  h+=formBlock(D.form);
+ h+=strengthCard(D.strength);
  h+=sleepRecovery(D);
  h+=secondary(D.secondary);
  h+=nutrition(D.nutrition);
@@ -230,6 +267,7 @@ function render(D){
  h+='<div class="rec"><div class="v">'+f(rc.d10k)+'</div><div class="l">днів ≥10k кроків</div></div>';
  h+='<div class="rec"><div class="v">'+f(rc.dex30)+'</div><div class="l">днів трен. ≥30хв</div></div>';
  h+='</div>';
+ h+=historyBlock(D.history);
  if(meds.length){h+='<h2>💊 Препарати та добавки</h2><div class="panel"><table><thead><tr><th>Назва</th><th>Графік</th><th>Призначення</th></tr></thead><tbody>';for(const m of meds)h+='<tr><td><b>'+esc(m.name)+'</b></td><td class="sub">'+esc(m.schedule||'')+'</td><td class="sub">'+esc(m.purpose||'')+'</td></tr>';h+='</tbody></table></div>';}
  if(img.length){h+='<h2>🩻 Обстеження та висновки</h2><div class="panel"><table><tbody>';for(const j of img)h+='<tr><td class="sub" style="white-space:nowrap;vertical-align:top">'+esc(j.d||'')+'</td><td><b>'+esc(j.title||'')+'</b><br><span class="sub">'+esc(j.body||'')+'</span></td></tr>';h+='</tbody></table></div>';}
  if(wk.length){h+='<h2>Останні тренування</h2><div class="panel"><table><thead><tr><th>Дата</th><th>Тип</th><th>Хв</th><th>Км</th><th>Ккал</th></tr></thead><tbody>';for(const w of wk){h+='<tr><td class="sub">'+(w.d||'')+'</td><td>'+esc(w.workout_type||'')+'</td><td>'+f(w.duration_min)+'</td><td>'+f(w.distance_km,1)+'</td><td>'+f(w.active_kcal)+'</td></tr>';}h+='</tbody></table></div>';}
