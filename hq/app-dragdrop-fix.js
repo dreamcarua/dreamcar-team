@@ -1,20 +1,25 @@
 /* ============================================================
-   DreamCar HQ — Drag-Drop Off-By-One Fix v3 (calendar)
+   DreamCar HQ — Drag-Drop Off-By-One Fix v4 (calendar month + week)
    ============================================================ */
 // v1: global capture + stopProp → дублі, race із attachCalendarHandlers
 // v2: per-cell override + elementFromPoint(e.clientX,e.clientY) → досі off-by-one
 // v3: трекаємо cursor на КОЖНОМУ dragover (там clientX/Y точні),
 //     на drop використовуємо ОСТАННІЙ tracked cursor → скануємо всі
 //     .cal-day getBoundingClientRect щоб знайти ТОЧНО ту, що під cursor.
-//     Це обходить і ghost-image hit-test, і випадки коли drop event
-//     приходить з clientX=0 або з застарілими координатами.
+// v4: ТОЙ САМИЙ bounding-rect scan тепер працює і для week view (.week-col).
+//     Картки тижня (.week-card[draggable]) перетягуються між колонками днів →
+//     дата змінюється так само як у місяці. Selector cells = .cal-day, .week-col[data-date].
 
 (function () {
-  if (window.__hqDragDropFixV3) return;
-  window.__hqDragDropFixV3 = true;
-  // Блокуємо v1 і v2 повторні запуски
+  if (window.__hqDragDropFixV4) return;
+  window.__hqDragDropFixV4 = true;
+  // Блокуємо попередні версії повторні запуски
   window.__hqDragDropFix = true;
   window.__hqDragDropFixV2 = true;
+  window.__hqDragDropFixV3 = true;
+
+  // Селектор усіх drop-зон (місяць + тиждень). week-col без data-date (renderDay) ігноруємо.
+  var CELL_SELECTOR = '.cal-day, .week-col[data-date]';
 
   // Tracked cursor (оновлюється на КОЖНОМУ dragover globally)
   var trackedX = -1;
@@ -48,13 +53,15 @@
     } catch (_) {}
   }
 
-  // BOUNDING-RECT scan — найточніший спосіб знайти cell під точкою
+  // BOUNDING-RECT scan — найточніший спосіб знайти cell під точкою.
+  // Скануємо лише клітинки що мають data-date (валідна drop-зона).
   function findCellByPoint(x, y) {
     if (x < 0 || y < 0) return null;
-    var cells = document.querySelectorAll('.cal-day');
+    var cells = document.querySelectorAll(CELL_SELECTOR);
     if (cells.length === 0) return null;
     // Direct hit
     for (var i = 0; i < cells.length; i++) {
+      if (!cells[i].dataset.date) continue;
       var r = cells[i].getBoundingClientRect();
       if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
         return cells[i];
@@ -64,6 +71,7 @@
     var nearest = null;
     var minDist = Infinity;
     for (var j = 0; j < cells.length; j++) {
+      if (!cells[j].dataset.date) continue;
       var rr = cells[j].getBoundingClientRect();
       var cx = rr.left + rr.width / 2;
       var cy = rr.top + rr.height / 2;
@@ -78,9 +86,9 @@
     trackedX = e.clientX;
     trackedY = e.clientY;
     // visual: підсвітити правильну клітинку
-    if (document.querySelector('.cal-day')) {
+    if (document.querySelector(CELL_SELECTOR)) {
       var real = findCellByPoint(e.clientX, e.clientY);
-      document.querySelectorAll('.cal-day.drop-over').forEach(function (c) {
+      document.querySelectorAll('.cal-day.drop-over, .week-col.drop-over').forEach(function (c) {
         if (c !== real) c.classList.remove('drop-over');
       });
       if (real) real.classList.add('drop-over');
@@ -89,14 +97,14 @@
 
   document.addEventListener('dragend', function () {
     trackedX = -1; trackedY = -1;
-    document.querySelectorAll('.cal-day.drop-over').forEach(function (c) {
+    document.querySelectorAll('.cal-day.drop-over, .week-col.drop-over').forEach(function (c) {
       c.classList.remove('drop-over');
     });
   }, true);
 
   function bindCell(el) {
-    if (el.__hqDDFv3) return;
-    el.__hqDDFv3 = true;
+    if (el.__hqDDFv4) return;
+    el.__hqDDFv4 = true;
 
     el.ondragover = function (e) {
       e.preventDefault();
@@ -113,7 +121,7 @@
       var x = (e.clientX !== undefined && e.clientX > 0) ? e.clientX : trackedX;
       var y = (e.clientY !== undefined && e.clientY > 0) ? e.clientY : trackedY;
 
-      document.querySelectorAll('.cal-day.drop-over').forEach(function (c) {
+      document.querySelectorAll('.cal-day.drop-over, .week-col.drop-over').forEach(function (c) {
         c.classList.remove('drop-over');
       });
 
@@ -121,12 +129,12 @@
       if (!target || !target.dataset.date) {
         // Останній fallback: bound el
         target = el;
-        console.warn('[DDFv3] fallback to bound el; tracked=(' + x + ',' + y + '), bound=' + el.dataset.date);
+        console.warn('[DDFv4] fallback to bound el; tracked=(' + x + ',' + y + '), bound=' + el.dataset.date);
       }
 
       var S = safeStore();
       if (!S || typeof S.pub !== 'function') {
-        console.warn('[DDFv3] Store недоступний');
+        console.warn('[DDFv4] Store недоступний');
         return;
       }
 
@@ -142,7 +150,7 @@
       if (isNaN(newDt.getTime())) return;
       var newDateStr = safeFmtDate(newDt);
       if (oldDate === newDateStr) {
-        if (window.DEBUG) console.log('[DDFv3] same date, skip');
+        if (window.DEBUG) console.log('[DDFv4] same date, skip');
         trackedX = -1; trackedY = -1;
         return;
       }
@@ -150,11 +158,11 @@
       p.dateTime = newDt.toISOString();
       p.updatedAt = new Date().toISOString();
 
-      try { S.upsertPub(p); } catch (err) { console.error('[DDFv3] upsert:', err); return; }
+      try { S.upsertPub(p); } catch (err) { console.error('[DDFv4] upsert:', err); return; }
       try { if (S.addHistory) S.addHistory(p.id, 'move', oldDate + ' → ' + newDateStr); } catch (_) {}
 
       safeToast('Перенесено', 'success', (p.title || 'Пост') + ' → ' + newDateStr);
-      if (window.DEBUG) console.log('[DDFv3] ' + p.id + ': ' + oldDate + ' → ' + newDateStr +
+      if (window.DEBUG) console.log('[DDFv4] ' + p.id + ': ' + oldDate + ' → ' + newDateStr +
         ' | target=' + target.dataset.date + ' | bound=' + el.dataset.date +
         ' | cursor=(' + x + ',' + y + ')');
 
@@ -164,14 +172,16 @@
   }
 
   function bindAllCells() {
-    document.querySelectorAll('.cal-day').forEach(bindCell);
+    document.querySelectorAll(CELL_SELECTOR).forEach(function (el) {
+      if (el.dataset.date) bindCell(el);
+    });
   }
 
   if ('MutationObserver' in window) {
     var mo = new MutationObserver(function () {
-      if (document.querySelector('.cal-day')) {
-        clearTimeout(window.__hqDDFv3Timer);
-        window.__hqDDFv3Timer = setTimeout(bindAllCells, 30);
+      if (document.querySelector(CELL_SELECTOR)) {
+        clearTimeout(window.__hqDDFv4Timer);
+        window.__hqDDFv4Timer = setTimeout(bindAllCells, 30);
       }
     });
     mo.observe(document.body, { childList: true, subtree: true });
@@ -181,6 +191,6 @@
   setTimeout(bindAllCells, 1500);
   setTimeout(bindAllCells, 4000);
 
-  if (window.DEBUG) console.log('%cDreamCar HQ DragDrop Fix v3 %c· tracked cursor + bounding-rect scan',
+  if (window.DEBUG) console.log('%cDreamCar HQ DragDrop Fix v4 %c· month + week · tracked cursor + bounding-rect scan',
     'color:#fbbf24;font-weight:700;', 'color:#888;');
 })();
