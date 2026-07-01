@@ -8,6 +8,15 @@
 
 ---
 
+## 01.07.2026 — verify-publication-ig: IG-автоперевірка полагоджена (app_secrets)
+
+### SMM Verify (Vadym)
+- 🔧 **Знайдено та виправлено:** IG-автопідтвердження публікацій НІКОЛИ не працювало — `auto_verified_ig=0` при 108 опублікованих (усі 91 verified підтверджені ВРУЧНУ через TG-кнопки). Причина: Supabase Edge не має `FB_ACCESS_TOKEN` в оточенні (він лише в GitHub secrets).
+- 🛡 Нова таблиця `app_secrets` (service-role-only: RLS on, 0 policies, REVOKE anon/authenticated) — сховище секретів для Edge Functions, яким бракує env.
+- 🔧 GH workflow `sync-secrets-to-db.yml` (dreamcar-dashboard) перекидає `FB_ACCESS_TOKEN` + `IG_USER_ID` з GH secrets у `app_secrets` (значення маскуються, не логуються).
+- 🔧 `verify-publication-ig` **v6**: FB токен резолвиться з env АБО з `app_secrets`. Додано `?diag=1`. Перевірено: token_present=true, IG /me → @dreamcar.ua (349.7k) ✓. Автопідтвердження запрацює на наступному batch (cron */2хв).
+- 📌 Спільна першопричина зі SMM Content Watchdog (той самий день): FB токен лише в GH secrets, не в Edge.
+
 ## 01.07.2026 — SMM Content Watchdog (Instagram)
 
 ### SMM Моніторинг виходу контенту (Vadym)
