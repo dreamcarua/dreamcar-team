@@ -1,7 +1,13 @@
 // =====================================================================
-// DreamCar HQ — Cron Reminders v3
+// DreamCar HQ — Cron Reminders v4
+// + #554 (01.07.2026): операційні ескалації публікацій → COO (Давид), НЕ CEO.
+//   Вадим (CEO) вийшов з операційки. getEscalationTargets() = COO, fallback CEO.
+//   Торкнулось G4 (missed), G5b (esc48h), G6 (T-10 fallback), G7 (T+10).
+// + #554 FIX anti-spam: recordReminder інсертив неіснуюче поле author:null →
+//   колонка publication_history.actor_id NOT NULL → insert падав → ескалації
+//   спамили кожен запуск cron. Тепер actor_id = SYSTEM_ACTOR_ID (валідний founder).
 // + #142 FIX: припинити спам нагадуваннями на approved-постах
-//   - G4 (CEO escalation): виключено approved (approved готовий, не критичне)
+//   - G4: виключено approved (approved готовий, не критичне)
 //   - G6 (T-10хв): виключено approved
 //   - G7 (T+10хв): anti-spam 1h → 24h, фокус на не-approved
 //   - НОВЕ G4a: approved + минув час → ТІЛЬКИ responsibles (1×/24h, "опубліковуй!")
@@ -12,9 +18,9 @@
 // Тригери:
 //   G2a/G2b. publish_at у наст. 2 дні + текст<50 АБО no creatives → ping responsibles
 //   G3.      status='review' AND updated_at<now-24h → ре-пінг approver
-//   G4.      publish_at<now AND status NOT IN (published,approved) AND <6h → CEO/COO ескалація
+//   G4.      publish_at<now AND status NOT IN (published,approved) AND <6h → COO ескалація
 //   G4a.     publish_at<now AND status='approved' → ТІЛЬКИ responsibles "опубліковуй!" (24h anti-spam)
-//   G5b.     status='review' AND created_at<now-48h → ескалація іншому founder
+//   G5b.     status='review' AND created_at<now-48h → ескалація COO
 //   G6.      publish_at у вікні now+5..+15хв AND status NOT IN (published,approved) → пінг -10хв
 //   G7.      publish_at у вікні now-15..-5хв AND status NOT IN (published) → ескалація +10хв (24h anti-spam)
 //
@@ -31,6 +37,10 @@ const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")  ?? Deno.env.get("HQ_DB_URL")
 const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
 
 const HQ_URL = "https://dreamcarua.github.io/dreamcar-team/hq/";
+
+// #554: системний actor для audit-log (publication_history.actor_id NOT NULL).
+// Встановлюється на старті run() = id COO (fallback CEO). Не людина — службовий запис.
+let SYSTEM_ACTOR_ID: string | null = null;
 
 function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -80,11 +90,13 @@ async function checkReminderSent(supabase: ReturnType<typeof createClient>, pubI
 }
 async function recordReminder(supabase: ReturnType<typeof createClient>, pubId: string, kind: string, detail: string) {
   try {
+    // #554 FIX: було `author: null` (колонки author нема; actor_id NOT NULL) → insert падав,
+    // anti-spam не працював. Тепер actor_id = SYSTEM_ACTOR_ID (валідний founder id).
     await supabase.from("publication_history").insert({
       publication_id: pubId,
       action: `reminder:${kind}`,
       detail: detail,
-      author: null,
+      actor_id: SYSTEM_ACTOR_ID,
     });
   } catch (e) { console.warn("recordReminder failed:", e); }
 }
@@ -114,13 +126,19 @@ async function getRecipients(supabase: ReturnType<typeof createClient>, pubId: s
   return (users ?? []) as UserRow[];
 }
 
-async function getFounders(supabase: ReturnType<typeof createClient>): Promise<UserRow[]> {
-  const { data } = await supabase
-    .from("users")
-    .select("id, name, role, tg_chat_id")
-    .in("role", ["ceo", "coo"])
-    .not("tg_chat_id", "is", null);
-  return (data ?? []) as UserRow[];
+// #554: операційні ескалації публікацій → COO (Давид), НЕ CEO (Вадим вийшов з операційки).
+// Повертає COO з tg_chat_id; якщо COO нема/без tg — fallback на CEO, щоб ескалація не загубилась.
+async function getEscalationTargets(supabase: ReturnType<typeof createClient>): Promise<UserRow[]> {
+  const pick = async (role: string): Promise<UserRow[]> => {
+    const { data } = await supabase
+      .from("users")
+      .select("id, name, role, tg_chat_id")
+      .eq("role", role)
+      .not("tg_chat_id", "is", null);
+    return (data ?? []) as UserRow[];
+  };
+  const coo = await pick("coo");
+  return coo.length > 0 ? coo : await pick("ceo");
 }
 
 async function run(supabase: ReturnType<typeof createClient>) {
@@ -135,6 +153,14 @@ async function run(supabase: ReturnType<typeof createClient>) {
   const tPlus15 = new Date(Date.now() - 15 * 60000).toISOString();
 
   let pinged = 0;
+
+  // #554: отримувачі операційних ескалацій (COO, fallback CEO) + системний actor для audit-log.
+  const escTargets = await getEscalationTargets(supabase);
+  SYSTEM_ACTOR_ID = escTargets[0]?.id ?? null;
+  if (!SYSTEM_ACTOR_ID) {
+    const { data: anyF } = await supabase.from("users").select("id").in("role", ["ceo", "coo"]).limit(1);
+    SYSTEM_ACTOR_ID = (anyF?.[0]?.id as string | undefined) ?? null;
+  }
 
   // ====================================================================
   // G2: 2 дні до публікації — перевірка контенту
@@ -211,8 +237,9 @@ async function run(supabase: ReturnType<typeof createClient>) {
   }
 
   // ====================================================================
-  // G4: дата минула + draft/in_work/review/rework → CEO/COO ескалація
+  // G4: дата минула + draft/in_work/review/rework → COO ескалація
   // #142: ВИКЛЮЧЕНО approved — для approved використовуй G4a
+  // #554: getFounders → getEscalationTargets (COO, не CEO)
   // ====================================================================
   {
     const { data: pubs } = await supabase
@@ -224,15 +251,14 @@ async function run(supabase: ReturnType<typeof createClient>) {
       .is("deleted_at", null);
     for (const p of (pubs ?? []) as Pub[]) {
       if (await checkReminderSent(supabase, p.id, "missed", 6)) continue;
-      const founders = await getFounders(supabase);
-      for (const u of founders) {
+      for (const u of escTargets) {
         await tgSend(u.tg_chat_id!,
           `⚠️ <b>УВАГА: пропущена публікація</b>\n` +
           `«${escHtml(p.title)}» (${p.status}) мала вийти ${fmtDateTime(p.publish_at)}\n` +
           `🔗 <a href="${HQ_URL}#publication/${p.id}">Відкрити в HQ</a>`);
         pinged++;
       }
-      await recordReminder(supabase, p.id, "missed", `${founders.length} founders pinged`);
+      await recordReminder(supabase, p.id, "missed", `${escTargets.length} COO pinged`);
     }
   }
 
@@ -264,7 +290,9 @@ async function run(supabase: ReturnType<typeof createClient>) {
   }
 
   // ====================================================================
-  // G5b: review > 48 годин → ескалація іншому founder
+  // G5b: review > 48 годин → ескалація COO
+  // #554: getFounders(мінус approvers) → getEscalationTargets (COO завжди,
+  //       навіть якщо COO сам approver — це його операційний борг погодити).
   // ====================================================================
   {
     const { data: pubs } = await supabase
@@ -275,24 +303,21 @@ async function run(supabase: ReturnType<typeof createClient>) {
       .is("deleted_at", null);
     for (const p of (pubs ?? []) as Pub[]) {
       if (await checkReminderSent(supabase, p.id, "esc48h", 48)) continue;
-      const founders = await getFounders(supabase);
-      const { data: approvers } = await supabase.from("publication_approvers").select("user_id").eq("publication_id", p.id);
-      const approverIds = new Set((approvers ?? []).map(r => r.user_id));
-      const escalateTo = founders.filter(u => !approverIds.has(u.id));
-      for (const u of escalateTo) {
+      for (const u of escTargets) {
         await tgSend(u.tg_chat_id!,
           `🔥 <b>Ескалація 48+ год</b>: «${escHtml(p.title)}» висить на погодженні.\n` +
           `Публікація: ${fmtDateTime(p.publish_at)}\n` +
           `🔗 <a href="${HQ_URL}#publication/${p.id}">Відкрити в HQ</a>`);
         pinged++;
       }
-      await recordReminder(supabase, p.id, "esc48h", `${escalateTo.length} co-founders pinged`);
+      await recordReminder(supabase, p.id, "esc48h", `${escTargets.length} COO pinged`);
     }
   }
 
   // ====================================================================
   // #125 G6: T-10хв — за 10 хв до публікації
   // #142: виключено approved (approved уже готовий, не треба нагадувати)
+  // #554: fallback getFounders → escTargets (COO)
   // ====================================================================
   {
     const { data: pubs } = await supabase
@@ -305,7 +330,7 @@ async function run(supabase: ReturnType<typeof createClient>) {
     for (const p of (pubs ?? []) as Pub[]) {
       if (await checkReminderSent(supabase, p.id, "t-10", 1)) continue;
       const recipients = await getRecipients(supabase, p.id, "responsibles");
-      const finalList = recipients.length > 0 ? recipients : await getFounders(supabase);
+      const finalList = recipients.length > 0 ? recipients : escTargets;
       for (const u of finalList) {
         await tgSend(u.tg_chat_id!,
           `🟡 <b>Через 10 хв публікація</b> — «${escHtml(p.title)}»\n` +
@@ -322,6 +347,7 @@ async function run(supabase: ReturnType<typeof createClient>) {
   // ====================================================================
   // #125 G7: T+10хв — після часу публікації, якщо ще не published
   // #142: anti-spam 1h → 24h (не спамити кожну годину)
+  // #554: founders → escTargets (COO), merge з responsibles
   // ====================================================================
   {
     const { data: pubs } = await supabase
@@ -334,9 +360,8 @@ async function run(supabase: ReturnType<typeof createClient>) {
     for (const p of (pubs ?? []) as Pub[]) {
       if (await checkReminderSent(supabase, p.id, "t+10", 24)) continue;  // #142: 1→24h
       const recipients = await getRecipients(supabase, p.id, "responsibles");
-      const founders = await getFounders(supabase);
       const seen = new Set<string>();
-      const allRecipients = [...recipients, ...founders].filter(u => {
+      const allRecipients = [...recipients, ...escTargets].filter(u => {
         if (seen.has(u.id)) return false;
         seen.add(u.id);
         return true;
@@ -375,7 +400,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const pinged = await run(supabase);
-    return new Response(JSON.stringify({ ok: true, pinged, version: "v3-#142" }), {
+    return new Response(JSON.stringify({ ok: true, pinged, version: "v4-COO-routing" }), {
       status: 200, headers: { "Content-Type": "application/json" },
     });
   } catch (e) {
