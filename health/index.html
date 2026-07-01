@@ -101,6 +101,15 @@ function strainCard(s){
  h+='<div class="b" style="height:8px;background:#eef0f2;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#1a7f37"></i></div></div>';
  return h;
 }
+function hydrationBlock(D){
+ const w=D.water||{}, a=D.adherence||{};
+ if(w.today==null && a.pct==null)return '';
+ let h='<h2>💧 Гідратація та адгезія</h2><div class="cards">';
+ if(w.today!=null)h+=kc('Вода сьогодні',f(w.today),'мл','ціль '+f(w.target||2000),num(w.today)>=1500?'<span class="delta up">ок</span>':'<span class="delta down">мало</span>');
+ if(w.avg7!=null)h+=kc('Вода сер. 7д',f(w.avg7),'мл/день',num(w.avg7)>=1500?'добре':'підтягни','');
+ if(a.pct!=null)h+=kc('Адгезія добавок',f(a.pct),'%','7 днів · за кнопками',num(a.pct)>=80?'<span class="delta up">добре</span>':'<span class="delta down">підтягни</span>');
+ h+='</div>';return h;
+}
 function bpBlock(bp){
  if(!bp)return '';
  if(bp.sys_last==null)return '<div class="warn">🩺 Тиск ще не вимірюється — для повного кардіо-ризику потрібен тонометр (Omron). Заміри підтягнуться автоматично через Apple Health.</div>';
@@ -225,6 +234,7 @@ function render(D){
  h+=illnessBanner(D.illness);
  h+=readiness(D.readiness);
  h+=strainCard(D.strain);
+ h+=hydrationBlock(D);
  if(rem.length){h+='<div class="rem">🔔 '+rem.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ')+'</div>';}
  h+=streaksBlock(D.streaks);
  if(D.insights&&D.insights.body){h+='<h2>🤖 AI-аналіз та рекомендації</h2><div class="ai">'+D.insights.body+'<div class="sub" style="margin-top:8px">згенеровано '+(D.insights.at?new Date(D.insights.at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'}):'')+'</div></div>';}
