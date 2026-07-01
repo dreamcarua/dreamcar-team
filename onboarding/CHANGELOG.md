@@ -8,6 +8,15 @@
 
 ---
 
+## 01.07.2026 — verify-publication-ig v7 + timezone Kyiv (#554)
+
+### SMM Verify + Health (Vadym)
+- 🔧 **verify-publication-ig v7:** `actor_id:null` × 2 → `SYSTEM_ACTOR_ID` (колонка `publication_history.actor_id` NOT NULL). Insert падав → auto-verify TG «✅ Автопідтверджено» не слалась + cron `verify_pub_*` не чистився (leak) + audit-log порожній (0 `verify_*` за 14 днів).
+- 🛡 **Синхронізація git:** github відставав на v5, deployed був v6 (деплоївся повз git) → github push відкотив би v6. v7 зібрано на базі deployed v6 (app_secrets token resolve) + actor_id fix → git знову = прод.
+- 🔧 **daily-health-audit:** `Europe/Warsaw` → `Europe/Kyiv` (2 місця) + додано timeZone до дати у subject. Все за Києвом.
+- 🚀 Задеплоєно verify-publication-ig **v7**. Верифіковано: `version=v7`, HTTP 200, батч `processed:0`. [commit ddac680](https://github.com/dreamcarua/dreamcar-team/commit/ddac680)
+- 📊 **Аудит усіх TG-сповіщень:** cron 0 падінь, Telegram HTTP 0 помилок, `tg_notify_queue` чиста, error-handling + caption(1024) guards на місці. Побічно: 28 DNS-timeout/3дні (зовнішній сервіс, НЕ Telegram) + 3 історичні failed autopost (14.06: відео 413, chat-not-found на prod-каналі).
+
 ## 01.07.2026 — cron-reminders v4: ескалації погоджень → COO (#554)
 
 ### SMM Нагадування / Ескалації (Vadym)
