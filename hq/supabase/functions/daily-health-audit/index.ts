@@ -178,7 +178,7 @@ async function gatherMetrics() {
 
 function renderEmailHtml(data: { sections: Section[]; issues: Issue[]; score: number; generatedAt: Date }): string {
   const { sections, issues, score, generatedAt } = data;
-  const ts = generatedAt.toLocaleString('uk-UA', { timeZone: 'Europe/Warsaw', dateStyle: 'long', timeStyle: 'short' });
+  const ts = generatedAt.toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', dateStyle: 'long', timeStyle: 'short' });
   const reds = issues.filter(i => i.sev === 'red');
   const yellows = issues.filter(i => i.sev === 'yellow');
   const scoreColor = score >= 90 ? '#10B981' : score >= 70 ? '#F59E0B' : '#DC2626';
@@ -299,7 +299,7 @@ Deno.serve(async (req) => {
     const data = await gatherMetrics();
     const html = renderEmailHtml(data);
     const tgText = renderTgSummary(data);
-    const today = new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+    const today = new Date().toLocaleDateString('uk-UA', { timeZone: 'Europe/Kyiv', day: '2-digit', month: '2-digit' });
     const emoji = data.score >= 90 ? '🟢' : data.score >= 70 ? '🟡' : '🔴';
     const subject = `${emoji} DreamCar Daily Audit · ${data.score}/100 · ${today}`;
     const [emailRes, tgRes] = await Promise.all([sendEmail(html, subject), sendTg(tgText)]);
