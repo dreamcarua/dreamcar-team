@@ -13,13 +13,21 @@
  --ok:#10B981;--ok2:#34D399;--warn:#F59E0B;--danger:#DC2626;--info:#3B82F6;--link:#60A5FA;
  --fdisplay:'Oswald','Bebas Neue',sans-serif;--fbody:'Manrope',sans-serif;--fmono:'JetBrains Mono',monospace;--faccent:'Archivo Black',sans-serif}
 *{box-sizing:border-box}
+html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fbody);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1120px;margin:0 auto;padding:22px 16px 80px}
 h1{font-family:var(--fdisplay);font-weight:700;font-size:27px;letter-spacing:.02em;margin:0 0 3px;text-transform:uppercase}
 h2{font-family:var(--fdisplay);font-weight:600;font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--bone);margin:24px 0 10px}
-.grp{font-family:var(--faccent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:36px 0 6px;padding:14px 0 0;border-top:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.grp{font-family:var(--faccent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:36px 0 6px;padding:14px 0 0;border-top:1px solid var(--line);display:flex;align-items:center;gap:9px;scroll-margin-top:62px}
 .grp::before{content:'';width:22px;height:3px;background:var(--red);border-radius:2px;box-shadow:0 0 8px rgba(227,6,19,.6)}
 .sub{color:var(--muted);font-size:12.5px}
+.nav{position:sticky;top:0;z-index:50;display:flex;gap:6px;overflow-x:auto;padding:10px 0 8px;margin-top:14px;background:linear-gradient(180deg,var(--bg) 82%,rgba(10,10,10,0));-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{flex:0 0 auto;font-size:12px;color:var(--bone);text-decoration:none;border:1px solid var(--line);background:var(--card);padding:6px 11px;border-radius:999px;transition:border-color .12s}
+.nav a:hover{border-color:var(--red)}
+.pb{float:right;display:inline-flex;gap:4px}
+.pb button{background:var(--card);border:1px solid var(--line);color:var(--bone);font-size:11px;border-radius:8px;padding:3px 9px;cursor:pointer;font-family:var(--fbody)}
+.pb button.on{border-color:var(--red);color:#fff}
 .dlbtn{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:var(--red);color:#fff;text-decoration:none;border-radius:4px;padding:10px 17px;font-family:var(--faccent);font-size:12px;letter-spacing:.06em;text-transform:uppercase;transition:background .12s,transform .12s}
 .dlbtn:hover{background:var(--red-deep);transform:translateY(-1px)}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:11px}
@@ -72,6 +80,7 @@ ul.tight{margin:6px 0 0;padding-left:18px;font-size:12.5px}ul.tight li{margin:2p
 </style></head><body><div class="wrap">
 <h1>🫀 Health Cockpit <span style="color:var(--red)">Vadym</span></h1><div class="sub" id="sub">Завантаження…</div>
 <a class="dlbtn" href="#" onclick="window.open('report.html'+location.hash);return false">⬇️ Звіт для лікаря (PDF)</a>
+<nav class="nav"><a href="#g-today">🔝 Сьогодні</a><a href="#g-sleep">😴 Сон</a><a href="#g-stress">🧠 Стрес</a><a href="#g-heart">❤️ Серце</a><a href="#g-fit">🏃 Форма</a><a href="#g-ins">🔍 Інсайти</a><a href="#g-trend">📈 Тренди</a><a href="#g-ref">📚 Довідка</a></nav>
 <div id="root"></div></div>
 <script>
 const API="https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/health-dashboard";
@@ -81,7 +90,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','
 function spark(vals,col){vals=(vals||[]).map(num).filter(v=>v!=null&&!isNaN(v));if(vals.length<2)return '';const w=200,h=34,mn=Math.min(...vals),mx=Math.max(...vals),rng=(mx-mn)||1;const pts=vals.map((v,i)=>((i/(vals.length-1))*w).toFixed(1)+','+(h-3-((v-mn)/rng)*(h-6)).toFixed(1));const ly=pts[pts.length-1].split(',')[1];return '<svg class="spk" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none"><polyline points="'+pts.join(' ')+'" fill="none" stroke="'+col+'" stroke-width="1.6" vector-effect="non-scaling-stroke"/><circle cx="'+(w-1.5)+'" cy="'+ly+'" r="2.3" fill="'+col+'"/></svg>';}
 function delta(cur,prev,good){cur=num(cur);prev=num(prev);if(cur==null||prev==null||!prev)return '<span class="delta flat">—</span>';const dp=(cur-prev)/prev*100;const better=good==='lower'?cur<prev:cur>prev;const cls=Math.abs(dp)<1.5?'flat':(better?'up':'down');const ar=dp>0?'▲':(dp<0?'▼':'•');return '<span class="delta '+cls+'">'+ar+' '+Math.abs(dp).toFixed(0)+'%</span>';}
 function kc(lab,val,unit,sub,d,sp){return '<div class="card"><div class="lab"><span>'+lab+'</span>'+(d||'')+'</div><div class="big">'+val+'<small> '+(unit||'')+'</small></div><div class="meta">'+(sub||'')+'</div>'+(sp||'')+'</div>';}
-function grp(t){return '<div class="grp">'+t+'</div>';}
+function grp(t,id){return '<div class="grp"'+(id?' id="'+id+'"':'')+'>'+t+'</div>';}
 function flagBadge(fl){if(!fl||fl==='normal')return '<span class="sub">норма</span>';const m={high:'вище',low:'нижче',critical:'критично'};return '<span class="fl fl-'+fl+'">'+(m[fl]||fl)+'</span>';}
 function labRow(r){const ref=(r.ref_low!=null||r.ref_high!=null)?((r.ref_low!=null?f(r.ref_low,2):'')+'–'+(r.ref_high!=null?f(r.ref_high,2):'')):'';const val=r.value!=null?('<b>'+f(r.value,2)+'</b> '+esc(r.unit||'')):esc(r.value_text||'—');return '<tr><td>'+esc(r.raw_name)+'</td><td>'+val+'</td><td class="sub">'+ref+'</td><td>'+flagBadge(r.flag)+'</td></tr>';}
 function readiness(rd){
@@ -125,9 +134,24 @@ function hydrationBlock(D){
  if(w.today==null && a.pct==null)return '';
  let h='<h2>💧 Гідратація та адгезія</h2><div class="cards">';
  if(w.today!=null)h+=kc('Вода сьогодні',f(w.today),'мл','ціль '+f(w.target||2000),num(w.today)>=1500?'<span class="delta up">ок</span>':'<span class="delta down">мало</span>');
- if(w.avg7!=null)h+=kc('Вода сер. 7д',f(w.avg7),'мл/день',num(w.avg7)>=1500?'добре':'підтягни','');
- if(a.pct!=null)h+=kc('Адгезія добавок',f(a.pct),'%','7 днів · за кнопками',num(a.pct)>=80?'<span class="delta up">добре</span>':'<span class="delta down">підтягни</span>');
+ if(w.avg7!=null)h+=kc('Вода сер. 7д',f(w.avg7),'мл/день',num(w.avg7)>=1500?'добре':'повна картина за тиждень логів','');
+ if(a.pct!=null){const collecting=num(a.pct)<30;h+=kc('Адгезія добавок',f(a.pct),'%','7 днів · за TG-кнопками',collecting?'<span class="delta flat">збираємо дані</span>':(num(a.pct)>=80?'<span class="delta up">добре</span>':'<span class="delta down">підтягни</span>'));}
  h+='</div>';return h;
+}
+function remindersBlock(rem){
+ if(!rem||!rem.length)return '';
+ const rs=rem.slice().sort((a,b)=>(a.days??999)-(b.days??999));
+ const top=rs.slice(0,3);
+ let h='<div class="rem">🔔 '+top.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ');
+ if(rs.length>3)h+=' · <a href="#g-ref" style="color:#93C5FD">усі '+rs.length+' →</a>';
+ h+='</div>';return h;
+}
+function allReminders(rem){
+ if(!rem||!rem.length)return '';
+ const rs=rem.slice().sort((a,b)=>(a.days??999)-(b.days??999));
+ let h='<h2>🗓 Календар контролів</h2><div class="panel"><table><tbody>';
+ for(const r of rs)h+='<tr><td class="sub" style="white-space:nowrap">'+esc(r.due||'')+'</td><td>'+esc(r.title)+'</td><td class="sub" style="white-space:nowrap">'+(r.days>0?'через '+r.days+' дн':'сьогодні')+'</td></tr>';
+ h+='</tbody></table></div>';return h;
 }
 function resilienceBlock(o){
  if(!o)return '';const rz=o.resilience;
@@ -177,6 +201,7 @@ function sleepBlock(D){
  if(!cards)return '';
  let h='<h2>😴 Сон</h2><div class="cards">'+cards+'</div>';
  if(sq.deep==null&&sq.rem==null&&se.efficiency_pct==null)h+='<div class="sub" style="margin-top:4px">Стадії сну й «час у ліжку» зʼявляться, коли увімкнеш детальний експорт сну у Health Auto Export.</div>';
+ else if(sq.deep!=null||sq.rem!=null)h+='<div class="sub" style="margin-top:4px">Стадії сну — з детального експорту (увімкнено 28.06), статистика ще накопичується.</div>';
  return h;
 }
 function ageBlock(o,wh){
@@ -217,10 +242,11 @@ function lipidTrack(labs){
   h+='<div class="lt"><div class="row"><span>'+nm+'</span><span><b>'+f(val)+'</b> / ціль &lt;'+tgt+' '+(over?'<span class="fl fl-high">+'+f(val-tgt)+'</span>':'<span class="fl" style="background:rgba(16,185,129,.18);color:#10B981">ок</span>')+'</span></div><div class="b"><i style="width:'+fill+'%;background:'+(over?'#E30613':'#10B981')+'"></i><s style="left:'+tl+'%"></s></div></div>';}
  return h?('<div class="panel" style="padding:10px 14px"><div class="sub" style="margin-bottom:4px">🎯 Ліпідні цілі (PTL/PTDL)</div>'+h+'</div>'):'';
 }
-function labsBlock(labs){
+function labsBlock(labs,rem){
  if(!labs.results||!labs.results.length)return '';
  const flagged=labs.results.filter(r=>r.flag&&r.flag!=='normal');
- let h='<h2>🧪 Лабораторні аналізи · '+(labs.date||'')+'</h2>';
+ const next=(rem||[]).find(r=>/аналіз|перезда/i.test(r.title||''));
+ let h='<h2>🧪 Лабораторні аналізи · '+(labs.date||'')+(next?' <span class="sub" style="text-transform:none;letter-spacing:0">· наступний контроль '+esc(next.due)+'</span>':'')+'</h2>';
  h+=lipidTrack(labs);
  if(flagged.length){h+='<div class="panel" style="margin-top:8px"><table><thead><tr><th>Поза нормою</th><th>Значення</th><th>Реф.</th><th></th></tr></thead><tbody>';for(const r of flagged)h+=labRow(r);h+='</tbody></table></div>';}
  h+='<details><summary>Усі показники ('+labs.results.length+')</summary><table><tbody>';for(const r of labs.results)h+=labRow(r);h+='</tbody></table></details>';
@@ -271,9 +297,15 @@ function workoutZones(wh){
  h+='<div class="sub" style="margin-top:6px">Z1 '+f(wz.z1)+'% · Z2 '+f(wz.z2)+'% · Z3 '+f(wz.z3)+'% · Z4 '+f(wz.z4)+'% · Z5 '+f(wz.z5)+'% · <b>Zone2+ '+f(wz.zone2_plus)+'%</b></div></div>';
  return h;
 }
-function streaksBlock(st){
+function streaksBlock(st,sw){
  if(!st)return '';
- let h='<h2>🔥 Серії підряд</h2><div class="recs">';
+ const z=!num(st.sleep)&&!num(st.steps)&&!num(st.exercise);
+ let h='<h2>🔥 Серії підряд</h2>';
+ if(z){
+   h+='<div class="panel" style="padding:12px 15px"><b>Серій поки немає — це точка старту.</b><div class="sub" style="margin-top:4px">Цілі: сон ≥7.5 год · ≥8k кроків · ≥20 хв тренування. Перший крок — '+(sw&&sw.bedtime?('відбій о '+esc(sw.bedtime)+' сьогодні'):'сон ≥7.5 год сьогодні')+': завтра тут буде перша одиниця.</div></div>';
+   return h;
+ }
+ h+='<div class="recs">';
  h+='<div class="rec"><div class="v">'+f(st.sleep)+'</div><div class="l">днів сон 7.5+</div></div>';
  h+='<div class="rec"><div class="v">'+f(st.steps)+'</div><div class="l">днів 8k+ кроків</div></div>';
  h+='<div class="rec"><div class="v">'+f(st.exercise)+'</div><div class="l">днів трен. 20+</div></div>';
@@ -304,13 +336,20 @@ function insightsBlock(o,wh){
  for(const t of all)h+='<li>'+esc(t)+'</li>';
  h+='</ul>';return h;
 }
+function aiBlock(ins){
+ if(!ins||!ins.body)return '';
+ const at=ins.at?new Date(ins.at):null;
+ const dstr=at?at.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'}):'';
+ const stale=at?((Date.now()-at.getTime())/864e5>8):false;
+ return '<details><summary>🤖 AI-розбір твоїх даних · '+dstr+(stale?' · <span style="color:#FBBF24">оновиться в неділю</span>':'')+' — відкрити</summary><div class="ai" style="margin:2px 8px 10px">'+ins.body+'</div></details>';
+}
 function secondary(s){
  if(!s)return '';
  let h='<h2>🚶 Мобільність та хода (сер. 30 дн)</h2><div class="cards">';
  h+=kc('Швидкість ходьби',f(s.walking_speed,2),'км/год',num(s.walking_speed)>=4?'добре':'норма','');
  h+=kc('Стійкість ходи',f(s.steadiness,1),'%',num(s.steadiness)>=85?'OK ✅':'спостерігати','');
  if(s.step_length!=null)h+=kc('Довжина кроку',f(s.step_length),'см','','');
- if(s.asym!=null)h+=kc('Асиметрія ходи',f(s.asym,1),'%',num(s.asym)<=3?'добре':'спостерігати','');
+ if(s.asym!=null)h+=kc('Асиметрія ходи',f(s.asym,1),'%',num(s.asym)<=3?'добре':'шумна метрика на живому синку','');
  if(s.dsup!=null)h+=kc('Подвійна опора',f(s.dsup,1),'%','норма ~20–40','');
  h+=kc('Сходи',f(s.flights),'/день','','');
  h+='</div>';
@@ -322,14 +361,13 @@ function secondary(s){
  h+='</div>';return h;
 }
 function nutrition(nn){
- if(!nn||(nn.kcal==null&&nn.protein==null&&nn.water==null))return '';
+ if(!nn||(nn.kcal==null&&nn.protein==null&&nn.carbs==null&&nn.fat==null&&nn.fiber==null))return '';
  let h='<h2>🍽 Харчування (сер. 30 дн)</h2><div class="cards">';
  if(nn.kcal!=null)h+=kc('Калорії',f(nn.kcal),'ккал','','');
  if(nn.protein!=null)h+=kc('Білок',f(nn.protein),'г','','');
  if(nn.carbs!=null)h+=kc('Вуглеводи',f(nn.carbs),'г','','');
  if(nn.fat!=null)h+=kc('Жири',f(nn.fat),'г','','');
  if(nn.fiber!=null)h+=kc('Клітковина',f(nn.fiber),'г','','');
- if(nn.water!=null)h+=kc('Вода',f(nn.water),'мл','','');
  h+='</div>';return h;
 }
 function historyBlock(hist){
@@ -341,37 +379,40 @@ function historyBlock(hist){
 function render(D){
  const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||{},cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[],rem=D.reminders||[];
  const ser=c=>mon.map(r=>num(r[c]));
- document.getElementById('sub').innerHTML='Дані Apple Health · <b>'+f(k.total)+'</b> замірів · з '+(k.since||'')+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
+ const lastD=(cov||[]).map(c=>c.last).filter(Boolean).sort().pop();
+ const todayStr=new Date().toISOString().slice(0,10);
+ const fresh=lastD===todayStr?'🟢 дані за сьогодні':'🟠 останні дані: '+(lastD||'—');
+ document.getElementById('sub').innerHTML=fresh+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'})+' · <span class="sub">'+f(k.total)+' замірів з '+(k.since||'')+'</span>';
  let h='';
- h+=grp('🔝 СЬОГОДНІ');
+ h+=grp('🔝 СЬОГОДНІ','g-today');
  h+=illnessBanner(D.illness);
  h+=readiness(D.readiness);
  h+=strainBlock(D.whoop);
- if(rem.length){h+='<div class="rem">🔔 '+rem.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ')+'</div>';}
- h+=hydrationBlock(D);
- if(D.insights&&D.insights.body){h+='<h2>🤖 AI-аналіз та рекомендації</h2><div class="ai">'+D.insights.body+'<div class="sub" style="margin-top:8px">згенеровано '+(D.insights.at?new Date(D.insights.at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'}):'')+'</div></div>';}
- h+=grp('🧠 СТРЕС І ВІДНОВЛЕННЯ');
- h+=resilienceBlock(D.oura);
  h+=stressBlock(D.oura,D.whoop);
- h+=contributorsBlock(D.oura);
- h+=grp('😴 СОН');
+ h+=hydrationBlock(D);
+ h+=remindersBlock(rem);
+ h+=grp('😴 СОН','g-sleep');
  h+=sleepBlock(D);
- h+=grp('❤️ СЕРЦЕ · ДОВГОЛІТТЯ · АНАЛІЗИ');
+ h+=grp('🧠 СТРЕС І СТІЙКІСТЬ (14 ДНІВ)','g-stress');
+ h+=resilienceBlock(D.oura);
+ h+=contributorsBlock(D.oura);
+ h+=grp('❤️ СЕРЦЕ · ДОВГОЛІТТЯ · АНАЛІЗИ','g-heart');
  h+=ageBlock(D.oura,D.whoop);
  h+=cvRisk(D.cv);
  h+=bpBlock(D.bp);
- h+=labsBlock(labs);
+ h+=labsBlock(labs,rem);
  h+=labTrendsBlock(D.lab_trends);
- h+=grp('🏃 ФОРМА І АКТИВНІСТЬ');
+ h+=grp('🏃 ФОРМА І АКТИВНІСТЬ','g-fit');
  h+=formBlock(D.form);
  h+=workoutsBlock(wk);
  h+=workoutZones(D.whoop);
- h+=streaksBlock(D.streaks);
- h+=bodyComp(D.body);
  h+=strengthCard(D.strength);
- h+=grp('🔍 ЩО ВПЛИВАЄ НА ТЕБЕ');
+ h+=bodyComp(D.body);
+ h+=streaksBlock(D.streaks,D.sleep_window);
+ h+=grp('🔍 ЩО ВПЛИВАЄ НА ТЕБЕ','g-ins');
  h+=insightsBlock(D.oura,D.whoop);
- h+=grp('📈 ДОВГОСТРОКОВІ ТРЕНДИ');
+ h+=aiBlock(D.insights);
+ h+=grp('📈 ДОВГОСТРОКОВІ ТРЕНДИ','g-trend');
  h+='<h2>Огляд · 90 днів <span class="sub" style="text-transform:none;letter-spacing:0">(графік — помісячна динаміка)</span></h2><div class="cards">';
  h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'),spark(ser('resting_hr'),'#E30613'));
  h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'),spark(ser('hrv_ms'),'#3B82F6'));
@@ -382,7 +423,7 @@ function render(D){
  h+=kc('Тренування',f(k.ex_90),'хв/день','','',spark(ser('exercise_min'),'#22D3EE'));
  h+=kc('Вага',f(k.w_last,1),'кг','','',spark(ser('weight_kg'),'#F59E0B'));
  h+='</div>';
- h+='<h2>Тренди (помісячно)</h2><div class="charts" id="charts"></div>';
+ h+='<h2>Тренди (помісячно)<span class="pb" id="pb"><button data-m="12">1р</button><button data-m="36">3р</button><button data-m="0" class="on">Усе</button></span></h2><div class="charts" id="charts"></div>';
  let ce='<h2>Звʼязки та рекорди</h2><details><summary>Показати звʼязки показників і рекорди</summary><div style="padding:6px 8px"><div class="corr">';
  const CD=[['hrv_rhr','HRV ↔ Пульс спокою'],['sleep_hrv','Сон ↔ HRV'],['sleep_rhr','Сон ↔ Пульс'],['ex_rhr','Тренування ↔ Пульс'],['vo2_rhr','VO₂max ↔ Пульс'],['day_sleep','Світло ↔ Сон']];
  for(const [key,lab] of CD){const r=num(co[key]);if(r==null)continue;const w=Math.min(100,Math.abs(r)*100);const pos=r>=0;const col=pos?'#3B82F6':'#E30613';const strong=Math.abs(r)>=0.3;ce+='<div class="crow"><div class="p">'+lab+' <span style="color:'+(strong?'#3B82F6':'#8A8A8A')+'">r='+r.toFixed(2)+'</span></div><div class="bar"><i style="left:'+(pos?'50%':(50-w/2)+'%')+';width:'+(w/2)+'%;background:'+col+'"></i><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#3A3A3A"></span></div><div class="t">'+(strong?'виражений звʼязок':'слабкий')+'</div></div>';}
@@ -395,17 +436,21 @@ function render(D){
  ce+='<div class="rec"><div class="v">'+f(rc.dex30)+'</div><div class="l">днів трен. ≥30хв</div></div>';
  ce+='</div></div></details>';
  h+=ce;
- h+=grp('📚 ДОВІДКА');
+ h+=grp('📚 ДОВІДКА','g-ref');
  h+=secondary(D.secondary);
  h+=nutrition(D.nutrition);
  h+=historyBlock(D.history);
  if(meds.length){h+='<h2>💊 Препарати та добавки</h2><div class="panel"><table><thead><tr><th>Назва</th><th>Графік</th><th>Призначення</th></tr></thead><tbody>';for(const m of meds)h+='<tr><td><b>'+esc(m.name)+'</b></td><td class="sub">'+esc(m.schedule||'')+'</td><td class="sub">'+esc(m.purpose||'')+'</td></tr>';h+='</tbody></table></div>';}
  if(img.length){h+='<h2>🩻 Обстеження та висновки</h2><div class="panel"><table><tbody>';for(const j of img)h+='<tr><td class="sub" style="white-space:nowrap;vertical-align:top">'+esc(j.d||'')+'</td><td><b>'+esc(j.title||'')+'</b><br><span class="sub">'+esc(j.body||'')+'</span></td></tr>';h+='</tbody></table></div>';}
- h+='<h2>Що відстежується ('+cov.length+')</h2><details><summary>Показати реєстр</summary><table><tbody>';for(const c of cov){h+='<tr><td>'+esc(c.name_uk||'')+'</td><td>'+f(c.days)+' дн</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></details>';
+ h+=allReminders(rem);
+ h+='<h2>Що відстежується ('+cov.length+')</h2><details><summary>Показати реєстр</summary><table><tbody>';for(const c of cov){h+='<tr><td>'+esc(c.name_uk||'')+'</td><td>'+f(c.days)+' зам.</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></details>';
  document.getElementById('root').innerHTML=h;
  const defs=[['resting_hr','Пульс спокою','#E30613'],['hrv_ms','HRV','#3B82F6'],['vo2max','VO₂max','#A855F7'],['sleep_hours','Сон','#22D3EE'],['weight_kg','Вага','#F59E0B'],['steps','Кроки','#10B981'],['active_kcal','Активні ккал','#EC4899'],['walking_speed','Швидкість ходи','#94A3B8']];
- const host=document.getElementById('charts');
- for(const [code,name,col] of defs){const vals=mon.map(r=>num(r[code]));if(vals.every(v=>v==null))continue;const box=document.createElement('div');box.className='cbox';box.innerHTML='<h4>'+name+'</h4><div class="cw"><canvas></canvas></div>';host.appendChild(box);new Chart(box.querySelector('canvas'),{type:'line',data:{labels:mon.map(r=>r.m),datasets:[{data:vals,borderColor:col,backgroundColor:col+'14',fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6,color:'#8A8A8A',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#8A8A8A',font:{size:9}},grid:{color:'#2A2A2A'}}}}});}
+ let chs=[];
+ const draw=mm=>{const host=document.getElementById('charts');host.innerHTML='';chs.forEach(c=>c.destroy());chs=[];
+  for(const [code,name,col] of defs){const vals=mm.map(r=>num(r[code]));if(vals.every(v=>v==null))continue;const box=document.createElement('div');box.className='cbox';box.innerHTML='<h4>'+name+'</h4><div class="cw"><canvas></canvas></div>';host.appendChild(box);chs.push(new Chart(box.querySelector('canvas'),{type:'line',data:{labels:mm.map(r=>r.m),datasets:[{data:vals,borderColor:col,backgroundColor:col+'14',fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6,color:'#8A8A8A',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#8A8A8A',font:{size:9}},grid:{color:'#2A2A2A'}}}}}));}};
+ draw(mon);
+ document.querySelectorAll('#pb button').forEach(b=>{b.onclick=()=>{document.querySelectorAll('#pb button').forEach(x=>x.classList.remove('on'));b.classList.add('on');const n=parseInt(b.dataset.m,10);draw(n?mon.slice(-n):mon);};});
 }
 (function(){
  let t=location.hash.slice(1); if(t.indexOf('k=')===0)t=t.slice(2);
