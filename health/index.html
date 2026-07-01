@@ -101,6 +101,44 @@ function strainCard(s){
  h+='<div class="b" style="height:8px;background:#eef0f2;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#1a7f37"></i></div></div>';
  return h;
 }
+function whoopBlocks(wh){
+ if(!wh)return '';
+ let h='';
+ const s=wh.strain, sc=wh.strain_coach, bal=wh.balance;
+ if(s&&s.strain!=null){
+   const v=num(s.strain); const cls=v>=14?'rd-red':(v>=10?'rd-amber':'rd-green');
+   h+='<h2>⚡ Strain 0–21 (WHOOP-стиль)</h2><div class="rd '+cls+'"><div class="sc">'+f(v,1)+'</div><div style="flex:1"><div class="nm">'+esc(s.level)+' <span class="sub" style="font-weight:400">· сер. 7д '+f(s.avg7,1)+'</span></div>';
+   if(sc)h+='<div class="mt">🎯 ціль сьогодні: '+f(sc.target_low)+'–'+f(sc.target_high)+' · '+esc(sc.advice)+'</div>';
+   if(bal&&bal.status)h+='<div class="mt">⚖️ 7д: strain '+f(bal.avg_strain,1)+' / recovery '+f(bal.avg_recovery)+' — '+esc(bal.status)+'</div>';
+   h+='</div></div>';
+ }
+ let cards='';
+ const sn=wh.sleep_need;
+ if(sn&&sn.need!=null)cards+=kc('Потреба сну',f(sn.need,1),'год','отримав '+f(sn.last_sleep,1)+' · '+f(sn.performance_pct)+'%',num(sn.performance_pct)>=90?'<span class="delta up">ок</span>':'<span class="delta down">недобір</span>');
+ const wa=wh.whoop_age;
+ if(wa&&wa.whoop_age!=null)cards+=kc('WHOOP Age',f(wa.whoop_age),'р','pace '+f(wa.pace,2)+' · хроно '+wa.chrono_age,num(wa.delta)>0?'<span class="delta down">+'+f(wa.delta)+'р</span>':'<span class="delta up">'+f(wa.delta)+'р</span>');
+ const ss=wh.stress_score;
+ if(ss&&ss.score!=null)cards+=kc('Стрес',f(ss.score),'/3',esc(ss.label),num(ss.score)>=2?'<span class="delta down">'+esc(ss.label)+'</span>':'<span class="delta up">'+esc(ss.label)+'</span>');
+ const se=wh.sleep_efficiency;
+ if(se&&se.efficiency_pct!=null)cards+=kc('Ефективність сну',f(se.efficiency_pct),'%',esc(se.note),num(se.efficiency_pct)>=85?'<span class="delta up">ок</span>':'');
+ if(cards)h+='<h2>🔴 WHOOP-показники</h2><div class="cards">'+cards+'</div>';
+ if(sn&&num(sn.from_debt)>0)h+='<div class="sub" style="margin-top:4px">Потреба сну '+f(sn.need,1)+' год = базові 7.5 + борг '+f(sn.from_debt,1)+' + навантаження '+f(sn.from_strain,1)+'.</div>';
+ if(wa&&wa.drivers)h+='<div class="sub" style="margin-top:4px">WHOOP Age драйвери (років): сон +'+f(wa.drivers['сон'],1)+' · регулярність +'+f(wa.drivers['регулярність'],1)+' · кроки +'+f(wa.drivers['кроки'],1)+' · VO₂max '+f(wa.drivers.VO2max,1)+' · пульс '+f(wa.drivers['пульс'],1)+'.</div>';
+ const wz=wh.workout_zones;
+ if(wz&&wz.z1!=null&&wz.n!==0){
+   const seg=(v,c)=>num(v)>0?'<span style="height:12px;width:'+num(v)+'%;background:'+c+'"></span>':'';
+   h+='<h2>🎽 Пульсові зони — '+esc(wz.type||'')+' '+esc(wz.date||'')+'</h2><div class="panel" style="padding:12px 15px">';
+   h+='<div style="display:flex;border-radius:6px;overflow:hidden;height:12px;background:#eef0f2">'+seg(wz.z1,'#93c5fd')+seg(wz.z2,'#1a7f37')+seg(wz.z3,'#f5a623')+seg(wz.z4,'#f97316')+seg(wz.z5,'#b42318')+'</div>';
+   h+='<div class="sub" style="margin-top:6px">Z1 '+f(wz.z1)+'% · Z2 '+f(wz.z2)+'% · Z3 '+f(wz.z3)+'% · Z4 '+f(wz.z4)+'% · Z5 '+f(wz.z5)+'% · <b>Zone2+ '+f(wz.zone2_plus)+'%</b></div></div>';
+ }
+ const bi=wh.behavior_insights;
+ if(Array.isArray(bi)&&bi.length){
+   h+='<h2>🔬 Behavior Insights (вплив звичок на відновлення)</h2><ul class="tight">';
+   for(const x of bi)h+='<li>'+esc(x.text)+'</li>';
+   h+='</ul>';
+ }
+ return h;
+}
 function ouraBlocks(o){
  if(!o)return '';
  let h='';
@@ -301,6 +339,7 @@ function render(D){
  h+=readiness(D.readiness);
  h+=strainCard(D.strain);
  h+=ouraBlocks(D.oura);
+ h+=whoopBlocks(D.whoop);
  h+=hydrationBlock(D);
  if(rem.length){h+='<div class="rem">🔔 '+rem.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ')+'</div>';}
  h+=streaksBlock(D.streaks);
