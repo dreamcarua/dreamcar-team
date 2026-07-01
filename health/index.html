@@ -226,8 +226,30 @@ function lipidTrack(labs){
   h+='<div class="lt"><div class="row"><span>'+nm+'</span><span><b>'+f(val)+'</b> / ціль &lt;'+tgt+' '+(over?'<span class="fl fl-high">+'+f(val-tgt)+'</span>':'<span class="fl" style="background:#e6f4ea;color:#1a7f37">ок</span>')+'</span></div><div class="b"><i style="width:'+fill+'%;background:'+(over?'#b42318':'#1a7f37')+'"></i><s style="left:'+tl+'%"></s></div></div>';}
  return h?('<div class="panel" style="padding:10px 14px"><div class="sub" style="margin-bottom:4px">🎯 Ліпідні цілі (PTL/PTDL)</div>'+h+'</div>'):'';
 }
+function workoutsBlock(w){
+ if(!w||!w.this_week)return '';
+ const tw=w.this_week||{}, lw=w.last_week||{}, a4=w.avg4||{};
+ let h='<h2>🏃 Тренування <span class="sub" style="text-transform:none;letter-spacing:0">(Apple Watch · '+f(w.total_n)+' сесій з '+(w.since||'')+')</span></h2>';
+ h+='<div class="cards">';
+ h+=kc('Цей тиждень',f(tw.min),'хв',f(tw.n)+' трен. · '+f(tw.km,1)+' км',delta(tw.min,lw.min,'higher'),spark((w.trend8||[]).map(x=>x.min),'#1a7f37'));
+ h+=kc('Минулий тиждень',f(lw.min),'хв',f(lw.n)+' трен. · '+f(lw.km,1)+' км','');
+ h+=kc('Сер./тиждень',f(a4.min),'хв','4 тижні · '+f(a4.n,1)+' трен/тиж','');
+ if(tw.kcal!=null&&num(tw.kcal)>0)h+=kc('Спалено',f(tw.kcal),'ккал','цей тиждень','');
+ h+='</div>';
+ const bt=w.by_type||[];
+ if(bt.length){const mx=Math.max.apply(null,bt.map(x=>num(x.min)||0))||1;
+   h+='<div class="panel" style="padding:10px 14px;margin-top:10px"><div class="sub" style="margin-bottom:6px">За типом (90 днів)</div>';
+   for(const t of bt){const wd=Math.min(100,(num(t.min)/mx)*100);
+     h+='<div class="lt"><div class="row"><span>'+esc(t.type)+' <span class="sub">'+f(t.n)+'× · '+f(t.km,1)+' км</span></span><span><b>'+f(t.min)+'</b> хв</span></div><div class="b"><i style="width:'+wd+'%;background:#1a7f37"></i></div></div>';}
+   h+='</div>';}
+ const rc=w.recent||[];
+ if(rc.length){h+='<div class="panel" style="margin-top:10px"><table><thead><tr><th>Дата</th><th>Тип</th><th>Хв</th><th>Км</th><th>Темп</th><th>Пульс</th><th>Ккал</th></tr></thead><tbody>';
+   for(const s2 of rc)h+='<tr><td class="sub">'+esc(s2.date)+'</td><td>'+esc(s2.type)+'</td><td>'+f(s2.min)+'</td><td>'+f(s2.km,1)+'</td><td class="sub">'+(s2.pace!=null?f(s2.pace,1)+' хв/км':'—')+'</td><td>'+(s2.hr!=null?f(s2.hr):'—')+'</td><td class="sub">'+f(s2.kcal)+'</td></tr>';
+   h+='</tbody></table></div>';}
+ return h;
+}
 function render(D){
- const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||[],cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[],rem=D.reminders||[];
+ const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||{},cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[],rem=D.reminders||[];
  const ser=c=>mon.map(r=>num(r[c]));
  document.getElementById('sub').innerHTML='Дані Apple Health · <b>'+f(k.total)+'</b> замірів · з '+(k.since||'')+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
  let h='';
@@ -260,6 +282,7 @@ function render(D){
  h+='</div>';
  h+=bodyComp(D.body);
  h+=formBlock(D.form);
+ h+=workoutsBlock(wk);
  h+=strengthCard(D.strength);
  h+=sleepRecovery(D);
  h+=secondary(D.secondary);
@@ -280,7 +303,6 @@ function render(D){
  h+=historyBlock(D.history);
  if(meds.length){h+='<h2>💊 Препарати та добавки</h2><div class="panel"><table><thead><tr><th>Назва</th><th>Графік</th><th>Призначення</th></tr></thead><tbody>';for(const m of meds)h+='<tr><td><b>'+esc(m.name)+'</b></td><td class="sub">'+esc(m.schedule||'')+'</td><td class="sub">'+esc(m.purpose||'')+'</td></tr>';h+='</tbody></table></div>';}
  if(img.length){h+='<h2>🩻 Обстеження та висновки</h2><div class="panel"><table><tbody>';for(const j of img)h+='<tr><td class="sub" style="white-space:nowrap;vertical-align:top">'+esc(j.d||'')+'</td><td><b>'+esc(j.title||'')+'</b><br><span class="sub">'+esc(j.body||'')+'</span></td></tr>';h+='</tbody></table></div>';}
- if(wk.length){h+='<h2>Останні тренування</h2><div class="panel"><table><thead><tr><th>Дата</th><th>Тип</th><th>Хв</th><th>Км</th><th>Ккал</th></tr></thead><tbody>';for(const w of wk){h+='<tr><td class="sub">'+(w.d||'')+'</td><td>'+esc(w.workout_type||'')+'</td><td>'+f(w.duration_min)+'</td><td>'+f(w.distance_km,1)+'</td><td>'+f(w.active_kcal)+'</td></tr>';}h+='</tbody></table></div>';}
  h+='<h2>Що відстежується ('+cov.length+')</h2><details><summary>Показати реєстр</summary><table><tbody>';for(const c of cov){h+='<tr><td>'+esc(c.name_uk||'')+'</td><td>'+f(c.days)+' дн</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></details>';
  document.getElementById('root').innerHTML=h;
  const defs=[['resting_hr','Пульс спокою','#b42318'],['hrv_ms','HRV','#2563eb'],['vo2max','VO₂max','#7c3aed'],['sleep_hours','Сон','#0891b2'],['weight_kg','Вага','#b54708'],['steps','Кроки','#1a7f37'],['active_kcal','Активні ккал','#db2777'],['walking_speed','Швидкість ходи','#475569']];
