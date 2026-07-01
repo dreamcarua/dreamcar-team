@@ -101,6 +101,50 @@ function strainCard(s){
  h+='<div class="b" style="height:8px;background:#eef0f2;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#1a7f37"></i></div></div>';
  return h;
 }
+function ouraBlocks(o){
+ if(!o)return '';
+ let h='';
+ const rz=o.resilience;
+ if(rz&&rz.level&&rz.level!=='немає даних'){
+   const idx=num(rz.index); const cls=idx>=70?'rd-green':(idx>=55?'rd-amber':'rd-red');
+   h+='<h2>🧬 Стійкість до стресу (Resilience)</h2><div class="rd '+cls+'"><div class="sc">'+idx+'</div><div style="flex:1"><div class="nm">'+esc(rz.level)+' <span class="sub" style="font-weight:400">(14 днів)</span></div><div class="mt">🌙 нічне відновлення '+f(rz.night_recovery)+'/100 · 🔋 денне '+f(rz.day_recovery_min)+' хв · 🌡 стрес-навантаження '+f(rz.stress_load_pct)+'%</div><div class="mt">'+esc(rz.note||'')+'</div></div></div>';
+ }
+ const ds=o.daytime_stress;
+ if(ds&&num(ds.n)>0){
+   const seg=(v,c)=>num(v)>0?'<span style="height:12px;width:'+num(v)+'%;background:'+c+'"></span>':'';
+   h+='<h2>🌡 Денний стрес та відновлення <span class="sub" style="text-transform:none;letter-spacing:0">(сьогодні)</span></h2><div class="panel" style="padding:12px 15px">';
+   h+='<div style="font-size:13.5px"><b>рівень: '+esc(ds.level)+'</b> <span class="sub">· 🔴 '+f(ds.stress_min)+' хв стресу · 🟢 '+f(ds.recover_min)+' хв відновлення · 🏃 '+f(ds.active_min)+' хв рух</span></div>';
+   h+='<div style="display:flex;border-radius:6px;overflow:hidden;margin-top:9px;height:12px;background:#eef0f2">'+seg(ds.restored_pct,'#1a7f37')+seg(ds.relaxed_pct,'#8bc34a')+seg(ds.engaged_pct,'#f5a623')+seg(ds.stressed_pct,'#b42318')+'</div>';
+   h+='<div class="sub" style="margin-top:6px">🟢 спокій '+f(ds.restored_pct)+'% · 🟩 розслаблення '+f(ds.relaxed_pct)+'% · 🟧 залученість '+f(ds.engaged_pct)+'% · 🟥 стрес '+f(ds.stressed_pct)+'%</div></div>';
+ }
+ let cards='';
+ const ch=o.chronotype;
+ if(ch&&ch.type)cards+=kc('Хронотип',esc(ch.type),'',esc(ch.suggest||''),'');
+ const ha=o.heart_age;
+ if(ha&&ha.heart_age)cards+=kc('Вік серця',f(ha.heart_age),'р','хронологічно '+ha.chrono_age+' р',num(ha.delta)>0?'<span class="delta down">+'+f(ha.delta)+'р</span>':'<span class="delta up">'+f(ha.delta)+'р</span>');
+ const tb=o.nighttime_breathing;
+ if(tb&&tb.avg30!=null)cards+=kc('Нічне дихання',f(tb.avg30,1),'/год',esc(tb.flag||''),num(tb.avg30)>5?'<span class="delta down">стежити</span>':'<span class="delta up">ок</span>',spark((tb.series||[]).slice().reverse(),'#0891b2'));
+ const td=o.temp_deviation;
+ if(td&&td.deviation!=null)cards+=kc('Температура',(num(td.deviation)>=0?'+':'')+f(td.deviation,2),'°C','відхилення від норми',td.elevated?'<span class="delta down">підвищена</span>':'<span class="delta up">норма</span>',spark((td.series||[]).map(x=>x.dev),'#b54708'));
+ const rt=o.restorative;
+ if(rt&&rt.min!=null)cards+=kc('Відновлення вдень',f(rt.min),'хв',esc(rt.quality||''),num(rt.min)>=180?'<span class="delta up">ок</span>':'<span class="delta down">мало</span>');
+ if(cards)h+='<h2>🫀 Розширені показники</h2><div class="cards">'+cards+'</div>';
+ if(ha&&ha.factors)h+='<div class="sub" style="margin-top:5px">Вік серця, вплив (років): LDL +'+f(ha.factors.LDL,1)+' · гомоцистеїн +'+f(ha.factors['гомоцистеїн'],1)+' · non-HDL +'+f(ha.factors.non_HDL,1)+' · VO₂max '+f(ha.factors.VO2max,1)+' · пульс '+f(ha.factors['пульс_спокою'],1)+'. '+esc(ha.note||'')+'</div>';
+ const rcz=o.readiness_contributors;
+ if(Array.isArray(rcz)&&rcz.length){
+   h+='<h2>📊 Внески у Відновлення</h2><div class="panel" style="padding:10px 14px">';
+   for(const c of rcz){const sc=num(c.score);const col=sc>=75?'#1a7f37':(sc>=55?'#f5a623':'#b42318');
+     h+='<div class="lt"><div class="row"><span>'+esc(c.name)+' <span class="sub">'+esc(c.val)+'</span></span><span><b>'+f(sc)+'</b></span></div><div class="b"><i style="width:'+Math.min(100,sc)+'%;background:'+col+'"></i></div></div>';}
+   h+='</div>';
+ }
+ const dz=o.discoveries;
+ if(Array.isArray(dz)&&dz.length){
+   h+='<h2>🔍 Відкриття (звʼязки на твоїх даних)</h2><ul class="tight">';
+   for(const x of dz)h+='<li>'+esc(x.text)+'</li>';
+   h+='</ul>';
+ }
+ return h;
+}
 function hydrationBlock(D){
  const w=D.water||{}, a=D.adherence||{};
  if(w.today==null && a.pct==null)return '';
@@ -256,6 +300,7 @@ function render(D){
  h+=illnessBanner(D.illness);
  h+=readiness(D.readiness);
  h+=strainCard(D.strain);
+ h+=ouraBlocks(D.oura);
  h+=hydrationBlock(D);
  if(rem.length){h+='<div class="rem">🔔 '+rem.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ')+'</div>';}
  h+=streaksBlock(D.streaks);
