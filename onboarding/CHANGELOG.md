@@ -8,6 +8,14 @@
 
 ---
 
+## 01.07.2026 — SMM Content Watchdog (Instagram)
+
+### SMM Моніторинг виходу контенту (Vadym)
+- 🆕 Edge Function `smm-content-watchdog` + pg_cron `smm-content-watchdog-30min` (job 2747, */30 хв): моніторить вихід контенту @dreamcar.ua. Алерти в SMM-чат `-1003933841573`: **немає сторіз >3 год** (🟡) та **немає посту/рілз >24 год** (🔴).
+- 🆕 Тихі години 23:00–07:00 Kyiv. Відлік сторіз рахується наскрізь через ніч — о 07:00 алерт одразу якщо розрив >3 год. Повтор нагадування раз на годину до виходу контенту.
+- 🆕 Джерело — LIVE IG Graph API (`/stories`, `/media`) з фолбеком на `dashboard_ig_*`. Дедуп/стан у `dashboard_settings.smm_watchdog_state`. Доставка через `tg_notify_queue` → `tg-notify-queue-flush`.
+- 🚀 Deploy + перевірено end-to-end (dry + бойовий запуск): обидва алерти доставлені у чат (`status=sent`).
+
 ## 01.07.2026 — SMM: Undo Toast для drag-drop у календарі
 
 ### SMM Calendar
