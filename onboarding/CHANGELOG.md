@@ -8,6 +8,13 @@
 
 ---
 
+## 01.07.2026 — SMM: Undo Toast для drag-drop у календарі
+
+### SMM Calendar
+- 🆕 `hq/app-dragdrop-fix.js` v4 → **v5**: після успішного drag-drop публікації (month АБО week) з'являється **Undo Toast** у нижньому правому куті з відліком 10→0 сек. Кнопка «Скасувати» повертає стару дату; timeout (0 сек) → зміна лишається закоммічена. Fade-in/fade-out, не блокує UI під час відліку.
+- 🆕 Публічний API `window.showUndoToast(oldState, restoreFn)` — універсальний тост з rollback-колбеком (перевикористовний для інших дій). Rollback зберігає повний старий стан (dateTime + updatedAt) і пише history-запис "(скасовано)".
+- 🔧 Спільна логіка переносу винесена у `movePubToDate()` — один шлях для month і week. CSS `.undo-toast` інжектиться самим скриптом (self-contained, orange-акцент бренду).
+
 ## 30.06.2026 — SMM: drag-drop карток у Тиждень-view календаря (#555)
 
 ### SMM (#555)
