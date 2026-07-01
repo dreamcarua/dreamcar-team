@@ -11,11 +11,12 @@
 ## 01.07.2026 — SMM Content Watchdog (Instagram)
 
 ### SMM Моніторинг виходу контенту (Vadym)
-- 🆕 Edge Function `smm-content-watchdog` + pg_cron `smm-content-watchdog-30min` (job 2747, */30 хв): моніторить вихід контенту @dreamcar.ua. Алерти в SMM-чат `-1003933841573`: **немає сторіз >3 год** (🟡) та **немає посту/рілз >24 год** (🔴).
-- 🆕 Тихі години 23:00–07:00 Kyiv. Відлік сторіз рахується наскрізь через ніч — о 07:00 алерт одразу якщо розрив >3 год. Повтор нагадування раз на годину до виходу контенту.
-- 🆕 Джерело — LIVE IG Graph API (`/stories`, `/media`) з фолбеком на `dashboard_ig_*`. Дедуп/стан у `dashboard_settings.smm_watchdog_state`. Доставка через `tg_notify_queue` → `tg-notify-queue-flush`.
-- 🚀 Deploy + перевірено end-to-end (dry + бойовий запуск): обидва алерти доставлені у чат (`status=sent`).
-
+- 🆕 **GitHub Action** `smm-content-watchdog.yml` (dreamcar-dashboard, cron */30 хв) + `etl/smm_content_watchdog.py`: моніторить вихід контенту @dreamcar.ua. Алерти в SMM-чат `-1003933841573`: **немає сторіз >3 год** (🟡) та **немає посту/рілз >24 год** (🔴).
+- 🆕 Тихі години 23:00–07:00 Kyiv. Відлік сторіз наскрізь через ніч — о 07:00 алерт одразу якщо розрив >3 год. Повтор нагадування раз на годину до виходу контенту.
+- 🆕 Джерело — LIVE IG Graph API (`/stories`, `/media`), fallback `dashboard_ig_*`. Дедуп/стан у `dashboard_settings.smm_watchdog_state`. Доставка через `tg_notify_queue` → `tg-notify-queue-flush`.
+- 🔧 Первісно через Edge Function + pg_cron (job 2747) — але у Supabase Edge **немає `FB_ACCESS_TOKEN`** (лише GitHub secrets) → падало на застарілий DB і слало ХИБНІ алерти «немає сторіз». Перенесено у GH Action, де токен є; pg_cron 2747 знято, Edge fn dormant.
+- ⚠ **NB:** `verify-publication-ig` теж читає `FB_ACCESS_TOKEN` з Edge env (порожній) → її IG-автоперевірка публікацій ймовірно не працює (лише manual fallback). Перевірити окремо.
+- 🚀 Перевірено GH Action dry-run: live сторіз видно (20:04 Kyiv), доставка end-to-end ✓.
 ## 01.07.2026 — SMM: Undo Toast для drag-drop у календарі
 
 ### SMM Calendar
