@@ -1,60 +1,76 @@
 <!doctype html><html lang="uk"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Health Cockpit</title>
+<title>Health Cockpit Vadym</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
-:root{color-scheme:light}*{box-sizing:border-box}
-body{margin:0;background:#f6f7f9;color:#1a1d21;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
-.wrap{max-width:1100px;margin:0 auto;padding:18px 16px 70px}
-h1{font-size:21px;margin:0 0 2px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin:26px 0 10px}
-.grp{font-size:12px;font-weight:700;letter-spacing:.04em;color:#1a1d21;margin:30px 0 2px;padding-top:14px;border-top:2px solid #e6e8eb}
-.sub{color:#6b7280;font-size:12.5px}
-.dlbtn{display:inline-block;margin-top:10px;background:#1f3a5f;color:#fff;text-decoration:none;border-radius:9px;padding:8px 15px;font-size:13px;font-weight:600}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.card{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:13px 15px}
-.card .lab{color:#6b7280;font-size:12px;display:flex;justify-content:space-between;gap:6px}
-.card .big{font-size:23px;font-weight:650;margin-top:3px}.card .big small{font-size:12px;font-weight:500;color:#6b7280}
-.card .meta{font-size:11px;color:#6b7280;margin-top:2px}
+/* DreamCar brand (sync assets/brand-tokens.css v3.9.2) */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Archivo+Black&display=swap');
+:root{color-scheme:dark;
+ --bg:#0A0A0A;--coal:#141414;--card:#1F1F1F;--steel:#2A2A2A;--line:#2A2A2A;--line2:#3A3A3A;
+ --text:#FFF;--bone:#DDD;--muted:#8A8A8A;
+ --red:#E30613;--red-deep:#B8050F;--red-glow:#FF1A2B;
+ --ok:#10B981;--ok2:#34D399;--warn:#F59E0B;--danger:#DC2626;--info:#3B82F6;--link:#60A5FA;
+ --fdisplay:'Oswald','Bebas Neue',sans-serif;--fbody:'Manrope',sans-serif;--fmono:'JetBrains Mono',monospace;--faccent:'Archivo Black',sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fbody);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:22px 16px 80px}
+h1{font-family:var(--fdisplay);font-weight:700;font-size:27px;letter-spacing:.02em;margin:0 0 3px;text-transform:uppercase}
+h2{font-family:var(--fdisplay);font-weight:600;font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--bone);margin:24px 0 10px}
+.grp{font-family:var(--faccent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:36px 0 6px;padding:14px 0 0;border-top:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.grp::before{content:'';width:22px;height:3px;background:var(--red);border-radius:2px;box-shadow:0 0 8px rgba(227,6,19,.6)}
+.sub{color:var(--muted);font-size:12.5px}
+.dlbtn{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:var(--red);color:#fff;text-decoration:none;border-radius:4px;padding:10px 17px;font-family:var(--faccent);font-size:12px;letter-spacing:.06em;text-transform:uppercase;transition:background .12s,transform .12s}
+.dlbtn:hover{background:var(--red-deep);transform:translateY(-1px)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:11px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;transition:border-color .15s,transform .15s;animation:fade .45s ease both}
+.card:hover{border-color:var(--line2);transform:translateY(-2px)}
+.card .lab{color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:6px}
+.card .big{font-family:var(--fmono);font-size:25px;font-weight:700;margin-top:4px;color:var(--text)}.card .big small{font-family:var(--fbody);font-size:12px;font-weight:500;color:var(--muted)}
+.card .meta{font-size:11px;color:var(--muted);margin-top:3px}
 .card .spk{display:block;width:100%;height:30px;margin-top:8px}
-.delta{font-size:11px;font-weight:600;padding:1px 6px;border-radius:20px;white-space:nowrap}
-.up{background:#e6f4ea;color:#1a7f37}.down{background:#fde8e8;color:#b42318}.flat{background:#eef0f2;color:#6b7280}
+.delta{font-family:var(--fmono);font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.up{background:rgba(16,185,129,.15);color:var(--ok2)}.down{background:rgba(220,38,38,.16);color:#F87171}.flat{background:rgba(255,255,255,.06);color:var(--muted)}
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
-.cbox{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:11px 13px}
-.cbox h4{margin:0 0 2px;font-size:13px}.cbox .cw{position:relative;height:160px}
-.panel{background:#fff;border:1px solid #e6e8eb;border-radius:13px;overflow:hidden}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 14px;border-bottom:1px solid #f0f1f3;font-size:13px}
-th{color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase}tr:last-child td{border-bottom:none}
+.cbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.cbox h4{font-family:var(--fdisplay);text-transform:uppercase;letter-spacing:.03em;margin:0 0 4px;font-size:13px;color:var(--bone)}.cbox .cw{position:relative;height:160px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;animation:fade .45s ease both}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);font-size:13px}
+th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em}tr:last-child td{border-bottom:none}
 .corr{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
-.crow{background:#fff;border:1px solid #e6e8eb;border-radius:11px;padding:11px 13px}
-.crow .p{font-size:13px;font-weight:600}.crow .bar{height:7px;border-radius:6px;background:#eef0f2;margin:7px 0 5px;position:relative}
-.crow .bar i{position:absolute;top:0;bottom:0;border-radius:6px}.crow .t{font-size:11.5px;color:#6b7280}
-.recs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-.rec{background:#fff;border:1px solid #e6e8eb;border-radius:11px;padding:11px;text-align:center}
-.rec .v{font-size:20px;font-weight:650}.rec .l{font-size:11px;color:#6b7280;margin-top:2px}
-.ai{background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:2px 16px 14px}
-.ai h4{font-size:14px;margin:14px 0 5px}.ai p{margin:4px 0}.ai ul{margin:4px 0;padding-left:20px}.ai li{margin:3px 0}
-.fl{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600}
-.fl-high{background:#fde8e8;color:#b42318}.fl-low{background:#fef0e2;color:#b54708}.fl-critical{background:#b42318;color:#fff}
-details{margin-top:8px;background:#fff;border:1px solid #e6e8eb;border-radius:13px;padding:0 4px}
-summary{cursor:pointer;color:#6b7280;font-size:12.5px;padding:9px 12px;list-style:none}
-.rd{display:flex;gap:14px;align-items:flex-start;border:1px solid #e6e8eb;border-radius:14px;padding:14px 16px;margin-top:6px}
-.rd .sc{font-size:34px;font-weight:700;line-height:1;min-width:64px;text-align:center;padding-top:4px}
-.rd .nm{font-size:15px;font-weight:650}.rd .mt{font-size:12px;color:#6b7280;margin-top:3px}
-.rd-green{background:#eaf7ee;border-color:#bfe3c9}.rd-amber{background:#fdf4e8;border-color:#f3d9b0}.rd-red{background:#fdeaea;border-color:#f3c0c0}
+.crow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+.crow .p{font-size:13px;font-weight:600}.crow .bar{height:7px;border-radius:6px;background:var(--steel);margin:7px 0 5px;position:relative}
+.crow .bar i{position:absolute;top:0;bottom:0;border-radius:6px}.crow .t{font-size:11.5px;color:var(--muted)}
+.recs{display:grid;grid-template-columns:repeat(auto-fit,minmax(142px,1fr));gap:10px}
+.rec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+.rec .v{font-family:var(--fmono);font-size:22px;font-weight:700;color:var(--text)}.rec .l{font-size:11px;color:var(--muted);margin-top:2px}
+.ai{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:12px;padding:2px 16px 14px}
+.ai h4{font-family:var(--fdisplay);text-transform:uppercase;font-size:14px;margin:14px 0 5px;color:var(--bone)}.ai p{margin:4px 0}.ai ul{margin:4px 0;padding-left:20px}.ai li{margin:3px 0}
+.fl{display:inline-block;padding:2px 8px;border-radius:999px;font-family:var(--fmono);font-size:10px;font-weight:600;letter-spacing:.04em}
+.fl-high{background:rgba(220,38,38,.16);color:#F87171}.fl-low{background:rgba(245,158,11,.16);color:#FBBF24}.fl-critical{background:var(--danger);color:#fff}
+details{margin-top:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 4px}
+summary{cursor:pointer;color:var(--muted);font-size:12.5px;padding:10px 12px;list-style:none}
+.rd{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;padding:15px 17px;margin-top:6px;background:var(--card);animation:fade .45s ease both}
+.rd .sc{font-family:var(--fmono);font-size:38px;font-weight:700;line-height:1;min-width:66px;text-align:center;padding-top:2px}
+.rd .nm{font-family:var(--fdisplay);text-transform:uppercase;letter-spacing:.02em;font-size:16px;font-weight:600}.rd .mt{font-size:12px;color:var(--muted);margin-top:4px}
+.rd-green{border-color:rgba(16,185,129,.4)}.rd-green .sc{color:var(--ok2)}
+.rd-amber{border-color:rgba(245,158,11,.4)}.rd-amber .sc{color:var(--warn)}
+.rd-red{border-color:rgba(220,38,38,.45)}.rd-red .sc{color:#F87171}
 .rd ul{margin:4px 0 0;padding-left:18px}.rd li{font-size:12px;margin:2px 0}
-.al{background:#fde8e8;color:#b42318;border-radius:8px;padding:4px 8px;font-size:11.5px;margin-top:5px;display:inline-block}
-.rem{background:#eef2ff;border:1px solid #cdd6ff;color:#3538cd;border-radius:11px;padding:9px 13px;font-size:12.5px;margin-top:8px}
-.warn{background:#fff4ec;border:1px solid #f3d9b0;color:#b54708;border-radius:11px;padding:9px 13px;font-size:12.5px;margin-top:8px}
+.al{background:rgba(220,38,38,.16);color:#F87171;border-radius:8px;padding:4px 9px;font-size:11.5px;margin-top:6px;display:inline-block}
+.rem{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93C5FD;border-radius:12px;padding:10px 13px;font-size:12.5px;margin-top:10px}
+.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#FBBF24;border-radius:12px;padding:10px 13px;font-size:12.5px;margin-top:10px}
 .lt{margin:8px 0}.lt .row{font-size:12.5px;display:flex;justify-content:space-between}
-.lt .b{height:7px;background:#eef0f2;border-radius:6px;position:relative;margin-top:4px}
-.lt .b i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}.lt .b s{position:absolute;top:-2px;bottom:-2px;width:2px;background:#1a1d21}
-.lt2{margin:11px 0;border-bottom:1px solid #f0f1f3;padding-bottom:9px}.lt2:last-child{border-bottom:none;padding-bottom:0}
+.lt .b{height:7px;background:var(--steel);border-radius:6px;position:relative;margin-top:4px}
+.lt .b i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}.lt .b s{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--text)}
+.lt2{margin:11px 0;border-bottom:1px solid var(--line);padding-bottom:9px}.lt2:last-child{border-bottom:none;padding-bottom:0}
 .lt2 .h{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;gap:8px}
 .lt2 .spk{display:block;width:100%;height:40px;margin-top:5px}
-.msg{padding:40px 16px;text-align:center;color:#6b7280}
+.msg{padding:40px 16px;text-align:center;color:var(--muted)}
 ul.tight{margin:6px 0 0;padding-left:18px;font-size:12.5px}ul.tight li{margin:2px 0}
+@keyframes fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 </style></head><body><div class="wrap">
-<h1>🫀 Health Cockpit</h1><div class="sub" id="sub">Завантаження…</div>
+<h1>🫀 Health Cockpit <span style="color:var(--red)">Vadym</span></h1><div class="sub" id="sub">Завантаження…</div>
 <a class="dlbtn" href="#" onclick="window.open('report.html'+location.hash);return false">⬇️ Звіт для лікаря (PDF)</a>
 <div id="root"></div></div>
 <script>
@@ -80,11 +96,11 @@ function readiness(rd){
  if(t100.length){h+='<div class="mt" style="margin-top:7px"><b>🎯 Щоб відновлення ближче до 100:</b></div><ul>';for(const a of t100.slice(0,3))h+='<li>'+esc(a.text)+(a.gain?' <span class="sub">(≈ +'+a.gain+')</span>':'')+'</li>';h+='</ul>';}
  h+='</div></div>';
  const acwr=ld.acwr!=null?num(ld.acwr):null;
- const lvlcol=ld.level==='висока'?'#b42318':(ld.level==='низька'?'#b54708':'#1a7f37');
+ const lvlcol=ld.level==='висока'?'#E30613':(ld.level==='низька'?'#F59E0B':'#10B981');
  const stp=num(ld.steps)||0, goal=num(ld.steps_goal)||8000; const pct=Math.min(100,stp/goal*100);
- let lh='<div class="rd" style="background:#fff;margin-top:10px"><div style="flex:1"><div class="nm">⚡ Денне навантаження <span class="sub" style="font-weight:400">(зростає протягом дня)</span></div>';
+ let lh='<div class="rd" style="background:var(--card);margin-top:10px"><div style="flex:1"><div class="nm">⚡ Денне навантаження <span class="sub" style="font-weight:400">(зростає протягом дня)</span></div>';
  lh+='<div class="mt">👟 '+f(stp)+' / '+f(goal)+' кроків · 🔥 '+f(ld.active)+' ккал'+(ld.exercise!=null?' · 🏋️ '+f(ld.exercise)+' хв трен.':'')+'</div>';
- lh+='<div class="b" style="height:8px;background:#eef0f2;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#1a7f37"></i></div>';
+ lh+='<div class="b" style="height:8px;background:#2A2A2A;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#10B981"></i></div>';
  lh+='<div class="mt">Навантаження 7д:28д <b style="color:'+lvlcol+'">'+(acwr!=null?acwr:'—')+' '+esc(ld.level||'')+'</b> · '+esc(ld.note||'')+'</div>';
  lh+='</div></div>';
  return h+lh;
@@ -126,7 +142,7 @@ function stressBlock(o,wh){
  const head=ss.score!=null?('Стрес '+ss.score+'/3 · '+esc(ss.label)):('рівень: '+esc(ds.level));
  let h='<h2>🌡 Стрес та відновлення вдень <span class="sub" style="text-transform:none;letter-spacing:0">(сьогодні)</span></h2><div class="panel" style="padding:12px 15px">';
  h+='<div style="font-size:13.5px"><b>'+head+'</b> <span class="sub">· 🔴 '+f(ds.stress_min)+' хв стресу · 🟢 '+f(ds.recover_min)+' хв відновлення · 🏃 '+f(ds.active_min)+' хв рух</span></div>';
- h+='<div style="display:flex;border-radius:6px;overflow:hidden;margin-top:9px;height:12px;background:#eef0f2">'+seg(ds.restored_pct,'#1a7f37')+seg(ds.relaxed_pct,'#8bc34a')+seg(ds.engaged_pct,'#f5a623')+seg(ds.stressed_pct,'#b42318')+'</div>';
+ h+='<div style="display:flex;border-radius:6px;overflow:hidden;margin-top:9px;height:12px;background:#2A2A2A">'+seg(ds.restored_pct,'#10B981')+seg(ds.relaxed_pct,'#34D399')+seg(ds.engaged_pct,'#F59E0B')+seg(ds.stressed_pct,'#E30613')+'</div>';
  h+='<div class="sub" style="margin-top:6px">🟢 спокій '+f(ds.restored_pct)+'% · 🟩 розслаблення '+f(ds.relaxed_pct)+'% · 🟧 залученість '+f(ds.engaged_pct)+'% · 🟥 стрес '+f(ds.stressed_pct)+'%</div>';
  if(ss.breathwork)h+='<div class="sub" style="margin-top:5px">🫁 '+esc(ss.breathwork)+'</div>';
  h+='</div>';return h;
@@ -136,12 +152,12 @@ function contributorsBlock(o){
  const rcz=o.readiness_contributors;
  if(Array.isArray(rcz)&&rcz.length){
    h+='<h2>📊 Внески у Відновлення</h2><div class="panel" style="padding:10px 14px">';
-   for(const c of rcz){const sc=num(c.score);const col=sc>=75?'#1a7f37':(sc>=55?'#f5a623':'#b42318');
+   for(const c of rcz){const sc=num(c.score);const col=sc>=75?'#10B981':(sc>=55?'#F59E0B':'#E30613');
      h+='<div class="lt"><div class="row"><span>'+esc(c.name)+' <span class="sub">'+esc(c.val)+'</span></span><span><b>'+f(sc)+'</b></span></div><div class="b"><i style="width:'+Math.min(100,sc)+'%;background:'+col+'"></i></div></div>';}
    h+='</div>';
  }
  const td=o.temp_deviation;
- if(td&&td.deviation!=null)h+='<div class="cards" style="margin-top:10px">'+kc('Температура тіла',(num(td.deviation)>=0?'+':'')+f(td.deviation,2),'°C','відхилення від норми',td.elevated?'<span class="delta down">підвищена</span>':'<span class="delta up">норма</span>',spark((td.series||[]).map(x=>x.dev),'#b54708'))+'</div>';
+ if(td&&td.deviation!=null)h+='<div class="cards" style="margin-top:10px">'+kc('Температура тіла',(num(td.deviation)>=0?'+':'')+f(td.deviation,2),'°C','відхилення від норми',td.elevated?'<span class="delta down">підвищена</span>':'<span class="delta up">норма</span>',spark((td.series||[]).map(x=>x.dev),'#F59E0B'))+'</div>';
  return h;
 }
 function sleepBlock(D){
@@ -157,7 +173,7 @@ function sleepBlock(D){
  if(ch.type)cards+=kc('Хронотип',esc(ch.type),'',esc(ch.suggest||''),'');
  if(sq.deep!=null)cards+=kc('Глибокий сон',f(sq.deep,1),'год','','');
  if(sq.rem!=null)cards+=kc('REM',f(sq.rem,1),'год','','');
- if(nb.avg30!=null)cards+=kc('Нічне дихання',f(nb.avg30,1),'/год',esc(nb.flag||''),num(nb.avg30)>5?'<span class="delta down">стежити</span>':'<span class="delta up">ок</span>',spark((nb.series||[]).slice().reverse(),'#0891b2'));
+ if(nb.avg30!=null)cards+=kc('Нічне дихання',f(nb.avg30,1),'/год',esc(nb.flag||''),num(nb.avg30)>5?'<span class="delta down">стежити</span>':'<span class="delta up">ок</span>',spark((nb.series||[]).slice().reverse(),'#22D3EE'));
  if(!cards)return '';
  let h='<h2>😴 Сон</h2><div class="cards">'+cards+'</div>';
  if(sq.deep==null&&sq.rem==null&&se.efficiency_pct==null)h+='<div class="sub" style="margin-top:4px">Стадії сну й «час у ліжку» зʼявляться, коли увімкнеш детальний експорт сну у Health Auto Export.</div>';
@@ -175,10 +191,10 @@ function ageBlock(o,wh){
 }
 function cvRisk(cv){
  if(!cv||!cv.level)return '';
- const col=cv.level==='низький'?'#1a7f37':(cv.level==='помірний'?'#b54708':'#b42318');
+ const col=cv.level==='низький'?'#10B981':(cv.level==='помірний'?'#F59E0B':'#E30613');
  let h='<h2>❤️‍🩹 Кардіо-ризик — <span style="color:'+col+'">'+esc(cv.level)+'</span></h2><div class="corr">';
- h+='<div class="crow"><div class="p" style="color:#b42318">⚠️ Фактори ризику</div><ul class="tight">'+(cv.risks||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
- h+='<div class="crow"><div class="p" style="color:#1a7f37">✅ Захисні фактори</div><ul class="tight">'+(cv.protective||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
+ h+='<div class="crow"><div class="p" style="color:#E30613">⚠️ Фактори ризику</div><ul class="tight">'+(cv.risks||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
+ h+='<div class="crow"><div class="p" style="color:#10B981">✅ Захисні фактори</div><ul class="tight">'+(cv.protective||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
  h+='</div><div class="sub" style="margin-top:6px">'+esc(cv.note||'')+'</div>';
  return h;
 }
@@ -186,7 +202,7 @@ function bpBlock(bp){
  if(!bp)return '';
  if(bp.sys_last==null)return '<div class="warn">🩺 Тиск ще не вимірюється — для повного кардіо-ризику потрібен тонометр (Omron). Заміри підтягнуться автоматично через Apple Health.</div>';
  const s=num(bp.sys_last),d=num(bp.dia_last);
- const col=(s>=140||d>=90)?'#b42318':((s>=130||d>=85)?'#b54708':'#1a7f37');
+ const col=(s>=140||d>=90)?'#E30613':((s>=130||d>=85)?'#F59E0B':'#10B981');
  const st=(s>=140||d>=90)?'високий':((s>=130||d>=85)?'підвищений':'норма');
  let h='<h2>🩺 Артеріальний тиск</h2><div class="cards">';
  h+=kc('Останній','<span style="color:'+col+'">'+f(s)+'/'+f(d)+'</span>','мм рт.ст.',st,'');
@@ -198,7 +214,7 @@ function lipidTrack(labs){
  const items=[['Холестерин загальний',find('Холестерин загальний'),190],['ЛПНЩ (LDL)',find('ЛПНЩ (LDL)'),115],['Не-HDL',find('Не-HDL холестерин'),130]];
  let h='';
  for(const [nm,val,tgt] of items){if(val==null)continue;const over=val>tgt;const fill=Math.min(100,val/(tgt*1.5)*100);const tl=tgt/(tgt*1.5)*100;
-  h+='<div class="lt"><div class="row"><span>'+nm+'</span><span><b>'+f(val)+'</b> / ціль &lt;'+tgt+' '+(over?'<span class="fl fl-high">+'+f(val-tgt)+'</span>':'<span class="fl" style="background:#e6f4ea;color:#1a7f37">ок</span>')+'</span></div><div class="b"><i style="width:'+fill+'%;background:'+(over?'#b42318':'#1a7f37')+'"></i><s style="left:'+tl+'%"></s></div></div>';}
+  h+='<div class="lt"><div class="row"><span>'+nm+'</span><span><b>'+f(val)+'</b> / ціль &lt;'+tgt+' '+(over?'<span class="fl fl-high">+'+f(val-tgt)+'</span>':'<span class="fl" style="background:rgba(16,185,129,.18);color:#10B981">ок</span>')+'</span></div><div class="b"><i style="width:'+fill+'%;background:'+(over?'#E30613':'#10B981')+'"></i><s style="left:'+tl+'%"></s></div></div>';}
  return h?('<div class="panel" style="padding:10px 14px"><div class="sub" style="margin-bottom:4px">🎯 Ліпідні цілі (PTL/PTDL)</div>'+h+'</div>'):'';
 }
 function labsBlock(labs){
@@ -212,7 +228,7 @@ function labsBlock(labs){
 }
 function labTrendsBlock(lt){
  if(!lt||!lt.length)return '';
- let rows='';for(const m of lt){const s=(m.series||[]).filter(p=>p&&p.v!=null);if(s.length<2)continue;const vals=s.map(p=>num(p.v));const a=vals[0],b=vals[vals.length-1];const dir=b>a?'▲':(b<a?'▼':'→');rows+='<div class="lt2"><div class="h"><span><b>'+esc(m.nm)+'</b></span><span><b>'+f(b,2)+'</b> '+esc(m.unit||'')+' '+dir+' <span class="sub">(було '+f(a,2)+')</span></span></div>'+spark(vals,'#2563eb')+'</div>';}
+ let rows='';for(const m of lt){const s=(m.series||[]).filter(p=>p&&p.v!=null);if(s.length<2)continue;const vals=s.map(p=>num(p.v));const a=vals[0],b=vals[vals.length-1];const dir=b>a?'▲':(b<a?'▼':'→');rows+='<div class="lt2"><div class="h"><span><b>'+esc(m.nm)+'</b></span><span><b>'+f(b,2)+'</b> '+esc(m.unit||'')+' '+dir+' <span class="sub">(було '+f(a,2)+')</span></span></div>'+spark(vals,'#3B82F6')+'</div>';}
  if(!rows)return '';
  return '<h2>📉 Динаміка аналізів</h2><div class="panel" style="padding:9px 14px">'+rows+'</div>';
 }
@@ -230,7 +246,7 @@ function workoutsBlock(w){
  const tw=w.this_week||{}, lw=w.last_week||{}, a4=w.avg4||{};
  let h='<h2>🏋️ Тренування <span class="sub" style="text-transform:none;letter-spacing:0">('+f(w.total_n)+' сесій з '+(w.since||'')+')</span></h2>';
  h+='<div class="cards">';
- h+=kc('Цей тиждень',f(tw.min),'хв',f(tw.n)+' трен. · '+f(tw.km,1)+' км',delta(tw.min,lw.min,'higher'),spark((w.trend8||[]).map(x=>x.min),'#1a7f37'));
+ h+=kc('Цей тиждень',f(tw.min),'хв',f(tw.n)+' трен. · '+f(tw.km,1)+' км',delta(tw.min,lw.min,'higher'),spark((w.trend8||[]).map(x=>x.min),'#10B981'));
  h+=kc('Минулий тиждень',f(lw.min),'хв',f(lw.n)+' трен. · '+f(lw.km,1)+' км','');
  h+=kc('Сер./тиждень',f(a4.min),'хв','4 тижні · '+f(a4.n,1)+' трен/тиж','');
  if(tw.kcal!=null&&num(tw.kcal)>0)h+=kc('Спалено',f(tw.kcal),'ккал','цей тиждень','');
@@ -239,7 +255,7 @@ function workoutsBlock(w){
  if(bt.length){const mx=Math.max.apply(null,bt.map(x=>num(x.min)||0))||1;
    h+='<div class="panel" style="padding:10px 14px;margin-top:10px"><div class="sub" style="margin-bottom:6px">За типом (90 днів)</div>';
    for(const t of bt){const wd=Math.min(100,(num(t.min)/mx)*100);
-     h+='<div class="lt"><div class="row"><span>'+esc(t.type)+' <span class="sub">'+f(t.n)+'× · '+f(t.km,1)+' км</span></span><span><b>'+f(t.min)+'</b> хв</span></div><div class="b"><i style="width:'+wd+'%;background:#1a7f37"></i></div></div>';}
+     h+='<div class="lt"><div class="row"><span>'+esc(t.type)+' <span class="sub">'+f(t.n)+'× · '+f(t.km,1)+' км</span></span><span><b>'+f(t.min)+'</b> хв</span></div><div class="b"><i style="width:'+wd+'%;background:#10B981"></i></div></div>';}
    h+='</div>';}
  const rc=w.recent||[];
  if(rc.length){h+='<div class="panel" style="margin-top:10px"><table><thead><tr><th>Дата</th><th>Тип</th><th>Хв</th><th>Км</th><th>Темп</th><th>Пульс</th><th>Ккал</th></tr></thead><tbody>';
@@ -251,7 +267,7 @@ function workoutZones(wh){
  const wz=wh&&wh.workout_zones; if(!wz||wz.z1==null||wz.n===0)return '';
  const seg=(v,c)=>num(v)>0?'<span style="height:12px;width:'+num(v)+'%;background:'+c+'"></span>':'';
  let h='<div class="panel" style="padding:12px 15px;margin-top:10px"><div class="sub" style="margin-bottom:6px">🎽 Пульсові зони — '+esc(wz.type||'')+' '+esc(wz.date||'')+'</div>';
- h+='<div style="display:flex;border-radius:6px;overflow:hidden;height:12px;background:#eef0f2">'+seg(wz.z1,'#93c5fd')+seg(wz.z2,'#1a7f37')+seg(wz.z3,'#f5a623')+seg(wz.z4,'#f97316')+seg(wz.z5,'#b42318')+'</div>';
+ h+='<div style="display:flex;border-radius:6px;overflow:hidden;height:12px;background:#2A2A2A">'+seg(wz.z1,'#93c5fd')+seg(wz.z2,'#10B981')+seg(wz.z3,'#F59E0B')+seg(wz.z4,'#FB923C')+seg(wz.z5,'#E30613')+'</div>';
  h+='<div class="sub" style="margin-top:6px">Z1 '+f(wz.z1)+'% · Z2 '+f(wz.z2)+'% · Z3 '+f(wz.z3)+'% · Z4 '+f(wz.z4)+'% · Z5 '+f(wz.z5)+'% · <b>Zone2+ '+f(wz.zone2_plus)+'%</b></div></div>';
  return h;
 }
@@ -357,19 +373,19 @@ function render(D){
  h+=insightsBlock(D.oura,D.whoop);
  h+=grp('📈 ДОВГОСТРОКОВІ ТРЕНДИ');
  h+='<h2>Огляд · 90 днів <span class="sub" style="text-transform:none;letter-spacing:0">(графік — помісячна динаміка)</span></h2><div class="cards">';
- h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'),spark(ser('resting_hr'),'#b42318'));
- h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'),spark(ser('hrv_ms'),'#2563eb'));
- h+=kc('VO₂max',f(k.vo2_180,1),'','180 дн','',spark(ser('vo2max'),'#7c3aed'));
- h+=kc('Сон',f(k.sleep_90,1),'год','норма 7-9',delta(k.sleep_90,k.sleep_prev,'higher'),spark(ser('sleep_hours'),'#0891b2'));
- h+=kc('Кроки',f(k.steps_90),'/день','',delta(k.steps_90,k.steps_prev,'higher'),spark(ser('steps'),'#1a7f37'));
- h+=kc('Активні ккал',f(k.act_90),'/день','','',spark(ser('active_kcal'),'#db2777'));
- h+=kc('Тренування',f(k.ex_90),'хв/день','','',spark(ser('exercise_min'),'#0891b2'));
- h+=kc('Вага',f(k.w_last,1),'кг','','',spark(ser('weight_kg'),'#b54708'));
+ h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'),spark(ser('resting_hr'),'#E30613'));
+ h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'),spark(ser('hrv_ms'),'#3B82F6'));
+ h+=kc('VO₂max',f(k.vo2_180,1),'','180 дн','',spark(ser('vo2max'),'#A855F7'));
+ h+=kc('Сон',f(k.sleep_90,1),'год','норма 7-9',delta(k.sleep_90,k.sleep_prev,'higher'),spark(ser('sleep_hours'),'#22D3EE'));
+ h+=kc('Кроки',f(k.steps_90),'/день','',delta(k.steps_90,k.steps_prev,'higher'),spark(ser('steps'),'#10B981'));
+ h+=kc('Активні ккал',f(k.act_90),'/день','','',spark(ser('active_kcal'),'#EC4899'));
+ h+=kc('Тренування',f(k.ex_90),'хв/день','','',spark(ser('exercise_min'),'#22D3EE'));
+ h+=kc('Вага',f(k.w_last,1),'кг','','',spark(ser('weight_kg'),'#F59E0B'));
  h+='</div>';
  h+='<h2>Тренди (помісячно)</h2><div class="charts" id="charts"></div>';
  let ce='<h2>Звʼязки та рекорди</h2><details><summary>Показати звʼязки показників і рекорди</summary><div style="padding:6px 8px"><div class="corr">';
  const CD=[['hrv_rhr','HRV ↔ Пульс спокою'],['sleep_hrv','Сон ↔ HRV'],['sleep_rhr','Сон ↔ Пульс'],['ex_rhr','Тренування ↔ Пульс'],['vo2_rhr','VO₂max ↔ Пульс'],['day_sleep','Світло ↔ Сон']];
- for(const [key,lab] of CD){const r=num(co[key]);if(r==null)continue;const w=Math.min(100,Math.abs(r)*100);const pos=r>=0;const col=pos?'#2563eb':'#b42318';const strong=Math.abs(r)>=0.3;ce+='<div class="crow"><div class="p">'+lab+' <span style="color:'+(strong?'#2563eb':'#9aa0a8')+'">r='+r.toFixed(2)+'</span></div><div class="bar"><i style="left:'+(pos?'50%':(50-w/2)+'%')+';width:'+(w/2)+'%;background:'+col+'"></i><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#cbd2d9"></span></div><div class="t">'+(strong?'виражений звʼязок':'слабкий')+'</div></div>';}
+ for(const [key,lab] of CD){const r=num(co[key]);if(r==null)continue;const w=Math.min(100,Math.abs(r)*100);const pos=r>=0;const col=pos?'#3B82F6':'#E30613';const strong=Math.abs(r)>=0.3;ce+='<div class="crow"><div class="p">'+lab+' <span style="color:'+(strong?'#3B82F6':'#8A8A8A')+'">r='+r.toFixed(2)+'</span></div><div class="bar"><i style="left:'+(pos?'50%':(50-w/2)+'%')+';width:'+(w/2)+'%;background:'+col+'"></i><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#3A3A3A"></span></div><div class="t">'+(strong?'виражений звʼязок':'слабкий')+'</div></div>';}
  ce+='</div><div class="recs" style="margin-top:10px">';
  ce+='<div class="rec"><div class="v">'+f(rc.rhr_min)+'</div><div class="l">мін. пульс спокою</div></div>';
  ce+='<div class="rec"><div class="v">'+f(rc.hrv_max)+'</div><div class="l">пік HRV</div></div>';
@@ -387,9 +403,9 @@ function render(D){
  if(img.length){h+='<h2>🩻 Обстеження та висновки</h2><div class="panel"><table><tbody>';for(const j of img)h+='<tr><td class="sub" style="white-space:nowrap;vertical-align:top">'+esc(j.d||'')+'</td><td><b>'+esc(j.title||'')+'</b><br><span class="sub">'+esc(j.body||'')+'</span></td></tr>';h+='</tbody></table></div>';}
  h+='<h2>Що відстежується ('+cov.length+')</h2><details><summary>Показати реєстр</summary><table><tbody>';for(const c of cov){h+='<tr><td>'+esc(c.name_uk||'')+'</td><td>'+f(c.days)+' дн</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></details>';
  document.getElementById('root').innerHTML=h;
- const defs=[['resting_hr','Пульс спокою','#b42318'],['hrv_ms','HRV','#2563eb'],['vo2max','VO₂max','#7c3aed'],['sleep_hours','Сон','#0891b2'],['weight_kg','Вага','#b54708'],['steps','Кроки','#1a7f37'],['active_kcal','Активні ккал','#db2777'],['walking_speed','Швидкість ходи','#475569']];
+ const defs=[['resting_hr','Пульс спокою','#E30613'],['hrv_ms','HRV','#3B82F6'],['vo2max','VO₂max','#A855F7'],['sleep_hours','Сон','#22D3EE'],['weight_kg','Вага','#F59E0B'],['steps','Кроки','#10B981'],['active_kcal','Активні ккал','#EC4899'],['walking_speed','Швидкість ходи','#94A3B8']];
  const host=document.getElementById('charts');
- for(const [code,name,col] of defs){const vals=mon.map(r=>num(r[code]));if(vals.every(v=>v==null))continue;const box=document.createElement('div');box.className='cbox';box.innerHTML='<h4>'+name+'</h4><div class="cw"><canvas></canvas></div>';host.appendChild(box);new Chart(box.querySelector('canvas'),{type:'line',data:{labels:mon.map(r=>r.m),datasets:[{data:vals,borderColor:col,backgroundColor:col+'14',fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6,font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9}},grid:{color:'#f0f1f3'}}}}});}
+ for(const [code,name,col] of defs){const vals=mon.map(r=>num(r[code]));if(vals.every(v=>v==null))continue;const box=document.createElement('div');box.className='cbox';box.innerHTML='<h4>'+name+'</h4><div class="cw"><canvas></canvas></div>';host.appendChild(box);new Chart(box.querySelector('canvas'),{type:'line',data:{labels:mon.map(r=>r.m),datasets:[{data:vals,borderColor:col,backgroundColor:col+'14',fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6,color:'#8A8A8A',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#8A8A8A',font:{size:9}},grid:{color:'#2A2A2A'}}}}});}
 }
 (function(){
  let t=location.hash.slice(1); if(t.indexOf('k=')===0)t=t.slice(2);
