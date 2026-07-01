@@ -8,6 +8,13 @@
 
 ---
 
+## 01.07.2026 — cron-reminders v4: ескалації погоджень → COO (#554)
+
+### SMM Нагадування / Ескалації (Vadym)
+- 🔧 **Ескалації погоджень публікацій («🔥 Ескалація 48+ год») більше не летять CEO — тепер COO (Давид).** Причина: блок G5b слав «іншому founder-у, не approver-у»; оскільки approver = Давид, ескалація летіла Вадиму. Усі операційні ескалації (G4 missed / G5b esc48h / G6 T-10 fallback / G7 T+10) переведено на `getEscalationTargets()` = COO (fallback CEO).
+- 🔧 **Fix anti-spam:** `recordReminder` інсертив неіснуюче поле `author:null`, а колонка `publication_history.actor_id` — NOT NULL → INSERT падав → history порожня → спам кожен тік cron (кожні 15 хв: 14:43→14:58→15:13...). Тепер `actor_id = SYSTEM_ACTOR_ID` (валідний founder id). Anti-spam-вікна 6h/24h/48h нарешті працюють.
+- 🚀 Задеплоєно `cron-reminders` v4 (`version=v4-COO-routing`). Верифіковано бойовим запуском: `pinged=1`, `actor=Давид`, «Викторина Reels з прохожими». [commit f809110](https://github.com/dreamcarua/dreamcar-team/commit/f809110c6239d47df178c3d04ae1193745f912ba)
+
 ## 01.07.2026 — verify-publication-ig: IG-автоперевірка полагоджена (app_secrets)
 
 ### SMM Verify (Vadym)
