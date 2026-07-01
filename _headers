@@ -46,6 +46,18 @@
   Cache-Control: no-cache, no-store, must-revalidate, max-age=0
   CDN-Cache-Control: no-store
 
+/health/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/health/index.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/health/report.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
 /brand-book/
   Cache-Control: no-cache, no-store, must-revalidate, max-age=0
   CDN-Cache-Control: no-store
