@@ -6,4 +6,6 @@ const PLATFORMS = [
   { id: 'yt', name: 'YT Shorts', icon: '▶️', color: '#ff0000' },
   { id: 'fb', name: 'Facebook', icon: '📘', color: '#1877f2' },
 ];
-PLACEHOLDER_DO_NOT_USE
+const PLATFORM_BY_ID = Object.fromEntries(PLATFORMS.map(p => [p.id, p]));
+
+RESTORE_IN_PROGRESS_DO_NOT_KEEP
