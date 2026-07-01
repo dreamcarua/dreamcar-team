@@ -6,24 +6,4 @@ const PLATFORMS = [
   { id: 'yt', name: 'YT Shorts', icon: '▶️', color: '#ff0000' },
   { id: 'fb', name: 'Facebook', icon: '📘', color: '#1877f2' },
 ];
-const PLATFORM_BY_ID = Object.fromEntries(PLATFORMS.map(p => [p.id, p]));
-
-const STATUSES = [
-  { id: 'draft', label: 'Чернетка', color: 'var(--grey)' },
-  { id: 'in_work', label: 'В роботі', color: 'var(--blue)' },
-  { id: 'review', label: 'На погодженні', color: 'var(--gold)' },
-  { id: 'approved', label: 'Погоджено', color: 'var(--green-soft)' },
-  { id: 'published', label: 'Опубліковано', color: 'var(--green)' },
-  { id: 'rework', label: 'На доопрацюванні', color: 'var(--orange)' },
-];
-const STATUS_BY_ID = Object.fromEntries(STATUSES.map(s => [s.id, s]));
-
-const CONTENT_TYPES = ['Пост', 'Reels', 'Сторис', 'Карусель', 'Лонгрід'];
-const ROLES = [
-  { id: 'ceo',    label: 'CEO',         tag: 'CEO' },
-  { id: 'coo',    label: 'COO',         tag: 'COO' },
-  { id: 'lead',   label: 'Тимлід SMM',  tag: 'Тимлід' },
-  { id: 'member', label: 'SMM-учасник', tag: 'Учасник' },
-];
-
-__PLACEHOLDER__
+PLACEHOLDER_DO_NOT_USE
