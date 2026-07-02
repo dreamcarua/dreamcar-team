@@ -506,6 +506,20 @@ function renderCardBody(p) {
           <label>Текст публікації <span class="req">*</span></label>
           <textarea id="f_text" maxlength="5000" placeholder="Текст поста…">${escapeHtml(p.text||'')}</textarea>
           <div class="hint"><span id="f_textCount">${(p.text||'').length}</span>/5000 символів</div>
+          <details class="fmt-hint" style="margin-top:6px;">
+            <summary style="cursor:pointer;font-size:11px;color:var(--grey);user-select:none;list-style:none;">💡 Форматування Telegram — клікни для підказки</summary>
+            <div style="background:var(--bg-3,#1a1a1a);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:6px;font-size:11px;color:#bbb;line-height:1.9;">
+              <code>&lt;b&gt;текст&lt;/b&gt;</code> → <b>жирний</b> &nbsp;·&nbsp;
+              <code>&lt;i&gt;текст&lt;/i&gt;</code> → <i>курсив</i> &nbsp;·&nbsp;
+              <code>&lt;u&gt;текст&lt;/u&gt;</code> → <u>підкреслення</u> &nbsp;·&nbsp;
+              <code>&lt;s&gt;текст&lt;/s&gt;</code> → <s>закреслення</s><br>
+              <code>&lt;code&gt;текст&lt;/code&gt;</code> → <code>моноширинний</code> &nbsp;·&nbsp;
+              <code>&lt;a href="https://…"&gt;текст&lt;/a&gt;</code> → клікабельне посилання<br>
+              <code>&lt;&lt;&lt;текст&gt;&gt;&gt;</code> → <span style="background:#555;border-radius:3px;padding:0 4px;">спойлер</span> (прихований під плашкою — клік щоб побачити) &nbsp;·&nbsp;
+              <code>{{countdown}}</code> → таймер зворотного відліку (задай дату у блоці «TG-автопост»)<br>
+              <span style="color:var(--grey);">⚠️ Telegram підтримує лише ці теги. Вкладені працюють (<code>&lt;b&gt;&lt;i&gt;…&lt;/i&gt;&lt;/b&gt;</code>). Емодзі — як звичайний текст.</span>
+            </div>
+          </details>
         </div>
         <div class="field" style="margin-bottom:14px;">
           <label>Хештеги</label>
