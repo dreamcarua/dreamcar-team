@@ -476,9 +476,13 @@ async function refreshCreativeStrip(p) {
   } catch (e) { console.warn('[refreshCreativeStrip]', e); }
 }
 
+// #TZ (02.07.2026): редактор працює в КИЄВСЬКОМУ часі незалежно від браузера користувача.
+// Раніше час брався за браузерним TZ — Вадим у Польщі (UTC+2) вводив 15:56, зберігалось 16:56 Київ (+1 год).
+function _kyivOffsetMin(date){ try{ var s=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Kyiv',timeZoneName:'shortOffset'}).formatToParts(date).find(function(x){return x.type==='timeZoneName';}).value; var m=s.match(/GMT([+-]?\d+)/); return m?parseInt(m[1],10)*60:180; }catch(_){return 180;} }
+function utcToKyivInput(iso){ try{ var pp=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(iso)); var g=function(t){return (pp.find(function(x){return x.type===t;})||{}).value;}; return g('year')+'-'+g('month')+'-'+g('day')+'T'+g('hour')+':'+g('minute'); }catch(_){return new Date(iso).toISOString().slice(0,16);} }
+function kyivInputToUTC(localStr){ if(!localStr) return new Date().toISOString(); var m=String(localStr).match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); if(!m) return new Date(localStr).toISOString(); var asUTC=Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]); var off=_kyivOffsetMin(new Date(asUTC)); return new Date(asUTC-off*60000).toISOString(); }
 function renderCardBody(p) {
-  const dt = new Date(p.dateTime);
-  const dtLocal = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') + 'T' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+  const dtLocal = utcToKyivInput(p.dateTime);
   return `
     <div class="pub-card-layout">
       <div>
@@ -966,7 +970,7 @@ function attachCardHandlers(p) {
   });
   const dtEl = document.getElementById('f_dateTime');
   if (dtEl) dtEl.onchange = () => {
-    p.dateTime = new Date(dtEl.value).toISOString();
+    p.dateTime = kyivInputToUTC(dtEl.value);
     if (p._autoDeadline !== false) {
       p.deadline = deadlineFromDate(p.dateTime);
       const dlEl = document.getElementById('f_deadline');
