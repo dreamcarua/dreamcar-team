@@ -337,7 +337,16 @@ function openCard(id) {
     </div>
   `);
   attachCardHandlers(p);
-  Modal.onClose = () => { if (cardAutosaveTimer) clearTimeout(cardAutosaveTimer); };
+  Modal.onClose = () => {
+    if (cardAutosaveTimer) {
+      clearTimeout(cardAutosaveTimer);
+      cardAutosaveTimer = null;
+      // #FLUSH 03.07.2026: раніше pending autosave тут просто СКАСОВУВАВСЯ (clearTimeout без збереження).
+      // Якщо змінити статус/поле і закрити картку швидше за 700мс debounce autosave → зміна ВТРАЧАЛАСЬ
+      // («поменял на Зробив → а оно не поменялось», будь-яка публікація). Тепер flush — зберегти негайно.
+      try { if (p && !p._isNew) Store.upsertPub(p); } catch (_) {}
+    }
+  };
   // #297 (10.06.2026 P0): Store кеш може бути застарілим — поки modal був закритий
   // compress worker міг записати thumbnail_url у DB, але realtime refresh skipped
   // через `if (modalBackdrop.open) return` guard у Store._refreshAfterChange.
