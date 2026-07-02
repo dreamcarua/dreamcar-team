@@ -69,17 +69,22 @@ function render(D){
    +'<div class="sub">Звіт сформовано: '+gen+' · Джерело: носимі датчики (Apple Watch/iPhone) + лабораторний чекап</div></div>'
    +'<div class="stamp">HEALTH<br>SUMMARY</div></div>';
 
+ // 1. КЛІНІЧНИЙ ФОКУС — курований список значущого (без пограничного шуму)
  const flagged=(labs.results||[]).filter(r=>r.flag&&r.flag!=='normal');
- h+='<h2 class="crit">Клінічний фокус — активні проблеми</h2>';
- h+='<ol class="focus">';
- const ldl=findLab(labs,['ЛПНЩ (LDL)']), tc=findLab(labs,['Холестерин загальний']), nonhdl=findLab(labs,['Не-HDL холестерин']);
- if(ldl&&num(ldl.value)>115)h+='<li><b>Дисліпідемія.</b> LDL '+f(ldl.value,0)+' (ціль &lt;115)'+(tc?', заг. ХС '+f(tc.value,0):'')+(nonhdl?', не-HDL '+f(nonhdl.value,0):'')+'. Пріоритет №1.</li>';
- for(const r of flagged){if(ldl&&r.raw_name===ldl.raw_name)continue;if(tc&&r.raw_name===tc.raw_name)continue;if(nonhdl&&r.raw_name===nonhdl.raw_name)continue;h+='<li><b>'+esc(r.raw_name)+':</b> '+f(r.value,2)+' '+esc(r.unit||'')+' ('+flagName(r.flag)+', реф. '+refTxt(r)+')</li>';}
+ const ldl=findLab(labs,['ЛПНЩ (LDL)']), tc=findLab(labs,['Холестерин загальний']), nonhdl=findLab(labs,['Не-HDL холестерин']), ferr=findLab(labs,['Феритин']);
+ h+='<h2 class="crit">Клінічний фокус — активні проблеми</h2><ol class="focus">';
+ if(ldl&&num(ldl.value)>115)h+='<li><b>Дисліпідемія (пріоритет №1).</b> LDL '+f(ldl.value,0)+' (ціль &lt;115)'+(tc?', заг. ХС '+f(tc.value,0):'')+(nonhdl?', не-HDL '+f(nonhdl.value,0):'')+'. Терапія: Lipiform, середземноморська дієта, омега-3.</li>';
+ for(const x of (cv.risks||[])){if(/LDL|холестерин|не-HDL/i.test(x.n))continue;h+='<li>'+esc(x.n)+'</li>';}
+ if(ferr&&ferr.flag==='high')h+='<li><b>Феритин '+f(ferr.value,0)+'</b> (реф &lt;'+f(ferr.ref_high,0)+') — ізольовано підвищений при нормальних CRP/АЛТ; за стійкості — насичення трансферину.</li>';
+ for(const j of img){const t=(j.title||'')+' '+(j.body||'');if(/щитопод|тиреоїд|TIRADS/i.test(t)){h+='<li><b>Щитоподібна:</b> TIRADS 2, ТТГ на верхній межі норми — спостереження на автоімунний тиреоїдит (анти-ТПО/ТГ заплановано), консультація ендокринолога.</li>';break;}}
+ for(const j of img){if(/печінк|НАЖБП/i.test(j.body||'')){h+='<li><b>Печінка:</b> неоднорідна ехогенність на УЗД — моніторинг (звʼязок з ліпідами/феритином).</li>';break;}}
  h+='</ol>';
  if(cv.note)h+='<div class="note">'+esc(cv.note)+'</div>';
 
+ // 2. АКТИВНА ТЕРАПІЯ
  if(meds.length){h+='<h2>Активна терапія та добавки ('+meds.length+')</h2><table><thead><tr><th style="width:34%">Препарат</th><th style="width:20%">Графік</th><th>Призначення</th></tr></thead><tbody>';for(const m of meds)h+='<tr><td class="hl">'+esc(m.name)+'</td><td>'+esc(m.schedule||'')+'</td><td>'+esc(m.purpose||'')+'</td></tr>';h+='</tbody></table><div class="note">⚠ Lipiform містить монаколін К (природний статин) — врахувати при призначенні статинів, контроль АЛТ/КФК.</div>';}
 
+ // 3. ВІТАЛИ + ТИСК
  h+='<h2>Вітали, тиск і аеробна форма</h2><table><thead><tr><th>Показник</th><th style="width:30%">Значення</th><th>Норма / коментар</th></tr></thead><tbody>';
  const bpTxt=bp.sys_last!=null?(f(bp.sys_last)+'/'+f(bp.dia_last)+' мм рт.ст.'+(bp.sys7!=null?(' · сер.7дн '+f(bp.sys7)+'/'+f(bp.dia7)+' (n='+f(bp.n)+')'):'')):'—';
  const bpNorm=bp.sys_last==null?'ще не вимірювався':(num(bp.sys_last)>=140||num(bp.dia_last)>=90?'високий':(num(bp.sys_last)>=130?'підвищений':'норма'));
@@ -96,15 +101,19 @@ function render(D){
  for(const r of vit)h+='<tr><td>'+r[0]+'</td><td class="hl">'+r[1]+'</td><td class="ref">'+r[2]+'</td></tr>';
  h+='</tbody></table>';
 
+ // 4. ЛАБИ ПОЗА НОРМОЮ
  if(flagged.length){h+='<h2>Лабораторні показники поза референсом — '+esc(labs.lab||'')+' ('+esc(labs.date||'')+')</h2>';
   h+='<table><thead class="lh"><tr><th>Показник</th><th style="width:22%">Значення</th><th style="width:20%">Референс</th><th style="width:18%">Стан</th></tr></thead><tbody>';for(const r of flagged)h+=labRow(r);h+='</tbody></table>';}
 
+ // 5. СС-РИЗИК
  if(cv.level){h+='<h2>Серцево-судинний ризик: <span class="risk">'+esc(cv.level)+'</span></h2>';
   h+='<div class="two"><div><div class="rlab risk">Фактори ризику</div><ul>'+(cv.risks||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
   h+='<div><div class="rlab prot">Протективні фактори</div><ul>'+(cv.protective||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div></div>';}
 
- if(img.length){h+='<h2>Інструментальні обстеження (заключення)</h2>';for(const j of img){h+='<div class="exam"><span class="hl">'+esc(j.title||'')+'</span> <span class="ref">'+esc(j.d||'')+'</span><div>'+esc(j.body||'')+'</div></div>';}}
+ // 6. ОБСТЕЖЕННЯ ТА КОНСУЛЬТАЦІЇ
+ if(img.length){h+='<h2>Обстеження та консультації спеціалістів</h2>';for(const j of img){h+='<div class="exam"><span class="hl">'+esc(j.title||'')+'</span> <span class="ref">'+esc(j.d||'')+'</span><div>'+esc(j.body||'')+'</div></div>';}}
 
+ // 7. ПОВНА ЛАБА
  if(labs.results&&labs.results.length){h+='<h2>Повна лабораторна панель ('+labs.results.length+' показників)</h2>';
   h+='<table class="full"><thead><tr><th>Показник</th><th style="width:20%">Значення</th><th style="width:18%">Референс</th><th style="width:14%">Стан</th></tr></thead><tbody>';for(const r of labs.results)h+=labRow(r);h+='</tbody></table>';}
 
@@ -115,10 +124,26 @@ function render(D){
 (function(){
  let t=location.hash.slice(1); if(t.indexOf('k=')===0)t=t.slice(2);
  document.getElementById('back').href='index.html'+(t?('#k='+t):'');
- if(!t){document.getElementById('page').innerHTML='<div class="msg">Додай токен у посилання: <code>#k=ТВІЙ_ТОКЕН</code></div>';return;}
- fetch(API+'?k='+encodeURIComponent(t)).then(r=>r.json()).then(D=>{
-   if(!D||D.error){document.getElementById('page').innerHTML='<div class="msg">Невірний токен або немає даних.</div>';return;}
-   render(D);
- }).catch(e=>{document.getElementById('page').innerHTML='<div class="msg">Помилка: '+esc(String(e))+'</div>';});
+ const page=document.getElementById('page');
+ if(!t){page.innerHTML='<div class="msg">Додай токен у посилання: <code>#k=ТВІЙ_ТОКЕН</code></div>';return;}
+ let tries=0;
+ function load(){
+   tries++;
+   fetch(API+'?k='+encodeURIComponent(t)+'&cb='+Date.now(),{cache:'no-store'}).then(r=>r.json().then(D=>({s:r.status,D:D}))).then(({s,D})=>{
+     if(s===401){page.innerHTML='<div class="msg">Невірний токен доступу. Відкрий звіт через кнопку на дашборді.</div>';return;}
+     if((D&&D.building)||s===503){
+       page.innerHTML='<div class="msg">Дані ще збираються… автоматично оновлюю ('+tries+').</div>';
+       if(tries<5)setTimeout(load,3000);
+       else page.innerHTML='<div class="msg">Дані тимчасово недоступні. Онови сторінку за хвилину.</div>';
+       return;
+     }
+     if(!D||D.error){page.innerHTML='<div class="msg">'+esc((D&&D.error)||'немає даних')+'</div>';return;}
+     render(D);
+   }).catch(e=>{
+     if(tries<5){page.innerHTML='<div class="msg">Мережа недоступна, повтор ('+tries+')…</div>';setTimeout(load,3000);}
+     else page.innerHTML='<div class="msg">Помилка мережі: '+esc(String(e))+'</div>';
+   });
+ }
+ load();
 })();
 </script></body></html>
