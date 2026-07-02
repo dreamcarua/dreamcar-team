@@ -367,7 +367,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    z-index: 1000;
+    z-index: 10001; /* #SMM 02.07.2026: вище .modal-backdrop(10000) — прогрес стиску відео видно ПОВЕРХ модалки публікації (раніше 1000 → ховався під модалкою → «немає анімації») */
     max-width: 360px;
   }
   .toast {

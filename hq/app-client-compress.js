@@ -224,8 +224,12 @@
     var inputName = 'input.' + (fileExt(file.name) || 'mp4');
     var outputName = 'output.mp4';
     try {
-      toast.update(10, 'Завантажую в worker…');
+      var _mb = Math.round(file.size / 1024 / 1024);
+      // #SMM 02.07.2026: для великого відео читання у памʼять застрягає на 10% без прогресу
+      // (fetchFile+writeFile не дають callback) → виглядало як заморозка. Явний текст.
+      toast.update(8, _mb > 80 ? ('Читаю велике відео ' + _mb + ' МБ у памʼять… (може зайняти до хвилини)') : 'Завантажую в worker…');
       await ffmpeg.writeFile(inputName, await fetchFile(file));
+      toast.update(12, 'Готую до кодування…');
       ffmpeg.on('progress', function(ev){
         var pct = 10 + (ev.progress * 80);
         toast.update(pct, 'Кодую відео: ' + Math.round(ev.progress * 100) + '%');
@@ -291,6 +295,14 @@
     window.uploadCreativeFile = async function(file, pub){
       if (!file) return;
       var compressed = await compressFileIfPossible(file);
+      // #SMM 02.07.2026: guard — відео завелике для Telegram (>49МБ) навіть після стиску.
+      // Раніше залив мовчки → tg-post-send скіпав відео → пост виходив БЕЗ відео (Вадим).
+      if (isVideo(compressed) && compressed.size > VIDEO_MAX_MB * 1024 * 1024) {
+        var _mb = (compressed.size/1024/1024).toFixed(0);
+        try { if (typeof toast === 'function') toast('Відео завелике для Telegram', 'error', _mb + 'МБ > 50МБ ліміт'); } catch(_){}
+        alert('⚠️ Відео ' + _mb + ' МБ — завелике для Telegram (ліміт 50 МБ) навіть після стиску у браузері.\n\nБраузер не може стиснути це відео сильніше. Скороти тривалість (орієнтовно до ~1 хв) або зменш роздільність/якість перед завантаженням і спробуй знову.');
+        throw new Error('CC: video too large for TG (' + _mb + 'MB)');
+      }
       // app-drive.js v2 (Supabase Storage) сам встановить compressed_url
       // + compressed_status='ready' у INSERT. Нічого більше робити не треба.
       return await _orig.call(this, compressed, pub);

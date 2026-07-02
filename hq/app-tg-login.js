@@ -107,6 +107,7 @@
     'app-uxr.js',
     'app-rework-modal.js',          // FEAT #122: structured rework feedback
     'app-pwa.js',
+    'app-client-compress.js',       // #SMM 02.07.2026: клієнт-стиск відео/фото НЕ вантажився на головній SMM (був лише у compress-batch-v2.html) → 200МБ відео летіло у Storage напряму → tg-post-send скіпав (>50МБ TG-ліміт) → «пост БЕЗ відео» + жодного тоста прогресу. Тепер у ланцюгу: стиск до ≤49МБ + прогрес-тост (z-index>modal) + size-guard.
   ];
   chain.forEach(function (name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
