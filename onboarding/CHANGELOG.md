@@ -8,6 +8,12 @@
 
 ---
 
+## 02.07.2026 — Каса: mobile overflow fix + дивіденди роз'яснення
+
+### Каса /kasa/ (Vadym)
+- 🔧 **Mobile overflow fix:** `.wrap` (grid-area main у `.app-layout`) мав `min-width:auto` → 12 таблиць розпирали сторінку за viewport на телефоні (картки «Безготівка»/«Дивіденди», кнопка «+ Готівкова операція», колонка «Дії» обрізались праворуч). Фікс: `.app-layout>.wrap{min-width:0}` + `html,body{overflow-x:hidden}` + мобільні padding/kpis/search tweaks. dashboard.dreamcar.ua/kasa/ [commit 7411310](https://github.com/dreamcarua/dreamcar-dashboard/commit/7411310)
+- ℹ️ **Дивіденди «0» — не баг:** вкладка «ДИВІДЕНДИ (2)» = 2 книги (Вадим, Артем), не 2 виплати. RPC `kasa_dividends` за весь час = 0/0, транзакцій `div_to` = 0 → виплат дивідендів фактично не було жодної. Фільтр періоду (дефолт «12 місяців») ні до чого.
+
 ## 01.07.2026 — verify-publication-ig v7 + timezone Kyiv (#554)
 
 ### SMM Verify + Health (Vadym)
