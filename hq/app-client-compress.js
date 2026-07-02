@@ -268,11 +268,13 @@
       if (isPhoto(file) && !isGif(file)) {
         out = await compressPhoto(file, toast);
       } else if (isVideo(file)) {
-        if (file.size < VIDEO_MAX_MB * 1024 * 1024 * 0.9) {
-          toast.close(true, 'Вже компактне відео, не чіпаю');
-          return file;
-        }
-        out = await compressVideo(file, toast);
+        // #SMM 02.07.2026: НЕ стискаємо відео у браузері. Серверний worker
+        // (compress-creative-worker.sh, cron */3) робить це коректно — з setsar=1,
+        // rotation-fix (#260) і HDR tone-mapping (#256). Браузерний ffmpeg.wasm filter був
+        // примітивний (без setsar/rotation) → СПОТВОРЮВАВ aspect («сжате по вертикалі», 02.07).
+        // Тому відео заливаємо як є → server worker стисне до CRF18 ≤50МБ правильно.
+        toast.close(true, 'Відео стисне сервер (якісніше) — заливаю оригінал');
+        return file;
       } else {
         toast.close(true, 'Не фото/відео — як є');
         return file;
@@ -295,16 +297,8 @@
     window.uploadCreativeFile = async function(file, pub){
       if (!file) return;
       var compressed = await compressFileIfPossible(file);
-      // #SMM 02.07.2026: guard — відео завелике для Telegram (>49МБ) навіть після стиску.
-      // Раніше залив мовчки → tg-post-send скіпав відео → пост виходив БЕЗ відео (Вадим).
-      if (isVideo(compressed) && compressed.size > VIDEO_MAX_MB * 1024 * 1024) {
-        var _mb = (compressed.size/1024/1024).toFixed(0);
-        try { if (typeof toast === 'function') toast('Відео завелике для Telegram', 'error', _mb + 'МБ > 50МБ ліміт'); } catch(_){}
-        alert('⚠️ Відео ' + _mb + ' МБ — завелике для Telegram (ліміт 50 МБ) навіть після стиску у браузері.\n\nБраузер не може стиснути це відео сильніше. Скороти тривалість (орієнтовно до ~1 хв) або зменш роздільність/якість перед завантаженням і спробуй знову.');
-        throw new Error('CC: video too large for TG (' + _mb + 'MB)');
-      }
-      // app-drive.js v2 (Supabase Storage) сам встановить compressed_url
-      // + compressed_status='ready' у INSERT. Нічого більше робити не треба.
+      // Відео: compressed === оригінал (браузер його не чіпає) → серверний worker стисне ≤50МБ.
+      // Фото: стиснуте BIC/heic2any. app-drive.js (Storage) виставить compressed_url/status.
       return await _orig.call(this, compressed, pub);
     };
     window.uploadCreativeFile.__clientCompressPatched = true;
