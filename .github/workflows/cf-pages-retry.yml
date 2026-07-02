@@ -1,77 +1,70 @@
-name: CF Pages Force Retry
-
+name: CF Pages Retry
 on:
   workflow_dispatch:
-
 jobs:
   retry:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: CF Pages — find project and retry latest deployment
+      - name: Find account and project
+        id: info
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
           set -e
+          ACC=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts?per_page=5" | \
+            python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['id'])")
+          echo "account_id=$ACC" >> $GITHUB_OUTPUT
+          echo "Account: $ACC"
 
-          echo "=== 1. Get CF Account ID ==="
-          ACCOUNTS=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts?per_page=5")
-          ACCOUNT_ID=$(echo "$ACCOUNTS" | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['id'])")
-          echo "Account ID: $ACCOUNT_ID"
-
-          echo "=== 2. List Pages projects ==="
           PROJECTS=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects?per_page=25")
+            "https://api.cloudflare.com/client/v4/accounts/$ACC/pages/projects?per_page=25")
           echo "$PROJECTS" | python3 -c "
 import json,sys
-d=json.load(sys.stdin)
-for p in d.get('result',[]):
-    print('PROJECT:', p['name'], '| subdomain:', p.get('subdomain',''), '| domains:', p.get('domains',[]))
+for p in json.load(sys.stdin).get('result',[]):
+    print(p['name'], p.get('subdomain',''), p.get('domains',[]))
 "
-
-          echo "=== 3. Find dreamcar-team project ==="
-          PROJECT_NAME=$(echo "$PROJECTS" | python3 -c "
+          PNAME=$(echo "$PROJECTS" | python3 -c "
 import json,sys
-d=json.load(sys.stdin)
-for p in d.get('result',[]):
-    name = p.get('name','')
-    sub  = p.get('subdomain','')
-    doms = str(p.get('domains',[]))
-    if 'dreamcar-team' in name or 'team.dreamcar.ua' in doms or 'dreamcar-team' in sub:
-        print(name)
-        break
-" 2>/dev/null || true)
-          if [ -z "\$PROJECT_NAME" ]; then
-            echo "::warning::dreamcar-team not found — using first project"
-            PROJECT_NAME=$(echo "$PROJECTS" | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['name'])")
+for p in json.load(sys.stdin).get('result',[]):
+    n,s,d=p.get('name',''),p.get('subdomain',''),str(p.get('domains',[]))
+    if 'dreamcar-team' in n or 'team.dreamcar.ua' in d or 'dreamcar-team' in s:
+        print(n); break
+" || echo "")
+          if [ -z "$PNAME" ]; then
+            PNAME=$(echo "$PROJECTS" | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['name'])")
           fi
-          echo "Project name: $PROJECT_NAME"
+          echo "project_name=$PNAME" >> $GITHUB_OUTPUT
+          echo "Project: $PNAME"
 
-          echo "=== 4. Get latest deployments ==="
+      - name: Retry latest deployment
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          ACCOUNT_ID: ${{ steps.info.outputs.account_id }}
+          PROJECT_NAME: ${{ steps.info.outputs.project_name }}
+        run: |
+          set -e
           DEPS=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/$PROJECT_NAME/deployments?per_page=5")
           echo "$DEPS" | python3 -c "
 import json,sys
-d=json.load(sys.stdin)
-for dep in d.get('result',[]):
-    stage = dep.get('latest_stage',{})
-    print('DEP:', dep['id'], '|', dep.get('created_on',''), '|', stage.get('name',''), '-', stage.get('status',''))
+for d in json.load(sys.stdin).get('result',[]):
+    st=d.get('latest_stage',{})
+    print(d['id'], d.get('created_on',''), st.get('name',''), st.get('status',''))
 "
-          DEPLOYMENT_ID=$(echo "$DEPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['id'])")
-          echo "Retrying deployment: $DEPLOYMENT_ID"
+          DEP_ID=$(echo "$DEPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['id'])")
+          echo "Retrying: $DEP_ID"
 
-          echo "=== 5. Retry deployment ==="
-          RETRY=$(curl -s -X POST \
+          RESP=$(curl -s -X POST \
             -H "Authorization: Bearer $CF_API_TOKEN" \
             -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/$PROJECT_NAME/deployments/$DEPLOYMENT_ID/retry")
-          echo "Response: $RETRY"
-          if echo "$RETRY" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('success') else 1)"; then
-            NEW_ID=$(echo "$RETRY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result',{}).get('id','?'))")
-            echo "::notice::SUCCESS — new deployment ID: $NEW_ID"
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/$PROJECT_NAME/deployments/$DEP_ID/retry")
+          echo "Response: $RESP"
+
+          if echo "$RESP" | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin).get('success') else 1)"; then
+            echo "SUCCESS"
           else
-            ERRS=$(echo "$RETRY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('errors','unknown'))")
-            echo "::error::Retry failed: $ERRS"
+            echo "FAILED"
             exit 1
           fi
