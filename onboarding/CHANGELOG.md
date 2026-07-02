@@ -8,6 +8,13 @@
 
 ---
 
+## 02.07.2026 — Kasa #14: захист ручних міток (div_to/excl_pnl) від стирання
+
+### Каса дивіденди (Vadym)
+- 🛡 **Корінь зникнення дивідендів:** `kasa-sync-privat` має нестабільний `external_id` (fallback з обрізаного опису, коли банк не дає ID/REF) → при re-sync та сама транзакція отримує новий рядок (новий id, `div_to=null`) → dedup 22-24.06 видаляв старі рядки з мітками. Регулярний upsert `div_to` НЕ чіпає (його немає в payload) — стирали саме дублі+dedup.
+- 🔧 **Рішення:** shadow-таблиця `kasa_manual_marks` (natural key: account+date+amount+direction → div_to/excl_pnl) + тригер `kasa_preserve_marks` BEFORE INSERT/UPDATE на `kasa_transactions`: зберігає мітку при заданні, **відновлює при будь-якому пере-створенні рядка** (re-sync/dedup), незалежно від id. Seed 12 поточних міток.
+- ✅ Верифіковано: симуляція re-sync (INSERT дубля дивіденда з `div_to=null`) → тригер миттєво відновив `div_to='split'`. Тестовий рядок прибрано, дивіденди `1 548 200 ₴` (Вадим/Артем по 774 100) захищені.
+
 ## 02.07.2026 — SMM #5: автопост — fallback каналу на тест-чат
 
 ### SMM автопост (Vadym)
