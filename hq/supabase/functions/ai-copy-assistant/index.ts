@@ -192,7 +192,10 @@ async function callClaude(prompt: string): Promise<{ text: string; tokensIn: num
     throw new Error(`Anthropic API ${resp.status}: ${err}`);
   }
   const data = await resp.json();
-  const text = data.content?.[0]?.text || "";
+  // claude-sonnet-5 може повертати кілька content-блоків (thinking + text) —
+  // беремо саме text-блок, а не content[0] (інакше text порожній).
+  const blocks = Array.isArray(data.content) ? data.content : [];
+  const text = (blocks.find((c: any) => c?.type === "text")?.text) || blocks[0]?.text || "";
   return {
     text,
     tokensIn: data.usage?.input_tokens || 0,
