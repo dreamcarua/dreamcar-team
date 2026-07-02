@@ -143,6 +143,12 @@ async function verifyPublication(sb: any, pubId: string, igMediaCache: IGMedia[]
   const stakeholders = await getStakeholders(sb, pubId, pub.created_by);
 
   const hasIG = platforms.length === 0 || platforms.includes("ig");
+  // #SMM 02.07.2026: verify-ig перевіряє ЛИШЕ IG-публікації. TG-only (та інші не-IG) не чіпаємо —
+  // їх публікує автопост, ручна IG-перевірка з кнопками недоречна (Вадим: приходило дивне «IG не підтвердив»).
+  if (platforms.length > 0 && !platforms.includes("ig")) {
+    await cleanupCronJob(sb, pubId);
+    return { result: "skipped_not_ig" };
+  }
   if (hasIG && FB_ACCESS_TOKEN) {
     try {
       const media = igMediaCache ?? await fetchIGRecentMedia();

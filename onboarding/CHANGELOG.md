@@ -15,6 +15,14 @@
 - 🔧 **Рішення:** shadow-таблиця `kasa_manual_marks` (natural key: account+date+amount+direction → div_to/excl_pnl) + тригер `kasa_preserve_marks` BEFORE INSERT/UPDATE на `kasa_transactions`: зберігає мітку при заданні, **відновлює при будь-якому пере-створенні рядка** (re-sync/dedup), незалежно від id. Seed 12 поточних міток.
 - ✅ Верифіковано: симуляція re-sync (INSERT дубля дивіденда з `div_to=null`) → тригер миттєво відновив `div_to='split'`. Тестовий рядок прибрано, дивіденди `1 548 200 ₴` (Вадим/Артем по 774 100) захищені.
 
+## 02.07.2026 — SMM #5b: timezone фікс + worker на pg_cron
+
+### SMM автопост / час (Vadym)
+- 🕐 **Timezone баг (головна причина «не летить у заданий час»):** редактор конвертував `publish_at` за БРАУЗЕРНИМ поясом. Вадим у Польщі (Europe/Warsaw, UTC+2) вводив 15:56, а зберігалось 16:56 Київ (+1 год); показ теж був варшавський. Виправлено: `utcToKyivInput()`/`kyivInputToUTC()` — редактор тепер завжди в Києвському часі незалежно від браузера (app-views.js).
+- 🔧 **Worker на pg_cron:** GH Action worker (tg-autopost) був мертвий — черга висіла `pending`, `worker_id=null`. Замінено на pg_cron `autopost-worker-pg` (*/5) → `process_autopost_queue()` claim → tg-post-send. Той самий надійний механізм, що й cron-reminders.
+- 🛡 **Idempotency (проти дублів):** unique index `uq_autopost_active` (1 активний job на pub+platform) + `complete_autopost_job(2-arg)` overload + `tg_message_id` guard у tg-post-send.
+- ✅ Верифіковано: тестова публікація полетіла в тест-чат один раз (autopost_status='sent').
+
 ## 02.07.2026 — SMM #5: автопост — fallback каналу на тест-чат
 
 ### SMM автопост (Vadym)
