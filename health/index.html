@@ -141,9 +141,12 @@ function hydrationBlock(D){
 function remindersBlock(rem){
  if(!rem||!rem.length)return '';
  const rs=rem.slice().sort((a,b)=>(a.days??999)-(b.days??999));
- const top=rs.slice(0,3);
- let h='<div class="rem">🔔 '+top.map(r=>esc(r.title)+' — '+(r.days>0?('через '+r.days+' дн'):'сьогодні')).join(' · ');
- if(rs.length>3)h+=' · <a href="#g-ref" style="color:#93C5FD">усі '+rs.length+' →</a>';
+ const top=rs.slice(0,4);
+ let h='<h2>🗓 Найближчі контролі</h2><div class="panel"><table><tbody>';
+ for(const r of top){const dc=r.days<=7?'#F87171':(r.days<=30?'#FBBF24':'#8A8A8A');
+  h+='<tr><td>'+esc(r.title)+'</td><td class="sub" style="white-space:nowrap">'+esc(r.due||'')+'</td><td style="text-align:right;white-space:nowrap"><span class="delta flat" style="color:'+dc+'">'+(r.days>0?('через '+f(r.days)+' дн'):'сьогодні')+'</span></td></tr>';}
+ h+='</tbody></table>';
+ if(rs.length>top.length)h+='<div style="padding:0 14px 10px"><a href="#g-ref" class="sub" style="color:#93C5FD;text-decoration:none">усі '+rs.length+' → календар контролів</a></div>';
  h+='</div>';return h;
 }
 function allReminders(rem){
