@@ -6,15 +6,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Get CF account ID
+      - name: Get account ID from zone
         id: acc
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
         run: |
-          RESP=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts?per_page=5")
-          ACC=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['id'])")
+          set -e
+          echo "Getting account ID via zone..."
+          ZONE=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID")
+          echo "Zone response success: $(echo $ZONE | python3 -c "import json,sys; print(json.load(sys.stdin).get('success'))")"
+          ACC=$(echo "$ZONE" | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['account']['id'])")
           echo "account_id=$ACC" >> $GITHUB_OUTPUT
-          echo "Account: $ACC"
+          echo "Account ID: $ACC"
 
       - name: Find Pages project and retry deployment
         env:
@@ -22,17 +26,20 @@ jobs:
           ACCOUNT_ID: ${{ steps.acc.outputs.account_id }}
         run: |
           set -e
+          echo "Listing Pages projects for account $ACCOUNT_ID..."
           PROJECTS=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects?per_page=25")
-          echo "Projects: $PROJECTS"
+          echo "Projects success: $(echo $PROJECTS | python3 -c "import json,sys; print(json.load(sys.stdin).get('success'))")"
+          echo "$PROJECTS" | python3 -c "import json,sys; [print(p['name'], p.get('domains',[])) for p in json.load(sys.stdin).get('result',[])]"
+
           PNAME=$(echo "$PROJECTS" | python3 -c "import json,sys; r=json.load(sys.stdin)['result']; p=[x['name'] for x in r if 'dreamcar-team' in x.get('name','') or 'team.dreamcar.ua' in str(x.get('domains',[]))]; print(p[0] if p else r[0]['name'])")
           echo "Project: $PNAME"
 
           DEPS=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/$PNAME/deployments?per_page=5")
-          echo "Deployments: $DEPS"
+          echo "$DEPS" | python3 -c "import json,sys; [print(d['id'], d.get('created_on',''), d.get('latest_stage',{}).get('status','')) for d in json.load(sys.stdin).get('result',[])]"
           DEP_ID=$(echo "$DEPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['id'])")
-          echo "Retrying deployment: $DEP_ID"
+          echo "Retrying: $DEP_ID"
 
           RESP=$(curl -s -X POST -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/$PNAME/deployments/$DEP_ID/retry")
-          echo "Retry response: $RESP"
-          echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print('SUCCESS:', d['result'].get('id','?')) if d.get('success') else print('FAILED:', d.get('errors'))"
+          echo "Retry: $RESP"
+          echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print('OK:', d.get('result',{}).get('id')) if d.get('success') else print('ERR:', d.get('errors'))"
           echo "$RESP" | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin).get('success') else 1)"
