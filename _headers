@@ -3,7 +3,9 @@
 # КОЖЕН раз), JS/CSS = immutable (cache forever, версія у URL вирішує).
 # Це усуває потребу робити hard reload після кожного deploy — нова версія
 # index.html завжди свіжа, нові script URLs автоматично завантажуються.
-# (touch для trigger auto-cache-bust workflow тестування)
+# 02.07.2026: re-deploy trigger — health no-store правила (нижче) не були застосовані
+# на проді (CF Pages не задеплоїв), через що team.dreamcar.ua/health/report.html
+# застрягав на max-age=600. Цей коміт форсує повний re-deploy.
 
 # Index.html кожного app — NO-CACHE (завжди revalidate, edge bypass)
 /hq/
