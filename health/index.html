@@ -98,9 +98,13 @@ function readiness(rd){
  const r=rd.recovery||rd, ld=rd.load||{};
  if(r.score==null)return '';
  const sc=num(r.score);const cls=sc>=75?'rd-green':(sc>=55?'rd-amber':'rd-red');
+ let staleBanner='';
+ if(r.stale){const hh=r.stale_hrs!=null?Math.round(num(r.stale_hrs)):null;
+   staleBanner='<div class="warn">⚠️ <b>Дані застарілі'+(hh!=null?' (~'+hh+' год без синку)':'')+'.</b> Apple Health не синкнув нову ніч — нижче показано сон за '+esc(r.sleep_date||'?')+' ('+f(r.sleep,1)+' год), а НЕ сьогоднішній. Відкрий Health Auto Export, щоб оновити.</div>';}
+ const nightTxt=r.stale?('сон за '+esc(r.sleep_date||'?')+' · застаріло'):'за ніч · фіксується зранку';
  let mt='😴 Сон '+f(r.sleep,1)+' год · 📈 HRV '+f(r.hrv)+'/'+f(r.hrv_base)+' · ❤️ нічний пульс '+f(r.rhr)+'/'+f(r.rhr_base);
  const al=(r.alerts||[]);const t100=(r.to100||[]);
- let h='<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div style="flex:1"><div class="nm">🌙 Відновлення: '+esc(r.status)+' <span class="sub" style="font-weight:400">(за ніч · фіксується зранку)</span></div><div class="mt">'+mt+'</div>';
+ let h=staleBanner+'<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div style="flex:1"><div class="nm">🌙 Відновлення: '+esc(r.status)+' <span class="sub" style="font-weight:400">('+nightTxt+')</span></div><div class="mt">'+mt+'</div>';
  if(al.length)h+='<div class="al">⚠️ '+al.map(esc).join('; ')+'</div>';
  if(t100.length){h+='<div class="mt" style="margin-top:7px"><b>🎯 Щоб відновлення ближче до 100:</b></div><ul>';for(const a of t100.slice(0,3))h+='<li>'+esc(a.text)+(a.gain?' <span class="sub">(≈ +'+a.gain+')</span>':'')+'</li>';h+='</ul>';}
  h+='</div></div>';
@@ -491,10 +495,17 @@ function render(D){
 }
 (function(){
  let t=location.hash.slice(1); if(t.indexOf('k=')===0)t=t.slice(2);
- if(!t){document.getElementById('sub').innerHTML='<div class="msg">Додай токен у посилання: <code>#k=ТВІЙ_ТОКЕН</code></div>';return;}
- fetch(API+'?k='+encodeURIComponent(t)).then(r=>r.json()).then(D=>{
-   if(!D||D.error){document.getElementById('sub').innerHTML='<div class="msg">Невірний токен або немає даних.</div>';return;}
+ const sub=document.getElementById('sub');
+ if(!t){sub.innerHTML='<div class="msg">Додай токен у посилання: <code>#k=ТВІЙ_ТОКЕН</code></div>';return;}
+ let tries=0;
+ function load(){tries++;
+  fetch(API+'?k='+encodeURIComponent(t)+'&cb='+Date.now(),{cache:'no-store'}).then(r=>r.json().then(D=>({s:r.status,D:D}))).then(({s,D})=>{
+   if(s===401){sub.innerHTML='Невірний токен доступу.';return;}
+   if((D&&D.building)||s===503){sub.innerHTML='Дані збираються… ('+tries+')';if(tries<5)setTimeout(load,3000);return;}
+   if(!D||D.error){sub.innerHTML=esc((D&&D.error)||'немає даних');return;}
    render(D);
- }).catch(e=>{document.getElementById('sub').innerHTML='<div class="msg">Помилка завантаження: '+e+'</div>';});
+  }).catch(e=>{if(tries<5){setTimeout(load,3000);}else sub.innerHTML='Помилка мережі: '+esc(String(e));});
+ }
+ load();
 })();
 </script></body></html>
