@@ -8,6 +8,11 @@
 
 ---
 
+## 06.07.2026 — Marketing: інструмент розкидки engagement-поста
+
+### Meta / dreamcar-dashboard (Vadym + Cowork)
+- 🆕 **`spread-engagement-post.yml` + `scripts/spread_engagement_post.py`** — розкидає існуючий пост-ad по адсетах кампанії одним creative_id (коменти в один тред), з ensure promoted_object та ідемпотентністю (скіп, якщо креатив уже в адсеті). Запуск: `gh workflow run spread-engagement-post.yml -R dreamcarua/dreamcar-dashboard -f ad_id=<еталон> -f adset_ids=<csv> -f activate=true`. Перше застосування: пост «я щось купив» → усі 7 груп DC|06 Engagement.
+
 ## 03.07.2026 — SMM: статус не зберігався при швидкому закритті картки
 
 ### SMM картка публікації (Vadym)
