@@ -6,6 +6,7 @@
 # 02.07.2026: re-deploy trigger — health no-store правила (нижче) не були застосовані
 # на проді (CF Pages не задеплоїв), через що team.dreamcar.ua/health/report.html
 # застрягав на max-age=600. Цей коміт форсує повний re-deploy.
+# 06.07.2026: додано /health/vadym (коротке дзеркало дашборда) + re-deploy trigger.
 
 # Index.html кожного app — NO-CACHE (завжди revalidate, edge bypass)
 /hq/
@@ -57,6 +58,14 @@
   CDN-Cache-Control: no-store
 
 /health/report.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/health/vadym
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/health/vadym/
   Cache-Control: no-cache, no-store, must-revalidate, max-age=0
   CDN-Cache-Control: no-store
 
