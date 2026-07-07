@@ -1,5 +1,6 @@
-<!doctype html><html lang="uk"><head><meta charset="utf-8"><!-- build:2026-07-02T16:00 focus-first -->
+<!doctype html><html lang="uk"><head><meta charset="utf-8"><!-- build:2026-07-07 daily-vitals + i18n EN -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
 <title>Медичний підсумок · Health</title>
 <style>
 *{box-sizing:border-box}
@@ -23,6 +24,7 @@ thead.lh th{background:#7a2230}
 tbody tr:nth-child(even){background:#f5f7f9}
 table.full td,table.full th{font-size:11.5px;padding:3.5px 8px}
 .flag{color:var(--red);font-weight:700}
+.okv{color:var(--green);font-weight:600}
 .ref{color:var(--muted)}
 .hl{font-weight:600}
 .risk{color:var(--red)}.prot{color:var(--green)}
@@ -31,6 +33,7 @@ table.full td,table.full th{font-size:11.5px;padding:3.5px 8px}
 .two ul{margin:2px 0;padding-left:16px}.two li{margin:2px 0;font-size:12px}
 ol.focus{margin:4px 0 0;padding-left:20px}ol.focus li{margin:4px 0;padding-left:2px}
 ol.focus li b{color:var(--red)}
+ul.watch{margin:4px 0 0;padding-left:20px}ul.watch li{margin:4px 0}
 .note{background:#f5f7f9;border-left:3px solid var(--amber);color:var(--ink);font-size:11.5px;padding:6px 10px;margin-top:8px;border-radius:0 4px 4px 0}
 .exam{margin:7px 0;padding-bottom:6px;border-bottom:1px dotted var(--line)}
 .exam:last-child{border-bottom:none}.exam>div{color:var(--muted);font-size:12px;margin-top:2px}
@@ -47,101 +50,233 @@ ol.focus li b{color:var(--red)}
 }
 </style></head><body>
 <div class="toolbar">
-  <a id="back" href="#">← Дашборд</a>
-  <button class="btn" onclick="window.print()">⬇️ Завантажити PDF</button>
+  <a id="back" href="#">←</a>
+  <span><a id="langsw" href="#" style="margin-right:14px">EN</a>
+  <button class="btn" id="printbtn" onclick="window.print()">⬇️ PDF</button></span>
 </div>
 <div class="page" id="page"><div class="msg">Завантаження…</div></div>
 <script>
 const API="https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/health-dashboard";
 const num=v=>v==null?null:(typeof v==='number'?v:parseFloat(v));
-const f=(v,d=0)=>v==null||isNaN(v)?'—':Number(v).toLocaleString('uk-UA',{maximumFractionDigits:d});
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const qs=new URLSearchParams(location.search);
+const LANG=(qs.get('lang')==='en')?'en':'ua';
+const f=(v,d=0)=>v==null||isNaN(v)?'—':Number(v).toLocaleString(LANG==='en'?'en-GB':'uk-UA',{maximumFractionDigits:d});
+
+const L=LANG==='en'?{
+ title:'Patient Health Summary', patient:'Patient', male:'male', dob:'DOB 06.02.1989 (37 y.o.)',
+ generated:'Report generated', source:'Source: wearables (Apple Watch/iPhone, daily) + laboratory checkup + home BP monitor',
+ watchH:'Active monitoring flags (daily tracking)', watchNone:'No acute warning signals at the moment.',
+ focusH:'Clinical focus — active problems',
+ dysl:'Dyslipidemia (priority #1).', dyslTail:'Therapy: Lipiform (monacolin K), Mediterranean diet, omega-3.',
+ tc:'total cholesterol', target:'target', ferr:'Ferritin', ferrTail:'(ref <', ferrNote:'— isolated elevation with normal CRP/ALT; if persistent — transferrin saturation to rule out iron overload.',
+ thyr:'Thyroid:', thyrTxt:'TIRADS 2, TSH upper-normal — monitoring for autoimmune thyroiditis (anti-TPO/TG scheduled), endocrinologist consult.',
+ liver:'Liver:', liverTxt:'heterogeneous echotexture on ultrasound — monitoring (link with lipids/ferritin).',
+ vitalsH:'Current daily metrics (wearables, last 30 days unless noted)',
+ metric:'Metric', value:'Value', refc:'Reference / comment',
+ bp:'Blood pressure (home)', bpLast:'last', bp7:'7-day avg', bpPP:'pulse pressure', bpN:'readings total',
+ bpNone:'not yet measured', st_high:'high', st_elev:'elevated', st_norm:'normal',
+ rhr:'Resting heart rate', now:'now', d90:'90-day avg', lowGood:'low — good',
+ nmin:'Night minimum HR', base:'baseline',
+ hrv:'HRV (SDNN, night median)', hrvBase:'vs 60-day baseline',
+ spo2:'SpO₂ (sleep)', resp:'Respiratory rate (sleep)', respRef:'wearable, during sleep; daytime norm 12–20',
+ wtemp:'Wrist temperature deviation', wtempRef:'vs personal baseline; fever/strain early signal',
+ sleepLast:'Sleep last night', sleep30:'Sleep 30-day avg', sleepRef:'goal ≥7.5 h — systemic priority',
+ stages:'Sleep stages (30d)', deep:'deep', rem:'REM', stagesRef:'guides: deep 13–23%, REM 20–25% of night',
+ breath:'Sleep breathing disturbances', breathRef:'apnea proxy, events/h; watch if >5',
+ weight:'Weight / BMI', vo2:'VO₂max', hrmax:'Max HR (30d)', activity:'Activity',
+ stepsD:'steps/day', exD:'min exercise/day', aerobic:'aerobic form',
+ thH:'Active therapy & supplements', med:'Medication', sched:'Schedule', purp:'Purpose',
+ monacolin:'⚠ Lipiform contains monacolin K (natural statin) — consider before prescribing statins; monitor ALT/CK.',
+ adher:'Supplement adherence (7d, self-logged):',
+ labsH:'Laboratory results outside reference —', labFull:'Complete laboratory panel', analyte:'Analyte', res:'Result', refr:'Reference', state:'State',
+ labNote:'Common analytes translated; originals from the lab report shown in parentheses. Untranslated names appear as in the original (Ukrainian).',
+ cvH:'Cardiovascular risk:', riskF:'Risk factors', protF:'Protective factors',
+ cvNote:'Age <40 — formal SCORE2 not applicable; qualitative factor assessment. Primary lever — LDL. Home BP now included.',
+ examH:'Examinations & specialist consultations', examNote:'Original findings recorded in Ukrainian; key values are numeric.',
+ foot:'Generated by a personal health-monitoring system (Apple Watch/iPhone wearables + laboratory data + home BP). Educational aggregation — not a medical diagnosis, does not replace physician consultation. Next planned control of lipid panel and extended labs: 15.09.2026.',
+ fileT:'Health_Summary_EN_', flags:{high:'↑ above',low:'↓ below',critical:'‼ critical',normal:'normal'},
+ debt:'Sleep deficit:', debtTail:'h over 14 nights', perNight:'avg', hNight:'h/night',
+ bpProto:'Home BP protocol in progress:', throughD:'due in', today:'today', days:'d'
+}:{
+ title:'Медичний підсумок пацієнта', patient:'Пацієнт', male:'чол.', dob:'нар. 06.02.1989 (37 р.)',
+ generated:'Звіт сформовано', source:'Джерело: носимі датчики (Apple Watch/iPhone, щоденно) + лабораторний чекап + домашній тонометр',
+ watchH:'Активні спостереження (щоденний моніторинг)', watchNone:'Гострих попереджувальних сигналів зараз немає.',
+ focusH:'Клінічний фокус — активні проблеми',
+ dysl:'Дисліпідемія (пріоритет №1).', dyslTail:'Терапія: Lipiform (монаколін К), середземноморська дієта, омега-3.',
+ tc:'заг. ХС', target:'ціль', ferr:'Феритин', ferrTail:'(реф <', ferrNote:'— ізольовано підвищений при нормальних CRP/АЛТ; за стійкості — насичення трансферину (виключити перевантаження залізом).',
+ thyr:'Щитоподібна:', thyrTxt:'TIRADS 2, ТТГ на верхній межі норми — спостереження на автоімунний тиреоїдит (анти-ТПО/ТГ заплановано), консультація ендокринолога.',
+ liver:'Печінка:', liverTxt:'неоднорідна ехогенність на УЗД — моніторинг (звʼязок з ліпідами/феритином).',
+ vitalsH:'Поточні щоденні показники (носимі датчики, останні 30 дн якщо не вказано інше)',
+ metric:'Показник', value:'Значення', refc:'Норма / коментар',
+ bp:'Артеріальний тиск (дім)', bpLast:'останній', bp7:'сер. 7 дн', bpPP:'пульсовий тиск', bpN:'замірів усього',
+ bpNone:'ще не вимірюється', st_high:'високий', st_elev:'підвищений', st_norm:'норма',
+ rhr:'Пульс спокою', now:'зараз', d90:'сер. 90 дн', lowGood:'низький — добре',
+ nmin:'Нічний мінімум пульсу', base:'база',
+ hrv:'HRV (SDNN, нічна медіана)', hrvBase:'проти бази 60 дн',
+ spo2:'SpO₂ (сон)', resp:'Частота дихання (сон)', respRef:'носимий, уві сні; денна норма 12–20',
+ wtemp:'Відхилення темп. запʼястя', wtempRef:'від особистої бази; ранній сигнал жару/перевтоми',
+ sleepLast:'Сон останньої ночі', sleep30:'Сон сер. 30 дн', sleepRef:'ціль ≥7.5 год — системний пріоритет',
+ stages:'Стадії сну (30д)', deep:'глибокий', rem:'REM', stagesRef:'орієнтири: глибокий 13–23%, REM 20–25% ночі',
+ breath:'Порушення дихання уві сні', breathRef:'апное-проксі, подій/год; стежити якщо >5',
+ weight:'Вага / ІМТ', vo2:'VO₂max', hrmax:'Макс. пульс (30д)', activity:'Активність',
+ stepsD:'кроків/день', exD:'хв трен./день', aerobic:'аеробна форма',
+ thH:'Активна терапія та добавки', med:'Препарат', sched:'Графік', purp:'Призначення',
+ monacolin:'⚠ Lipiform містить монаколін К (природний статин) — врахувати при призначенні статинів; контроль АЛТ/КФК.',
+ adher:'Адгезія добавок (7 дн, самозвіт):',
+ labsH:'Лабораторні показники поза референсом —', labFull:'Повна лабораторна панель', analyte:'Показник', res:'Значення', refr:'Референс', state:'Стан',
+ labNote:'',
+ cvH:'Серцево-судинний ризик:', riskF:'Фактори ризику', protF:'Протективні фактори',
+ cvNote:'',
+ examH:'Обстеження та консультації спеціалістів', examNote:'',
+ foot:'Згенеровано особистою системою моніторингу здоровʼя (носимі Apple Watch/iPhone + лабораторні дані + домашній тонометр). Освітня агрегація, не є медичним діагнозом і не замінює консультацію лікаря. Плановий контроль ліпідограми та розширеної панелі — 15.09.2026.',
+ fileT:'Health_Summary_', flags:{high:'↑ вище',low:'↓ нижче',critical:'‼ критично',normal:'норма'},
+ debt:'Дефіцит сну:', debtTail:'год за 14 ночей', perNight:'сер.', hNight:'год/ніч',
+ bpProto:'Триває протокол домашнього тиску:', throughD:'через', today:'сьогодні', days:'дн'
+};
+
+// переклад даних-рядків (ризики/сигнали/призначення/аналіти) для EN
+const TR=[
+ // лабораторні аналіти (точні назви — першими)
+ [/ЛПНЩ \(LDL\)/g,'LDL cholesterol'],[/ЛПВЩ \(HDL\)/g,'HDL cholesterol'],[/Не-HDL холестерин/g,'non-HDL cholesterol'],
+ [/Тригліцериди/g,'Triglycerides'],[/Глюкоза/g,'Glucose'],[/Інсулін/g,'Insulin'],[/Креатинін/g,'Creatinine'],
+ [/Білірубін прямий/g,'Direct bilirubin'],[/Білірубін загальний/g,'Total bilirubin'],[/Білірубін/g,'Bilirubin'],
+ [/Тестостерон/g,'Testosterone'],[/ТТГ/g,'TSH'],[/АЛТ/g,'ALT'],[/АСТ/g,'AST'],[/ГГТ/g,'GGT'],
+ [/Фолієва кислота/g,'Folate'],[/Фолат/g,'Folate'],[/Вітамін D/g,'Vitamin D'],[/Вітамін B12/g,'Vitamin B12'],
+ [/ШОЕ/g,'ESR'],[/Залізо/g,'Iron'],[/Лейкоцити/g,'WBC'],[/Еритроцити/g,'RBC'],[/Гемоглобін/g,'Hemoglobin'],
+ [/Тромбоцити/g,'Platelets'],[/Еозинофіли/g,'Eosinophils'],[/Гематокрит/g,'Hematocrit'],[/Калій/g,'Potassium'],[/Натрій/g,'Sodium'],[/Кальцій/g,'Calcium'],[/Магній(?![ауі])/g,'Magnesium'],
+ [/сеча/gi,'urine'],[/ПСА|PSA заг\.?/g,'PSA'],
+ // одиниці
+ [/мг\/дл/g,'mg/dL'],[/нг\/мл/g,'ng/mL'],[/ммоль\/л/g,'mmol/L'],[/мкмоль\/л/g,'µmol/L'],[/Од\/л/g,'U/L'],[/МО\/л/g,'IU/L'],[/г\/л/g,'g/L'],[/пг\/мл/g,'pg/mL'],[/нмоль\/л/g,'nmol/L'],[/мкг\/л/g,'µg/L'],[/мм\/год/g,'mm/h'],
+ [/Заг\. холестерин/g,'Total cholesterol'],[/Холестерин загальний/g,'Total cholesterol'],[/Гомоцистеїн/g,'Homocysteine'],[/Сечова кислота/g,'Uric acid'],[/Феритин/g,'Ferritin'],[/Пульс спокою/g,'Resting HR'],[/Тиск/g,'BP'],[/Сон/g,'Sleep'],[/Не курить/g,'Non-smoker'],[/інсуліночутливість/g,'insulin sensitivity'],[/форма/g,'fitness'],[/добре/g,'good'],[/ціль/g,'target'],[/поріг/g,'borderline'],[/норма/g,'normal'],[/замірів/g,'readings'],[/год/g,'h'],[/частота дихання уві сні вище твоєї бази/g,'sleep respiratory rate above personal baseline'],[/темп\. запʼястя/g,'wrist temperature'],[/нічний пульс вище/g,'night HR elevated'],[/проти/g,'vs'],[/ліпіди/g,'lipids'],[/магній/g,'magnesium'],[/стрес/g,'stress'],[/серце/g,'heart'],[/травлення/g,'digestion'],[/клітковина/g,'fiber'],[/вранці/g,'morning'],[/ввечері/g,'evening'],[/вдень/g,'midday'],[/до сну/g,'bedtime'],[/з їжею/g,'with food'],[/щодня/g,'daily'],[/після їжі/g,'after meal'],[/вітамін/g,'vitamin'],[/добавки/g,'supplements'],[/нерви/g,'nerves'],[/шкіра/g,'skin'],[/печінка/g,'liver'],[/щитоподібна/g,'thyroid'],[/кістки/g,'bones'],[/мʼязи/g,'muscles'],[/відновлення/g,'recovery'],[/енергія/g,'energy'],[/імунітет/g,'immunity'],[/ЕхоКГ/g,'Echocardiography'],[/УЗД черевної порожнини/g,'Abdominal ultrasound'],[/УЗД щитоподібної залози/g,'Thyroid ultrasound'],[/УЗД щитоподібної/g,'Thyroid ultrasound'],[/УЗД/g,'Ultrasound'],[/Уролог/g,'Urologist'],[/Терапевт/g,'Internist (GP)'],[/Дерматолог/g,'Dermatologist'],[/Ендокринолог/g,'Endocrinologist'],[/висновок/g,'findings'],[/Курс/g,'Course'],[/днів/g,'days'],[/дн\b/g,'d']];
+const tr=s=>{s=String(s==null?'':s);if(LANG!=='en')return s;for(const [re,en] of TR)s=s.replace(re,en);return s;};
+const T=s=>esc(tr(s));
+
 function refTxt(r){if(r.ref_low!=null&&r.ref_high!=null)return f(r.ref_low,2)+'–'+f(r.ref_high,2);if(r.ref_high!=null)return '<'+f(r.ref_high,2);if(r.ref_low!=null)return '>'+f(r.ref_low,2);return '';}
-function flagName(fl){return ({high:'↑ вище',low:'↓ нижче',critical:'‼ критично'})[fl]||'норма';}
-function labRow(r){const val=r.value!=null?(f(r.value,2)+' '+esc(r.unit||'')):esc(r.value_text||'—');const cls=(r.flag&&r.flag!=='normal')?'flag':'';return '<tr><td>'+esc(r.raw_name)+'</td><td class="'+cls+'">'+val+'</td><td class="ref">'+refTxt(r)+'</td><td class="'+cls+'">'+flagName(r.flag)+'</td></tr>';}
+function flagName(fl){return L.flags[fl]||L.flags.normal;}
+function labName(r){const orig=String(r.raw_name||'');if(LANG!=='en')return esc(orig);const t=tr(orig);return t!==orig?(esc(t)+' <span class="ref">('+esc(orig)+')</span>'):esc(orig);}
+function labRow(r){const val=r.value!=null?(f(r.value,2)+' '+T(r.unit||'')):esc(r.value_text||'—');const cls=(r.flag&&r.flag!=='normal')?'flag':'';return '<tr><td>'+labName(r)+'</td><td class="'+cls+'">'+val+'</td><td class="ref">'+refTxt(r)+'</td><td class="'+cls+'">'+flagName(r.flag)+'</td></tr>';}
 const findLab=(labs,names)=>{for(const nm of names){const r=(labs.results||[]).find(x=>x.raw_name===nm);if(r)return r;}return null;};
+function vrow(name,val,ref,cls){return '<tr><td>'+name+'</td><td class="hl'+(cls?' '+cls:'')+'">'+val+'</td><td class="ref">'+ref+'</td></tr>';}
+
 function render(D){
  const k=D.kpi||{},fm=D.form||{},cv=D.cv||{},labs=D.labs||{},meds=D.meds||[],img=D.imaging||[],bp=D.bp||{};
+ const r=(D.readiness&&(D.readiness.recovery||D.readiness))||{};
+ const sq=D.sleep_q||{}, sd=D.sleep_debt||{}, il=D.illness||{}, o=D.oura||{}, a=D.adherence||{};
+ const td=o.temp_deviation||{}, nb=o.nighttime_breathing||{};
+ const rem=D.reminders||[];
  const gen=(D.generated_at||'').slice(0,10);
  let h='';
- h+='<div class="hd"><div><h1>Медичний підсумок пацієнта</h1>'
-   +'<div class="sub">Пацієнт: <b>Vadym H.</b> · чол. · нар. 06.02.1989 (37 р.)</div>'
-   +'<div class="sub">Звіт сформовано: '+gen+' · Джерело: носимі датчики (Apple Watch/iPhone) + лабораторний чекап</div></div>'
+ h+='<div class="hd"><div><h1>'+L.title+'</h1>'
+   +'<div class="sub">'+L.patient+': <b>Vadym H.</b> · '+L.male+' · '+L.dob+'</div>'
+   +'<div class="sub">'+L.generated+': '+gen+' · '+L.source+'</div></div>'
    +'<div class="stamp">HEALTH<br>SUMMARY</div></div>';
 
- // 1. КЛІНІЧНИЙ ФОКУС — курований список значущого (без пограничного шуму)
- const flagged=(labs.results||[]).filter(r=>r.flag&&r.flag!=='normal');
+ // 0. АКТИВНІ СПОСТЕРЕЖЕННЯ (щоденний моніторинг)
+ const watch=[];
+ if(il.level&&il.level!=='низький')for(const s of (il.signals||[]))watch.push('🌡 '+T(s));
+ if(num(sd.debt)>8)watch.push('😴 '+L.debt+' '+f(sd.debt,1)+' '+L.debtTail+' ('+L.perNight+' '+f(sd.avg,1)+' '+L.hNight+')');
+ if(td.elevated)watch.push('🌡 '+(LANG==='en'?'Wrist temperature above baseline':'Температура запʼястя вище бази')+' (+'+f(td.deviation,2)+'°C)');
+ if(num(nb.avg30)>5)watch.push('🫁 '+(LANG==='en'?'Sleep breathing disturbances above watch threshold':'Порушення дихання уві сні вище порога')+' ('+f(nb.avg30,1)+'/h)');
+ const bpS=num(bp.sys_last),bpD=num(bp.dia_last);
+ if(bpS!=null&&(bpS>=130||bpD>=85))watch.push('🩺 '+(LANG==='en'?'BP':'Тиск')+' '+f(bpS)+'/'+f(bpD)+' — '+(bpS>=140||bpD>=90?L.st_high:L.st_elev));
+ const pr=rem.find(x=>/тиск/i.test(x.title||''));
+ if(pr&&pr.days>=0)watch.push('📋 '+L.bpProto+' '+T(pr.title)+' — '+(pr.days>0?(L.throughD+' '+pr.days+' '+L.days):L.today));
+ h+='<h2 class="crit">'+L.watchH+'</h2>';
+ h+=watch.length?('<ul class="watch">'+watch.map(x=>'<li>'+x+'</li>').join('')+'</ul>'):('<div class="sub" style="font-size:12.5px">✅ '+L.watchNone+'</div>');
+
+ // 1. КЛІНІЧНИЙ ФОКУС
+ const flagged=(labs.results||[]).filter(x=>x.flag&&x.flag!=='normal');
  const ldl=findLab(labs,['ЛПНЩ (LDL)']), tc=findLab(labs,['Холестерин загальний']), nonhdl=findLab(labs,['Не-HDL холестерин']), ferr=findLab(labs,['Феритин']);
- h+='<h2 class="crit">Клінічний фокус — активні проблеми</h2><ol class="focus">';
- if(ldl&&num(ldl.value)>115)h+='<li><b>Дисліпідемія (пріоритет №1).</b> LDL '+f(ldl.value,0)+' (ціль &lt;115)'+(tc?', заг. ХС '+f(tc.value,0):'')+(nonhdl?', не-HDL '+f(nonhdl.value,0):'')+'. Терапія: Lipiform, середземноморська дієта, омега-3.</li>';
- for(const x of (cv.risks||[])){if(/LDL|холестерин|не-HDL/i.test(x.n))continue;h+='<li>'+esc(x.n)+'</li>';}
- if(ferr&&ferr.flag==='high')h+='<li><b>Феритин '+f(ferr.value,0)+'</b> (реф &lt;'+f(ferr.ref_high,0)+') — ізольовано підвищений при нормальних CRP/АЛТ; за стійкості — насичення трансферину.</li>';
- for(const j of img){const t=(j.title||'')+' '+(j.body||'');if(/щитопод|тиреоїд|TIRADS/i.test(t)){h+='<li><b>Щитоподібна:</b> TIRADS 2, ТТГ на верхній межі норми — спостереження на автоімунний тиреоїдит (анти-ТПО/ТГ заплановано), консультація ендокринолога.</li>';break;}}
- for(const j of img){if(/печінк|НАЖБП/i.test(j.body||'')){h+='<li><b>Печінка:</b> неоднорідна ехогенність на УЗД — моніторинг (звʼязок з ліпідами/феритином).</li>';break;}}
+ h+='<h2 class="crit">'+L.focusH+'</h2><ol class="focus">';
+ if(ldl&&num(ldl.value)>115)h+='<li><b>'+L.dysl+'</b> LDL '+f(ldl.value,0)+' ('+L.target+' &lt;115)'+(tc?', '+L.tc+' '+f(tc.value,0):'')+(nonhdl?', non-HDL '+f(nonhdl.value,0):'')+'. '+L.dyslTail+'</li>';
+ for(const x of (cv.risks||[])){if(/LDL|холестерин|не-HDL/i.test(x.n))continue;h+='<li>'+T(x.n)+'</li>';}
+ if(ferr&&ferr.flag==='high')h+='<li><b>'+L.ferr+' '+f(ferr.value,0)+'</b> '+L.ferrTail+f(ferr.ref_high,0)+') '+L.ferrNote+'</li>';
+ for(const j of img){const t=(j.title||'')+' '+(j.body||'');if(/щитопод|тиреоїд|TIRADS/i.test(t)){h+='<li><b>'+L.thyr+'</b> '+L.thyrTxt+'</li>';break;}}
+ for(const j of img){if(/печінк|НАЖБП/i.test(j.body||'')){h+='<li><b>'+L.liver+'</b> '+L.liverTxt+'</li>';break;}}
  h+='</ol>';
- if(cv.note)h+='<div class="note">'+esc(cv.note)+'</div>';
+ if(LANG==='en'){h+='<div class="note">'+L.cvNote+'</div>';}
+ else if(cv.note)h+='<div class="note">'+esc(cv.note)+'</div>';
 
- // 2. АКТИВНА ТЕРАПІЯ
- if(meds.length){h+='<h2>Активна терапія та добавки ('+meds.length+')</h2><table><thead><tr><th style="width:34%">Препарат</th><th style="width:20%">Графік</th><th>Призначення</th></tr></thead><tbody>';for(const m of meds)h+='<tr><td class="hl">'+esc(m.name)+'</td><td>'+esc(m.schedule||'')+'</td><td>'+esc(m.purpose||'')+'</td></tr>';h+='</tbody></table><div class="note">⚠ Lipiform містить монаколін К (природний статин) — врахувати при призначенні статинів, контроль АЛТ/КФК.</div>';}
-
- // 3. ВІТАЛИ + ТИСК
- h+='<h2>Вітали, тиск і аеробна форма</h2><table><thead><tr><th>Показник</th><th style="width:30%">Значення</th><th>Норма / коментар</th></tr></thead><tbody>';
- const bpTxt=bp.sys_last!=null?(f(bp.sys_last)+'/'+f(bp.dia_last)+' мм рт.ст.'+(bp.sys7!=null?(' · сер.7дн '+f(bp.sys7)+'/'+f(bp.dia7)+' (n='+f(bp.n)+')'):'')):'—';
- const bpNorm=bp.sys_last==null?'ще не вимірювався':(num(bp.sys_last)>=140||num(bp.dia_last)>=90?'високий':(num(bp.sys_last)>=130?'підвищений':'норма'));
- const vit=[
-  ['Артеріальний тиск',bpTxt,bpNorm],
-  ['Пульс спокою (RHR, 90 дн)',f(k.rhr_90)+' уд/хв','низький — добре'],
-  ['HRV (SDNN, 90 дн)',f(k.hrv_90)+' мс','варіабельність ритму'],
-  ['VO₂max',f(fm.vo2,1)+' мл/кг/хв',esc(fm.vo2_cat||'')],
-  ['Відновлення пульсу за 1 хв',f(fm.hr_recovery)+' уд','тренованість'],
-  ['Сон (сер. 90 дн)',f(k.sleep_90,1)+' год/ніч','нижче норми (ціль ≥7)'],
-  ['Активність',f(k.steps_90)+' кроків · '+f(fm.exercise_min_30d)+' хв трен./день',''],
-  ['Вага',f(k.w_last,1)+' кг','']
- ];
- for(const r of vit)h+='<tr><td>'+r[0]+'</td><td class="hl">'+r[1]+'</td><td class="ref">'+r[2]+'</td></tr>';
+ // 2. ПОТОЧНІ ЩОДЕННІ ПОКАЗНИКИ
+ h+='<h2>'+L.vitalsH+'</h2><table><thead><tr><th style="width:34%">'+L.metric+'</th><th style="width:33%">'+L.value+'</th><th>'+L.refc+'</th></tr></thead><tbody>';
+ if(bpS!=null){
+   const st=(bpS>=140||bpD>=90)?L.st_high:((bpS>=130||bpD>=85)?L.st_elev:L.st_norm);
+   const cls=(bpS>=130||bpD>=85)?'flag':'okv';
+   h+=vrow(L.bp, f(bpS)+'/'+f(bpD)+' ('+L.bpLast+(bp.last_at?' '+esc(bp.last_at):'')+')'+(bp.sys7!=null?(' · '+L.bp7+' '+f(bp.sys7)+'/'+f(bp.dia7)):''),
+     st+(bp.pp7!=null?(' · '+L.bpPP+' '+f(bp.pp7)+' (30–50)'):'')+' · '+f(bp.n)+' '+L.bpN, cls);
+ } else h+=vrow(L.bp,'—',L.bpNone,'');
+ h+=vrow(L.rhr, f(k.rhr_last)+' ('+L.now+') · '+f(k.rhr_90)+' ('+L.d90+')', L.lowGood,'');
+ if(r.rhr!=null)h+=vrow(L.nmin, f(r.rhr)+' / '+L.base+' '+f(r.rhr_base),'','');
+ if(r.hrv!=null)h+=vrow(L.hrv, f(r.hrv)+' ms / '+L.base+' '+f(r.hrv_base)+' · '+f(k.hrv_90)+' ('+L.d90+')', L.hrvBase,'');
+ if(k.spo2_30!=null)h+=vrow(L.spo2, f(k.spo2_30,1)+' %', '≥95%', num(k.spo2_30)>=95?'okv':'flag');
+ if(k.resp_30!=null)h+=vrow(L.resp, f(k.resp_30,1)+' /min', L.respRef,'');
+ if(td.deviation!=null)h+=vrow(L.wtemp,(num(td.deviation)>=0?'+':'')+f(td.deviation,2)+' °C',L.wtempRef, td.elevated?'flag':'okv');
+ if(r.sleep!=null)h+=vrow(L.sleepLast, f(r.sleep,1)+' h', L.sleepRef, num(r.sleep)>=7?'okv':'flag');
+ if(sq.avg!=null)h+=vrow(L.sleep30, f(sq.avg,1)+' h'+(sd.debt!=null?(' · '+(LANG==='en'?'debt':'борг')+' '+f(sd.debt,1)+' h/14d'):''), L.sleepRef, num(sq.avg)>=7?'okv':'flag');
+ if(sq.deep!=null||sq.rem!=null){const dp=sq.avg&&sq.deep!=null?Math.round(num(sq.deep)/num(sq.avg)*100):null;const rp=sq.avg&&sq.rem!=null?Math.round(num(sq.rem)/num(sq.avg)*100):null;
+   h+=vrow(L.stages,(sq.deep!=null?(L.deep+' '+f(sq.deep,1)+' h ('+f(dp)+'%)'):'')+(sq.rem!=null?(' · '+L.rem+' '+f(sq.rem,1)+' h ('+f(rp)+'%)'):''),L.stagesRef, dp!=null&&dp<13?'flag':'');}
+ if(nb.avg30!=null)h+=vrow(L.breath, f(nb.avg30,1)+' /h', L.breathRef, num(nb.avg30)>5?'flag':'okv');
+ h+=vrow(L.weight, f(k.w_last,1)+' kg'+(k.bmi_last!=null?(' · BMI '+f(k.bmi_last,1)):''),'','');
+ h+=vrow(L.vo2, f(fm.vo2,1)+' ml/kg/min'+(k.hrmax_30!=null?(' · '+L.hrmax+' '+f(k.hrmax_30)):''), T(fm.vo2_cat||'')+' · '+L.aerobic,'');
+ h+=vrow(L.activity, f(k.steps_90)+' '+L.stepsD+' · '+f(fm.exercise_min_30d)+' '+L.exD,'','');
  h+='</tbody></table>';
 
+ // 3. АКТИВНА ТЕРАПІЯ
+ if(meds.length){h+='<h2>'+L.thH+' ('+meds.length+')</h2><table><thead><tr><th style="width:34%">'+L.med+'</th><th style="width:20%">'+L.sched+'</th><th>'+L.purp+'</th></tr></thead><tbody>';
+  for(const m of meds)h+='<tr><td class="hl">'+esc(m.name)+'</td><td>'+T(m.schedule||'')+'</td><td>'+T(m.purpose||'')+'</td></tr>';
+  h+='</tbody></table><div class="note">'+L.monacolin+(a.pct!=null?(' · '+L.adher+' '+f(a.pct)+'%'):'')+'</div>';}
+
  // 4. ЛАБИ ПОЗА НОРМОЮ
- if(flagged.length){h+='<h2>Лабораторні показники поза референсом — '+esc(labs.lab||'')+' ('+esc(labs.date||'')+')</h2>';
-  h+='<table><thead class="lh"><tr><th>Показник</th><th style="width:22%">Значення</th><th style="width:20%">Референс</th><th style="width:18%">Стан</th></tr></thead><tbody>';for(const r of flagged)h+=labRow(r);h+='</tbody></table>';}
+ if(flagged.length){h+='<h2>'+L.labsH+' '+esc(labs.lab||'')+' ('+esc(labs.date||'')+')</h2>';
+  h+='<table><thead class="lh"><tr><th>'+L.analyte+'</th><th style="width:22%">'+L.res+'</th><th style="width:20%">'+L.refr+'</th><th style="width:18%">'+L.state+'</th></tr></thead><tbody>';for(const x of flagged)h+=labRow(x);h+='</tbody></table>';
+  if(L.labNote)h+='<div class="note">'+L.labNote+'</div>';}
 
  // 5. СС-РИЗИК
- if(cv.level){h+='<h2>Серцево-судинний ризик: <span class="risk">'+esc(cv.level)+'</span></h2>';
-  h+='<div class="two"><div><div class="rlab risk">Фактори ризику</div><ul>'+(cv.risks||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div>';
-  h+='<div><div class="rlab prot">Протективні фактори</div><ul>'+(cv.protective||[]).map(x=>'<li>'+esc(x.n)+'</li>').join('')+'</ul></div></div>';}
+ if(cv.level){h+='<h2>'+L.cvH+' <span class="risk">'+T(cv.level)+'</span></h2>';
+  h+='<div class="two"><div><div class="rlab risk">'+L.riskF+'</div><ul>'+(cv.risks||[]).map(x=>'<li>'+T(x.n)+'</li>').join('')+'</ul></div>';
+  h+='<div><div class="rlab prot">'+L.protF+'</div><ul>'+(cv.protective||[]).map(x=>'<li>'+T(x.n)+'</li>').join('')+'</ul></div></div>';}
 
- // 6. ОБСТЕЖЕННЯ ТА КОНСУЛЬТАЦІЇ
- if(img.length){h+='<h2>Обстеження та консультації спеціалістів</h2>';for(const j of img){h+='<div class="exam"><span class="hl">'+esc(j.title||'')+'</span> <span class="ref">'+esc(j.d||'')+'</span><div>'+esc(j.body||'')+'</div></div>';}}
+ // 6. ОБСТЕЖЕННЯ
+ if(img.length){h+='<h2>'+L.examH+'</h2>';if(L.examNote)h+='<div class="note" style="margin:4px 0 8px">'+L.examNote+'</div>';
+  for(const j of img){h+='<div class="exam"><span class="hl">'+T(j.title||'')+'</span> <span class="ref">'+esc(j.d||'')+'</span><div>'+esc(j.body||'')+'</div></div>';}}
 
  // 7. ПОВНА ЛАБА
- if(labs.results&&labs.results.length){h+='<h2>Повна лабораторна панель ('+labs.results.length+' показників)</h2>';
-  h+='<table class="full"><thead><tr><th>Показник</th><th style="width:20%">Значення</th><th style="width:18%">Референс</th><th style="width:14%">Стан</th></tr></thead><tbody>';for(const r of labs.results)h+=labRow(r);h+='</tbody></table>';}
+ if(labs.results&&labs.results.length){h+='<h2>'+L.labFull+' ('+labs.results.length+')</h2>';
+  h+='<table class="full"><thead><tr><th>'+L.analyte+'</th><th style="width:20%">'+L.res+'</th><th style="width:18%">'+L.refr+'</th><th style="width:14%">'+L.state+'</th></tr></thead><tbody>';for(const x of labs.results)h+=labRow(x);h+='</tbody></table>';}
 
- h+='<div class="foot">Згенеровано особистою системою моніторингу здоровʼя (носимі датчики Apple Watch/iPhone + лабораторні дані). Освітня агрегація, не є медичним діагнозом і не замінює консультацію лікаря. Плановий контроль ліпідограми та розширеної панелі — 15.09.2026.</div>';
+ h+='<div class="foot">'+L.foot+'</div>';
  document.getElementById('page').innerHTML=h;
- document.title='Health_Summary_'+gen;
+ document.title=L.fileT+gen;
 }
 (function(){
  let t=location.hash.slice(1); if(t.indexOf('k=')===0)t=t.slice(2);
+ if(t){try{localStorage.setItem('hd_token',t);}catch(e){}}
+ else{try{t=localStorage.getItem('hd_token')||'';}catch(e){}}
  document.getElementById('back').href='index.html'+(t?('#k='+t):'');
+ document.getElementById('back').textContent=LANG==='en'?'← Dashboard':'← Дашборд';
+ document.getElementById('printbtn').textContent=LANG==='en'?'⬇️ Download PDF':'⬇️ Завантажити PDF';
+ const sw=document.getElementById('langsw');
+ sw.textContent=LANG==='en'?'UA':'EN';
+ sw.href='report.html'+(LANG==='en'?'':'?lang=en')+(t?('#k='+t):'');
  const page=document.getElementById('page');
- if(!t){page.innerHTML='<div class="msg">Додай токен у посилання: <code>#k=ТВІЙ_ТОКЕН</code></div>';return;}
+ if(!t){page.innerHTML='<div class="msg">'+(LANG==='en'?'Add token to the link':'Додай токен у посилання')+': <code>#k=…</code></div>';return;}
  let tries=0;
  function load(){
    tries++;
    fetch(API+'?k='+encodeURIComponent(t)+'&cb='+Date.now(),{cache:'no-store'}).then(r=>r.json().then(D=>({s:r.status,D:D}))).then(({s,D})=>{
-     if(s===401){page.innerHTML='<div class="msg">Невірний токен доступу. Відкрий звіт через кнопку на дашборді.</div>';return;}
+     if(s===401){page.innerHTML='<div class="msg">'+(LANG==='en'?'Invalid access token.':'Невірний токен доступу. Відкрий звіт через кнопку на дашборді.')+'</div>';return;}
      if((D&&D.building)||s===503){
-       page.innerHTML='<div class="msg">Дані ще збираються… автоматично оновлюю ('+tries+').</div>';
+       page.innerHTML='<div class="msg">'+(LANG==='en'?'Data is being prepared… retrying':'Дані ще збираються… автоматично оновлюю')+' ('+tries+')</div>';
        if(tries<5)setTimeout(load,3000);
-       else page.innerHTML='<div class="msg">Дані тимчасово недоступні. Онови сторінку за хвилину.</div>';
+       else page.innerHTML='<div class="msg">'+(LANG==='en'?'Temporarily unavailable. Refresh in a minute.':'Дані тимчасово недоступні. Онови сторінку за хвилину.')+'</div>';
        return;
      }
-     if(!D||D.error){page.innerHTML='<div class="msg">'+esc((D&&D.error)||'немає даних')+'</div>';return;}
+     if(!D||D.error){page.innerHTML='<div class="msg">'+esc((D&&D.error)||'no data')+'</div>';return;}
      render(D);
    }).catch(e=>{
-     if(tries<5){page.innerHTML='<div class="msg">Мережа недоступна, повтор ('+tries+')…</div>';setTimeout(load,3000);}
-     else page.innerHTML='<div class="msg">Помилка мережі: '+esc(String(e))+'</div>';
+     if(tries<5){page.innerHTML='<div class="msg">'+(LANG==='en'?'Network retry':'Мережа недоступна, повтор')+' ('+tries+')…</div>';setTimeout(load,3000);}
+     else page.innerHTML='<div class="msg">'+(LANG==='en'?'Network error: ':'Помилка мережі: ')+esc(String(e))+'</div>';
    });
  }
  load();
