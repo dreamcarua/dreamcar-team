@@ -1,5 +1,15 @@
 <!doctype html><html lang="uk"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0A0A0A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Health">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/health-icon?s=180">
 <title>Health Cockpit Vadym</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -14,7 +24,7 @@
  --fdisplay:'Oswald','Bebas Neue',sans-serif;--fbody:'Manrope',sans-serif;--fmono:'JetBrains Mono',monospace;--faccent:'Archivo Black',sans-serif}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fbody);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fbody);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
 .wrap{max-width:1120px;margin:0 auto;padding:22px 16px 80px}
 h1{font-family:var(--fdisplay);font-weight:700;font-size:27px;letter-spacing:.02em;margin:0 0 3px;text-transform:uppercase}
 h2{font-family:var(--fdisplay);font-weight:600;font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--bone);margin:24px 0 10px}
@@ -25,6 +35,7 @@ h2{font-family:var(--fdisplay);font-weight:600;font-size:15px;text-transform:upp
 .nav::-webkit-scrollbar{display:none}
 .nav a{flex:0 0 auto;font-size:12px;color:var(--bone);text-decoration:none;border:1px solid var(--line);background:var(--card);padding:6px 11px;border-radius:999px;transition:border-color .12s}
 .nav a:hover{border-color:var(--red)}
+.nav a.act{border-color:var(--red);color:#fff;box-shadow:0 0 6px rgba(227,6,19,.35)}
 .pb{float:right;display:inline-flex;gap:4px}
 .pb button{background:var(--card);border:1px solid var(--line);color:var(--bone);font-size:11px;border-radius:8px;padding:3px 9px;cursor:pointer;font-family:var(--fbody)}
 .pb button.on{border-color:var(--red);color:#fff}
@@ -76,7 +87,11 @@ summary{cursor:pointer;color:var(--muted);font-size:12.5px;padding:10px 12px;lis
 .lt2 .spk{display:block;width:100%;height:40px;margin-top:5px}
 .msg{padding:40px 16px;text-align:center;color:var(--muted)}
 ul.tight{margin:6px 0 0;padding-left:18px;font-size:12.5px}ul.tight li{margin:2px 0}
+.focus{background:linear-gradient(135deg,rgba(227,6,19,.10),rgba(227,6,19,.03));border:1px solid rgba(227,6,19,.35);border-radius:14px;padding:12px 15px;margin-top:6px}
+.mode{display:inline-block;margin-top:7px;padding:4px 10px;border-radius:999px;font-size:11.5px;background:rgba(255,255,255,.06);color:var(--bone)}
 @keyframes fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid var(--muted);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-1px}
 </style></head><body><div class="wrap">
 <h1>🫀 Health Cockpit <span style="color:var(--red)">Vadym</span></h1><div class="sub" id="sub">Завантаження…</div>
 <a class="dlbtn" href="#" onclick="window.open('report.html'+location.hash);return false">⬇️ Звіт для лікаря (PDF)</a>
@@ -102,9 +117,12 @@ function readiness(rd){
  if(r.stale){const hh=r.stale_hrs!=null?Math.round(num(r.stale_hrs)):null;
    staleBanner='<div class="warn">⚠️ <b>Дані застарілі'+(hh!=null?' (~'+hh+' год без синку)':'')+'.</b> Apple Health не синкнув нову ніч — нижче показано сон за '+esc(r.sleep_date||'?')+' ('+f(r.sleep,1)+' год), а НЕ сьогоднішній. Відкрий Health Auto Export, щоб оновити.</div>';}
  const nightTxt=r.stale?('сон за '+esc(r.sleep_date||'?')+' · застаріло'):'за ніч · фіксується зранку';
- let mt='😴 Сон '+f(r.sleep,1)+' год · 📈 HRV '+f(r.hrv)+'/'+f(r.hrv_base)+' · ❤️ нічний пульс '+f(r.rhr)+'/'+f(r.rhr_base);
+ let mt='😴 Сон '+f(r.sleep,1)+' год · 📈 HRV '+f(r.hrv)+' / база '+f(r.hrv_base)+' · ❤️ нічний мін. пульс '+f(r.rhr)+' / база '+f(r.rhr_base);
+ const mode=sc>=75?'🧭 Режим дня: глибока робота зранку — і можна високе навантаження'
+   :(sc>=55?'🧭 Режим дня: стандартний — баланс задач, тренування помірне'
+   :'🧭 Режим дня: легкий — делегуй, більше пауз, ранній відбій');
  const al=(r.alerts||[]);const t100=(r.to100||[]);
- let h=staleBanner+'<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div style="flex:1"><div class="nm">🌙 Відновлення: '+esc(r.status)+' <span class="sub" style="font-weight:400">('+nightTxt+')</span></div><div class="mt">'+mt+'</div>';
+ let h=staleBanner+'<div class="rd '+cls+'"><div class="sc">'+sc+'</div><div style="flex:1"><div class="nm">🌙 Відновлення: '+esc(r.status)+' <span class="sub" style="font-weight:400">('+nightTxt+')</span></div><div class="mt">'+mt+'</div><div class="mode">'+mode+'</div>';
  if(al.length)h+='<div class="al">⚠️ '+al.map(esc).join('; ')+'</div>';
  if(t100.length){h+='<div class="mt" style="margin-top:7px"><b>🎯 Щоб відновлення ближче до 100:</b></div><ul>';for(const a of t100.slice(0,3))h+='<li>'+esc(a.text)+(a.gain?' <span class="sub">(≈ +'+a.gain+')</span>':'')+'</li>';h+='</ul>';}
  h+='</div></div>';
@@ -128,7 +146,7 @@ function strainBlock(wh){
  const s=wh.strain, sc=wh.strain_coach||{}, bal=wh.balance||{};
  const v=num(s.strain); const cls=v>=14?'rd-red':(v>=10?'rd-amber':'rd-green');
  let h='<h2>⚡ Навантаження сьогодні (Strain 0–21)</h2><div class="rd '+cls+'"><div class="sc">'+f(v,1)+'</div><div style="flex:1"><div class="nm">'+esc(s.level)+' <span class="sub" style="font-weight:400">/ 21 · сер. 7д '+f(s.avg7,1)+'</span></div>';
- if(sc.target_low!=null)h+='<div class="mt">🎯 ціль під відновлення: <b>'+f(sc.target_low)+'–'+f(sc.target_high)+'</b> · '+esc(sc.advice||'')+'</div>';
+ if(sc.target_low!=null)h+='<div class="mt">🎯 ціль під відновлення '+(sc.recovery!=null?'('+f(sc.recovery)+')':'')+': <b>'+f(sc.target_low)+'–'+f(sc.target_high)+'</b> · '+esc(sc.advice||'')+'</div>';
  if(bal.status)h+='<div class="mt">⚖️ 7д баланс: strain '+f(bal.avg_strain,1)+' vs recovery '+f(bal.avg_recovery)+' — '+esc(bal.status)+'</div>';
  h+='</div></div>';
  return h;
@@ -136,9 +154,17 @@ function strainBlock(wh){
 function hydrationBlock(D){
  const w=D.water||{}, a=D.adherence||{};
  if(w.today==null && a.pct==null)return '';
+ const hh=new Date().getHours()+new Date().getMinutes()/60;
+ const target=num(w.target)||2000;
+ const pace=Math.round(target*Math.min(1,Math.max(0,(hh-8)/14))/50)*50;
+ const today=num(w.today)||0;
+ let wBadge,wSub;
+ if(today===0&&hh<11){wBadge='<span class="delta flat">залогуй у TG</span>';wSub='ціль '+f(target)+' · кнопки 💧 у боті';}
+ else if(today>=pace){wBadge='<span class="delta up">у графіку</span>';wSub='на цю годину ~'+f(pace)+' · ціль '+f(target);}
+ else{wBadge='<span class="delta down">відстаєш</span>';wSub='на цю годину ~'+f(pace)+' · ціль '+f(target);}
  let h='<h2>💧 Гідратація та адгезія</h2><div class="cards">';
- if(w.today!=null)h+=kc('Вода сьогодні',f(w.today),'мл','ціль '+f(w.target||2000),num(w.today)>=1500?'<span class="delta up">ок</span>':'<span class="delta down">мало</span>');
- if(w.avg7!=null)h+=kc('Вода сер. 7д',f(w.avg7),'мл/день',num(w.avg7)>=1500?'добре':'повна картина за тиждень логів','');
+ if(w.today!=null)h+=kc('Вода сьогодні',f(today),'мл',wSub,wBadge);
+ if(w.avg7!=null)h+=kc('Вода сер. 7д',f(w.avg7),'мл/день','по логах · '+(num(w.avg7)>=1500?'добре':'лог неповний або мало'),'');
  if(a.pct!=null){const collecting=num(a.pct)<30;h+=kc('Адгезія добавок',f(a.pct),'%','7 днів · за TG-кнопками',collecting?'<span class="delta flat">збираємо дані</span>':(num(a.pct)>=80?'<span class="delta up">добре</span>':'<span class="delta down">підтягни</span>'));}
  h+='</div>';return h;
 }
@@ -164,7 +190,7 @@ function resilienceBlock(o){
  if(!o)return '';const rz=o.resilience;
  if(!rz||!rz.level||rz.level==='немає даних')return '';
  const idx=num(rz.index); const cls=idx>=70?'rd-green':(idx>=55?'rd-amber':'rd-red');
- return '<h2>🧬 Стійкість до стресу (14 днів)</h2><div class="rd '+cls+'"><div class="sc">'+idx+'</div><div style="flex:1"><div class="nm">'+esc(rz.level)+'</div><div class="mt">🌙 нічне відновлення '+f(rz.night_recovery)+'/100 · 🔋 денне '+f(rz.day_recovery_min)+' хв · 🌡 стрес-навантаження '+f(rz.stress_load_pct)+'%</div><div class="mt">'+esc(rz.note||'')+'</div></div></div>';
+ return '<h2>🧬 Стійкість до стресу (14 днів)</h2><div class="rd '+cls+'"><div class="sc">'+idx+'</div><div style="flex:1"><div class="nm">'+esc(rz.level)+'</div><div class="mt">🌙 нічне відновлення '+f(rz.night_recovery)+'/100 · 🔋 денне відновлення '+f(rz.day_recovery_min)+' хв (сер. 14д) · 🌡 стрес-індекс '+f(rz.stress_load_pct)+'%</div><div class="mt">'+esc(rz.note||'')+'</div></div></div>';
 }
 function trendsBlock(t){
  if(!t)return '';
@@ -187,9 +213,9 @@ function stressBlock(o,wh){
  const seg=(v,c)=>num(v)>0?'<span style="height:12px;width:'+num(v)+'%;background:'+c+'"></span>':'';
  const head=ss.score!=null?('Стрес '+ss.score+'/3 · '+esc(ss.label)):('рівень: '+esc(ds.level));
  let h='<h2>🌡 Стрес та відновлення вдень <span class="sub" style="text-transform:none;letter-spacing:0">(сьогодні)</span></h2><div class="panel" style="padding:12px 15px">';
- h+='<div style="font-size:13.5px"><b>'+head+'</b> <span class="sub">· 🔴 '+f(ds.stress_min)+' хв стресу · 🟢 '+f(ds.recover_min)+' хв відновлення · 🏃 '+f(ds.active_min)+' хв рух</span></div>';
+ h+='<div style="font-size:13.5px"><b>'+head+'</b> <span class="sub">· 🟥 стрес '+f(ds.stress_min)+' хв · 🟧 залученість '+f(ds.engaged_min)+' хв · 🟢 відновлення '+f(ds.recover_min)+' хв · 🏃 рух '+f(ds.active_min)+' хв</span></div>';
  h+='<div style="display:flex;border-radius:6px;overflow:hidden;margin-top:9px;height:12px;background:#2A2A2A">'+seg(ds.restored_pct,'#10B981')+seg(ds.relaxed_pct,'#34D399')+seg(ds.engaged_pct,'#F59E0B')+seg(ds.stressed_pct,'#E30613')+'</div>';
- h+='<div class="sub" style="margin-top:6px">🟢 спокій '+f(ds.restored_pct)+'% · 🟩 розслаблення '+f(ds.relaxed_pct)+'% · 🟧 залученість '+f(ds.engaged_pct)+'% · 🟥 стрес '+f(ds.stressed_pct)+'%</div>';
+ h+='<div class="sub" style="margin-top:6px">🟢 спокій '+f(ds.restored_pct)+'% · 🟩 розслаблення '+f(ds.relaxed_pct)+'% · 🟧 залученість '+f(ds.engaged_pct)+'% (робоча активація, не стрес) · 🟥 стрес '+f(ds.stressed_pct)+'%</div>';
  if(ss.breathwork)h+='<div class="sub" style="margin-top:5px">🫁 '+esc(ss.breathwork)+'</div>';
  h+='</div>';return h;
 }
@@ -197,7 +223,7 @@ function contributorsBlock(o){
  if(!o)return '';let h='';
  const rcz=o.readiness_contributors;
  if(Array.isArray(rcz)&&rcz.length){
-   h+='<h2>📊 Внески у Відновлення</h2><div class="panel" style="padding:10px 14px">';
+   h+='<h2>📊 Внески у Відновлення <span class="sub" style="text-transform:none;letter-spacing:0">(ті самі дані, що в картці)</span></h2><div class="panel" style="padding:10px 14px">';
    for(const c of rcz){const sc=num(c.score);const col=sc>=75?'#10B981':(sc>=55?'#F59E0B':'#E30613');
      h+='<div class="lt"><div class="row"><span>'+esc(c.name)+' <span class="sub">'+esc(c.val)+'</span></span><span><b>'+f(sc)+'</b></span></div><div class="b"><i style="width:'+Math.min(100,sc)+'%;background:'+col+'"></i></div></div>';}
    h+='</div>';
@@ -209,6 +235,13 @@ function contributorsBlock(o){
 function sleepBlock(D){
  const sd=D.sleep_debt||{}, sw=D.sleep_window||{}, sq=D.sleep_q||{}, o=D.oura||{}, wh=D.whoop||{};
  const sn=wh.sleep_need||{}, se=wh.sleep_efficiency||{}, ch=o.chronotype||{}, nb=o.nighttime_breathing||{};
+ let h='<h2>😴 Сон</h2>';
+ if(sd.avg7!=null){
+   const p=Math.min(100,num(sd.avg7)/7.5*100);const col=p>=100?'#10B981':(p>=88?'#F59E0B':'#E30613');
+   h+='<div class="focus"><div style="font-size:13.5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>🎯 Фокус: сон ≥7.5 год</b></span><span class="sub">тиждень: <b style="color:'+col+'">'+f(sd.avg7,1)+'</b> / 7.5 год · борг 14д '+f(sd.debt,1)+' год</span></div>';
+   h+='<div class="b" style="height:8px;background:#2A2A2A;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+p+'%;background:'+col+'"></i></div>';
+   h+='<div class="sub" style="margin-top:6px">'+(p>=100?'тиждень закритий — тримай':'відбій '+esc(sw.bedtime||'22:36')+' сьогодні — найкоротший шлях закрити тиждень')+'</div></div>';
+ }
  let cards='';
  if(sn.need!=null)cards+=kc('Потреба сну сьогодні',f(sn.need,1),'год','вчора '+f(sn.last_sleep,1)+' · '+f(sn.performance_pct)+'%',num(sn.performance_pct)>=90?'<span class="delta up">закрито</span>':'<span class="delta down">недобір</span>');
  if(sd.debt!=null)cards+=kc('Борг сну',f(sd.debt,1),'год','14 діб · '+esc(sd.note||''),num(sd.debt)>3?'<span class="delta down">борг</span>':'<span class="delta up">ок</span>');
@@ -216,14 +249,15 @@ function sleepBlock(D){
  if(sq.regularity!=null)cards+=kc('Регулярність',f(sq.regularity),'/100',num(sq.regularity)>=70?'стабільно ✅':'нестабільно','');
  if(se.efficiency_pct!=null)cards+=kc('Ефективність',f(se.efficiency_pct),'%',num(se.efficiency_pct)>=85?'відмінно':'сон/у ліжку',num(se.efficiency_pct)>=85?'<span class="delta up">ок</span>':'');
  if(sw.bedtime)cards+=kc('Відбій сьогодні',esc(sw.bedtime),'',(sw.target||'')+' год до '+(sw.wake||'07:00'),'');
- if(ch.type)cards+=kc('Хронотип',esc(ch.type),'',esc(ch.suggest||''),'');
- if(sq.deep!=null)cards+=kc('Глибокий сон',f(sq.deep,1),'год','','');
- if(sq.rem!=null)cards+=kc('REM',f(sq.rem,1),'год','','');
- if(nb.avg30!=null)cards+=kc('Нічне дихання',f(nb.avg30,1),'/год',esc(nb.flag||''),num(nb.avg30)>5?'<span class="delta down">стежити</span>':'<span class="delta up">ок</span>',spark((nb.series||[]).slice().reverse(),'#22D3EE'));
- if(!cards)return '';
- let h='<h2>😴 Сон</h2><div class="cards">'+cards+'</div>';
- if(sq.deep==null&&sq.rem==null&&se.efficiency_pct==null)h+='<div class="sub" style="margin-top:4px">Стадії сну й «час у ліжку» зʼявляться, коли увімкнеш детальний експорт сну у Health Auto Export.</div>';
- else if(sq.deep!=null||sq.rem!=null)h+='<div class="sub" style="margin-top:4px">Стадії сну — з детального експорту (увімкнено 28.06), статистика ще накопичується.</div>';
+ if(ch.type)cards+=kc('Хронотип',esc(ch.type),'','мін. пульс ~0'+f(ch.trough_hour,0)+':00 · '+f(ch.nights)+' ночей','');
+ if(sq.deep!=null){const dp=sq.avg?Math.round(num(sq.deep)/num(sq.avg)*100):null;cards+=kc('Глибокий сон',f(sq.deep,1),'год',dp!=null?(dp+'% ночі · орієнтир 13–23%'):'',dp!=null&&dp<13?'<span class="delta down">мало</span>':'');}
+ if(sq.rem!=null){const rp=sq.avg?Math.round(num(sq.rem)/num(sq.avg)*100):null;cards+=kc('REM',f(sq.rem,1),'год',rp!=null?(rp+'% ночі · орієнтир 20–25%'):'',rp!=null&&rp>=20?'<span class="delta up">ок</span>':'');}
+ if(nb.avg30!=null)cards+=kc('Порушення дихання уві сні',f(nb.avg30,1),'/год',esc(nb.flag||'')+' · апное-проксі',num(nb.avg30)>5?'<span class="delta down">стежити</span>':'<span class="delta up">ок</span>',spark((nb.series||[]).slice().reverse(),'#22D3EE'));
+ if(!cards&&!sd.avg7)return '';
+ h+='<div class="cards">'+cards+'</div>';
+ if(ch.suggest)h+='<div class="sub" style="margin-top:6px">🕐 '+esc(ch.suggest)+'</div>';
+ if(se.efficiency_pct==null&&se.note)h+='<div class="sub" style="margin-top:4px">'+esc(se.note)+'</div>';
+ else if(sq.deep!=null||sq.rem!=null)h+='<div class="sub" style="margin-top:4px">Стадії сну — з детального експорту (з 28.06), статистика накопичується.</div>';
  return h;
 }
 function ageBlock(o,wh){
@@ -233,7 +267,10 @@ function ageBlock(o,wh){
  if(wa.whoop_age!=null)cards+=kc('Біологічний вік',f(wa.whoop_age),'р','повне тіло · pace '+f(wa.pace,2)+' · хроно '+wa.chrono_age,num(wa.delta)>0?'<span class="delta down">+'+f(wa.delta)+'р</span>':'<span class="delta up">'+f(wa.delta)+'р</span>');
  if(ha.heart_age!=null)cards+=kc('Вік серця',f(ha.heart_age),'р','кардіо · хроно '+ha.chrono_age,num(ha.delta)>0?'<span class="delta down">+'+f(ha.delta)+'р</span>':'<span class="delta up">'+f(ha.delta)+'р</span>');
  let h='<h2>⏳ Вік та довголіття</h2><div class="cards">'+cards+'</div>';
- if(ha.factors)h+='<div class="sub" style="margin-top:5px">Тіло молодше за серце: фітнес і сон тримають біологічний вік, а серце старять LDL +'+f(ha.factors.LDL,1)+'р і гомоцистеїн +'+f(ha.factors['гомоцистеїн'],1)+'р. Pace &lt;1 = старієш повільніше за календар.</div>';
+ const drv=[];
+ if(wa.drivers)for(const [k,v] of Object.entries(wa.drivers)){if(v==null||!num(v))continue;drv.push(esc(k)+' '+(num(v)>0?'+':'')+f(v,1)+'р');}
+ if(drv.length)h+='<div class="sub" style="margin-top:5px">Драйвери біологічного віку: '+drv.join(' · ')+'.</div>';
+ if(ha.factors)h+='<div class="sub" style="margin-top:3px">Серце старять LDL +'+f(ha.factors.LDL,1)+'р і гомоцистеїн +'+f(ha.factors['гомоцистеїн'],1)+'р; фітнес і сон тримають тіло молодшим. Pace &lt;1 = старієш повільніше за календар.</div>';
  return h;
 }
 function cvRisk(cv){
@@ -245,16 +282,21 @@ function cvRisk(cv){
  h+='</div><div class="sub" style="margin-top:6px">'+esc(cv.note||'')+'</div>';
  return h;
 }
-function bpBlock(bp){
+function bpBlock(bp,rem){
  if(!bp)return '';
- if(bp.sys_last==null)return '<div class="warn">🩺 Тиск ще не вимірюється — для повного кардіо-ризику потрібен тонометр (Omron). Заміри підтягнуться автоматично через Apple Health.</div>';
+ if(bp.sys_last==null)return '<div class="warn">🩺 Тиск ще не вимірюється — заміри з тонометра підтягнуться автоматично через Apple Health.</div>';
  const s=num(bp.sys_last),d=num(bp.dia_last);
  const col=(s>=140||d>=90)?'#E30613':((s>=130||d>=85)?'#F59E0B':'#10B981');
  const st=(s>=140||d>=90)?'високий':((s>=130||d>=85)?'підвищений':'норма');
+ const ser=(bp.series||[]);
  let h='<h2>🩺 Артеріальний тиск</h2><div class="cards">';
- h+=kc('Останній','<span style="color:'+col+'">'+f(s)+'/'+f(d)+'</span>','мм рт.ст.',st,'');
- if(bp.sys7!=null)h+=kc('Сер. 7 днів',f(bp.sys7)+'/'+f(bp.dia7),'мм рт.ст.',f(bp.n)+' замірів','');
- h+='</div>';return h;
+ h+=kc('Останній','<span style="color:'+col+'">'+f(s)+'/'+f(d)+'</span>','мм рт.ст.',st+(bp.last_at?' · '+esc(bp.last_at):''),'');
+ if(bp.sys7!=null)h+=kc('Сер. 7 днів',f(bp.sys7)+'/'+f(bp.dia7),'мм рт.ст.',f(bp.n)+' замірів усього','',ser.length>=2?spark(ser.map(x=>x.sys),'#E30613'):'');
+ if(bp.pp7!=null)h+=kc('Пульсовий тиск',f(bp.pp7),'мм рт.ст.','sys−dia · орієнтир 30–50',num(bp.pp7)>50?'<span class="delta down">вище</span>':'<span class="delta up">ок</span>');
+ h+='</div>';
+ const pr=(rem||[]).find(r=>/тиск/i.test(r.title||''));
+ if(pr&&pr.days>=0)h+='<div class="sub" style="margin-top:5px">📋 '+esc(pr.title)+' — '+(pr.days>0?('через '+pr.days+' дн'):'сьогодні')+'. Міряй вранці та ввечері, сидячи, після 5 хв спокою.</div>';
+ return h;
 }
 function lipidTrack(labs){
  const find=nm=>{const r=(labs.results||[]).find(x=>x.raw_name===nm);return r?num(r.value):null;};
@@ -357,7 +399,7 @@ function bodyComp(b){
 function strengthCard(st){
  if(!st||st.sessions30==null)return '';
  const n=num(st.sessions30);
- return '<h2>💪 Силові тренування</h2><div class="cards">'+kc('Силові сесії',f(n),'/30 дн',n>=8?'добре (~2/тиж) ✅':'ціль ~2/тиж · старт «Силове» на годиннику','')+'</div>';
+ return '<h2>💪 Силові тренування</h2><div class="cards">'+kc('Силові сесії',f(n),'/30 дн',n>=8?'добре (~2/тиж) ✅':'ціль ~2/тиж · натисни «Силове» на годиннику — сесії зʼявляться тут самі. Прив’язка: вт+пт після ранкової кави','')+'</div>';
 }
 function insightsBlock(o,wh){
  const dz=(o&&o.discoveries)||[], bi=(wh&&wh.behavior_insights)||[];
@@ -365,7 +407,7 @@ function insightsBlock(o,wh){
  if(!all.length)return '<h2>🔍 Що впливає на тебе</h2><div class="sub">Тегай стани (алкоголь, стрес, пізня їжа) через вечірні кнопки — за 2–3 тижні тут зʼявляться звʼязки «поведінка → відновлення».</div>';
  let h='<h2>🔍 Що впливає на тебе (звʼязки на твоїх даних)</h2><ul class="tight">';
  for(const t of all)h+='<li>'+esc(t)+'</li>';
- h+='</ul>';return h;
+ h+='</ul><div class="sub" style="margin-top:4px">Що більше тегів — то точніші звʼязки (поріг: ≥5 «так» і ≥5 «ні» за 90 днів).</div>';return h;
 }
 function aiBlock(ins,hist){
  hist=hist||[];
@@ -414,13 +456,14 @@ function historyBlock(hist){
  for(const x of hist)h+='<tr><td><b>'+esc(x.title)+'</b><br><span class="sub">'+esc(x.body||'')+'</span></td></tr>';
  h+='</tbody></table></div>';return h;
 }
-function render(D){
+let CHS=[];
+function render(D,cached){
  const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||{},cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[],rem=D.reminders||[];
  const ser=c=>mon.map(r=>num(r[c]));
  const lastD=(cov||[]).map(c=>c.last).filter(Boolean).sort().pop();
  const todayStr=new Date().toISOString().slice(0,10);
  const fresh=lastD===todayStr?'🟢 дані за сьогодні':'🟠 останні дані: '+(lastD||'—');
- document.getElementById('sub').innerHTML=fresh+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'})+' · <span class="sub">'+f(k.total)+' замірів з '+(k.since||'')+'</span>';
+ document.getElementById('sub').innerHTML=fresh+' · оновлено '+new Date(D.generated_at).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'})+(cached?' · <span class="spin"></span> оновлюю…':' · авто 10 хв')+' · <span class="sub">'+f(k.total)+' замірів з '+(k.since||'')+'</span>';
  let h='';
  h+=grp('🔝 СЬОГОДНІ','g-today');
  h+=illnessBanner(D.illness);
@@ -439,7 +482,7 @@ function render(D){
  h+=grp('❤️ СЕРЦЕ · ДОВГОЛІТТЯ · АНАЛІЗИ','g-heart');
  h+=ageBlock(D.oura,D.whoop);
  h+=cvRisk(D.cv);
- h+=bpBlock(D.bp);
+ h+=bpBlock(D.bp,rem);
  h+=labsBlock(labs,rem);
  h+=labTrendsBlock(D.lab_trends);
  h+=grp('🏃 ФОРМА І АКТИВНІСТЬ','g-fit');
@@ -454,7 +497,7 @@ function render(D){
  h+=insightsBlock(D.oura,D.whoop);
  h+=aiBlock(D.insights,D.insights_history);
  h+=grp('📈 ДОВГОСТРОКОВІ ТРЕНДИ','g-trend');
- h+='<h2>Огляд · 90 днів <span class="sub" style="text-transform:none;letter-spacing:0">(графік — помісячна динаміка)</span></h2><div class="cards">';
+ h+='<h2>Огляд · 90 днів <span class="sub" style="text-transform:none;letter-spacing:0">(графік — помісячна динаміка; Δ — проти попереднього року)</span></h2><div class="cards">';
  h+=kc('Пульс спокою',f(k.rhr_90),'уд/хв','зараз '+f(k.rhr_last),delta(k.rhr_90,k.rhr_prev,'lower'),spark(ser('resting_hr'),'#E30613'));
  h+=kc('HRV',f(k.hrv_90),'мс','',delta(k.hrv_90,k.hrv_prev,'higher'),spark(ser('hrv_ms'),'#3B82F6'));
  h+=kc('VO₂max',f(k.vo2_180,1),'','180 дн','',spark(ser('vo2max'),'#A855F7'));
@@ -464,7 +507,7 @@ function render(D){
  h+=kc('Тренування',f(k.ex_90),'хв/день','','',spark(ser('exercise_min'),'#22D3EE'));
  h+=kc('Вага',f(k.w_last,1),'кг','','',spark(ser('weight_kg'),'#F59E0B'));
  h+='</div>';
- h+='<h2>Тренди (помісячно)<span class="pb" id="pb"><button data-m="12">1р</button><button data-m="36">3р</button><button data-m="0" class="on">Усе</button></span></h2><div class="charts" id="charts"></div>';
+ h+='<h2>Тренди (помісячно)<span class="pb" id="pb"><button data-m="12">1р</button><button data-m="36" class="on">3р</button><button data-m="0">Усе</button></span></h2><div class="charts" id="charts"></div>';
  let ce='<h2>Звʼязки та рекорди</h2><details><summary>Показати звʼязки показників і рекорди</summary><div style="padding:6px 8px"><div class="corr">';
  const CD=[['hrv_rhr','HRV ↔ Пульс спокою'],['sleep_hrv','Сон ↔ HRV'],['sleep_rhr','Сон ↔ Пульс'],['ex_rhr','Тренування ↔ Пульс'],['vo2_rhr','VO₂max ↔ Пульс'],['day_sleep','Світло ↔ Сон']];
  for(const [key,lab] of CD){const r=num(co[key]);if(r==null)continue;const w=Math.min(100,Math.abs(r)*100);const pos=r>=0;const col=pos?'#3B82F6':'#E30613';const strong=Math.abs(r)>=0.3;ce+='<div class="crow"><div class="p">'+lab+' <span style="color:'+(strong?'#3B82F6':'#8A8A8A')+'">r='+r.toFixed(2)+'</span></div><div class="bar"><i style="left:'+(pos?'50%':(50-w/2)+'%')+';width:'+(w/2)+'%;background:'+col+'"></i><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#3A3A3A"></span></div><div class="t">'+(strong?'виражений звʼязок':'слабкий')+' · 180 дн</div></div>';}
@@ -487,25 +530,48 @@ function render(D){
  h+='<h2>Що відстежується ('+cov.length+')</h2><details><summary>Показати реєстр</summary><table><tbody>';for(const c of cov){h+='<tr><td>'+esc(c.name_uk||'')+'</td><td>'+f(c.days)+' дн</td><td class="sub">'+(c.last||'')+'</td></tr>';}h+='</tbody></table></details>';
  document.getElementById('root').innerHTML=h;
  const defs=[['resting_hr','Пульс спокою','#E30613'],['hrv_ms','HRV','#3B82F6'],['vo2max','VO₂max','#A855F7'],['sleep_hours','Сон','#22D3EE'],['weight_kg','Вага','#F59E0B'],['steps','Кроки','#10B981'],['active_kcal','Активні ккал','#EC4899'],['walking_speed','Швидкість ходи','#94A3B8']];
- let chs=[];
- const draw=mm=>{const host=document.getElementById('charts');host.innerHTML='';chs.forEach(c=>c.destroy());chs=[];
-  for(const [code,name,col] of defs){const vals=mm.map(r=>num(r[code]));if(vals.every(v=>v==null))continue;const box=document.createElement('div');box.className='cbox';box.innerHTML='<h4>'+name+'</h4><div class="cw"><canvas></canvas></div>';host.appendChild(box);chs.push(new Chart(box.querySelector('canvas'),{type:'line',data:{labels:mm.map(r=>r.m),datasets:[{data:vals,borderColor:col,backgroundColor:col+'14',fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6,color:'#8A8A8A',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#8A8A8A',font:{size:9}},grid:{color:'#2A2A2A'}}}}}));}};
- draw(mon);
+ const draw=mm=>{const host=document.getElementById('charts');host.innerHTML='';CHS.forEach(c=>c.destroy());CHS=[];
+  for(const [code,name,col] of defs){const vals=mm.map(r=>num(r[code]));if(vals.every(v=>v==null))continue;const box=document.createElement('div');box.className='cbox';box.innerHTML='<h4>'+name+'</h4><div class="cw"><canvas></canvas></div>';host.appendChild(box);CHS.push(new Chart(box.querySelector('canvas'),{type:'line',data:{labels:mm.map(r=>r.m),datasets:[{data:vals,borderColor:col,backgroundColor:col+'14',fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6,color:'#8A8A8A',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#8A8A8A',font:{size:9}},grid:{color:'#2A2A2A'}}}}}));}};
+ draw(mon.slice(-36));
  document.querySelectorAll('#pb button').forEach(b=>{b.onclick=()=>{document.querySelectorAll('#pb button').forEach(x=>x.classList.remove('on'));b.classList.add('on');const n=parseInt(b.dataset.m,10);draw(n?mon.slice(-n):mon);};});
+ initSpy();
+}
+function initSpy(){
+ const links=[...document.querySelectorAll('.nav a')];
+ const secs=[...document.querySelectorAll('.grp[id]')];
+ if(!secs.length||!('IntersectionObserver' in window))return;
+ if(window.__spy)window.__spy.disconnect();
+ window.__spy=new IntersectionObserver(es=>{
+   for(const e of es)if(e.isIntersecting)links.forEach(a=>a.classList.toggle('act',a.getAttribute('href')==='#'+e.target.id));
+ },{rootMargin:'-8% 0px -78% 0px'});
+ secs.forEach(s=>window.__spy.observe(s));
 }
 (function(){
+ const KEY='hd_cache_v3', TKEY='hd_token';
  let t=location.hash.slice(1); if(t.indexOf('k=')===0)t=t.slice(2);
+ if(t){try{localStorage.setItem(TKEY,t);}catch(e){}}
+ else{try{t=localStorage.getItem(TKEY)||'';}catch(e){}}
  const sub=document.getElementById('sub');
  if(!t){sub.innerHTML='<div class="msg">Додай токен у посилання: <code>#k=ТВІЙ_ТОКЕН</code></div>';return;}
+ let lastOk=0, hadCache=false;
+ try{const c=JSON.parse(localStorage.getItem(KEY)||'null');if(c&&c.D){hadCache=true;render(c.D,true);}}catch(e){}
  let tries=0;
  function load(){tries++;
   fetch(API+'?k='+encodeURIComponent(t)+'&cb='+Date.now(),{cache:'no-store'}).then(r=>r.json().then(D=>({s:r.status,D:D}))).then(({s,D})=>{
-   if(s===401){sub.innerHTML='Невірний токен доступу.';return;}
-   if((D&&D.building)||s===503){sub.innerHTML='Дані збираються… ('+tries+')';if(tries<5)setTimeout(load,3000);return;}
-   if(!D||D.error){sub.innerHTML=esc((D&&D.error)||'немає даних');return;}
-   render(D);
-  }).catch(e=>{if(tries<5){setTimeout(load,3000);}else sub.innerHTML='Помилка мережі: '+esc(String(e));});
+   if(s===401){sub.innerHTML='Невірний токен доступу.';try{localStorage.removeItem(TKEY);}catch(e){}return;}
+   if((D&&D.building)||s===503){if(!hadCache)sub.innerHTML='Дані збираються… ('+tries+')';if(tries<5)setTimeout(load,3000);return;}
+   if(!D||D.error){if(!hadCache)sub.innerHTML=esc((D&&D.error)||'немає даних');return;}
+   lastOk=Date.now();tries=0;
+   try{localStorage.setItem(KEY,JSON.stringify({t:Date.now(),D:D}));}catch(e){}
+   render(D,false);hadCache=true;
+  }).catch(e=>{
+   if(tries<5){setTimeout(load,3000);}
+   else if(hadCache){const el=document.getElementById('sub');el.innerHTML=el.innerHTML.replace(/<span class="spin"><\/span> оновлюю…/,'📶 офлайн — показую збережене');}
+   else sub.innerHTML='Помилка мережі: '+esc(String(e));
+  });
  }
  load();
+ setInterval(()=>{tries=0;load();},10*60*1000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastOk>5*60*1000){tries=0;load();}});
 })();
 </script></body></html>
