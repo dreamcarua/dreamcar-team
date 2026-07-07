@@ -8,6 +8,18 @@
 
 ---
 
+## 07.07.2026 — Marketing-інфраструктура: деслідження + автоматизація аудиторій + гігієна
+
+### Meta / dreamcar-dashboard (Vadym + Cowork, автономна сесія)
+- 🆕 **`audience-sync.yml` + `etl/sync_audiences.py`** — щоночі 06:30 Kyiv синкає Supabase → Meta Custom Audiences: «DC · AUTO · Покупці (всі)» (49k, exclusion для acquisition), «Покупці поточного циклу», «Топ-20% LTV» (value seed) + LAL 1% / 1-3%. Стійкий до busy-аудиторій (1870145). Known gap: engagement-аудиторії через API не створюються (#2654) — створити в UI.
+- 🆕 **`legacy-hygiene.yml` + `scripts/legacy_pause_children.py`** — dry-run показав 21 config-ACTIVE адсет / 86 адів у 332 legacy-кампаніях (знято revive-ризик після запуску з dry_run=false — рішення vg).
+- 🆕 **PAUSED-структури в акаунті** (вмикає vg): DC|02b База·Дожим покупців · DC|03s Stories-тілт (excl master ×6) · DC|F Фінал-шаблон · DC|B Бліц-шаблон (attr 1d/1d).
+- 🔧 **Шкала pixel→real у дашборді: 0.7 → 0.54** (pixel/real = 1.86, research 07.2026) у meta-analytics + поріг алерту sync_meta_stats 0.45.
+- 🔧 **Щоденний аудит (scheduled task) оновлено**: беззбитковість pixel 3.7, фазова логіка циклу (старт 0–5 днів = золоте вікно), стеля baseline 25k/д, каданс бліців 1/міс, захист PAUSED-структур.
+- 📖 **research-2026-07/**: deep research (5 док.) + брендовані PDF (Playbook PPC, Бриф контент) + compliance_rewrites.md (12 текстів переписано) + creative_pack_w1.md (16 сценаріїв) + lp_umovy_draft.md + meta_patterns v3.1/v3.2 (втома крео = день 4–5, кілл день 7).
+- 🆕 **`spread-engagement-post.yml`** — розкидка поста по адсетах DC|06 одним creative_id; застосовано двічі («я щось купив», «угадайка звук» — по 7 груп).
+
+
 ## 07.07.2026 — Brand Book v4.0 «Etalon»
 
 ### Brand Book — v4.1.x (автономна сесія: дані, CI, UX)
