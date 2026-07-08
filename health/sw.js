@@ -1,7 +1,7 @@
 // Health Cockpit service worker — offline shell.
 // Same-origin: network-first (свіжий HTML завжди, кеш як fallback). CDN/fonts: cache-first.
 // API Supabase не перехоплюємо — дані кешує сама сторінка в localStorage.
-const CACHE = 'health-shell-v1';
+const CACHE = 'health-shell-v2';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
