@@ -300,3 +300,8 @@
 - **Механізм:** новий `scripts/archive_old_ads.py` (dreamcar-dashboard, Graph v21.0, status=ARCHIVED, DRY_RUN, самозавершальний цикл з backoff). PAT не створює нові workflow (403) → перевикористав `legacy-hygiene.yml` через тимчасовий шим `legacy_pause_children.py` (оригінал одразу відновлено). Meta тротлить масові write-и: batch-режим зарізав 265/385 («dependent request failed») → перехід на поштучні POST з ретраями + цикл-проходи.
 - **Прогрес:** ~216/385 архівовано на момент запису; решта (~169) дочищається автоматично (RID 29012183731). Оборотно (un-archive). НЕ чіпав DC|06 engagement (прогрів) і нічого поза DC|01–05.
 - **Нагадування:** engagement-бюджети 13k/добу (прогрів заправки) — відкотити після старту.
+
+## 09.07.2026 — архів DC|01–05 ЗАВЕРШЕНО (дочистка)
+- Результат: 385/385 старих ад заархівовано; неархівованих у DC|01–05 = 0 (перевірено MCP).
+- Чому тривало: Meta write-throttle на масових змінах (batch «dependent request failed», дійшло 216) + баг у live_ids (Graph `/ads` без `effective_status` не повертав CAMPAIGN_PAUSED-ади → цикл хибно бачив «0» і не дочищав). Фікс: явний `effective_status` у запиті → реран догнав 169→0.
+- Шим `legacy_pause_children.py` відновлено на оригінал; інструмент `scripts/archive_old_ads.py` лишається у dreamcar-dashboard (idempotent, dry-run aware) для майбутніх чисток.
