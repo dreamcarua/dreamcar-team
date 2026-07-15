@@ -213,10 +213,23 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
       NEED_REENCODE="yes"
     fi
 
-    curl -sS -o /tmp/input.mp4 -L "$USE_URL"
-    IN_SIZE=$(stat -c%s /tmp/input.mp4)
+    # #FIX 15.07.2026: download з retry + перевіркою розміру. pub.r2.dev іноді обриває великі
+    # файли → битий mp4 → sendVideo fail ("26МБ попаяло"). Звіряємо з compressed_size_bytes.
+    EXP_SIZE=$(echo "$CREATIVE" | jq -r 'if (.compressed_status=="ready") then (.compressed_size_bytes // 0) else 0 end')
+    IN_SIZE=0
+    for att in 1 2 3; do
+      curl -sS -L --retry 2 --retry-delay 2 --connect-timeout 30 --max-time 300 -o /tmp/input.mp4 "$USE_URL" || true
+      IN_SIZE=$(stat -c%s /tmp/input.mp4 2>/dev/null || echo 0)
+      if { [ "$EXP_SIZE" -gt 0 ] && [ "$IN_SIZE" -ge $((EXP_SIZE*98/100)) ]; } || { [ "$EXP_SIZE" -le 0 ] && [ "$IN_SIZE" -gt 51200 ]; }; then break; fi
+      echo "::warning::download attempt $att incomplete: $IN_SIZE/$EXP_SIZE bytes — retry"; sleep 2
+    done
     IN_MB=$(awk "BEGIN{printf \"%.1f\", $IN_SIZE/1024/1024}")
-    echo "Downloaded: $IN_SIZE bytes (${IN_MB} MB), codec=$CODEC_USED"
+    echo "Downloaded: $IN_SIZE bytes (${IN_MB} MB), codec=$CODEC_USED, expected=$EXP_SIZE"
+    if [ "$EXP_SIZE" -gt 0 ] && [ "$IN_SIZE" -lt $((EXP_SIZE*90/100)) ]; then
+      echo "::error::video download incomplete ($IN_SIZE/$EXP_SIZE) — fail для повторної спроби"
+      curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/fail_autopost_job" -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" -d "$(jq -nc --arg jid "$JOB_ID" --arg pid "$PUB_ID" --arg err "video download incomplete $IN_SIZE/$EXP_SIZE bytes" '{job_id:$jid,pub_id:$pid,err_msg:$err}')" || true
+      JOB_ID_GLOBAL=""; PUB_ID_GLOBAL=""; continue
+    fi
 
     ffmpeg -y -v error -i /tmp/input.mp4 -ss 00:00:01 -vframes 1 -vf "scale='min(320,iw)':-2" /tmp/thumb.jpg 2>/dev/null || \
       ffmpeg -y -v error -i /tmp/input.mp4 -vframes 1 -vf "scale='min(320,iw)':-2" /tmp/thumb.jpg
