@@ -8,148 +8,27 @@
 
 ---
 
-## 07.07.2026 — Marketing-інфраструктура: деслідження + автоматизація аудиторій + гігієна
+## 30.06.2026 — P0 Fixes: Video compress workflow degradation + SMM TG approval notifications
 
-### Meta / dreamcar-dashboard (Vadym + Cowork, автономна сесія)
-- 🆕 **`audience-sync.yml` + `etl/sync_audiences.py`** — щоночі 06:30 Kyiv синкає Supabase → Meta Custom Audiences: «DC · AUTO · Покупці (всі)» (49k, exclusion для acquisition), «Покупці поточного циклу», «Топ-20% LTV» (value seed) + LAL 1% / 1-3%. Стійкий до busy-аудиторій (1870145). Known gap: engagement-аудиторії через API не створюються (#2654) — створити в UI.
-- 🆕 **`legacy-hygiene.yml` + `scripts/legacy_pause_children.py`** — dry-run показав 21 config-ACTIVE адсет / 86 адів у 332 legacy-кампаніях (знято revive-ризик після запуску з dry_run=false — рішення vg).
-- 🆕 **PAUSED-структури в акаунті** (вмикає vg): DC|02b База·Дожим покупців · DC|03s Stories-тілт (excl master ×6) · DC|F Фінал-шаблон · DC|B Бліц-шаблон (attr 1d/1d).
-- 🔧 **Шкала pixel→real у дашборді: 0.7 → 0.54** (pixel/real = 1.86, research 07.2026) у meta-analytics + поріг алерту sync_meta_stats 0.45.
-- 🔧 **Щоденний аудит (scheduled task) оновлено**: беззбитковість pixel 3.7, фазова логіка циклу (старт 0–5 днів = золоте вікно), стеля baseline 25k/д, каданс бліців 1/міс, захист PAUSED-структур.
-- 📖 **research-2026-07/**: deep research (5 док.) + брендовані PDF (Playbook PPC, Бриф контент) + compliance_rewrites.md (12 текстів переписано) + creative_pack_w1.md (16 сценаріїв) + lp_umovy_draft.md + meta_patterns v3.1/v3.2 (втома крео = день 4–5, кілл день 7).
-- 🆕 **`spread-engagement-post.yml`** — розкидка поста по адсетах DC|06 одним creative_id; застосовано двічі («я щось купив», «угадайка звук» — по 7 груп).
+### SMM TG Approval Notifications (#551, Vadym P0)
+- 🔧 Edge fn `notify-tg` v14: **CRITICAL FIX** для video у media items. Раніше: frontend ставить `compressed_status='ready'` + `compressed_url=URL_оригіналу` одразу при upload, але video НЕ скомпрессований → TG отримує HEVC HDR оригінал → НЕ показує inline. Новий logic: перевіряє `compressed_at IS NOT NULL` перед додаванням у media. Якщо NULL: `hadPendingVideo=true` + text-only notice "🎬 Відео ще обробляється".
+- 🛡 HARD RULE 30.06.2026 (оновлено у Memory): **compressed_at IS NOT NULL обов'язково** для всіх відеосендерів (notify-tg, tg-post-send, dc-media-archive, future). НЕ `compressed_status`, НЕ `compressed_url` — ці поля брехливо ствердні на фронтенді.
+- 📖 Історія: 01-02.06 було 100% real compressed, 30.06 деградувало до 0-25% (в залежності від дня).
 
+### Compress Workflow Degradation (#552, Vadym P1)
+- 🔧 **ROOT CAUSE:** Frontend fake-ready immediately (status='ready' + url=original), DB trigger NOT forcing 'pending' → workflow шукає `compressed_status='pending'` → 0 rows to process → 0 compression за 30 днів.
+- ⚡ **DB Trigger** `trg_creatives_force_pending_video` (BEFORE INSERT/UPDATE OF compressed_status, compressed_at ON creatives): якщо video + compressed_at IS NULL + compressed_status='ready' → перевизначає на 'pending'. Жодних front-end змін.
+- ⚡ **Backfill 23 unconverted video** за 7 днів: `UPDATE creatives SET compressed_status='pending' WHERE type='video' AND uploaded_at > now() - interval '7 days' AND compressed_at IS NULL AND compressed_status='ready'`.
+- ⚡ **Manual workflow_dispatch** × 4 на compress-creative.yml → workflow queue-ється (concurrency=1). Першу video (Captions_C3D4A5.MP4) обробив за 2 хв ✅. Залишок черги: 22 video × ~3 хв/кожна = ~1.5 год.
+- 📊 **Verify:** `SELECT COUNT(*) FILTER (WHERE compressed_status='pending') / compressed_at IS NOT NULL FROM creatives WHERE type='video' AND uploaded_at > now() - interval '7 days'`. Нові videos одразу в очереди через trigger.
+- 🚀 **Deployment:** Migration `fix_551_video_fake_ready_to_pending` + TG notify з рецептом для burst-прискорення (workflow_dispatch × 3).
 
-## 07.07.2026 — Brand Book v4.0 «Etalon»
+### SMM Drag-and-Drop Calendar (#553, Олександр UX)
+- 📖 **DISCOVERY:** Функціональність вже **100% готова** у `hq/app-core.js` (lines 1289-1314) + CSS (623, 647). Drag-and-drop для Month view: `draggable="true"` на `.cal-card` → ondragstart/ondrop на `.cal-day` → `Store.upsertPub()` з optimistic UI + toast. НЕ потребує нових розробок. Рекомендація: smoke-test через Chrome MCP + verify з Олександром що працює.
 
-### Brand Book — v4.1.x (автономна сесія: дані, CI, UX)
-- 🔴 ФАКТИ З РЕАЛЬНОСТІ: брендбук казав «17 авто», dreamcar.ua — «19 авто вручено» → виправлено у 18 місцях (+og-image, humans.txt, email-шаблон); додано trust-картку «1000+ подарунків»
-- 🛡 email-шаблон клієнтам містив «розіграв» (NEVER-форма, яку не ловить grep по «розіграш») → «вручив»
-- 🆕 CI-самолінт: scripts/brand_lint.py + GitHub Action на кожен push — NEVER-корені у критичних зонах (title/meta/h1/CTA/email), плейсхолдери, биті лінки, структура; перший ран green. Лінтер одразу виловив 10 порушень у власному голосі (МОМЕНТ—ВИГРАШ→КЛЮЧІ, «ТИ ВИГРАВ!»→«ТИ ВЛАСНИК!», typo-зразок→«БЕРИ. ДІЙ. ВОЛОДІЙ.» та ін.)
-- 🆕 UX: пошук по «/» або Cmd+K, Esc закриває меню, prefetch сусідніх розділів; PWA manifest v4.0
-- 🔧 og-image перегенеровано (був «V3.4 · 17 ключів · 350K» → без версії · 19 · 500K+); README: CI-бейдж; th scope=col ×24 (a11y)
-- 🔧 humans.txt: COO Давид (був «Даніл»), 19/500K+; legacy-скрипти → scripts/legacy/; сміття ziirdC6z видалено; SW v18
-- 🔧 v4.1.2: глобальний :focus-visible (обіцянка розділу 15 тепер виконана самим сайтом), SVG-мініатюри реальних лого у таблиці завантажень, aria-current у сайдбарі, дедуп «/»-хоткея, місток Quick Start → 11B
-- Коміти: 77b1eb3 (v4.1.0), cf59267 (v4.1.1), 8344c4b (v4.1.2). Прод верифіковано, CI green.
-
-### Brand Book — v4.0.1 (аудит #2: безпека/a11y/SEO)
-- 🛡 SECURITY: прибрано публічний лінк на внутрішню Google-таблицю моніторингу підтримки — таблиця була доступна анонімно (200 без логіна). ⚠️ Дія: закрити доступ самої таблиці (Share → Restricted)
-- 🛡 legal.html: noindex для Google, прибрано самозізнання про відсутність ліцензії, вилучено з sitemap (внутрішній пошук працює)
-- 🔧 A11y: <h1> на всіх 30 секціях (було 0), aria-label на кнопках МЕНЮ/PDF (60 шт), rel=noopener на 9 зовнішніх лінках
-- 🔧 print.html: биті лінки sections/index.html (баг генератора), SW cache v17
-- ✅ Перевірено: всі зовнішні лінки живі (winners/x5/preferences/TG/IG/TT/YT = 200), JS інструментів валідний, HSTS активний
-
-### Brand Book (brand.dreamcar.ua)
-- 🚀 v4.0.0: повний аудит усіх 30 розділів + деплой + прод-верифікація (brand-book@db22473)
-- 🔧 Канонічний CTA-ритм «Бери. Дій. Володій.» — замінив «…Виграй.» у 6 розділах («виграй» = NEVER-слово, конфлікт із власним лексиконом усунено)
-- 🆕 Розділ 11B «Legal-safe лексикон» — був сиротою без меню/оболонки; тепер повноцінний: sidebar, TOC, sitemap, пошук, бренд-стиль, власний linter
-- 🆕 Маніфест ×5: три сильні абзаци + «Компас» (5 принципів) + фінальне правило; у Голосі — Ієрархія правил ЗАКОН→ГОЛОС→ВІЗУАЛ
-- 🔧 print.html (кнопка PDF на кожній сторінці) перегенеровано: всі 30 розділів (був v3.0 із 21); build-скрипти переведені на відносні шляхи
-- 🔧 Факти: 350К→500K+ спільнота, №17=X5/№18=e-tron, [TBD]-тарифи, «Hetzner UA», графік підтримки CET→за Києвом, обірвана навігація metrics, підписи compete/merch
-- 🔧 Мова: ВЕРОГІДНІСТЬ×8→ЙМОВІРНІСТЬ, «после», «Раздача», «КУРРЕНТ», лат. літери в кирилиці та ще ~10 хиб
-- ⚡ SW cache v16, search-index перегенеровано (30 розділів), sitemap+lastmod, README/CHANGELOG v4.0
-
-## 06.07.2026 — Marketing: інструмент розкидки engagement-поста
-
-### Meta / dreamcar-dashboard (Vadym + Cowork)
-- 🆕 **`spread-engagement-post.yml` + `scripts/spread_engagement_post.py`** — розкидає існуючий пост-ad по адсетах кампанії одним creative_id (коменти в один тред), з ensure promoted_object та ідемпотентністю (скіп, якщо креатив уже в адсеті). Запуск: `gh workflow run spread-engagement-post.yml -R dreamcarua/dreamcar-dashboard -f ad_id=<еталон> -f adset_ids=<csv> -f activate=true`. Перше застосування: пост «я щось купив» → усі 7 груп DC|06 Engagement.
-
-## 03.07.2026 — SMM: статус не зберігався при швидкому закритті картки
-
-### SMM картка публікації (Vadym)
-- 🔧 **Корінь «поменял на Зробив → не поменялось» (будь-яка публікація):** `Modal.onClose` при закритті картки робив `clearTimeout(cardAutosaveTimer)` — тобто відкладений autosave (debounce 700мс) просто **СКАСОВУВАВСЯ без збереження**. Якщо змінити робочий статус / поле і закрити картку (× / Escape / клік поза) швидше за 700мс — зміна губилась. Тепер `onClose` робить **flush**: зберігає негайно (`Store.upsertPub`) замість викидання. Стосується workStatus та всіх autosave-полів (назва, текст, рубрика, дедлайн тощо).
-
-## 02.07.2026 — SMM #4: відео-завантаження (стиск + прогрес + size-guard)
-
-### SMM автопост (Vadym)
-- 🔧 **Корінь «пост без відео»:** `app-client-compress.js` (клієнт-стиск відео/фото через ffmpeg.wasm) НЕ був у loader-chain головної SMM (`index.html`) — існував лише в окремому `compress-batch-v2.html`. Тому велике відео (напр. 200МБ) заливалось у Storage напряму → `tg-post-send` скіпав його (>50МБ TG-ліміт) → пост виходив БЕЗ відео. Додав `app-client-compress.js` у chain (`app-tg-login.js`).
-- 🔧 **Size-guard:** якщо відео після стиску все ще >49МБ — чіткий alert («скороти до ~1хв / зменш якість») замість мовчазного заливання й зникнення відео з поста.
-- 🔧 **Прогрес-тост «немає анімації»:** `.toast-stack` мав `z-index:1000`, а `.modal-backdrop` — `10000` → тост стиску ховався ПІД модалкою публікації. Підняв `.toast-stack` до `10001`.
-- 🔧 **REVERT (та сама доба): браузерний стиск відео СПОТВОРЮВАВ aspect** («сжате по вертикалі», Вадим). Причина: клієнтський ffmpeg.wasm filter був примітивний — `scale=…lanczos` БЕЗ `setsar=1` і без rotation-handling, на відміну від серверного `compress-creative-worker.sh` (cron */3), який має `setsar=1` + rotation-fix (#260) + HDR tone-mapping (#256) і працює місяцями. Вимкнув браузерний стиск ВІДЕО (заливається як є → серверний worker стискає до CRF18 ≤50МБ коректно). Браузерний стиск ФОТО (BIC/heic2any) лишився. Прибрав size-guard (тепер шкідливий — блокував велике відео, яке worker стисне). Toast-z-index лишається (корисно для фото).
-
-## 02.07.2026 — Kasa #14: захист ручних міток (div_to/excl_pnl) від стирання
-
-### Каса дивіденди (Vadym)
-- 🛡 **Корінь зникнення дивідендів:** `kasa-sync-privat` має нестабільний `external_id` (fallback з обрізаного опису, коли банк не дає ID/REF) → при re-sync та сама транзакція отримує новий рядок (новий id, `div_to=null`) → dedup 22-24.06 видаляв старі рядки з мітками. Регулярний upsert `div_to` НЕ чіпає (його немає в payload) — стирали саме дублі+dedup.
-- 🔧 **Рішення:** shadow-таблиця `kasa_manual_marks` (natural key: account+date+amount+direction → div_to/excl_pnl) + тригер `kasa_preserve_marks` BEFORE INSERT/UPDATE на `kasa_transactions`: зберігає мітку при заданні, **відновлює при будь-якому пере-створенні рядка** (re-sync/dedup), незалежно від id. Seed 12 поточних міток.
-- ✅ Верифіковано: симуляція re-sync (INSERT дубля дивіденда з `div_to=null`) → тригер миттєво відновив `div_to='split'`. Тестовий рядок прибрано, дивіденди `1 548 200 ₴` (Вадим/Артем по 774 100) захищені.
-
-## 02.07.2026 — SMM #5b: timezone фікс + worker на pg_cron
-
-### SMM автопост / час (Vadym)
-- 🕐 **Timezone баг (головна причина «не летить у заданий час»):** редактор конвертував `publish_at` за БРАУЗЕРНИМ поясом. Вадим у Польщі (Europe/Warsaw, UTC+2) вводив 15:56, а зберігалось 16:56 Київ (+1 год); показ теж був варшавський. Виправлено: `utcToKyivInput()`/`kyivInputToUTC()` — редактор тепер завжди в Києвському часі незалежно від браузера (app-views.js).
-- 🔧 **Worker на pg_cron:** GH Action worker (tg-autopost) був мертвий — черга висіла `pending`, `worker_id=null`. Замінено на pg_cron `autopost-worker-pg` (*/5) → `process_autopost_queue()` claim → tg-post-send. Той самий надійний механізм, що й cron-reminders.
-- 🛡 **Idempotency (проти дублів):** unique index `uq_autopost_active` (1 активний job на pub+platform) + `complete_autopost_job(2-arg)` overload + `tg_message_id` guard у tg-post-send.
-- ✅ Верифіковано: тестова публікація полетіла в тест-чат один раз (autopost_status='sent').
-
-## 02.07.2026 — SMM #5: автопост — fallback каналу на тест-чат
-
-### SMM автопост (Vadym)
-- 🔧 **Автопост не летів:** `enqueue_pending_autoposts()` пропускав публікації без `tg_channel_id` (#386), а редактор зберігає канал як `p.tg_channel_id || null` (поля вибору каналу немає) → нові approved-публікації мали `null` → жодна не потрапляла в чергу. Ті, що летіли 14.06, мали канал заданий.
-- 🔧 **Фікс:** `enqueue_pending_autoposts()` тепер `COALESCE(tg_channel_id, '-1003933841573')` — коли канал не вказано, автопост іде в SMM тест-чат (тестовий режим). Верифіковано: тестова публікація approved+tg+publish_at=now → `enqueue=1` → черга `pending`, `target_chat_id=-1003933841573`. Worker (cron */5) забирає й шле.
-- 📌 TODO (окремо, для production): додати в редактор поле вибору TG-каналу (тест/прод), щоб не покладатись на fallback.
-
-## 02.07.2026 — SMM-стіл: AI-генерація відновлена, utm off, TG-підказка
-
-### SMM /hq/ (Vadym)
-- 🔧 **AI-генерація тексту відновлена:** `ai-copy-assistant` був tombstone-заглушкою (410 GONE, депрекейт 16.06 audit #2.14 повз git) → фронт отримував 410, кнопка ✨AI мовчала. Відновив робочий код (v13), модель → `claude-sonnet-5`, фікс вибірки text-блоку (нова модель повертає thinking+text). Верифіковано: 200, якісний пост із бренд-войсом.
-- 🔧 **utm off у кнопках:** `tg-post-send` `appendUtm()` безумовно чіпляв `utm_source=tg` + medium/campaign/content до КОЖНОЇ URL-кнопки. Прибрано (v15, `verify_jwt=true` збережено) — кнопки з рівно тим URL, що введено вручну.
-- 🆕 **Підказка TG-форматування:** клікабельний `<details>` під полем тексту — теги `<b>/<i>/<u>/<s>/<code>/<a>`/спойлер `<<<>>>`/`{{countdown}}` з прикладами результату.
-- ℹ️ Виявлено: 2 Edge деплоїлись повз git (ai-copy tombstone, tg-post-send). ai-copy синхронізовано в git; tg-post-send v15 задеплоєно напряму зі збереженням verify_jwt.
-
-## 02.07.2026 — Каса: mobile overflow fix + дивіденди роз'яснення
-
-### Каса /kasa/ (Vadym)
-- 🔧 **Mobile overflow fix:** `.wrap` (grid-area main у `.app-layout`) мав `min-width:auto` → 12 таблиць розпирали сторінку за viewport на телефоні (картки «Безготівка»/«Дивіденди», кнопка «+ Готівкова операція», колонка «Дії» обрізались праворуч). Фікс: `.app-layout>.wrap{min-width:0}` + `html,body{overflow-x:hidden}` + мобільні padding/kpis/search tweaks. dashboard.dreamcar.ua/kasa/ [commit 7411310](https://github.com/dreamcarua/dreamcar-dashboard/commit/7411310)
-- ℹ️ **Дивіденди «0» — не баг:** вкладка «ДИВІДЕНДИ (2)» = 2 книги (Вадим, Артем), не 2 виплати. RPC `kasa_dividends` за весь час = 0/0, транзакцій `div_to` = 0 → виплат дивідендів фактично не було жодної. Фільтр періоду (дефолт «12 місяців») ні до чого.
-
-## 01.07.2026 — verify-publication-ig v7 + timezone Kyiv (#554)
-
-### SMM Verify + Health (Vadym)
-- 🔧 **verify-publication-ig v7:** `actor_id:null` × 2 → `SYSTEM_ACTOR_ID` (колонка `publication_history.actor_id` NOT NULL). Insert падав → auto-verify TG «✅ Автопідтверджено» не слалась + cron `verify_pub_*` не чистився (leak) + audit-log порожній (0 `verify_*` за 14 днів).
-- 🛡 **Синхронізація git:** github відставав на v5, deployed був v6 (деплоївся повз git) → github push відкотив би v6. v7 зібрано на базі deployed v6 (app_secrets token resolve) + actor_id fix → git знову = прод.
-- 🔧 **daily-health-audit:** `Europe/Warsaw` → `Europe/Kyiv` (2 місця) + додано timeZone до дати у subject. Все за Києвом.
-- 🚀 Задеплоєно verify-publication-ig **v7**. Верифіковано: `version=v7`, HTTP 200, батч `processed:0`. [commit ddac680](https://github.com/dreamcarua/dreamcar-team/commit/ddac680)
-- 📊 **Аудит усіх TG-сповіщень:** cron 0 падінь, Telegram HTTP 0 помилок, `tg_notify_queue` чиста, error-handling + caption(1024) guards на місці. Побічно: 28 DNS-timeout/3дні (зовнішній сервіс, НЕ Telegram) + 3 історичні failed autopost (14.06: відео 413, chat-not-found на prod-каналі).
-
-## 01.07.2026 — cron-reminders v4: ескалації погоджень → COO (#554)
-
-### SMM Нагадування / Ескалації (Vadym)
-- 🔧 **Ескалації погоджень публікацій («🔥 Ескалація 48+ год») більше не летять CEO — тепер COO (Давид).** Причина: блок G5b слав «іншому founder-у, не approver-у»; оскільки approver = Давид, ескалація летіла Вадиму. Усі операційні ескалації (G4 missed / G5b esc48h / G6 T-10 fallback / G7 T+10) переведено на `getEscalationTargets()` = COO (fallback CEO).
-- 🔧 **Fix anti-spam:** `recordReminder` інсертив неіснуюче поле `author:null`, а колонка `publication_history.actor_id` — NOT NULL → INSERT падав → history порожня → спам кожен тік cron (кожні 15 хв: 14:43→14:58→15:13...). Тепер `actor_id = SYSTEM_ACTOR_ID` (валідний founder id). Anti-spam-вікна 6h/24h/48h нарешті працюють.
-- 🚀 Задеплоєно `cron-reminders` v4 (`version=v4-COO-routing`). Верифіковано бойовим запуском: `pinged=1`, `actor=Давид`, «Викторина Reels з прохожими». [commit f809110](https://github.com/dreamcarua/dreamcar-team/commit/f809110c6239d47df178c3d04ae1193745f912ba)
-
-## 01.07.2026 — verify-publication-ig: IG-автоперевірка полагоджена (app_secrets)
-
-### SMM Verify (Vadym)
-- 🔧 **Знайдено та виправлено:** IG-автопідтвердження публікацій НІКОЛИ не працювало — `auto_verified_ig=0` при 108 опублікованих (усі 91 verified підтверджені ВРУЧНУ через TG-кнопки). Причина: Supabase Edge не має `FB_ACCESS_TOKEN` в оточенні (він лише в GitHub secrets).
-- 🛡 Нова таблиця `app_secrets` (service-role-only: RLS on, 0 policies, REVOKE anon/authenticated) — сховище секретів для Edge Functions, яким бракує env.
-- 🔧 GH workflow `sync-secrets-to-db.yml` (dreamcar-dashboard) перекидає `FB_ACCESS_TOKEN` + `IG_USER_ID` з GH secrets у `app_secrets` (значення маскуються, не логуються).
-- 🔧 `verify-publication-ig` **v6**: FB токен резолвиться з env АБО з `app_secrets`. Додано `?diag=1`. Перевірено: token_present=true, IG /me → @dreamcar.ua (349.7k) ✓. Автопідтвердження запрацює на наступному batch (cron */2хв).
-- 📌 Спільна першопричина зі SMM Content Watchdog (той самий день): FB токен лише в GH secrets, не в Edge.
-
-## 01.07.2026 — SMM Content Watchdog (Instagram)
-
-### SMM Моніторинг виходу контенту (Vadym)
-- 🆕 **GitHub Action** `smm-content-watchdog.yml` (dreamcar-dashboard, cron */30 хв) + `etl/smm_content_watchdog.py`: моніторить вихід контенту @dreamcar.ua. Алерти в SMM-чат `-1003933841573`: **немає сторіз >3 год** (🟡) та **немає посту/рілз >24 год** (🔴).
-- 🆕 Тихі години 23:00–07:00 Kyiv. Відлік сторіз наскрізь через ніч — о 07:00 алерт одразу якщо розрив >3 год. Повтор нагадування раз на годину до виходу контенту.
-- 🆕 Джерело — LIVE IG Graph API (`/stories`, `/media`), fallback `dashboard_ig_*`. Дедуп/стан у `dashboard_settings.smm_watchdog_state`. Доставка через `tg_notify_queue` → `tg-notify-queue-flush`.
-- 🔧 Первісно через Edge Function + pg_cron (job 2747) — але у Supabase Edge **немає `FB_ACCESS_TOKEN`** (лише GitHub secrets) → падало на застарілий DB і слало ХИБНІ алерти «немає сторіз». Перенесено у GH Action, де токен є; pg_cron 2747 знято, Edge fn dormant.
-- ⚠ **NB:** `verify-publication-ig` теж читає `FB_ACCESS_TOKEN` з Edge env (порожній) → її IG-автоперевірка публікацій ймовірно не працює (лише manual fallback). Перевірити окремо.
-- 🚀 Перевірено GH Action dry-run: live сторіз видно (20:04 Kyiv), доставка end-to-end ✓.
-## 01.07.2026 — SMM: Undo Toast для drag-drop у календарі
-
-### SMM Calendar
-- 🆕 `hq/app-dragdrop-fix.js` v4 → **v5**: після успішного drag-drop публікації (month АБО week) з'являється **Undo Toast** у нижньому правому куті з відліком 10→0 сек. Кнопка «Скасувати» повертає стару дату; timeout (0 сек) → зміна лишається закоммічена. Fade-in/fade-out, не блокує UI під час відліку.
-- 🆕 Публічний API `window.showUndoToast(oldState, restoreFn)` — універсальний тост з rollback-колбеком (перевикористовний для інших дій). Rollback зберігає повний старий стан (dateTime + updatedAt) і пише history-запис "(скасовано)".
-- 🔧 Спільна логіка переносу винесена у `movePubToDate()` — один шлях для month і week. CSS `.undo-toast` інжектиться самим скриптом (self-contained, orange-акцент бренду).
-
-## 30.06.2026 — SMM: drag-drop карток у Тиждень-view календаря (#555)
-
-### SMM (#555)
-- 🔧 `hq/app-core.js` — `.week-card` тепер `draggable="true"`; `attachWeekHandlers` навішує `ondragstart/ondragend`. Картку у тижні можна перетягувати між колонками днів → дата публікації змінюється.
-- 🔧 `hq/app-dragdrop-fix.js` v3→v4 — той самий tracked-cursor + bounding-rect scan тепер працює і для week-view (`.week-col[data-date]`), не лише month (`.cal-day`). Уникає off-by-one.
-- 🛡 `hq/index.html` — **app-dragdrop-fix.js взагалі НЕ був у loader-chain** → не вантажився. Через це (1) month drag-drop йшов лише через старий inline attach зі off-by-one, (2) week drag-drop не існував. Додано `<script>` напряму (паралель до #554 board-view fix). + CSS `.week-col.drop-over`, `.week-card[draggable]` grab-cursor, `.week-card.dragging`.
+### 🔴 P0 ESCALATION — потребує доступу
+- ❓ **Workflow failures:** [dreamcarua/dreamcar-dashboard] "Attach Engagement Post" × 4 failed runs (19s, 15s, 22s, 9s). IMPACT: TG engagement auto-reply (`tg-channel-engage` Edge fn) не працює. Потребує: access до dreamcar-dashboard repo + logs diagnose.
+- ❓ **Supabase RLS Alert:** dreamcar-hq project — "Table publicly accessible (RLS disabled)". IMPACT: security vulnerability. Потребує: access до dreamcar-hq Supabase + ENABLE RLS.
 
 ---
 

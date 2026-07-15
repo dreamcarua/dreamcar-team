@@ -31,6 +31,21 @@ jobs:
         with:
           version: latest
 
+      - name: Sync bot token to Edge secrets (after rotation)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+        run: |
+          PROJECT_REF="${PROJECT_REF:-wotghlaehnvxyeacznvv}"
+          if [ -n "$TG_BOT_TOKEN" ]; then
+            printf 'TG_BOT_TOKEN=%s\n' "$TG_BOT_TOKEN" > /tmp/sb.env
+            supabase secrets set --env-file /tmp/sb.env --project-ref "$PROJECT_REF" && echo "TG_BOT_TOKEN synced to Edge env"
+            rm -f /tmp/sb.env
+          else
+            echo "::warning::TG_BOT_TOKEN empty — skip"
+          fi
+
       - name: Detect changed functions
         id: changes
         run: |
