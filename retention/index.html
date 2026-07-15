@@ -354,7 +354,15 @@ window.toast = function(msg, type) {
     } catch (e) { console.warn('[sso]', e); }
     setStatus('Перевіряю сесію…');
     await checkAuth();
-    supabase.auth.onAuthStateChange(() => checkAuth().catch(e => setStatus('Auth: ' + e.message, 'error')));
+    // #FIX 15.07.2026 (Vira: «розділ зникає в рандомний момент»): TOKEN_REFRESHED/USER_UPDATED
+    // (Supabase рефрешить токен рандомно ~щогодини) НЕ мають тригерити повний checkAuth — інакше
+    // спорадичний resolve-race показував loginGate поверх робочого розділу. Реагуємо лише на вхід/вихід.
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') { checkAuth().catch(() => {}); }
+      else if (event === 'SIGNED_IN' && document.getElementById('appContent').style.display !== 'grid') {
+        checkAuth().catch(e => setStatus('Auth: ' + e.message, 'error'));
+      }
+    });
   } catch (e) {
     setStatus('❌ ' + e.message, 'error');
   }
@@ -376,6 +384,8 @@ async function checkAuth() {
     }
     window.retState.publicUser = pu || null;
     if (!pu) {
+      // #FIX 15.07.2026: якщо розділ уже працює — спорадичний resolve-race НЕ ховає його (не регресуємо робочий стан).
+      if (document.getElementById('appContent').style.display === 'grid') { console.warn('[auth] resolve race — keep working state'); return; }
       setStatus('⚠ Профіль не знайдено для ' + session.user.email + '. Звернися до CEO.', 'error');
       document.getElementById('loginGate').style.display = 'flex';
       return;
