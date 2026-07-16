@@ -359,6 +359,49 @@ async function sendPubReviewToChat(chatId: string|number, pub: any, creatives: C
   }
 }
 
+// ---------- Retention creatives + media review ----------
+async function loadRetCreatives(sb: ReturnType<typeof createClient>, msgId: string): Promise<CreativeRow[]> {
+  const { data } = await sb.from("creative_retention_messages")
+    .select("creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, compressed_url, poster_url, name)")
+    .eq("retention_message_id", msgId).order("sort_order", { ascending: true });
+  if (!data) return [];
+  return (data as any[]).map(d => d.creatives as CreativeRow).filter(c => !!c && (c.thumbnail_url || c.compressed_url || c.poster_url));
+}
+// Той самий підхід, що й для публікацій: відео → POSTER-кадр (TG не тягне 48МБ по URL), лінк у підписі.
+async function sendRetReviewToChat(chatId: string|number, msg: any, creatives: CreativeRow[], requester: UserRow|null, approvers: ApproverWithDecision[], responsibles: UserRow[]) {
+  const kb = retReviewKeyboard(msg.id);
+  const isVid = (u: string|null) => !!u && /\.(mp4|mov|webm|m4v)(\?|$)/i.test(u);
+  const videoLinks: string[] = [];
+  const items: {type:'photo'|'video', media: string}[] = creatives
+    .map(c => {
+      if (c.type === 'video') {
+        if (c.compressed_url) videoLinks.push(c.compressed_url);
+        const poster = c.poster_url;
+        if (!poster || isVid(poster)) return null;
+        return { type: 'photo' as const, media: poster };
+      }
+      const p = c.thumbnail_url || c.compressed_url;
+      if (!p || isVid(p)) return null;
+      return { type: 'photo' as const, media: p };
+    })
+    .filter((x): x is {type:'photo'|'video', media: string} => !!x);
+  const vLink = videoLinks.length
+    ? `\n\n▶️ Відео: ${videoLinks.map((u,i)=>`<a href="${u}">кліп ${videoLinks.length>1?i+1:''}</a>`).join(" · ")}`
+    : "";
+  const full = buildRetReviewMsg(msg, requester, approvers, responsibles) + vLink;
+  if (items.length === 0) { await tgSend(chatId, full, { reply_markup: kb }); return; }
+  const caption = full.slice(0, MAX_CAPTION);
+  if (items.length === 1) {
+    const ok = await tgSendPhoto(chatId, items[0].media, caption, { reply_markup: kb });
+    if (!ok) await tgSend(chatId, full, { reply_markup: kb });
+    return;
+  }
+  const sent = await tgSendMediaGroup(chatId, items.map(i => ({ type: i.type, media: i.media })), caption);
+  if (sent) { await tgSend(chatId, "⬇ Дії з розсилкою:", { reply_markup: kb }); return; }
+  const okFb = await tgSendPhoto(chatId, items[0].media, caption, { reply_markup: kb });
+  if (!okFb) await tgSend(chatId, full, { reply_markup: kb });
+}
+
 // ---------- Stakeholder collector (deduped) ----------
 function collectStakeholders(...lists: (UserRow|null|undefined)[][]): UserRow[] {
   const seen = new Set<string>();
@@ -422,12 +465,11 @@ async function handleRetentionMessageEvent(sb: ReturnType<typeof createClient>, 
   // 08.06.2026 Vira: routing retention notifications у RETENTION groupchat (не SMM).
   const retChatId = TG_RETENTION_CHAT_ID;
   if (msg.status === "review") {
-    const kb = retReviewKeyboard(msg.id);
-    const text = buildRetReviewMsg(msg, author, approvers, responsibles);
-    if (retChatId) await tgSend(retChatId, text, { reply_markup: kb });
+    const creatives = await loadRetCreatives(sb, msg.id);
+    if (retChatId) await sendRetReviewToChat(retChatId, msg, creatives, author, approvers, responsibles);
     const allUsers = collectStakeholders(approvers, responsibles, [author]);
     for (const u of allUsers) {
-      if (u.tg_chat_id) await tgSend(u.tg_chat_id, text, { reply_markup: kb });
+      if (u.tg_chat_id) await sendRetReviewToChat(u.tg_chat_id, msg, creatives, author, approvers, responsibles);
     }
   } else if (msg.status === "approved" || msg.status === "rework") {
     const text = msg.status === "approved"
