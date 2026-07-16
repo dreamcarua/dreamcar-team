@@ -38,7 +38,7 @@ interface UserRow {
   tg_chat_id: number|string|null; tg_username: string|null;
 }
 interface ApproverWithDecision extends UserRow { is_approved: boolean|null; }
-interface CreativeRow { id:string; type:string; thumbnail_url:string|null; compressed_url:string|null; name:string; }
+interface CreativeRow { id:string; type:string; thumbnail_url:string|null; compressed_url:string|null; poster_url:string|null; name:string; }
 interface InlineButton { text:string; callback_data?:string; url?:string; }
 interface ReplyMarkup { inline_keyboard: InlineButton[][]; }
 
@@ -198,10 +198,10 @@ async function loadFirstCreative(sb: ReturnType<typeof createClient>, pubId: str
 // #315: тягнемо ВСІ creatives (раніше тільки перший — video пропускалось коли photo був перший).
 async function loadAllCreatives(sb: ReturnType<typeof createClient>, pubId: string): Promise<CreativeRow[]> {
   const { data } = await sb.from("creative_publications")
-    .select("creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, compressed_url, name)")
+    .select("creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, compressed_url, poster_url, name)")
     .eq("publication_id", pubId).order("sort_order", { ascending: true });
   if (!data) return [];
-  return (data as any[]).map(d => d.creatives as CreativeRow).filter(c => !!c && (c.thumbnail_url || c.compressed_url));
+  return (data as any[]).map(d => d.creatives as CreativeRow).filter(c => !!c && (c.thumbnail_url || c.compressed_url || c.poster_url));
 }
 // #315: sendMediaGroup для album (>1 media у approval повідомленні).
 async function tgSendMediaGroup(chatId: string|number, items: {type:'photo'|'video', media: string}[], caption: string): Promise<boolean> {
@@ -300,39 +300,48 @@ function buildTaskMsg(task: any, requester: UserRow|null, assignee: UserRow|null
 async function sendPubReviewToChat(chatId: string|number, pub: any, creatives: CreativeRow[], requester: UserRow|null, approvers: ApproverWithDecision[], responsibles: UserRow[]) {
   const kb = pubReviewKeyboard(pub.id);
   // #315: фільтр валідних media. Video → compressed_url (sendVideo expects video URL не thumbnail).
-  const items: {type:'photo'|'video', media: string, fallbackPhoto: string|null}[] = creatives
+  // Video: TG URL-mode НЕ завантажує відео >20МБ (compressed ~48МБ) → раніше tgSendVideo
+  // завжди падав і апрув приходив лише текстом. Тепер шлемо POSTER-кадр (JPG на R2) як
+  // фото-прев'ю, а повне відео даємо клікабельним лінком у підписі.
+  const isVid = (u: string|null) => !!u && /\.(mp4|mov|webm|m4v)(\?|$)/i.test(u);
+  const videoLinks: string[] = [];
+  const items: {type:'photo'|'video', media: string}[] = creatives
     .map(c => {
       if (c.type === 'video') {
-        const v = c.compressed_url || c.thumbnail_url;
-        if (!v) return null;
-        return { type: 'video' as const, media: v, fallbackPhoto: c.thumbnail_url };
+        if (c.compressed_url) videoLinks.push(c.compressed_url);
+        const poster = c.poster_url;
+        if (!poster || isVid(poster)) return null;   // без постера — не шлемо важке відео
+        return { type: 'photo' as const, media: poster };
       }
       const p = c.thumbnail_url || c.compressed_url;
-      if (!p) return null;
-      return { type: 'photo' as const, media: p, fallbackPhoto: null };
+      if (!p || isVid(p)) return null;
+      return { type: 'photo' as const, media: p };
     })
-    .filter((x): x is {type:'photo'|'video', media: string, fallbackPhoto: string|null} => !!x);
+    .filter((x): x is {type:'photo'|'video', media: string} => !!x);
+  const vLink = videoLinks.length
+    ? `\n\n▶️ Відео: ${videoLinks.map((u,i)=>`<a href="${u}">кліп ${videoLinks.length>1?i+1:''}</a>`).join(" · ")}`
+    : "";
 
   if (items.length === 0) {
-    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false), { reply_markup: kb });
+    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false) + vLink, { reply_markup: kb });
     return;
   }
 
   // 1 media — як було (sendPhoto/sendVideo з reply_markup у тому ж message)
   if (items.length === 1) {
     const it = items[0];
-    const caption = buildPubReviewMsg(pub, requester, approvers, responsibles, true);
+    const caption = buildPubReviewMsg(pub, requester, approvers, responsibles, true) + vLink;
     const ok = it.type === "video"
       ? await tgSendVideo(chatId, it.media, caption, { reply_markup: kb })
       : await tgSendPhoto(chatId, it.media, caption, { reply_markup: kb });
     if (ok) return;
     // fallback на текст
-    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false), { reply_markup: kb });
+    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false) + vLink, { reply_markup: kb });
     return;
   }
 
   // 2+ media — sendMediaGroup album + окремий msg з кнопками (TG album не підтримує inline_keyboard).
-  const caption = buildPubReviewMsg(pub, requester, approvers, responsibles, true);
+  const caption = buildPubReviewMsg(pub, requester, approvers, responsibles, true) + vLink;
   const sent = await tgSendMediaGroup(chatId, items.map(i => ({ type: i.type, media: i.media })), caption);
   if (sent) {
     // Окремий короткий msg з кнопками (TG album не приймає reply_markup).
@@ -341,12 +350,12 @@ async function sendPubReviewToChat(chatId: string|number, pub: any, creatives: C
   }
   // fallback на 1-й media або текст
   const first = items[0];
-  const captionFb = buildPubReviewMsg(pub, requester, approvers, responsibles, true);
+  const captionFb = buildPubReviewMsg(pub, requester, approvers, responsibles, true) + vLink;
   const okFb = first.type === "video"
     ? await tgSendVideo(chatId, first.media, captionFb, { reply_markup: kb })
     : await tgSendPhoto(chatId, first.media, captionFb, { reply_markup: kb });
   if (!okFb) {
-    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false), { reply_markup: kb });
+    await tgSend(chatId, buildPubReviewMsg(pub, requester, approvers, responsibles, false) + vLink, { reply_markup: kb });
   }
 }
 
