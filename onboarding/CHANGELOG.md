@@ -8,6 +8,18 @@
 
 ---
 
+## 16.07.2026 — Дашборд: часткові права (роль buyer) + закрито meta-analytics
+
+### Дашборд · Доступи
+- 🆕 Роль **`buyer`** (медіабаєр) у enum `user_role`: бачить **лише розділ `#terms`** («Виконавець») і **лише свої рядки**.
+- 🆕 `users.utm_terms text[]` — мапінг юзера на його utm_term(и) + helper `current_user_utm_terms()`.
+- 🛡 RLS `buyer_read_own_deals` на `dashboard_deals`: `utm_term = ANY(users.utm_terms)`. Порожній `utm_terms` = **fail-closed** (нічого не видно). Політика `team_read_deals` (ceo/coo/lead) **не змінена** — нинішнім доступ не зачеплено.
+- 🆕 `assets/js/role-gate.js` — UI-обмеження: ховає всі розділи крім `#terms`, форсить маршрут, редіректить із прямих URL (`/finance/`, `/kasa/`). Це зручність; **реальний захист — RLS**.
+- 🛡 **`meta-analytics/` був узагалі без auth-guard** (відкритий) — закрито. (commit 07d4f9d)
+
+### Як видати доступ
+`update users set role='buyer', utm_terms=array['vira'] where email='...';` — більше нічого не треба.
+
 ## 16.07.2026 — SMM + Ретеншн: медіа в TG-апруві
 
 ### SMM · notify-tg
