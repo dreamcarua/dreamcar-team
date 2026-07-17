@@ -8,6 +8,14 @@
 
 ---
 
+## 17.07.2026 — Google Ads ETL (авто-витрати нарівні з Meta)
+
+### Дашборд · Реклама
+- 🆕 `dashboard_ads_data.platform` (`meta` | `google`) + індекс. Усе наявне промарковано як `meta`.
+- 🆕 `etl/sync_google_ads.py` — ETL Google Ads API → `dashboard_ads_data`. Мапінг: `customer→ad_account`, `ad_group→adset`, `cost_micros/1e6→spend`; UTM з `final_urls` оголошення (fallback tracking template). Дедуп на тому ж `on_conflict`, що й Meta.
+- 🆕 `.github/workflows/google-ads-sync.yml` — cron кожні 30 хв (зсув 7,37 щоб не збігатись з fb-ads-sync). Без секретів job **коректно скіпається** (не червонить Actions) — перевірено.
+- ⏳ Чекає на секрети: `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID/SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_CUSTOMER_IDS`. Далі Google рахується у `#terms` по `utm_term` так само, як Meta. (commit 9b686c9)
+
 ## 16.07.2026 — Дашборд: часткові права (роль buyer) + закрито meta-analytics
 
 ### Дашборд · Доступи
