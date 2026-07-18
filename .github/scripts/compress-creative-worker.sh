@@ -166,16 +166,25 @@ generate_video_poster_and_patch() {
   poster_url=$(upload_to_r2 "$poster" "$poster_key" "image/jpeg")
   echo "Poster uploaded: $poster_url"
 
+  # #aspect (18.07.2026): реальні розміри відео у DB → TG отримує точні width/height
+  # (раніше creatives.width_px/height_px лишались порожні, і відео плющило у квадрат).
+  # rotation-aware: portrait-відео, зняте як landscape+rotate, коректно свопимо W↔H.
+  local vw vh vrot vdur
+  vw=$(ffprobe -v error -select_streams v:0 -show_entries stream=width  -of default=nw=1:nk=1 "$input" 2>/dev/null | head -1)
+  vh=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=nw=1:nk=1 "$input" 2>/dev/null | head -1)
+  vrot=$(ffprobe -v error -select_streams v:0 -show_entries stream_side_data=rotation -of default=nw=1:nk=1 "$input" 2>/dev/null | head -1)
+  vdur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$input" 2>/dev/null | awk '{printf "%.0f", $1}')
+  case "$vrot" in 90|-90|270|-270) local _t="$vw"; vw="$vh"; vh="$_t";; esac
+  [ -z "$vw" ] && vw=null; [ -z "$vh" ] && vh=null; [ -z "$vdur" ] && vdur=null
+
   # #389 (14.06.2026): PATCH poster_url, НЕ thumbnail_url.
-  # Bug #388 — я перетер thumbnail_url JPEG-постером, і compress worker
-  # при retry завантажив JPEG як source → ffprobe duration=0 → division by zero.
   # thumbnail_url = оригінальний URL для compress worker download.
-  # poster_url = JPEG preview для SMM UI.
+  # poster_url = JPEG preview для SMM UI. + width_px/height_px/duration_sec для TG sendVideo.
   curl -sS -X PATCH "$SUPABASE_URL/rest/v1/creatives?id=eq.$cre_id" \
     -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
     -H "Content-Type: application/json" -H "Prefer: return=minimal" \
-    -d "$(jq -nc --arg url "$poster_url" '{poster_url:$url}')" \
-    && echo "✓ poster_url PATCH-ed" \
+    -d "$(jq -nc --arg url "$poster_url" --argjson w "$vw" --argjson h "$vh" --argjson d "$vdur" '{poster_url:$url, width_px:$w, height_px:$h, duration_sec:$d}')" \
+    && echo "✓ poster_url + dims PATCH-ed (${vw}x${vh}, ${vdur}s, rot=${vrot:-0})" \
     || echo "::warning::poster_url PATCH failed"
 
   rm -f "$poster"
