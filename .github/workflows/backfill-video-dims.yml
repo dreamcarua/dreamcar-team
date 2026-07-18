@@ -25,8 +25,8 @@ jobs:
 
       - name: Backfill dims
         env:
-          SB_URL: ${{ secrets.SUPABASE_URL }}
-          SB_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SB_URL: ${{ secrets.HQ_DB_URL }}
+          SB_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
           LIM: ${{ github.event.inputs.limit || '500' }}
         run: |
           set -uo pipefail
