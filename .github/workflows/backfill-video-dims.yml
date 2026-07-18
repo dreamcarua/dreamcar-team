@@ -1,0 +1,58 @@
+name: Backfill video dims (one-shot)
+
+# Одноразовий backfill creatives.width_px/height_px/duration_sec для вже стиснутих
+# відео (до фіксу compress-worker вони лишались порожні). rotation-aware.
+# Запуск: Actions → цей workflow → Run. Після успіху можна видалити файл.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Скільки відео обробити за раз'
+        default: '500'
+
+concurrency:
+  group: backfill-video-dims
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg jq
+
+      - name: Backfill dims
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LIM: ${{ github.event.inputs.limit || '500' }}
+        run: |
+          set -uo pipefail
+          if [ -z "${SB_KEY:-}" ]; then echo "::error::SUPABASE_SERVICE_ROLE_KEY missing"; exit 1; fi
+          ROWS=$(curl -sS "$SB_URL/rest/v1/creatives?type=eq.video&compressed_url=not.is.null&or=(width_px.is.null,height_px.is.null)&select=id,compressed_url&limit=$LIM" \
+            -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY")
+          TOTAL=$(echo "$ROWS" | jq 'length'); echo "To process: $TOTAL"
+          OK=0; SKIP=0
+          echo "$ROWS" | jq -c '.[]' | while read -r row; do
+            id=$(echo "$row" | jq -r '.id')
+            url=$(echo "$row" | jq -r '.compressed_url')
+            probe=$(ffprobe -v error -select_streams v:0 \
+              -show_entries stream=width,height:stream_side_data=rotation \
+              -show_entries format=duration -of json "$url" 2>/dev/null || echo '{}')
+            w=$(echo "$probe" | jq -r '.streams[0].width // empty')
+            h=$(echo "$probe" | jq -r '.streams[0].height // empty')
+            rot=$(echo "$probe" | jq -r '.streams[0].side_data_list[0].rotation // 0')
+            dur=$(echo "$probe" | jq -r '.format.duration // empty' | awk '{if($1!="")printf "%.0f",$1}')
+            if [ -z "$w" ] || [ -z "$h" ]; then echo "skip $id (no probe)"; SKIP=$((SKIP+1)); continue; fi
+            case "$rot" in 90|-90|270|-270) t="$w"; w="$h"; h="$t";; esac
+            [ -z "$dur" ] && dur=null
+            curl -sS -X PATCH "$SB_URL/rest/v1/creatives?id=eq.$id" \
+              -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" \
+              -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+              -d "$(jq -nc --argjson w "$w" --argjson h "$h" --argjson d "$dur" '{width_px:$w,height_px:$h,duration_sec:$d}')" \
+              && { echo "OK $id: ${w}x${h} ${dur}s (rot=$rot)"; OK=$((OK+1)); } \
+              || echo "::warning::PATCH failed $id"
+          done
+          echo "Done."
