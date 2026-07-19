@@ -14,6 +14,7 @@
 - 🔧 Відео в TG показувалось **сплющеним у квадрат** (тест-сенд `tg-post-send`): `sendVideo` йшов без `width`/`height`/`thumbnail`, і TG desktop не знав пропорцій. GH-worker автопосту цим не страждав (він бере розміри з ffprobe).
 - 🆕 Тепер `tg-post-send` для відео передає `width`/`height`/`duration` + постер-thumbnail у всіх режимах (multipart, URL, альбом). Розміри — з `creatives.width_px/height_px`, fallback з постера (той самий кадр → той самий aspect). Саме відео на R2 було коректне (1080×1920 h264 SDR) — псувалась лише відправка.
 - ✅ Протестовано: тест-сенд надіслав відео як `video:multipart(720x1280)` — вертикальне 9:16, не квадрат. (commit b3b0279)
+- 🆕 `compress-worker` тепер пише реальні `width_px/height_px/duration_sec` у `creatives` (rotation-aware) — TG отримує точні розміри, не з постера. Backfill усіх 131 наявних відео виконано (one-shot workflow, still_null=0).
 
 ## 18.07.2026 — ФОП-ліміт: порогові алерти у BOARD
 
