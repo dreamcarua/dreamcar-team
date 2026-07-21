@@ -24,9 +24,11 @@
 (function () {
   if (window.dcStorage) return; // вже інжектована
 
-  // Cookie size limit ~4KB. Supabase session ~1.5KB. Має fit.
-  // Якщо value більше 3500 байт — НЕ зберігаємо у cookie (fallback localStorage)
-  var COOKIE_MAX_SIZE = 3500;
+  // 08.06.2026 R2 fix (Давид login loop):
+  // Cookie size raised to 4090 (real browser limit ~4096 - safety margin for prefix).
+  // Якщо value перевищує — chunk-имо у 3 cookies (sb-auth-token, sb-auth-token-2, -3).
+  var COOKIE_MAX_SIZE = 4090;
+  var COOKIE_CHUNK_SIZE = 3800;       // безпечний chunk
   var COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 днів
 
   // Парс cookie value з document.cookie за іменем
@@ -76,31 +78,71 @@
     } catch (e) {}
   }
 
-  // Public API — Supabase auth.storage сумісний
-  // 21.07.2026 FIX (постійний вилогін у Віри, 24× token_revoked за добу):
-  // Баг був у тому, що cookie мала БЕЗУМОВНИЙ пріоритет у getItem. Якщо оновлена
-  // сесія не влізала в cookie (>3500 байт — напр. Google OAuth з provider_token),
-  // вона писалась лише у localStorage, а СТАРА cookie лишалась. Далі getItem віддавав
-  // застарілий токен → Supabase рефрешив уже використаним → token_revoked → вилогін.
-  // Тепер: (1) не влізло в cookie — стару видаляємо; (2) якщо cookie і localStorage
-  // розходяться — беремо свіжішу за expires_at.
-  function sessionExp(s) {
+  // Chunked cookie helpers — для session > COOKIE_MAX_SIZE
+  function setCookieChunks(name, value) {
+    // Спочатку видаляємо старі chunks
+    for (var ci = 1; ci <= 5; ci++) deleteCookie(name + '-c' + ci);
+    var encoded = encodeURIComponent(value);
+    if (encoded.length <= COOKIE_MAX_SIZE) {
+      // Просто один cookie без chunking
+      deleteCookie(name + '-meta');
+      return setCookie(name, value);
+    }
+    // Chunking: спочатку видаляємо single cookie, потім пишемо meta + chunks
+    deleteCookie(name);
+    var chunks = Math.ceil(encoded.length / COOKIE_CHUNK_SIZE);
+    if (chunks > 5) {
+      console.warn('[dcStorage] value too large even for chunking:', encoded.length);
+      return false;
+    }
     try {
-      var j = JSON.parse(s);
-      return Number(j.expires_at || (j.currentSession && j.currentSession.expires_at) || 0) || 0;
-    } catch (_) { return 0; }
+      document.cookie = encodeURIComponent(name + '-meta') + '=' + chunks +
+        '; path=/; max-age=' + COOKIE_MAX_AGE + '; SameSite=Lax' +
+        (location.protocol === 'https:' ? '; Secure' : '');
+      for (var i = 0; i < chunks; i++) {
+        var part = encoded.substring(i * COOKIE_CHUNK_SIZE, (i + 1) * COOKIE_CHUNK_SIZE);
+        document.cookie = encodeURIComponent(name + '-c' + (i + 1)) + '=' + part +
+          '; path=/; max-age=' + COOKIE_MAX_AGE + '; SameSite=Lax' +
+          (location.protocol === 'https:' ? '; Secure' : '');
+      }
+      return true;
+    } catch (e) {
+      console.warn('[dcStorage] setCookieChunks err:', e);
+      return false;
+    }
   }
 
+  function getCookieChunks(name) {
+    var meta = getCookie(name + '-meta');
+    if (!meta) return getCookie(name);   // single cookie
+    var chunks = parseInt(meta, 10);
+    if (!chunks || chunks < 1) return null;
+    var out = '';
+    for (var i = 1; i <= chunks; i++) {
+      var part = getCookie(name + '-c' + i);
+      if (part === null) return null;     // missing chunk → broken state
+      out += part;
+    }
+    try { return decodeURIComponent(out); } catch (_) { return out; }
+  }
+
+  // Public API — Supabase auth.storage сумісний
+  // 08.06.2026 R2 (Давид login loop fix): порядок get → localStorage ПЕРШИМ.
+  // Причина: Supabase auto-refresh пише новий access_token у localStorage синхронно;
+  // якщо cookie не оновлений (size > 3500 fail на старій версії, або race) →
+  // dcStorage віддавав СТАРИЙ token → session expired → Tasks redirect на HQ → loop.
+  // localStorage shared by origin (team.dreamcar.ua) — для browser достатньо.
+  // Cookie лишається як TG WebView / iOS Safari fallback.
   window.dcStorage = {
     getItem: function (key) {
       try {
-        var fromCookie = getCookie(key);
-        var fromLS = null;
-        try { fromLS = localStorage.getItem(key); } catch (_) {}
-        if (fromCookie === null) return fromLS;
-        if (fromLS === null || fromLS === fromCookie) return fromCookie;
-        // Розходяться — віддаємо свіжішу сесію (інакше ловимо token_revoked)
-        return sessionExp(fromLS) > sessionExp(fromCookie) ? fromLS : fromCookie;
+        // 1. localStorage пріоритет — синхронно оновлюється Supabase auto-refresh
+        try {
+          var ls = localStorage.getItem(key);
+          if (ls !== null) return ls;
+        } catch (_) {}
+        // 2. Cookie fallback (для TG WebView де localStorage може бути sandboxed)
+        return getCookieChunks(key);
       } catch (e) {
         console.warn('[dcStorage] getItem err:', e);
         return null;
@@ -108,25 +150,26 @@
     },
     setItem: function (key, value) {
       try {
-        // Cookie (для cross-path sharing)
-        var ok = setCookie(key, value);
-        // Не влізло у cookie — ОБОВ'ЯЗКОВО прибрати стару, щоб вона не «отруювала» getItem
-        if (!ok) { deleteCookie(key); console.warn('[dcStorage] cookie too big → localStorage only:', key); }
-        // localStorage як backup (якщо cookies disabled)
+        // localStorage primary (fast + reliable у browser)
         try { localStorage.setItem(key, value); } catch (_) {}
+        // Cookie secondary з chunking якщо > 4090 байт
+        var ok = setCookieChunks(key, value);
+        if (!ok) console.warn('[dcStorage] cookie persist failed (size/limit). Falling back to localStorage only:', key);
       } catch (e) {
         console.warn('[dcStorage] setItem err:', e);
       }
     },
     removeItem: function (key) {
       try {
-        deleteCookie(key);
         try { localStorage.removeItem(key); } catch (_) {}
+        deleteCookie(key);
+        deleteCookie(key + '-meta');
+        for (var ci = 1; ci <= 5; ci++) deleteCookie(key + '-c' + ci);
       } catch (e) {
         console.warn('[dcStorage] removeItem err:', e);
       }
     },
   };
 
-  console.log('[dcStorage] initialized — cookies + localStorage backup');
+  console.log('[dcStorage] v2 initialized — localStorage primary + chunked cookies fallback');
 })();
