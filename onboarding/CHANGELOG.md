@@ -8,6 +8,14 @@
 
 ---
 
+## 21.07.2026 — Auth: постійні вилогіни на Ретеншні/SMM (Віра)
+
+### team.dreamcar.ua · dcStorage
+- 🔴 Симптом: «вилогінює постійно, треба перезаходити». В auth-логах за добу — **24× `token_revoked`**, `Refresh Token Not Found`, 28 логінів.
+- 🔧 Причина: **розсинхрон копій `dc-shared-storage.js`**. `hq`/`tasks` мали правильну **v2** (localStorage-first + chunked cookies — фікс «Давид login loop» від 08.06), а `retention`/`projects`/`inventory` лишились на **v1** з cookie-first без chunking. Коли оновлена сесія не влізала в cookie (>3500 байт), писався лише localStorage, а стара cookie лишалась і мала пріоритет → віддавався прострочений токен → refresh уже використаним → `token_revoked` → вилогін.
+- 🆕 Розкотив **v2 на всі 5 столів** (retention/tasks/hq/projects/inventory) — md5 усіх копій тепер збігаються. + Cloudflare cache purge (файли віддавались із 4-годинного кешу).
+- ⚠️ Урок: 5 копій одного файлу розійшлись у 3 версії. Кандидат на винесення в один спільний `/assets/`.
+
 ## 21.07.2026 — Дашборд Огляд: пошук, повна пагінація, вивантаження угод
 
 ### Дашборд · #overview
