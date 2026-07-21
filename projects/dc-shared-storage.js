@@ -77,13 +77,30 @@
   }
 
   // Public API — Supabase auth.storage сумісний
+  // 21.07.2026 FIX (постійний вилогін у Віри, 24× token_revoked за добу):
+  // Баг був у тому, що cookie мала БЕЗУМОВНИЙ пріоритет у getItem. Якщо оновлена
+  // сесія не влізала в cookie (>3500 байт — напр. Google OAuth з provider_token),
+  // вона писалась лише у localStorage, а СТАРА cookie лишалась. Далі getItem віддавав
+  // застарілий токен → Supabase рефрешив уже використаним → token_revoked → вилогін.
+  // Тепер: (1) не влізло в cookie — стару видаляємо; (2) якщо cookie і localStorage
+  // розходяться — беремо свіжішу за expires_at.
+  function sessionExp(s) {
+    try {
+      var j = JSON.parse(s);
+      return Number(j.expires_at || (j.currentSession && j.currentSession.expires_at) || 0) || 0;
+    } catch (_) { return 0; }
+  }
+
   window.dcStorage = {
     getItem: function (key) {
       try {
-        // Спочатку cookie (shared), fallback на localStorage
         var fromCookie = getCookie(key);
-        if (fromCookie !== null) return fromCookie;
-        try { return localStorage.getItem(key); } catch (_) { return null; }
+        var fromLS = null;
+        try { fromLS = localStorage.getItem(key); } catch (_) {}
+        if (fromCookie === null) return fromLS;
+        if (fromLS === null || fromLS === fromCookie) return fromCookie;
+        // Розходяться — віддаємо свіжішу сесію (інакше ловимо token_revoked)
+        return sessionExp(fromLS) > sessionExp(fromCookie) ? fromLS : fromCookie;
       } catch (e) {
         console.warn('[dcStorage] getItem err:', e);
         return null;
@@ -93,9 +110,10 @@
       try {
         // Cookie (для cross-path sharing)
         var ok = setCookie(key, value);
+        // Не влізло у cookie — ОБОВ'ЯЗКОВО прибрати стару, щоб вона не «отруювала» getItem
+        if (!ok) { deleteCookie(key); console.warn('[dcStorage] cookie too big → localStorage only:', key); }
         // localStorage як backup (якщо cookies disabled)
         try { localStorage.setItem(key, value); } catch (_) {}
-        if (!ok) console.warn('[dcStorage] only localStorage set:', key);
       } catch (e) {
         console.warn('[dcStorage] setItem err:', e);
       }
