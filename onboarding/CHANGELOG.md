@@ -13,8 +13,9 @@
 ### team.dreamcar.ua · dcStorage
 - 🔴 Симптом: «вилогінює постійно, треба перезаходити». В auth-логах за добу — **24× `token_revoked`**, `Refresh Token Not Found`, 28 логінів.
 - 🔧 Причина: **розсинхрон копій `dc-shared-storage.js`**. `hq`/`tasks` мали правильну **v2** (localStorage-first + chunked cookies — фікс «Давид login loop» від 08.06), а `retention`/`projects`/`inventory` лишились на **v1** з cookie-first без chunking. Коли оновлена сесія не влізала в cookie (>3500 байт), писався лише localStorage, а стара cookie лишалась і мала пріоритет → віддавався прострочений токен → refresh уже використаним → `token_revoked` → вилогін.
-- 🆕 Розкотив **v2 на всі 5 столів** (retention/tasks/hq/projects/inventory) — md5 усіх копій тепер збігаються. + Cloudflare cache purge (файли віддавались із 4-годинного кешу).
-- ⚠️ Урок: 5 копій одного файлу розійшлись у 3 версії. Кандидат на винесення в один спільний `/assets/`.
+- 🆕 Розкотив **v2 на всі 5 столів** (retention/tasks/hq/projects/inventory) — md5 усіх копій тепер збігаються. + Cloudflare cache purge.
+- 🔴 **Справжній корінь (чому «не стало краще»):** у `retention/projects/inventory/news/regulations` тег `<script src="dc-shared-storage.js">` був **без `?v=`**, тому auto-cache-bust його не оновлював і **браузер тримав старий файл** — v2-деплой до юзера не долітав. У `hq/tasks` версія була (тому в Давида працювало, а у Віри — ні). Додав `?v=` до підключення в усіх → auto-cache-bust bump-ає, браузери вантажать свіже. Перевірено: retention віддає `?v=…-caefc732`, storage = v2. (commit caefc73)
+- ⚠️ Урок: 5 копій одного файлу + один без версіонування = невидимий кеш-баг. Кандидат на винесення в спільний `/assets/`.
 
 ## 21.07.2026 — Дашборд Огляд: пошук, повна пагінація, вивантаження угод
 
