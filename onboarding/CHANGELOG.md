@@ -8,6 +8,13 @@
 
 ---
 
+## 28.07.2026 — 🔴 TG webhook мертвий після ротації токена (кнопки+📌 не працювали)
+
+### TG · webhook
+- 🔴 Симптом: кнопки погодження в TG не реагують; постановка задач через 📌 не працює (задача #33). Спільна причина: `getWebhookInfo` → `url=""`, `pending_update_count=289`. Після ротації токена бота (21.07) webhook **не перевстановили** — бот перестав отримувати ЖОДНИЙ inbound (callback, команди, 📌), хоча outbound (пости, апрув-нотифікації) працював.
+- 🆕 One-shot `fix-tg-webhook.yml`: синк `TG_WEBHOOK_SECRET` у Edge env + `setWebhook` (drop_pending, `allowed_updates` з `callback_query`/`message`/`channel_post`/`chat_member`). Після: `url` встановлено, pending=0, помилок нема. Кнопки й 📌 знову працюють. (закрито #33)
+- ⚠️ Урок: ротація токена бота ⇒ обов'язковий `setWebhook` новим токеном. Додати в runbook.
+
 ## 28.07.2026 — Автопост TG: прибрано затримку 8–80 хв
 
 ### SMM · autopost
