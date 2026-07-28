@@ -503,6 +503,11 @@ function renderCardBody(p) {
           <div class="field">
             <label>Дата і час <span class="req">*</span></label>
             <input type="datetime-local" id="f_dateTime" value="${dtLocal}"/>
+            <label for="f_slotReserved" style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;color:#bbb;cursor:pointer;user-select:none;font-weight:400;">
+              <input type="checkbox" id="f_slotReserved" ${p.slotReserved?'checked':''} style="width:15px;height:15px;accent-color:var(--red,#E30613);cursor:pointer;flex:none;"/>
+              🔒 Забронювати слот у календарі
+            </label>
+            <div class="hint" style="margin-top:2px;">Бот займе цей час у загальному календарі, навіть якщо текст ще не готовий</div>
           </div>
           <div class="field">
             <label>Тип контенту <span class="req">*</span></label>
@@ -995,6 +1000,8 @@ function attachCardHandlers(p) {
     }
     autosave(p);
   };
+  const slotEl = document.getElementById('f_slotReserved');
+  if (slotEl) slotEl.onchange = () => { p.slotReserved = slotEl.checked; autosave(p); };
   const hashEl = document.getElementById('f_hashtags');
   if (hashEl) hashEl.oninput = () => {
     p.hashtags = hashEl.value.split(/\s+/).filter(Boolean);

@@ -107,6 +107,7 @@ const Store = {
       launch: p.launch_id,
       workStatus: p.work_status || '',
       status: p.status,
+      slotReserved: p.slot_reserved || false,
       approverPolicy: p.approver_policy,
       deadline: p.deadline_on,
       platforms: (platformsByPub[p.id] || []).map(x => x.platform),
@@ -336,6 +337,7 @@ const Store = {
       launch_id: pub.launch || null,
       work_status: pub.workStatus || null,
       status: safeStatus,
+      slot_reserved: !!pub.slotReserved,
       approver_policy: pub.approverPolicy || 'all',
       deadline_on: pub.deadline || null,
       created_by: this._data.currentUserId,
@@ -1263,11 +1265,15 @@ function renderMonth(d, pubs) {
         const p = item.data;
         // #547: border-left=рубрика-колір
         const rc = Store.rubricColor(p.rubric);
-        return `<div class="cal-card s-${p.status} ${urgencyClass(p)}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};">
+        // David 28.07: заброньований слот — бот займає час, навіть без готового тексту
+        const reserved = p.slotReserved && p.status !== 'published';
+        const emptyTitle = !p.title || p.title === 'Untitled';
+        const dashed = reserved ? 'border-top:1px dashed rgba(227,6,19,.55);border-right:1px dashed rgba(227,6,19,.55);border-bottom:1px dashed rgba(227,6,19,.55);' : '';
+        return `<div class="cal-card s-${p.status} ${urgencyClass(p)}${reserved?' slot-reserved':''}" draggable="true" data-id="${p.id}" title="${reserved?'🔒 Заброньований слот · ':''}${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};${dashed}">
           ${p.contentType ? `<div class="ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
-          <span class="time" style="font-weight:700;color:#fff;">${fmtTime(p.dateTime)}</span>
+          <span class="time" style="font-weight:700;color:#fff;">${reserved?'🔒 ':''}${fmtTime(p.dateTime)}</span>
           ${platformIcons(p.platforms)}
-          <span class="title">${escapeHtml(p.title)}</span>
+          <span class="title">${emptyTitle && reserved ? '<i style="opacity:.65;">заброньовано ботом</i>' : escapeHtml(p.title)}</span>
         </div>`;
       } else {
         const g = item.data;
@@ -1352,10 +1358,14 @@ function renderWeek(start, pubs) {
         const p = item.data;
         // #547: border-left=рубрика-колір
         const rc = Store.rubricColor(p.rubric);
-        return `<div class="week-card s-${p.status}" draggable="true" data-id="${p.id}" title="${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};">
+        // David 28.07: заброньований слот
+        const reserved = p.slotReserved && p.status !== 'published';
+        const emptyTitle = !p.title || p.title === 'Untitled';
+        const dashed = reserved ? 'border-top:1px dashed rgba(227,6,19,.55);border-right:1px dashed rgba(227,6,19,.55);border-bottom:1px dashed rgba(227,6,19,.55);' : '';
+        return `<div class="week-card s-${p.status}${reserved?' slot-reserved':''}" draggable="true" data-id="${p.id}" title="${reserved?'🔒 Заброньований слот · ':''}${fmtTime(p.dateTime)} · ${escapeHtml(p.title)}" style="border-left:4px solid ${rc};${dashed}">
           ${p.contentType ? `<div class="wc-ctype-badge">${escapeHtml((p.contentType || 'ПОСТ').toUpperCase())}</div>` : ''}
-          <div class="wc-time" style="font-weight:700;color:#fff;font-size:11px;">${fmtTime(p.dateTime)}</div>
-          <div class="wc-title">${escapeHtml(p.title)}</div>
+          <div class="wc-time" style="font-weight:700;color:#fff;font-size:11px;">${reserved?'🔒 ':''}${fmtTime(p.dateTime)}</div>
+          <div class="wc-title">${emptyTitle && reserved ? '<i style="opacity:.65;">заброньовано ботом</i>' : escapeHtml(p.title)}</div>
           <div class="wc-meta">${platformIcons(p.platforms)} · <span class="status ${p.status}" style="font-size:8px;padding:1px 5px;">${STATUS_BY_ID[p.status].label}</span></div>
         </div>`;
       } else {
@@ -1409,17 +1419,21 @@ function renderDay(date, pubs) {
     const p = item.data;
     // #547: border-left=рубрика-колір (fallback до status color якщо рубрика не задана)
     const rc = p.rubric ? Store.rubricColor(p.rubric) : STATUS_BY_ID[p.status].color;
+    // David 28.07: заброньований слот
+    const reserved = p.slotReserved && p.status !== 'published';
+    const emptyTitle = !p.title || p.title === 'Untitled';
+    const dashed = reserved ? 'border-top-style:dashed;border-right-style:dashed;border-bottom-style:dashed;border-top-color:rgba(227,6,19,.5);border-right-color:rgba(227,6,19,.5);border-bottom-color:rgba(227,6,19,.5);' : '';
     return `
-    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid;border-left-color:${rc};border-radius:10px;padding:18px 22px;cursor:pointer;" data-id="${p.id}" class="week-card">
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid;border-left-color:${rc};border-radius:10px;padding:18px 22px;cursor:pointer;${dashed}" data-id="${p.id}" class="week-card${reserved?' slot-reserved':''}">
       <div style="display:flex;gap:18px;align-items:flex-start;">
         <div style="text-align:center;min-width:60px;">
-          <div style="font-size:22px;font-weight:800;color:#fff;">${fmtTime(p.dateTime)}</div>
+          <div style="font-size:22px;font-weight:800;color:#fff;">${reserved?'🔒 ':''}${fmtTime(p.dateTime)}</div>
           <div style="font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:1px;">${p.contentType}</div>
         </div>
         <div style="flex:1;">
-          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;">${escapeHtml(p.title)}</div>
+          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;">${emptyTitle && reserved ? '<i style="opacity:.65;font-weight:600;">Заброньований слот · текст ще не готовий</i>' : escapeHtml(p.title)}</div>
           <div style="font-size:12px;color:var(--grey);margin-bottom:8px;">${platformIcons(p.platforms)} ${p.platforms.map(id=>PLATFORM_BY_ID[id]?.name||id).join(' · ')}</div>
-          <div style="font-size:12px;color:#aaa;line-height:1.5;">${escapeHtml((p.text||'').slice(0,180))}…</div>
+          ${(p.text||'').trim() ? `<div style="font-size:12px;color:#aaa;line-height:1.5;">${escapeHtml((p.text||'').slice(0,180))}…</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
           <span class="status ${p.status}">${STATUS_BY_ID[p.status].label}</span>
@@ -1453,10 +1467,14 @@ function renderList(pubs) {
     const respNames = (p.responsibles||[]).map(id=>Store.user(id)?.name).filter(Boolean).join(', ') || '—';
     // #547: border-left=рубрика-колір на першій колонці рядка
     const rc = Store.rubricColor(p.rubric);
+    // David 28.07: заброньований слот
+    const reserved = p.slotReserved && p.status !== 'published';
+    const emptyTitle = !p.title || p.title === 'Untitled';
+    const titleCell = emptyTitle && reserved ? '<i style="opacity:.65;">заброньовано ботом</i>' : escapeHtml(p.title);
     return `<tr data-id="${p.id}" class="${App.selectedPubs.has(p.id)?'selected':''}" style="box-shadow:inset 4px 0 0 ${rc};">
       <td class="col-check"><input type="checkbox" data-pub="${p.id}" ${App.selectedPubs.has(p.id)?'checked':''}/></td>
-      <td>${fmtDateTime(p.dateTime)}</td>
-      <td><div class="pub-title">${escapeHtml(p.title)}</div><div class="pub-meta">${p.contentType}</div></td>
+      <td>${reserved?'🔒 ':''}${fmtDateTime(p.dateTime)}</td>
+      <td><div class="pub-title">${titleCell}</div><div class="pub-meta">${p.contentType}</div></td>
       <td>${platformIcons(p.platforms)} <small style="color:var(--grey)">${p.platforms.join(' · ')}</small></td>
       <td>${r?'<span style="color:'+r.color+'">●</span> '+escapeHtml(r.name):'—'}</td>
       <td>${escapeHtml(respNames)}</td>
