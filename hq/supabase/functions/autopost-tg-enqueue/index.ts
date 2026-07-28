@@ -24,77 +24,58 @@ const CRON_SECRET   = Deno.env.get("HQ_CRON_SECRET") ?? "";
 
 const TARGET_TG_CHAT_ID = Deno.env.get("DCSMM_TG_CHANNEL") || "-1003933841573";
 
+// #direct-post (28.07.2026): постимо ПРЯМО через tg-post-send (Edge→Edge), без GH-worker.
+// Причина: GH Actions scheduled cron давав до 80хв затримки у пікові години (09/12/00:00).
+// Вікно тепер [now-15хв .. now] — постимо КОЛИ час настав (не +10хв наперед, інакше вихід
+// до publish_at). tg-post-send сам робить retry + оновлює autopost_status/tg_message_id.
 async function run(supabase: ReturnType<typeof createClient>) {
-  const nowIso = new Date().toISOString();
-  const fromIso = new Date(Date.now() - 2 * 60000).toISOString();
-  const toIso = new Date(Date.now() + 10 * 60000).toISOString();
+  const now = Date.now();
+  const fromIso = new Date(now - 15 * 60000).toISOString();
+  const toIso = new Date(now).toISOString();
 
   const { data: candidates, error: e1 } = await supabase
     .from("publications")
-    .select(`
-      id, title, status, publish_at, autopost_status,
-      publication_platforms!inner(platform)
-    `)
+    .select(`id, title, status, publish_at, autopost_status, publication_platforms!inner(platform)`)
     .eq("status", "approved")
     .eq("publication_platforms.platform", "tg")
     .gte("publish_at", fromIso)
     .lte("publish_at", toIso)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .is("autopost_status", null);
 
   if (e1) {
     console.error("Query candidates failed:", e1);
-    return { ok: false, enqueued: 0, error: e1.message };
+    return { ok: false, posted: 0, error: e1.message };
   }
-
   if (!candidates || candidates.length === 0) {
-    return { ok: true, enqueued: 0, window: { from: fromIso, to: toIso } };
+    return { ok: true, posted: 0, window: { from: fromIso, to: toIso } };
   }
 
-  let enqueued = 0;
-  const skipped: string[] = [];
+  // Атомарний claim: беремо лише publication що ще null (щоб не задублювати між тіками)
+  const toPost: string[] = [];
   for (const p of candidates) {
-    const { data: existing } = await supabase
-      .from("tg_autopost_queue")
-      .select("id, status")
-      .eq("publication_id", p.id)
-      .in("status", ["pending", "processing", "done"])
-      .maybeSingle();
-
-    if (existing) {
-      skipped.push(`${p.id}:${existing.status}`);
-      continue;
-    }
-
-    const { error: insErr } = await supabase
-      .from("tg_autopost_queue")
-      .insert({
-        publication_id: p.id,
-        status: "pending",
-        target_chat_id: TARGET_TG_CHAT_ID,
-      });
-
-    if (insErr) {
-      console.warn(`Insert failed for ${p.id}:`, insErr);
-      skipped.push(`${p.id}:err:${insErr.message}`);
-      continue;
-    }
-
-    await supabase
+    const { data: claimed } = await supabase
       .from("publications")
-      .update({ autopost_status: "pending", autopost_error: null })
-      .eq("id", p.id);
-
-    enqueued++;
+      .update({ autopost_status: "processing", autopost_error: null })
+      .eq("id", p.id)
+      .is("autopost_status", null)
+      .select("id")
+      .maybeSingle();
+    if (claimed) toPost.push(p.id);
   }
 
-  return {
-    ok: true,
-    enqueued,
-    skipped,
-    candidates: candidates.length,
-    target_chat: TARGET_TG_CHAT_ID,
-    window: { from: fromIso, to: toIso, now: nowIso },
-  };
+  // Постимо паралельно (максимум 8 за тік, решта — наступного). tg-post-send сам:
+  // download+multipart для великих відео, retry (4 рівні), autopost_status='sent'/'failed'.
+  const batch = toPost.slice(0, 8);
+  await Promise.allSettled(batch.map((pid) =>
+    fetch(`${SUPABASE_URL}/functions/v1/tg-post-send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-hq-cron-secret": CRON_SECRET },
+      body: JSON.stringify({ publication_id: pid, force_channel: TARGET_TG_CHAT_ID }),
+    }).then((r) => r.json()).catch((e) => ({ error: String(e), pid }))
+  ));
+
+  return { ok: true, posted: batch.length, candidates: candidates.length, target_chat: TARGET_TG_CHAT_ID };
 }
 
 Deno.serve(async (req: Request) => {
