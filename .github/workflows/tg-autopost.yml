@@ -1,8 +1,11 @@
 name: TG Autopost Worker
 
+# 28.07.2026: scheduled-запуск ВИМКНЕНО. Причина — GH Actions scheduled cron давав
+# до 80хв затримки у пікові години (09/12/00:00). Автопост тепер іде ПРЯМО з Edge
+# (autopost-tg-enqueue → tg-post-send, pg_cron кожні 2хв). Цей worker лишається лише
+# як ручний backup (workflow_dispatch) — обробляє tg_autopost_queue, якщо туди щось
+# потрапить legacy-шляхом.
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:
