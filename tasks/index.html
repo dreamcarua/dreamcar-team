@@ -232,6 +232,13 @@
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;}
   .modal-backdrop.show{display:flex;}
   .modal{background:var(--coal);border:1px solid var(--line);max-width:680px;width:100%;max-height:92vh;overflow-y:auto;padding:28px;}
+  /* #34 (Давид 28.07): вікно постановки задачі — майже на весь екран (більше контенту без скролу) */
+  #taskModal .modal{max-width:1100px;width:95vw;max-height:95vh;padding:32px 36px;}
+  /* широкі поля розкладаємо у 2 колонки, textarea опису на всю ширину */
+  #taskModal .modal .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;}
+  @media (min-width:1000px){
+    #taskModal .modal #f-description{min-height:120px;}
+  }
   .modal h2{font-family:'Oswald',sans-serif;font-weight:700;font-size:24px;color:var(--white);margin-bottom:20px;}
   .field{margin-bottom:14px;}
   .field label{display:block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.15em;color:var(--bone);margin-bottom:6px;text-transform:uppercase;}
