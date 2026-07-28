@@ -415,7 +415,7 @@ function newPubObject(forDate) {
     creatives: [],
     responsibles: [Store.currentUser().id],
     deadline: deadlineFromDate(dt),
-    approvers: ceoUser ? [ceoUser.id] : [Store.currentUser().id],
+    approvers: [], // #Vadym 28.07.2026: без CEO-default — виконавець сам обирає погоджувача при створенні
     approverPolicy: 'all',
     status: 'draft',
     launch: activeLaunchFor(dt),
