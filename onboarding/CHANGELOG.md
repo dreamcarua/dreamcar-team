@@ -15,6 +15,9 @@
 - 🆕 One-shot `fix-tg-webhook.yml`: синк `TG_WEBHOOK_SECRET` у Edge env + `setWebhook` (drop_pending, `allowed_updates` з `callback_query`/`message`/`channel_post`/`chat_member`). Після: `url` встановлено, pending=0, помилок нема. Кнопки й 📌 знову працюють. (закрито #33)
 - ⚠️ Урок: ротація токена бота ⇒ обов'язковий `setWebhook` новим токеном. Додати в runbook.
 
+### SMM · погоджувачі
+- 🔧 Прибрано **CEO за замовчуванням** у полі погоджувачів нової публікації (`app-views.js:418` — було `approvers: [ceoUser.id]`). Тепер порожньо — виконавець сам обирає, кому віддати на погодження. Ретеншн уже був без дефолту. (Vadym 28.07)
+
 ## 28.07.2026 — Автопост TG: прибрано затримку 8–80 хв
 
 ### SMM · autopost
