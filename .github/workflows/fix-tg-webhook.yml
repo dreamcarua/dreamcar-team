@@ -1,0 +1,49 @@
+name: Fix TG Webhook (one-shot)
+
+# Відновлення webhook після ротації токена бота: webhook був порожній (url=""),
+# 289 pending — бот НЕ отримував inbound (кнопки погодження, команди, 📌-задачі).
+# 1) синк TG_WEBHOOK_SECRET у Edge env  2) setWebhook на tg-webhook з тим секретом.
+# Після успіху файл можна видалити.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Sync TG_WEBHOOK_SECRET → Edge env
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          WH_SECRET: ${{ secrets.TG_WEBHOOK_SECRET }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          PROJECT_REF="${REF:-wotghlaehnvxyeacznvv}"
+          if [ -z "${WH_SECRET:-}" ]; then echo "::error::TG_WEBHOOK_SECRET missing"; exit 1; fi
+          printf 'TG_WEBHOOK_SECRET=%s\n' "$WH_SECRET" > /tmp/wh.env
+          supabase secrets set --env-file /tmp/wh.env --project-ref "$PROJECT_REF"
+          rm -f /tmp/wh.env
+          echo "✓ TG_WEBHOOK_SECRET synced to Edge env"
+
+      - name: setWebhook
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          WH_SECRET: ${{ secrets.TG_WEBHOOK_SECRET }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          PROJECT_REF="${REF:-wotghlaehnvxyeacznvv}"
+          # даємо Edge-env кілька секунд прорости
+          sleep 8
+          RESP=$(curl -sS "https://api.telegram.org/bot$TG_BOT_TOKEN/setWebhook" \
+            -d "url=https://$PROJECT_REF.supabase.co/functions/v1/tg-webhook" \
+            -d "secret_token=$WH_SECRET" \
+            -d "drop_pending_updates=true" \
+            --data-urlencode 'allowed_updates=["message","edited_message","callback_query","channel_post","my_chat_member","chat_member"]')
+          echo "setWebhook: $RESP"
+          echo "$RESP" | grep -q '"ok":true' || { echo "::error::setWebhook failed"; exit 1; }
+          echo "--- getWebhookInfo:"
+          curl -sS "https://api.telegram.org/bot$TG_BOT_TOKEN/getWebhookInfo"
