@@ -198,8 +198,9 @@ Deno.serve(async (req) => {
   const kb = toKeyboard(msg.tg_buttons);
   const cache: Record<string, string> = {};
 
-  // === TEST: одне повідомлення на конкретний chat_id ===
+  // === TEST: одне повідомлення на конкретний chat_id (потребує секрет) ===
   if (test) {
+    if (!authed) return new Response(JSON.stringify({ ok: false, error: "test send потребує x-hq-cron-secret" }), { status: 401 });
     const res = await sendToChat(test, caption, items, vnote, kb, cache);
     return new Response(JSON.stringify({ ok: res.ok, mode: "test", chat_id: test, media: items.length, video_note: !!vnote, buttons: !!kb, err: res.err }, null, 2), { headers: { "content-type": "application/json" } });
   }
