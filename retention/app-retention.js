@@ -778,6 +778,39 @@ function openMessageDetail(id){
           </div>
         </div>
 
+        <!-- Vira 29.07: TG-опції розсилки (кнопки/відеозамітка/форматування/DM-only) -->
+        <div id="ret-tg-options" style="${m.channel === 'tg' ? '' : 'display:none;'} margin:10px 0; padding:12px; background:var(--bg-3); border:1px solid var(--steel); border-radius:8px;">
+          <div style="font-size:11px; color:var(--ash); font-weight:600; letter-spacing:.5px; margin-bottom:10px;">📨 TG-ОПЦІЇ РОЗСИЛКИ</div>
+
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-bottom:12px; padding:8px 10px; background:rgba(227,6,19,.06); border:1px solid rgba(227,6,19,.25); border-radius:6px;">
+            <input type="checkbox" name="dm_only" ${m.dm_only === false ? '' : 'checked'} style="width:16px;height:16px;margin-top:1px;accent-color:var(--red,#E30613);cursor:pointer;flex:none;">
+            <span style="font-size:12px;color:#ddd;line-height:1.4;"><b>🔒 Лише DM-підписникам бота</b><br><span style="color:var(--ash);font-size:11px;">Групи та канали виключені. Знімай лише якщо свідомо шлеш у конкретний чат/канал (ID списку/чату вище).</span></span>
+          </label>
+
+          <details style="margin-bottom:12px;">
+            <summary style="cursor:pointer;font-size:11px;color:var(--ash);user-select:none;">💡 Форматування Telegram — клікни для підказки</summary>
+            <div style="background:var(--bg-2);border:1px solid var(--steel);border-radius:6px;padding:8px 10px;margin-top:6px;font-size:11px;color:#bbb;line-height:2;">
+              &lt;b&gt;жирний&lt;/b&gt; &nbsp;·&nbsp; &lt;i&gt;курсив&lt;/i&gt; &nbsp;·&nbsp; &lt;u&gt;підкреслення&lt;/u&gt; &nbsp;·&nbsp; &lt;s&gt;закреслення&lt;/s&gt; &nbsp;·&nbsp; &lt;code&gt;моно&lt;/code&gt; &nbsp;·&nbsp; &lt;a href="https://..."&gt;лінк&lt;/a&gt;
+            </div>
+          </details>
+
+          <label style="display:block;margin-bottom:12px;">
+            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">🎥 ВІДЕОЗАМІТКА (кружечок) — окреме кругле відео перед постом</span>
+            <select name="video_note_creative_id" id="ret-vnote-select" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
+              <option value="">— немає —</option>
+            </select>
+            <small style="color:var(--ash);font-size:10px;">Обери відео з прикріплених креативів вище. TG покаже його кружечком (без підпису/кнопок).</small>
+          </label>
+
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:11px; color:var(--ash);">🔘 КНОПКИ під постом (inline)</span>
+              <button type="button" id="ret-add-button" style="background:var(--bg-2);border:1px solid var(--steel);color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;">+ Кнопка</button>
+            </div>
+            <div id="ret-buttons-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+        </div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <label>
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ПОГОДЖУЮТЬ (multi)</span>
@@ -870,6 +903,17 @@ function openMessageDetail(id){
             overlay.dataset.dirty = '1';
           };
         });
+        // Vira 29.07: наповнити селект відеозамітки з прикріплених ВІДЕО-креативів
+        const vsel = overlay.querySelector('#ret-vnote-select');
+        if (vsel) {
+          const cur = vsel.value || m.video_note_creative_id || '';
+          const cc = window.retState._creativesCache || {};
+          const vids = (window.retState.modalCreatives || []).filter(cid => (cc[cid] || {}).type === 'video');
+          vsel.innerHTML = '<option value="">— немає —</option>' + vids.map(cid => {
+            const c = cc[cid] || {};
+            return `<option value="${cid}" ${cur === cid ? 'selected' : ''}>${escHtml((c.name || cid).toString().slice(0, 40))}</option>`;
+          }).join('');
+        }
       };
       // Load existing creatives for this message
       if (!isNew && m.id) {
@@ -1109,6 +1153,8 @@ function openMessageDetail(id){
   if (channelSel) channelSel.addEventListener('change', () => {
     const lbl = document.getElementById('lblPreviewText');
     if (lbl) lbl.style.display = channelSel.value === 'tg' ? 'none' : '';
+    const tgOpts = document.getElementById('ret-tg-options');
+    if (tgOpts) tgOpts.style.display = channelSel.value === 'tg' ? '' : 'none';
   });
 
   // 08.06.2026 Vira: якщо Store.users порожній (race / RLS / network) — попередження
@@ -1154,6 +1200,37 @@ function openMessageDetail(id){
   if (!isNew) loadHistory(m.id);
   const spBtn = document.getElementById('loadSpBooks');
   if (spBtn) spBtn.onclick = () => loadSendPulseBooks(spBtn);
+
+  // Vira 29.07: конструктор inline-кнопок
+  (function(){
+    const list = document.getElementById('ret-buttons-list');
+    const addBtn = document.getElementById('ret-add-button');
+    if (!list) return;
+    const flat = [];
+    const raw = m.tg_buttons;
+    if (Array.isArray(raw)) raw.forEach(row => {
+      if (Array.isArray(row)) row.forEach(x => x && flat.push({ text: x.text || '', url: x.url || '' }));
+      else if (row && typeof row === 'object') flat.push({ text: row.text || '', url: row.url || '' });
+    });
+    const syncFromDom = () => {
+      Array.from(list.querySelectorAll('.ret-btn-row')).forEach((r, i) => {
+        if (!flat[i]) flat[i] = { text: '', url: '' };
+        flat[i].text = r.querySelector('.ret-btn-text')?.value || '';
+        flat[i].url = r.querySelector('.ret-btn-url')?.value || '';
+      });
+    };
+    const render = () => {
+      list.innerHTML = flat.length ? flat.map((b, i) => `
+        <div class="ret-btn-row" style="display:flex;gap:6px;align-items:center;">
+          <input class="ret-btn-text" value="${escHtml(b.text)}" placeholder="Текст кнопки" style="flex:1;padding:7px 9px;background:var(--bg-2);border:1px solid var(--steel);color:#fff;border-radius:5px;font-size:12px;">
+          <input class="ret-btn-url" value="${escHtml(b.url)}" placeholder="https://..." style="flex:1.4;padding:7px 9px;background:var(--bg-2);border:1px solid var(--steel);color:#fff;border-radius:5px;font-size:12px;">
+          <button type="button" data-bi="${i}" title="Прибрати" style="background:rgba(0,0,0,.4);border:1px solid var(--steel);color:#fff;border-radius:5px;width:28px;height:28px;cursor:pointer;flex:none;">×</button>
+        </div>`).join('') : '<div style="color:var(--ash);font-size:11px;padding:4px 0;">Кнопок немає. «+ Кнопка» щоб додати.</div>';
+      list.querySelectorAll('[data-bi]').forEach(btn => btn.onclick = () => { syncFromDom(); flat.splice(+btn.dataset.bi, 1); render(); });
+    };
+    if (addBtn) addBtn.onclick = () => { syncFromDom(); flat.push({ text: '', url: '' }); render(); };
+    render();
+  })();
 }
 
 async function loadSendPulseBooks(btn){
@@ -1283,6 +1360,12 @@ async function saveForm(form, id, overlay, opts){
   const audience_filter = {};
   if (fd.get('filter_tariff')) audience_filter.tariff = fd.get('filter_tariff');
   if (fd.get('filter_status')) audience_filter.user_status = fd.get('filter_status');
+  // Vira 29.07: TG-композер — кнопки/відеозамітка/dm_only
+  const tgButtons = Array.from(form.querySelectorAll('.ret-btn-row')).map(r => ({
+    text: (r.querySelector('.ret-btn-text')?.value || '').trim(),
+    url: (r.querySelector('.ret-btn-url')?.value || '').trim(),
+  })).filter(b => b.text && b.url);
+  const dmOnly = fd.get('dm_only') === 'on';
   const payload = {
     channel: fd.get('channel'),
     title: (fd.get('title') || '').trim(),
@@ -1293,6 +1376,10 @@ async function saveForm(form, id, overlay, opts){
     audience_list_id: (fd.get('audience_list_id') || '').trim() || null,
     audience_filter,
     notes: (fd.get('notes') || '').trim(),
+    tg_buttons: tgButtons,
+    dm_only: dmOnly,
+    send_mode: dmOnly ? 'dm_broadcast' : 'single_chat',
+    video_note_creative_id: fd.get('video_note_creative_id') || null,
   };
   let msgId = id;
   if (id) {
