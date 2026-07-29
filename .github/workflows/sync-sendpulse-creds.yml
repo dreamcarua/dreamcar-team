@@ -1,0 +1,51 @@
+name: Sync SendPulse creds → Supabase Edge
+
+# Заносить SendPulse API-креди в Supabase Edge env, щоб серверний воркер
+# sendpulse-subscribers-sync міг тягнути підписників TG-бота (READ) у bot_subscribers.
+# Креди НЕ в git — з GH repo secrets SENDPULSE_API_ID / SENDPULSE_API_SECRET.
+#
+# Разова дія Вадима (SendPulse → Account → API → ID + Secret):
+#   printf '%s' '<SP_API_ID>'     | gh secret set SENDPULSE_API_ID     --repo dreamcarua/dreamcar-team
+#   printf '%s' '<SP_API_SECRET>' | gh secret set SENDPULSE_API_SECRET --repo dreamcarua/dreamcar-team
+#   gh workflow run sync-sendpulse-creds.yml --repo dreamcarua/dreamcar-team
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Set SendPulse creds in Edge env
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SP_ID: ${{ secrets.SENDPULSE_API_ID }}
+          SP_SECRET: ${{ secrets.SENDPULSE_API_SECRET }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          PROJECT_REF="${REF:-wotghlaehnvxyeacznvv}"
+          if [ -z "${SP_ID:-}" ] || [ -z "${SP_SECRET:-}" ]; then
+            echo "::error::SENDPULSE_API_ID / SENDPULSE_API_SECRET порожні — спершу gh secret set"
+            exit 1
+          fi
+          {
+            printf 'SENDPULSE_API_ID=%s\n' "$SP_ID"
+            printf 'SENDPULSE_API_SECRET=%s\n' "$SP_SECRET"
+          } > /tmp/sp.env
+          supabase secrets set --env-file /tmp/sp.env --project-ref "$PROJECT_REF"
+          rm -f /tmp/sp.env
+          echo "✓ SendPulse creds синхронізовано в Edge env"
+
+      - name: Verify SendPulse auth (oauth token)
+        env:
+          SP_ID: ${{ secrets.SENDPULSE_API_ID }}
+          SP_SECRET: ${{ secrets.SENDPULSE_API_SECRET }}
+        run: |
+          RESP=$(curl -sS -X POST https://api.sendpulse.com/oauth/access_token \
+            -H 'Content-Type: application/json' \
+            -d "{\"grant_type\":\"client_credentials\",\"client_id\":\"$SP_ID\",\"client_secret\":\"$SP_SECRET\"}")
+          echo "$RESP" | grep -q 'access_token' && echo "✓ SendPulse auth OK" || { echo "::error::SendPulse auth failed: $RESP"; exit 1; }
