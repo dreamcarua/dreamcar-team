@@ -1,0 +1,47 @@
+name: Sync PUBLIC_BOT_TOKEN → Supabase Edge
+
+# Заносить токен ПУБЛІЧНОГО бота учасників (де 30-40к підписників) у Supabase Edge env,
+# щоб нативний broadcast-воркер (retention-bot-broadcast) міг слати DM-розсилки.
+# Токен НЕ у git — береться з GH repo secret PUBLIC_BOT_TOKEN.
+#
+# Разова дія Вадима (одна команда):
+#   printf '%s' '<ТОКЕН_ПУБЛІЧНОГО_БОТА>' | gh secret set PUBLIC_BOT_TOKEN --repo dreamcarua/dreamcar-team \
+#     && gh workflow run sync-public-bot-token.yml --repo dreamcarua/dreamcar-team
+#
+# Після успіху токен живе тільки в Edge env + GH secrets (не в коді).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Set PUBLIC_BOT_TOKEN in Edge env
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PUBLIC_BOT_TOKEN: ${{ secrets.PUBLIC_BOT_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          PROJECT_REF="${REF:-wotghlaehnvxyeacznvv}"
+          if [ -z "${PUBLIC_BOT_TOKEN:-}" ]; then
+            echo "::error::GH secret PUBLIC_BOT_TOKEN порожній — спершу: gh secret set PUBLIC_BOT_TOKEN"
+            exit 1
+          fi
+          printf 'PUBLIC_BOT_TOKEN=%s\n' "$PUBLIC_BOT_TOKEN" > /tmp/pb.env
+          supabase secrets set --env-file /tmp/pb.env --project-ref "$PROJECT_REF"
+          rm -f /tmp/pb.env
+          echo "✓ PUBLIC_BOT_TOKEN синхронізовано в Edge env ($PROJECT_REF)"
+
+      - name: Verify token is a valid bot (getMe)
+        env:
+          PUBLIC_BOT_TOKEN: ${{ secrets.PUBLIC_BOT_TOKEN }}
+        run: |
+          RESP=$(curl -sS "https://api.telegram.org/bot$PUBLIC_BOT_TOKEN/getMe")
+          echo "getMe: $RESP"
+          echo "$RESP" | grep -q '"ok":true' || { echo "::error::getMe failed — токен невалідний"; exit 1; }
+          echo "✓ Бот валідний"
