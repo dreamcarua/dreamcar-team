@@ -714,8 +714,31 @@ function openMessageDetail(id){
           <input name="preview_text" value="${escHtml(m.preview_text || '')}" placeholder="Короткий preview що відображається після subject" style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
         </label>
         <label>
-          <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ТІЛО РОЗСИЛКИ * (HTML/Markdown/Plain)</span>
-          <textarea name="body" required rows="10" placeholder="Вміст розсилки..." style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px; font-family:inherit; resize:vertical;">${escHtml(m.body || '')}</textarea>
+          <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ТІЛО РОЗСИЛКИ *</span>
+          <!-- Vira 30.07: редактор форматування Telegram -->
+          <div id="ret-fmt-toolbar" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px;background:var(--bg-2);border:1px solid var(--steel);border-bottom:none;border-radius:6px 6px 0 0;">
+            <button type="button" class="ret-fmt" data-fmt="b" title="Жирний (Ctrl+B)" style="font-weight:800;">B</button>
+            <button type="button" class="ret-fmt" data-fmt="i" title="Курсив (Ctrl+I)" style="font-style:italic;">I</button>
+            <button type="button" class="ret-fmt" data-fmt="u" title="Підкреслення (Ctrl+U)" style="text-decoration:underline;">U</button>
+            <button type="button" class="ret-fmt" data-fmt="s" title="Закреслення" style="text-decoration:line-through;">S</button>
+            <span style="width:1px;background:var(--steel);margin:2px 3px;"></span>
+            <button type="button" class="ret-fmt" data-fmt="spoiler" title="Спойлер — текст під розмиттям, клікають щоб відкрити">🫥 Спойлер</button>
+            <button type="button" class="ret-fmt" data-fmt="quote" title="Цитата — виділений блок з лінією">❝ Цитата</button>
+            <button type="button" class="ret-fmt" data-fmt="quote-exp" title="Розгортувана цитата — довгий текст ховається під «розгорнути»">⌄ Цитата+</button>
+            <span style="width:1px;background:var(--steel);margin:2px 3px;"></span>
+            <button type="button" class="ret-fmt" data-fmt="code" title="Моноширинний">&lt;/&gt;</button>
+            <button type="button" class="ret-fmt" data-fmt="link" title="Посилання (Ctrl+K)">🔗 Лінк</button>
+            <span style="width:1px;background:var(--steel);margin:2px 3px;"></span>
+            <button type="button" class="ret-fmt" data-emoji="🚗">🚗</button>
+            <button type="button" class="ret-fmt" data-emoji="🔥">🔥</button>
+            <button type="button" class="ret-fmt" data-emoji="🎁">🎁</button>
+            <button type="button" class="ret-fmt" data-emoji="⚡">⚡</button>
+            <button type="button" class="ret-fmt" data-emoji="✅">✅</button>
+            <button type="button" class="ret-fmt" data-emoji="👉">👉</button>
+            <span style="flex:1;"></span>
+            <button type="button" class="ret-fmt" id="ret-fmt-clear" title="Прибрати все форматування">🧹 Очистити</button>
+          </div>
+          <textarea name="body" id="ret-body-ta" required rows="10" placeholder="Вміст розсилки… Виділи текст і тисни кнопку форматування." style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:0 0 6px 6px; font-family:inherit; resize:vertical;">${escHtml(m.body || '')}</textarea>
         </label>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <label>
@@ -787,12 +810,14 @@ function openMessageDetail(id){
             <span style="font-size:12px;color:#ddd;line-height:1.4;"><b>🔒 Лише DM-підписникам бота</b><br><span style="color:var(--ash);font-size:11px;">Групи та канали виключені. Знімай лише якщо свідомо шлеш у конкретний чат/канал (ID списку/чату вище).</span></span>
           </label>
 
-          <details style="margin-bottom:12px;">
-            <summary style="cursor:pointer;font-size:11px;color:var(--ash);user-select:none;">💡 Форматування Telegram — клікни для підказки</summary>
-            <div style="background:var(--bg-2);border:1px solid var(--steel);border-radius:6px;padding:8px 10px;margin-top:6px;font-size:11px;color:#bbb;line-height:2;">
-              &lt;b&gt;жирний&lt;/b&gt; &nbsp;·&nbsp; &lt;i&gt;курсив&lt;/i&gt; &nbsp;·&nbsp; &lt;u&gt;підкреслення&lt;/u&gt; &nbsp;·&nbsp; &lt;s&gt;закреслення&lt;/s&gt; &nbsp;·&nbsp; &lt;code&gt;моно&lt;/code&gt; &nbsp;·&nbsp; &lt;a href="https://..."&gt;лінк&lt;/a&gt;
+          <!-- Vira 30.07: живий прев'ю розсилки (як побачить підписник) -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:11px;color:var(--ash);">👁 ПРЕВ'Ю (як побачить підписник)</span>
+              <span id="ret-len-badge" style="font-size:10px;color:var(--ash);font-variant-numeric:tabular-nums;"></span>
             </div>
-          </details>
+            <div id="ret-tg-preview" style="background:#1b2733;border:1px solid var(--steel);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.55;color:#e9edf0;word-break:break-word;min-height:44px;"></div>
+          </div>
 
           <label style="display:block;margin-bottom:12px;">
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">🎥 ВІДЕОЗАМІТКА (кружечок) — окреме кругле відео перед постом</span>
@@ -914,6 +939,8 @@ function openMessageDetail(id){
             return `<option value="${cid}" ${cur === cid ? 'selected' : ''}>${escHtml((c.name || cid).toString().slice(0, 40))}</option>`;
           }).join('');
         }
+        // ліміт caption залежить від наявності медіа (1024 з медіа / 4096 без) — оновити лічильник
+        if (typeof window.__retRefreshPreview === 'function') window.__retRefreshPreview();
       };
       // Load existing creatives for this message
       if (!isNew && m.id) {
@@ -1201,6 +1228,87 @@ function openMessageDetail(id){
   const spBtn = document.getElementById('loadSpBooks');
   if (spBtn) spBtn.onclick = () => loadSendPulseBooks(spBtn);
 
+  // Vira 30.07: редактор форматування Telegram + живий прев'ю
+  (function(){
+    const ta = document.getElementById('ret-body-ta');
+    const bar = document.getElementById('ret-fmt-toolbar');
+    const prev = document.getElementById('ret-tg-preview');
+    const badge = document.getElementById('ret-len-badge');
+    if (!ta) return;
+    ensureRetFmtCss();
+
+    const WRAPS = {
+      b: ['<b>', '</b>'], i: ['<i>', '</i>'], u: ['<u>', '</u>'], s: ['<s>', '</s>'],
+      code: ['<code>', '</code>'],
+      spoiler: ['<tg-spoiler>', '</tg-spoiler>'],
+      quote: ['<blockquote>', '</blockquote>'],
+      'quote-exp': ['<blockquote expandable>', '</blockquote>'],
+    };
+    function wrap(before, after, placeholder){
+      const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+      const sel = v.slice(s, e) || (placeholder || 'текст');
+      ta.value = v.slice(0, s) + before + sel + after + v.slice(e);
+      ta.focus();
+      ta.selectionStart = s + before.length;
+      ta.selectionEnd = s + before.length + sel.length;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function insert(txt){
+      const s = ta.selectionStart, v = ta.value;
+      ta.value = v.slice(0, s) + txt + v.slice(ta.selectionEnd);
+      ta.focus(); ta.selectionStart = ta.selectionEnd = s + txt.length;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (bar) bar.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button'); if (!btn) return;
+      ev.preventDefault();
+      if (btn.dataset.emoji) return insert(btn.dataset.emoji);
+      if (btn.id === 'ret-fmt-clear') {
+        if (!confirm('Прибрати ВСЕ форматування з тексту?')) return;
+        ta.value = ta.value.replace(/<\/?(b|i|u|s|code|pre|a|tg-spoiler|blockquote)[^>]*>/gi, '');
+        ta.dispatchEvent(new Event('input', { bubbles: true })); return;
+      }
+      const f = btn.dataset.fmt;
+      if (f === 'link') {
+        const url = prompt('Посилання (URL):', 'https://');
+        if (!url) return;
+        return wrap(`<a href="${url.replace(/"/g, '&quot;')}">`, '</a>', 'текст посилання');
+      }
+      const w = WRAPS[f]; if (w) wrap(w[0], w[1]);
+    });
+    // гарячі клавіші
+    ta.addEventListener('keydown', (ev) => {
+      if (!(ev.ctrlKey || ev.metaKey)) return;
+      const k = ev.key.toLowerCase();
+      if (k === 'b') { ev.preventDefault(); wrap('<b>', '</b>'); }
+      else if (k === 'i') { ev.preventDefault(); wrap('<i>', '</i>'); }
+      else if (k === 'u') { ev.preventDefault(); wrap('<u>', '</u>'); }
+      else if (k === 'k') { ev.preventDefault(); const u = prompt('Посилання (URL):', 'https://'); if (u) wrap(`<a href="${u.replace(/"/g,'&quot;')}">`, '</a>', 'текст посилання'); }
+    });
+    // живий прев'ю + лічильник
+    function refresh(){
+      const title = (document.querySelector('[name=title]')?.value || '').trim();
+      const body = ta.value || '';
+      const raw = (title ? `<b>${escHtml(title)}</b>\n\n` : '') + body;
+      if (prev) prev.innerHTML = tgToHtml(raw) || '<span style="color:#7c8b99;">— порожньо —</span>';
+      if (badge) {
+        const hasMedia = ((window.retState && window.retState.modalCreatives) || []).length > 0;
+        const limit = hasMedia ? 1024 : 4096;
+        const plain = raw.replace(/<[^>]+>/g, '').length;
+        const over = plain > limit;
+        badge.textContent = `${plain}/${limit}` + (hasMedia ? ' (з медіа)' : '');
+        badge.style.color = over ? '#ff5f6d' : (plain > limit * 0.9 ? '#f59e0b' : 'var(--ash)');
+        badge.title = over ? 'Перевищено ліміт Telegram — текст обріжеться!' : '';
+      }
+      // спойлери в прев'ю розкриваються кліком
+      prev && prev.querySelectorAll('.tgp-spoiler').forEach(el => el.onclick = () => el.classList.toggle('open'));
+    }
+    ta.addEventListener('input', refresh);
+    document.querySelector('[name=title]')?.addEventListener('input', refresh);
+    window.__retRefreshPreview = refresh;
+    refresh();
+  })();
+
   // Vira 29.07: конструктор inline-кнопок
   (function(){
     const list = document.getElementById('ret-buttons-list');
@@ -1231,6 +1339,46 @@ function openMessageDetail(id){
     if (addBtn) addBtn.onclick = () => { syncFromDom(); flat.push({ text: '', url: '' }); render(); };
     render();
   })();
+}
+
+// Vira 30.07: рендер TG-розмітки у HTML для прев'ю (безпечно: спершу екрануємо, потім вмикаємо дозволені теги)
+function tgToHtml(src){
+  if (!src) return '';
+  let s = String(src).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // дозволені теги назад
+  s = s
+    .replace(/&lt;(\/?)(b|strong)&gt;/gi, '<$1b>')
+    .replace(/&lt;(\/?)(i|em)&gt;/gi, '<$1i>')
+    .replace(/&lt;(\/?)u&gt;/gi, '<$1u>')
+    .replace(/&lt;(\/?)(s|strike|del)&gt;/gi, '<$1s>')
+    .replace(/&lt;(\/?)code&gt;/gi, '<$1code>')
+    .replace(/&lt;(\/?)pre&gt;/gi, '<$1pre>')
+    .replace(/&lt;tg-spoiler&gt;/gi, '<span class="tgp-spoiler">')
+    .replace(/&lt;\/tg-spoiler&gt;/gi, '</span>')
+    .replace(/&lt;blockquote expandable&gt;/gi, '<blockquote class="tgp-quote tgp-exp">')
+    .replace(/&lt;blockquote&gt;/gi, '<blockquote class="tgp-quote">')
+    .replace(/&lt;\/blockquote&gt;/gi, '</blockquote>')
+    .replace(/&lt;a href=(?:&quot;|")([^"&]+)(?:&quot;|")&gt;/gi, '<a class="tgp-link" href="$1" target="_blank" rel="noopener">')
+    .replace(/&lt;\/a&gt;/gi, '</a>');
+  return s.replace(/\n/g, '<br>');
+}
+function ensureRetFmtCss(){
+  if (document.getElementById('ret-fmt-css')) return;
+  const st = document.createElement('style');
+  st.id = 'ret-fmt-css';
+  st.textContent = [
+    '#ret-fmt-toolbar button.ret-fmt{background:var(--bg-3,#1a1a1a);border:1px solid var(--steel,#2a2a2a);color:#ddd;border-radius:5px;padding:4px 8px;font-size:12px;cursor:pointer;line-height:1.3;transition:all .12s;}',
+    '#ret-fmt-toolbar button.ret-fmt:hover{border-color:var(--red,#E30613);color:#fff;background:rgba(227,6,19,.10);}',
+    '#ret-fmt-toolbar button.ret-fmt:active{transform:translateY(1px);}',
+    '#ret-tg-preview .tgp-spoiler{background:rgba(255,255,255,.14);border-radius:3px;color:transparent;cursor:pointer;text-shadow:0 0 8px rgba(255,255,255,.55);transition:all .18s;}',
+    '#ret-tg-preview .tgp-spoiler.open{background:transparent;color:inherit;text-shadow:none;}',
+    '#ret-tg-preview .tgp-quote{border-left:3px solid #62a9e8;background:rgba(98,169,232,.09);margin:6px 0;padding:6px 10px;border-radius:0 6px 6px 0;}',
+    '#ret-tg-preview .tgp-quote.tgp-exp::after{content:"⌄ розгорнути";display:block;margin-top:4px;font-size:11px;color:#62a9e8;}',
+    '#ret-tg-preview .tgp-link{color:#62a9e8;text-decoration:none;}',
+    '#ret-tg-preview code{background:rgba(255,255,255,.10);padding:1px 5px;border-radius:4px;font-family:"JetBrains Mono",monospace;font-size:12.5px;}',
+    '#ret-tg-preview pre{background:rgba(0,0,0,.35);padding:8px 10px;border-radius:6px;overflow-x:auto;font-size:12.5px;}',
+  ].join('\n');
+  document.head.appendChild(st);
 }
 
 async function loadSendPulseBooks(btn){
