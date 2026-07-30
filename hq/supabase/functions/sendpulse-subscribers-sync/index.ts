@@ -81,41 +81,42 @@ Deno.serve(async (req) => {
       }, null, 2), { headers: { "content-type": "application/json" } });
     }
 
-    // === SYNC (потребує секрет) ===
+    // === SYNC (потребує секрет). Відновлюваний: ?skip=<start> ?pages=<max за виклик> ===
     if (!authed) return new Response(JSON.stringify({ ok: false, error: "sync потребує x-hq-cron-secret" }), { status: 401 });
 
-    const targetBots = botIdParam ? [{ id: botIdParam }] : bots;
-    let upserted = 0, skipped = 0, seen = 0;
-    for (const b of targetBots) {
-      const bid = b.id ?? b.bot_id; if (!bid) continue;
-      let skip = 0; const size = 200;
-      while (true) {
-        const resp = await spGet(`/telegram/chats?bot_id=${bid}&size=${size}&skip=${skip}`, token);
-        const rows = Array.isArray(resp?.data) ? resp.data : [];
-        if (!rows.length) break;
-        const batch: any[] = [];
-        for (const c of rows) {
-          seen++;
-          const e = extractChat(c);
-          if (!e.chat_id) { skipped++; continue; }
-          batch.push({
-            chat_id: e.chat_id, username: e.username || null, first_name: e.first_name || null,
-            last_name: e.last_name || null, lang: e.lang || null, sp_contact_id: e.sp_id || null,
-            source: "sendpulse", is_active: !e.banned, raw: c, updated_at: new Date().toISOString(),
-          });
-        }
-        if (batch.length) {
-          const { error } = await sb.from("bot_subscribers").upsert(batch, { onConflict: "chat_id" });
-          if (error) return new Response(JSON.stringify({ ok: false, error: error.message, at: `bot ${bid} skip ${skip}` }), { status: 500 });
-          upserted += batch.length;
-        }
-        skip += size;
-        if (limit && seen >= limit) break;
-        if (rows.length < size) break;
+    const bid = botIdParam || bots[0]?.id || bots[0]?.bot_id;
+    if (!bid) return new Response(JSON.stringify({ ok: false, error: "бота не знайдено" }), { status: 404 });
+    const size = 200;
+    const maxPages = parseInt(url.searchParams.get("pages") || "0", 10) || 0; // 0 = до кінця
+    let skip = parseInt(url.searchParams.get("skip") || "0", 10) || 0;
+    let upserted = 0, skipped = 0, seen = 0, pagesDone = 0, done = false;
+
+    while (true) {
+      const resp = await spGet(`/telegram/chats?bot_id=${bid}&size=${size}&skip=${skip}`, token);
+      const rows = Array.isArray(resp?.data) ? resp.data : [];
+      if (!rows.length) { done = true; break; }
+      const batch: any[] = [];
+      for (const c of rows) {
+        seen++;
+        const e = extractChat(c);
+        if (!e.chat_id) { skipped++; continue; }
+        batch.push({
+          chat_id: e.chat_id, username: e.username || null, first_name: e.first_name || null,
+          last_name: e.last_name || null, lang: e.lang || null, sp_contact_id: e.sp_id || null,
+          source: "sendpulse", is_active: !e.banned, raw: c, updated_at: new Date().toISOString(),
+        });
       }
-      if (limit && seen >= limit) break;
+      if (batch.length) {
+        const { error } = await sb.from("bot_subscribers").upsert(batch, { onConflict: "chat_id" });
+        if (error) return new Response(JSON.stringify({ ok: false, error: error.message, at: `skip ${skip}` }), { status: 500 });
+        upserted += batch.length;
+      }
+      skip += size; pagesDone++;
+      if (rows.length < size) { done = true; break; }
+      if (limit && seen >= limit) { done = true; break; }
+      if (maxPages && pagesDone >= maxPages) { done = false; break; }
     }
-    return new Response(JSON.stringify({ ok: true, mode: "sync", bots: targetBots.length, seen, upserted, skipped_no_chatid: skipped }, null, 2), { headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, mode: "sync", seen, upserted, skipped_no_chatid: skipped, next_skip: done ? null : skip, done }, null, 2), { headers: { "content-type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), { status: 500 });
   }
