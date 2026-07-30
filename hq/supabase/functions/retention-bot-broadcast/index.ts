@@ -157,18 +157,25 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
 
 async function resolveAudience(msg: any, source: string, limit: number): Promise<{ chat_id: string; sub_id?: string }[]> {
   if (source === "team") {
-    let q = sb.from("users").select("id, tg_chat_id").not("tg_chat_id", "is", null);
-    const { data } = await q;
-    let rows = (data || []).map((u: any) => ({ chat_id: String(u.tg_chat_id) }));
+    const { data } = await sb.from("users").select("id, tg_chat_id").not("tg_chat_id", "is", null);
+    const rows = (data || []).map((u: any) => ({ chat_id: String(u.tg_chat_id) }));
     return limit ? rows.slice(0, limit) : rows;
   }
-  // subscribers + сегмент
-  let q = sb.from("bot_subscribers").select("id, chat_id").eq("is_active", true);
+  // subscribers + сегмент. PostgREST ріже на 1000 рядків → пагінуємо через .range().
   const f = msg?.audience_filter || {};
-  if (f.tariff) q = q.eq("tariff", f.tariff);
-  if (f.user_status) q = q.eq("user_status", f.user_status);
-  const { data } = await q.limit(limit || 100000);
-  return (data || []).map((s: any) => ({ chat_id: String(s.chat_id), sub_id: s.id }));
+  const out: { chat_id: string; sub_id?: string }[] = [];
+  const page = 1000;
+  for (let from = 0; ; from += page) {
+    let q = sb.from("bot_subscribers").select("id, chat_id").eq("is_active", true).order("id", { ascending: true }).range(from, from + page - 1);
+    if (f.tariff) q = q.eq("tariff", f.tariff);
+    if (f.user_status) q = q.eq("user_status", f.user_status);
+    const { data, error } = await q;
+    if (error || !data?.length) break;
+    for (const s of data) out.push({ chat_id: String(s.chat_id), sub_id: s.id });
+    if (limit && out.length >= limit) return out.slice(0, limit);
+    if (data.length < page) break;
+  }
+  return out;
 }
 
 Deno.serve(async (req) => {
@@ -216,6 +223,16 @@ Deno.serve(async (req) => {
       preview: { caption: caption.slice(0, 400), media: items.map(i => `${i.type}:${(i.size / 1048576).toFixed(1)}MB`), video_note: !!vnote, buttons: kb?.inline_keyboard?.flat().map((b: any) => b.text) || [] },
       sample_chats: audience.slice(0, 3).map(a => a.chat_id),
     }, null, 2), { headers: { "content-type": "application/json" } });
+  }
+
+  // 🔒 Vadym 30.07: прод-розсилка на АУДИТОРІЮ БОТА заблокована до відмашки.
+  // Дозволено лише source=team (команда). Увімкнути прод: PROD_BROADCAST_ENABLED=1 у Edge env.
+  const PROD_OK = Deno.env.get("PROD_BROADCAST_ENABLED") === "1";
+  if (source !== "team" && !PROD_OK) {
+    return new Response(JSON.stringify({
+      ok: false, blocked: true,
+      error: "Прод-розсилка на аудиторію бота ЗАБЛОКОВАНА до відмашки Вадима. Дозволено лише source=team. Щоб увімкнути — виставити PROD_BROADCAST_ENABLED=1 у Edge env.",
+    }), { status: 403, headers: { "content-type": "application/json" } });
   }
 
   // === РЕАЛЬНА розсилка (confirm + secret) ===
