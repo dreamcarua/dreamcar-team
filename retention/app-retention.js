@@ -1195,7 +1195,7 @@ function openMessageDetail(id){
     );
     aBtn.textContent = '↻ ОЦІНИТИ';
     const p = document.getElementById('audPreview');
-    if (p) p.textContent = c == null ? 'не вдалось оцінити' : `~${c} підписників (Phase 1: вся база)`;
+    if (p) p.textContent = c == null ? 'не вдалось оцінити' : `${c} активних DM-підписників бота`;
   };
   if (!isNew) loadHistory(m.id);
   const spBtn = document.getElementById('loadSpBooks');
@@ -1304,14 +1304,14 @@ async function loadHistory(messageId){
 }
 
 async function previewAudience(filterTariff, filterStatus, audienceListId){
-  // Phase 1: повертаємо приблизну оцінку через RPC або mock.
-  // Поки нема SendPulse — рахуємо з public.users якщо є тариф/статус.
+  // Реальна аудиторія DM-розсилки = активні bot_subscribers (sync з SendPulse).
+  // tariff/user_status поки не змаплені з SendPulse-змінних (Phase 2) — фільтр по них дасть 0.
   const supabase = window.supabase;
   if (!supabase) return null;
   try {
-    let q = supabase.from('users').select('id', { count: 'exact', head: true }).is('deleted_at', null);
-    // tariff/user_status — це поля яких ще нема у public.users; для real audience треба окрема таблиця учасників.
-    // Тимчасово: повертаємо count всієї бази як hint.
+    let q = supabase.from('bot_subscribers').select('id', { count: 'exact', head: true }).eq('is_active', true);
+    if (filterTariff) q = q.eq('tariff', filterTariff);
+    if (filterStatus) q = q.eq('user_status', filterStatus);
     const { count, error } = await q;
     if (error) throw error;
     return count;
