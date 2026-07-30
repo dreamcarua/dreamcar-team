@@ -738,8 +738,16 @@ function openMessageDetail(id){
             <span style="flex:1;"></span>
             <button type="button" class="ret-fmt" id="ret-fmt-clear" title="Прибрати все форматування">🧹 Очистити</button>
           </div>
-          <textarea name="body" id="ret-body-ta" required rows="10" placeholder="Вміст розсилки… Виділи текст і тисни кнопку форматування." style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:0 0 6px 6px; font-family:inherit; resize:vertical;">${escHtml(m.body || '')}</textarea>
+          <textarea name="body" id="ret-body-ta" required rows="8" placeholder="Вміст розсилки… Виділи текст і тисни кнопку форматування." style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:0 0 6px 6px; font-family:inherit; resize:vertical;">${escHtml(m.body || '')}</textarea>
         </label>
+        <!-- Vira 30.07: живий прев'ю одразу під текстом -->
+        <div id="ret-preview-wrap" style="margin-top:-4px; ${m.channel === 'tg' ? '' : 'display:none;'}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-size:11px;color:var(--ash);">👁 ПРЕВ'Ю — як побачить підписник</span>
+            <span id="ret-len-badge" style="font-size:10px;color:var(--ash);font-variant-numeric:tabular-nums;"></span>
+          </div>
+          <div id="ret-tg-preview" style="background:#1b2733;border:1px solid var(--steel);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.55;color:#e9edf0;word-break:break-word;min-height:44px;"></div>
+        </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <label>
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ДАТА І ЧАС ВІДПРАВКИ *</span>
@@ -810,14 +818,6 @@ function openMessageDetail(id){
             <span style="font-size:12px;color:#ddd;line-height:1.4;"><b>🔒 Лише DM-підписникам бота</b><br><span style="color:var(--ash);font-size:11px;">Групи та канали виключені. Знімай лише якщо свідомо шлеш у конкретний чат/канал (ID списку/чату вище).</span></span>
           </label>
 
-          <!-- Vira 30.07: живий прев'ю розсилки (як побачить підписник) -->
-          <div style="margin-bottom:12px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-              <span style="font-size:11px;color:var(--ash);">👁 ПРЕВ'Ю (як побачить підписник)</span>
-              <span id="ret-len-badge" style="font-size:10px;color:var(--ash);font-variant-numeric:tabular-nums;"></span>
-            </div>
-            <div id="ret-tg-preview" style="background:#1b2733;border:1px solid var(--steel);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.55;color:#e9edf0;word-break:break-word;min-height:44px;"></div>
-          </div>
 
           <label style="display:block;margin-bottom:12px;">
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">🎥 ВІДЕОЗАМІТКА (кружечок) — окреме кругле відео перед постом</span>
@@ -1182,6 +1182,8 @@ function openMessageDetail(id){
     if (lbl) lbl.style.display = channelSel.value === 'tg' ? 'none' : '';
     const tgOpts = document.getElementById('ret-tg-options');
     if (tgOpts) tgOpts.style.display = channelSel.value === 'tg' ? '' : 'none';
+    const pw = document.getElementById('ret-preview-wrap');
+    if (pw) pw.style.display = channelSel.value === 'tg' ? '' : 'none';
   });
 
   // 08.06.2026 Vira: якщо Store.users порожній (race / RLS / network) — попередження
