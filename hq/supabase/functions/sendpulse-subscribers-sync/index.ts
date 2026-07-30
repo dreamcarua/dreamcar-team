@@ -34,17 +34,20 @@ async function spGet(path: string, token: string): Promise<any> {
   return await r.json();
 }
 
-// Витягти TG chat_id з об'єкта чату (пробуємо кілька можливих полів SendPulse)
-function extractChat(c: any): { chat_id: string | null; username?: string; first_name?: string; last_name?: string; sp_id?: string; lang?: string } {
-  const cd = c.channel_data || c.contact || c.telegram || {};
-  const chat_id = c.chat_id ?? c.telegram_id ?? cd.id ?? cd.user_id ?? cd.chat_id ?? cd.telegram_id ?? c.id_in_channel ?? null;
+// Витягти TG chat_id з об'єкта чату SendPulse.
+// Форма: row.contact.telegram_id = справжній TG chat_id; row.contact.id = SP contact-id (НЕ chat_id).
+function extractChat(c: any): { chat_id: string | null; username?: string; first_name?: string; last_name?: string; sp_id?: string; lang?: string; banned?: boolean } {
+  const ct = c.contact || c;
+  const cd = ct.channel_data || {};
+  const chat_id = ct.telegram_id ?? cd.id ?? cd.user_id ?? c.telegram_id ?? null;
   return {
     chat_id: chat_id != null ? String(chat_id) : null,
-    username: cd.username || c.username,
-    first_name: cd.first_name || cd.name || c.first_name || c.name,
-    last_name: cd.last_name || c.last_name,
-    lang: cd.language_code || cd.lang || c.lang,
-    sp_id: c.id ? String(c.id) : undefined,
+    username: cd.username || ct.username,
+    first_name: cd.first_name || cd.name || ct.first_name,
+    last_name: cd.last_name || ct.last_name,
+    lang: cd.language_code || cd.lang,
+    sp_id: ct.id ? String(ct.id) : undefined,
+    banned: ct.is_banned === true,
   };
 }
 
@@ -98,7 +101,7 @@ Deno.serve(async (req) => {
           batch.push({
             chat_id: e.chat_id, username: e.username || null, first_name: e.first_name || null,
             last_name: e.last_name || null, lang: e.lang || null, sp_contact_id: e.sp_id || null,
-            source: "sendpulse", is_active: true, raw: c, updated_at: new Date().toISOString(),
+            source: "sendpulse", is_active: !e.banned, raw: c, updated_at: new Date().toISOString(),
           });
         }
         if (batch.length) {
