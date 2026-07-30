@@ -205,7 +205,7 @@ echo "Source URL: $CRE_URL"
 mkdir -p /tmp/cw
 
 # ============================================================
-# PHOTO branch: ImageMagick resize до 2560×2560 max + JPEG q90
+# PHOTO branch: ImageMagick resize до 2000×2000 max + JPEG q90 (Vadym 30.07.2026, було 2560)
 # ============================================================
 if [ "$CRE_TYPE" = "photo" ]; then
   if ! command -v convert >/dev/null 2>&1; then
@@ -264,7 +264,7 @@ if [ "$CRE_TYPE" = "photo" ]; then
   set +e
   convert "$PHOTO_IN" \
     -auto-orient \
-    -resize '2560x2560>' \
+    -resize '2000x2000>' \
     -strip \
     -interlace Plane \
     -sampling-factor 4:2:0 \

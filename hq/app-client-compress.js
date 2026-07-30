@@ -6,7 +6,7 @@
 
    PHOTO:
    - HEIC/HEIF → heic2any (CDN) → JPEG q95
-   - JPEG/PNG/WebP → browser-image-compression (max 2560px, q90)
+   - JPEG/PNG/WebP → browser-image-compression (max 2000px, q90)
    - GIF — пропускаємо (animated не зачіпаємо)
 
    VIDEO:
@@ -30,7 +30,7 @@
   var CDN_FFMPEG_UTIL = 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js';
 
   var PHOTO_MAX_MB = 9.5; // TG sendPhoto ≤10MB
-  var PHOTO_MAX_SIDE = 2560;
+  var PHOTO_MAX_SIDE = 2000; // Vadym 30.07.2026: ліміт 2000px по більшій стороні (було 2560)
   var VIDEO_MAX_MB = 49; // TG sendVideo ≤50MB
   var VIDEO_MAX_SIDE = 1920;
 

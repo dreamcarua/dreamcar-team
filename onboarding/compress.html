@@ -27,7 +27,7 @@
       <p>Compress Queue вирішує: SMM завантажує оригінал → система async стискає до ≤49.5MB → autopost іде з compressed_url.</p>
       <div class="why-grid">
         <div class="why-card"><h4>Чому 49.5MB</h4><p>TG ліміт = 50MB. Ставимо 49.5 щоб був buffer на metadata.</p></div>
-        <div class="why-card"><h4>Як працює</h4><p>2-pass H.264 high profile, preset veryslow, target 99% бюджету. Adaptive resolution. ImageMagick для фото — 2560×2560 q90.</p></div>
+        <div class="why-card"><h4>Як працює</h4><p>2-pass H.264 high profile, preset veryslow, target 99% бюджету. Adaptive resolution. ImageMagick для фото — 2000×2000 q90.</p></div>
         <div class="why-card"><h4>Ключове</h4><p>Не блокує UX. Approver побачить final якість. Worker працює у фоні через GH Actions cron */3min.</p></div>
       </div>
     </div>
@@ -47,7 +47,7 @@
        <span class="conn">↓ GH cron */3min OR dispatch-workflow</span>
 <span class="node">compress-creative.yml</span> → <span class="node">worker.sh</span>
    ├─ Download from R2
-   ├─ <span class="node">photo:</span> ImageMagick → 2560x2560 q90 JPEG → R2
+   ├─ <span class="node">photo:</span> ImageMagick → 2000x2000 q90 JPEG → R2
    ├─ <span class="node">video:</span> ffmpeg 2-pass H.264 → R2
    ├─ <span class="node">complete_compress_job(url, size)</span>
    └─ Trigger autopost dispatch
@@ -107,7 +107,7 @@
       <li><b>Audio:</b> 96-128 kbps AAC</li>
       <li><b>Resolution:</b> 1920/1280/854/640px adaptive</li>
       <li><b>HEIC:</b> libheif + ImageMagick policy unlock</li>
-      <li><b>Photo:</b> 2560×2560 q90 ≤9.5MB</li>
+      <li><b>Photo:</b> 2000×2000 q90 ≤9.5MB</li>
       <li><b>Retry:</b> overshoot → retry @ 93% bitrate</li>
     </ul>
   </section>
