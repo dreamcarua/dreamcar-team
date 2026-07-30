@@ -15,7 +15,13 @@
 - 🆕 Схема-фундамент: таблиця `bot_subscribers` (chat_id, tariff, user_status, is_active — база DM-розсилки) + поля композера на `retention_messages`: `tg_buttons`, `video_note_creative_id`, `send_mode` (dm_broadcast|single_chat), **`dm_only`=true** (🔒 лише DM, групи/канали виключені — критична вимога Віри).
 - 🆕 Edge `retention-bot-broadcast` — нативний воркер: DM-only, сегмент з `bot_subscribers` (або `?source=team` = `users.tg_chat_id` для тесту на командному боті), медіа/**відеозамітка**/**медіагрупа**/**кнопки**, rate-limit ~22/с, **file_id-кеш** (медіа вантажиться 1 раз → reuse для 10k+), 403/blocked → авто-відписка. Реальний сенд лише з `?confirm=1` + `x-hq-cron-secret`; `?test=<chat_id>` (теж під секретом) — одиничний DM; без цього — **dry-run**.
 - ✅ Тест: dry-run на команду → 6 отримувачів, коректний caption+кнопка; живий DM на командному боті доставлено. Cron НЕ активований — масова відправка тільки за явним підтвердженням.
-- ⏳ Далі: sync `bot_subscribers` з SendPulse (READ) + токен ПУБЛІЧНОГО бота для прод-розсилки.
+- ✅ Sync аудиторії з SendPulse ГОТОВО (див. нижче).
+
+### Retention · subscribers sync (SendPulse → bot_subscribers)
+- 🆕 Edge `sendpulse-subscribers-sync`: OAuth SendPulse (READ-ONLY) → тягне підписників TG-бота **DreamCar.ua** → upsert у `bot_subscribers`. Відновлюваний (`?skip`/`?pages`/`next_skip`) щоб не впертись у таймаут. `?probe=1` — діагностика форми. 🔑 Знахідка: справжній chat_id = `contact.telegram_id` (НЕ `contact.id` — то SP-id).
+- ✅ Синхронізовано **14 043 активних підписників** (9070 з username, 12 мов). Щоденний рефреш — pg_cron `sendpulse-subscribers-sync-daily` (jobid 5986, 03:30 UTC).
+- 🔧 Оцінка аудиторії в композері тепер рахує реальні `bot_subscribers` (було: заглушка по users).
+- ⏳ Лишилось: (1) токен ПУБЛІЧНОГО бота для прод-розсилки на 14k (тест — на команді); (2) Phase 2 — маппінг SendPulse-змінних → tariff/user_status для сегментації.
 
 ### Retention · композер (редактор розсилки)
 - 🆕 У картці розсилки з'явився блок **📨 TG-ОПЦІЇ** (видно для каналу tg): 🔒 тумблер **«Лише DM-підписникам»** (default ON — групи/канали виключені), хелпер **TG-форматування**, вибір **відеозамітки** (кружечок) з прикріплених відео-креативів, конструктор **inline-кнопок** (текст+URL, додати/прибрати). Медіагрупа — автоматично з кількох креативів. Зберігається у `tg_buttons`/`video_note_creative_id`/`dm_only`/`send_mode`. Воркер `retention-bot-broadcast` це вже вміє віддавати. (Vira 29.07)
