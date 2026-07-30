@@ -1298,9 +1298,11 @@ function openMessageDetail(id){
         const limit = hasMedia ? 1024 : 4096;
         const plain = raw.replace(/<[^>]+>/g, '').length;
         const over = plain > limit;
-        badge.textContent = `${plain}/${limit}` + (hasMedia ? ' (з медіа)' : '');
+        badge.textContent = (over ? '⚠️ ' : '') + `${plain}/${limit}` + (hasMedia ? ' (підпис до медіа)' : '');
         badge.style.color = over ? '#ff5f6d' : (plain > limit * 0.9 ? '#f59e0b' : 'var(--ash)');
-        badge.title = over ? 'Перевищено ліміт Telegram — текст обріжеться!' : '';
+        badge.title = over
+          ? 'Текст довший за підпис до медіа (1024). Telegram не дозволяє більше в одному повідомленні з фото/відео — скороти текст, щоб усе пішло одним постом.'
+          : '';
       }
       // спойлери в прев'ю розкриваються кліком
       prev && prev.querySelectorAll('.tgp-spoiler').forEach(el => el.onclick = () => el.classList.toggle('open'));
