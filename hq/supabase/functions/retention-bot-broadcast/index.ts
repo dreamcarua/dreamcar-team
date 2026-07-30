@@ -132,16 +132,13 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
 
   // Якщо текст не влазить у caption (1024 видимих) — медіа без підпису,
   // а повний текст (до 4096) окремим повідомленням: нічого не губиться.
+  // Vira 30.07: ЗАВЖДИ одне повідомлення — текст іде описом до медіа, ніколи не ділиться.
+  // Якщо текст не влазить у підпис (1024) і медіа одне ФОТО — шлемо як текст (до 4096)
+  // з великим прев'ю картинки зверху: візуально те саме, один меседж, текст не втрачається.
   const longText = items.length > 0 && plainLen(caption) > 1024;
-  const cap = longText ? "" : trimHtml(caption, 1024);
-  const kbForMedia = longText ? undefined : kb; // при довгому тексті кнопки йдуть з текстовим повідомленням
-  const sendFollowUp = async () => {
-    if (!longText) return;
-    await tgCall("sendMessage", {
-      chat_id: chatId, text: trimHtml(caption, 4096), parse_mode: "HTML",
-      disable_web_page_preview: true, disable_notification: true, ...(kb ? { reply_markup: kb } : {}),
-    });
-  };
+  const singlePhoto = items.length === 1 && items[0].type === "photo";
+  const useLinkPreview = longText && singlePhoto;
+  const cap = trimHtml(caption, 1024);
   // 2) без медіа → текст (+кнопки). Ліміт тексту 4096.
   if (items.length === 0) {
     const txt = trimHtml(caption, 4096);
@@ -149,17 +146,28 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
     const j = await tgCall("sendMessage", { chat_id: chatId, text: txt || " ", parse_mode: "HTML", disable_web_page_preview: true, ...(kb ? { reply_markup: kb } : {}), disable_notification: true });
     return j.ok ? { ok: true, mid: j.result?.message_id } : { ok: false, err: j.description };
   }
-  // 3) одне медіа → sendPhoto/Video з підписом+кнопками
+  // 3) одне медіа → sendPhoto/Video з підписом+кнопками (ОДНЕ повідомлення)
   if (items.length === 1) {
-    const it = items[0]; const method = it.type === "video" ? "sendVideo" : "sendPhoto"; const field = it.type;
+    const it = items[0];
+    // довгий текст + фото → текст із великим прев'ю картинки зверху (один меседж, до 4096)
+    if (useLinkPreview) {
+      const j = await tgCall("sendMessage", {
+        chat_id: chatId, text: trimHtml(caption, 4096), parse_mode: "HTML", disable_notification: true,
+        link_preview_options: { url: it.url, prefer_large_media: true, show_above_text: true },
+        ...(kb ? { reply_markup: kb } : {}),
+      });
+      if (j.ok) return { ok: true, mid: j.result?.message_id };
+      // якщо прев'ю не спрацювало — звичайний шлях із підписом
+    }
+    const method = it.type === "video" ? "sendVideo" : "sendPhoto"; const field = it.type;
     const ck = `m0_${it.type}`;
     let j: any;
     if (cache[ck]) {
-      const body: any = { chat_id: chatId, [field]: cache[ck], caption: cap, parse_mode: "HTML", disable_notification: true, ...(kbForMedia ? { reply_markup: kbForMedia } : {}) };
+      const body: any = { chat_id: chatId, [field]: cache[ck], caption: cap, parse_mode: "HTML", disable_notification: true, ...(kb ? { reply_markup: kb } : {}) };
       if (it.type === "video") body.supports_streaming = true;
       j = await tgCall(method, body);
     } else if (it.size > 0 && it.size <= MAX_URL) {
-      const body: any = { chat_id: chatId, [field]: it.url, caption: cap, parse_mode: "HTML", disable_notification: true, ...(kbForMedia ? { reply_markup: kbForMedia } : {}) };
+      const body: any = { chat_id: chatId, [field]: it.url, caption: cap, parse_mode: "HTML", disable_notification: true, ...(kb ? { reply_markup: kb } : {}) };
       if (it.type === "video") { body.supports_streaming = true; if (it.width) body.width = it.width; if (it.height) body.height = it.height; if (it.duration) body.duration = it.duration; if (it.poster) body.thumbnail = it.poster; }
       j = await tgCall(method, body);
     } else {
@@ -168,16 +176,16 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
     if (j.ok) {
       const fid = (j.result?.photo?.slice(-1)[0]?.file_id) || j.result?.video?.file_id;
       if (fid && !cache[ck]) cache[ck] = fid;
-      await sendFollowUp();
       return { ok: true, mid: j.result?.message_id };
     }
     return { ok: false, err: j.description };
   }
-  // 4) медіагрупа (album). Кнопки / довгий текст → окремим повідомленням під альбомом.
-  const capInAlbum = !kb && !longText;
+  // 4) медіагрупа (album) — підпис ЗАВЖДИ на першому елементі (текст як опис до альбому).
+  // Telegram API не дозволяє reply_markup в медіагрупі: якщо є кнопки, вони йдуть
+  // окремим коротким повідомленням (обмеження платформи, не наш вибір).
   const media = items.slice(0, 10).map((m, i) => {
     const o: any = { type: m.type, media: cache[`a${i}`] || m.url };
-    if (capInAlbum && i === 0) { o.caption = cap; o.parse_mode = "HTML"; }
+    if (i === 0) { o.caption = cap; o.parse_mode = "HTML"; }
     if (m.type === "video") o.supports_streaming = true;
     return o;
   });
@@ -185,9 +193,8 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
   if (jg.ok && Array.isArray(jg.result)) {
     jg.result.forEach((r: any, i: number) => { const fid = r.photo?.slice(-1)[0]?.file_id || r.video?.file_id; if (fid && !cache[`a${i}`]) cache[`a${i}`] = fid; });
   }
-  if (jg.ok) {
-    if (longText) await sendFollowUp();
-    else if (kb) await tgCall("sendMessage", { chat_id: chatId, text: cap || " ", parse_mode: "HTML", disable_web_page_preview: true, reply_markup: kb, disable_notification: true });
+  if (jg.ok && kb) {
+    await tgCall("sendMessage", { chat_id: chatId, text: "👇", parse_mode: "HTML", disable_web_page_preview: true, reply_markup: kb, disable_notification: true });
   }
   return jg.ok ? { ok: true, mid: jg.result?.[0]?.message_id } : { ok: false, err: jg.description };
 }

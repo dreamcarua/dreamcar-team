@@ -33,6 +33,24 @@ async function tgFetchForm(method: string, form: FormData): Promise<any> {
   return j.result;
 }
 function escHtml(s: string): string { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// 30.07.2026: .slice() рвав HTML посеред тега → Telegram відхиляв пост ("can't parse entities").
+// trimHtml не ріже теги й закриває незакриті.
+function trimHtml(s: string, max: number): string {
+  if (!s || s.length <= max) return s || '';
+  let cut = s.slice(0, max);
+  const lo = cut.lastIndexOf('<'), lc = cut.lastIndexOf('>');
+  if (lo > lc) cut = cut.slice(0, lo);
+  const stack: string[] = [];
+  const re = /<(\/?)([a-zA-Z-]+)[^>]*>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(cut)) !== null) {
+    const tag = m[2].toLowerCase();
+    if (m[1] === '/') { const i = stack.lastIndexOf(tag); if (i >= 0) stack.splice(i, 1); }
+    else stack.push(tag);
+  }
+  while (stack.length) cut += `</${stack.pop()}>`;
+  return cut;
+}
 function renderCountdown(text: string, until: string|null|undefined): string {
   if (!text || !until) return text || '';
   if (!text.includes('{{countdown}}')) return text;
@@ -173,7 +191,7 @@ function filenameFor(m: MediaItem, idx: number): string { return `${m.type}${idx
 async function sendSingleMultipart(m: MediaItem, channelId: string, caption: string, replyMarkup: any, silent: boolean): Promise<any> {
   const form = new FormData();
   form.append('chat_id', channelId);
-  if (caption) { form.append('caption', caption.slice(0, MAX_CAPTION)); form.append('parse_mode', 'HTML'); }
+  if (caption) { form.append('caption', trimHtml(caption, MAX_CAPTION)); form.append('parse_mode', 'HTML'); }
   if (silent) form.append('disable_notification', 'true');
   if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
   const blob = await downloadBlob(m.url);
@@ -199,7 +217,7 @@ async function sendAlbumMultipart(items: MediaItem[], channelId: string, caption
   items.slice(0, 10).forEach((m, i) => {
     const attach = `m${i}`;
     const item: any = { type: m.type, media: `attach://${attach}` };
-    if (i === 0 && caption) { item.caption = caption.slice(0, MAX_CAPTION); item.parse_mode = 'HTML'; }
+    if (i === 0 && caption) { item.caption = trimHtml(caption, MAX_CAPTION); item.parse_mode = 'HTML'; }
     if (m.type === 'video') { item.supports_streaming = true; if (m.width) item.width = m.width; if (m.height) item.height = m.height; if (m.duration) item.duration = m.duration; }
     mediaJson.push(item);
     form.append(attach, blobs[i], filenameFor(m, i));
@@ -211,7 +229,7 @@ async function sendAlbumMultipart(items: MediaItem[], channelId: string, caption
 async function sendAlbumUrl(items: MediaItem[], channelId: string, caption: string, silent: boolean): Promise<any> {
   const media = items.slice(0, 10).map((m, i) => {
     const item: any = { type: m.type, media: m.url };
-    if (i === 0 && caption) { item.caption = caption.slice(0, MAX_CAPTION); item.parse_mode = 'HTML'; }
+    if (i === 0 && caption) { item.caption = trimHtml(caption, MAX_CAPTION); item.parse_mode = 'HTML'; }
     if (m.type === 'video') { item.supports_streaming = true; if (m.width) item.width = m.width; if (m.height) item.height = m.height; if (m.duration) item.duration = m.duration; }
     return item;
   });

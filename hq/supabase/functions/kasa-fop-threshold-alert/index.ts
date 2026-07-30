@@ -13,7 +13,9 @@ const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const TG_TOKEN = Deno.env.get("TG_BOT_TOKEN")!;
 const BOARD_CHAT_ID = -1003883456849;
 
-const THRESHOLDS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 96, 97, 98, 99];
+// 30.07.2026: додано 100 — раніше максимум був 99, тож САМ ФАКТ перевищення ліміту
+// не давав жодного алерту (Спірін перетнув 100% і ніхто не дізнався).
+const THRESHOLDS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 96, 97, 98, 99, 100];
 const YEAR = 2026;
 
 const sb = createClient(SB_URL, SB_KEY);
@@ -41,7 +43,12 @@ Deno.serve(async (req) => {
 
     const { data: fl, error } = await sb.rpc("dashboard_kasa_fop_limit", { p_year: YEAR });
     if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 });
-    const fops = (fl?.fops || []).filter((f: any) => f.name);
+
+    // 30.07.2026 (Vadym): алерти лише по АКТИВНИХ ФОП. Спірін і Заяць вичерпали ліміт → архівні,
+    // оборот через них не йде, тож спамити про них не треба.
+    const { data: reg } = await sb.from("kasa_fop_registry").select("name, is_active");
+    const archived = new Set((reg || []).filter((r: any) => r.is_active === false).map((r: any) => r.name));
+    const fops = (fl?.fops || []).filter((f: any) => f.name && !archived.has(f.name));
 
     const { data: sent } = await sb.from("kasa_fop_alert_log").select("fop_name, threshold_code").eq("year", YEAR);
     const sentSet = new Set((sent || []).map((r: any) => `${r.fop_name}:${r.threshold_code}`));
@@ -72,8 +79,9 @@ Deno.serve(async (req) => {
         { headers: { "content-type": "application/json" } });
     }
 
+    const anyOver = fops.some((f: any) => f.over_limit);
     const text =
-      `⚠️ <b>ФОП-ліміт 2 групи · ${YEAR}</b>\n` +
+      (anyOver ? `🚨🚨 <b>ПЕРЕВИЩЕНО ФОП-ЛІМІТ · ${YEAR}</b>\n` : `⚠️ <b>ФОП-ліміт 2 групи · ${YEAR}</b>\n`) +
       `Ліміт ${fmtUAH(Number(fops[0]?.limit_uah || 7211598))} на кожен ФОП\n\n` +
       lines.join("\n\n") +
       `\n\n<a href="https://dashboard.dreamcar.ua/kasa/">/kasa/</a>`;
