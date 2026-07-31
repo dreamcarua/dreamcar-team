@@ -14,11 +14,20 @@ const SMM_CHAT = Deno.env.get("DCSMM_GROUP_CHAT_ID") || "-1003933841573";
 const sb = createClient(SB_URL, SB_KEY);
 
 function kyivDateUA(): string {
-  const p = new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", weekday: "long" }).formatToParts(new Date());
+  const now = new Date();
+  const p = new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit" }).formatToParts(now);
   const g = (t: string) => (p.find(x => x.type === t) || {} as any).value || "";
-  return `${g("day")}.${g("month")} · ${g("weekday")}`;
+  // Intl з іншими полями віддає день тижня у знахідному («пʼятницю») — беремо називний вручну.
+  const wdIdx = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Kyiv", weekday: "short" })
+    .format(now).replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/, (m) => String(["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(m))));
+  const WD = ["неділя", "понеділок", "вівторок", "середа", "четвер", "пʼятниця", "субота"];
+  return `${g("day")}.${g("month")} · ${WD[wdIdx] || ""}`;
 }
-function esc(s: string): string { return (s || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!)); }
+// Спершу прибираємо HTML-теги (заголовки розсилок часто містять <b>…</b>), потім екрануємо —
+// інакше в плані видно сирі &lt;b&gt;.
+function esc(s: string): string {
+  return (s || "").replace(/<[^>]+>/g, "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!)).trim();
+}
 
 // Емодзі за медіа: відео → 🎬, фото → 📷, кілька → 🖼, без медіа → 📝
 function mediaIcon(media: string | null): string {
