@@ -65,7 +65,9 @@ async function enqueueReminders24h(): Promise<number> {
     .from('team_tasks')
     .select('id, title, priority, status, assignee_id, due_date, last_reminder_sent_at')
     .eq('due_date', tomorrow)
-    .neq('status', 'done')
+    // David 30.07.2026: blocked теж пропускаємо — задача заблокована зовнішньою причиною,
+    // виконавець нічого не може зробити, нагадування лише спамить.
+    .not('status', 'in', '("done","blocked")')
     .not('assignee_id', 'is', null);
 
   let queued = 0;
@@ -98,7 +100,8 @@ async function enqueueOverdue(): Promise<number> {
     .from('team_tasks')
     .select('id, title, priority, status, assignee_id, due_date, last_overdue_sent_at')
     .lt('due_date', today)
-    .neq('status', 'done')
+    // David 30.07.2026: НЕ шлемо «прострочено» для blocked — задача стоїть не з вини виконавця.
+    .not('status', 'in', '("done","blocked")')
     .not('assignee_id', 'is', null);
 
   let queued = 0;
