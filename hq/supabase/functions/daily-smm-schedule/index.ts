@@ -35,6 +35,50 @@ function readyMark(status: string): string {
   return " ⏳"; // in_work/review/draft — ще не готово
 }
 
+// --- Ретеншн-розсилки на сьогодні (Kyiv) ---
+function kyivDayBounds(): { from: string; to: string } {
+  const now = new Date();
+  const ymd = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Kyiv" }).format(now); // YYYY-MM-DD
+  // межі доби Києва у UTC: беремо з запасом і фільтруємо за київською датою нижче
+  return { from: `${ymd}T00:00:00+03:00`, to: `${ymd}T23:59:59+03:00` };
+}
+function kyivTime(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+  } catch { return "--:--"; }
+}
+function retIcon(r: any): string {
+  if (r.video_note_creative_id) return "⭕";      // відеозамітка
+  if (r.media_count > 1) return "🖼";
+  if (r.media_count === 1) return "📎";
+  return "📝";
+}
+function retMark(status: string): string {
+  if (status === "sent" || status === "published") return " ✅";
+  if (status === "approved" || status === "scheduled") return "";
+  if (status === "failed") return " ⚠️";
+  return " ⏳"; // draft/review/rework
+}
+async function todayRetention(): Promise<any[]> {
+  const { from, to } = kyivDayBounds();
+  const { data } = await sb
+    .from("retention_messages")
+    .select("id, title, status, publish_at, channel, video_note_creative_id")
+    .eq("channel", "tg")
+    .is("deleted_at", null)
+    .gte("publish_at", from)
+    .lte("publish_at", to)
+    .order("publish_at", { ascending: true });
+  const rows = data || [];
+  if (!rows.length) return [];
+  // підрахунок медіа для іконки
+  const ids = rows.map((r: any) => r.id);
+  const { data: cr } = await sb.from("creative_retention_messages").select("retention_message_id").in("retention_message_id", ids);
+  const counts: Record<string, number> = {};
+  (cr || []).forEach((x: any) => { counts[x.retention_message_id] = (counts[x.retention_message_id] || 0) + 1; });
+  return rows.map((r: any) => ({ ...r, media_count: counts[r.id] || 0 }));
+}
+
 async function sendTG(chatId: string, text: string) {
   const r = await fetch(`https://api.telegram.org/bot${TG}/sendMessage`, {
     method: "POST", headers: { "content-type": "application/json" },
@@ -54,17 +98,30 @@ Deno.serve(async (req) => {
     if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 });
     const rows = (data || []) as any[];
 
-    const lines: string[] = [`📅 <b>Розклад на сьогодні · ${kyivDateUA()}</b>`, ""];
+    const lines: string[] = [`📅 <b>План на сьогодні · ${kyivDateUA()}</b>`, "", "📣 <b>SMM · публікації</b>"];
     if (!rows.length) {
-      lines.push("<i>На сьогодні виходів не заплановано.</i>");
+      lines.push("<i>Виходів не заплановано.</i>");
     } else {
       for (const r of rows) {
         lines.push(`${mediaIcon(r.media)} <b>${r.publish_time}</b> · ${esc(r.title || "(без назви)")}${readyMark(r.status)}`);
       }
       const notReady = rows.filter(r => r.status !== "published" && r.status !== "approved").length;
-      lines.push("");
       lines.push(`Усього: <b>${rows.length}</b> вих.${notReady ? ` · ⏳ ще не готово: <b>${notReady}</b>` : " · всі готові ✅"}`);
     }
+
+    // David 30.07.2026: + план ретеншн-розсилок у бота, щоб бачити ВЕСЬ план соцмереж на день
+    const retRows = await todayRetention();
+    lines.push("", "🤖 <b>Ретеншн · розсилки в бота</b>");
+    if (!retRows.length) {
+      lines.push("<i>Розсилок не заплановано.</i>");
+    } else {
+      for (const r of retRows) {
+        lines.push(`${retIcon(r)} <b>${kyivTime(r.publish_at)}</b> · ${esc(r.title || "(без назви)")}${retMark(r.status)}`);
+      }
+      const notReady = retRows.filter((r: any) => !["approved", "scheduled", "sent", "published"].includes(r.status)).length;
+      lines.push(`Усього: <b>${retRows.length}</b> розсил.${notReady ? ` · ⏳ ще не готово: <b>${notReady}</b>` : " · всі готові ✅"}`);
+    }
+
     const text = lines.join("\n");
 
     if (dry) return new Response(JSON.stringify({ ok: true, dry: true, count: rows.length, preview: text }), { headers: { "content-type": "application/json" } });
