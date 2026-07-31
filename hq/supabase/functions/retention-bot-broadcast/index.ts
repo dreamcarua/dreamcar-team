@@ -61,8 +61,14 @@ const plainLen = (s: string) => (s || "").replace(/<[^>]+>/g, "").length;
 function toKeyboard(btns: any): any | undefined {
   if (!Array.isArray(btns) || !btns.length) return undefined;
   const rows = Array.isArray(btns[0]) ? btns : btns.map((b: any) => [b]);
+  // Bot API 9.4: style = primary | success | danger (колір кнопки). Без style — нейтральна.
+  const OK_STYLES = new Set(["primary", "success", "danger"]);
   const inline = rows
-    .map((r: any[]) => r.map((b: any) => ({ text: b.text || b.label || "↗", url: b.url || b.link })).filter((b: any) => b.url))
+    .map((r: any[]) => r.map((b: any) => {
+      const btn: any = { text: b.text || b.label || "↗", url: b.url || b.link };
+      if (b.style && OK_STYLES.has(String(b.style))) btn.style = String(b.style);
+      return btn;
+    }).filter((b: any) => b.url))
     .filter((r: any[]) => r.length);
   return inline.length ? { inline_keyboard: inline } : undefined;
 }

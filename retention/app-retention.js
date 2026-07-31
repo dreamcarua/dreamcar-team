@@ -740,6 +740,32 @@ function openMessageDetail(id){
           </div>
           <textarea name="body" id="ret-body-ta" required rows="8" placeholder="Вміст розсилки… Виділи текст і тисни кнопку форматування." style="width:100%; padding:10px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:0 0 6px 6px; font-family:inherit; resize:vertical;">${escHtml(m.body || '')}</textarea>
         </label>
+        <!-- Vira 29.07: TG-опції розсилки (кнопки/відеозамітка/форматування/DM-only) -->
+        <div id="ret-tg-options" style="${m.channel === 'tg' ? '' : 'display:none;'} margin:10px 0; padding:12px; background:var(--bg-3); border:1px solid var(--steel); border-radius:8px;">
+          <div style="font-size:11px; color:var(--ash); font-weight:600; letter-spacing:.5px; margin-bottom:10px;">📨 TG-ОПЦІЇ РОЗСИЛКИ</div>
+
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-bottom:12px; padding:8px 10px; background:rgba(227,6,19,.06); border:1px solid rgba(227,6,19,.25); border-radius:6px;">
+            <input type="checkbox" name="dm_only" ${m.dm_only === false ? '' : 'checked'} style="width:16px;height:16px;margin-top:1px;accent-color:var(--red,#E30613);cursor:pointer;flex:none;">
+            <span style="font-size:12px;color:#ddd;line-height:1.4;"><b>🔒 Лише DM-підписникам бота</b><br><span style="color:var(--ash);font-size:11px;">Групи та канали виключені. Знімай лише якщо свідомо шлеш у конкретний чат/канал (ID списку/чату вище).</span></span>
+          </label>
+
+
+          <label style="display:block;margin-bottom:12px;">
+            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">🎥 ВІДЕОЗАМІТКА (кружечок) — окреме кругле відео перед постом</span>
+            <select name="video_note_creative_id" id="ret-vnote-select" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
+              <option value="">— немає —</option>
+            </select>
+            <small style="color:var(--ash);font-size:10px;">Обери відео з прикріплених креативів вище. TG покаже його кружечком (без підпису/кнопок).</small>
+          </label>
+
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:11px; color:var(--ash);">🔘 КНОПКИ під постом (inline)</span>
+              <button type="button" id="ret-add-button" style="background:var(--bg-2);border:1px solid var(--steel);color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;">+ Кнопка</button>
+            </div>
+            <div id="ret-buttons-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+        </div>
         <!-- Vira 30.07: живий прев'ю одразу під текстом -->
         <div id="ret-preview-wrap" style="margin-top:-4px; ${m.channel === 'tg' ? '' : 'display:none;'}">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
@@ -809,32 +835,6 @@ function openMessageDetail(id){
           </div>
         </div>
 
-        <!-- Vira 29.07: TG-опції розсилки (кнопки/відеозамітка/форматування/DM-only) -->
-        <div id="ret-tg-options" style="${m.channel === 'tg' ? '' : 'display:none;'} margin:10px 0; padding:12px; background:var(--bg-3); border:1px solid var(--steel); border-radius:8px;">
-          <div style="font-size:11px; color:var(--ash); font-weight:600; letter-spacing:.5px; margin-bottom:10px;">📨 TG-ОПЦІЇ РОЗСИЛКИ</div>
-
-          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-bottom:12px; padding:8px 10px; background:rgba(227,6,19,.06); border:1px solid rgba(227,6,19,.25); border-radius:6px;">
-            <input type="checkbox" name="dm_only" ${m.dm_only === false ? '' : 'checked'} style="width:16px;height:16px;margin-top:1px;accent-color:var(--red,#E30613);cursor:pointer;flex:none;">
-            <span style="font-size:12px;color:#ddd;line-height:1.4;"><b>🔒 Лише DM-підписникам бота</b><br><span style="color:var(--ash);font-size:11px;">Групи та канали виключені. Знімай лише якщо свідомо шлеш у конкретний чат/канал (ID списку/чату вище).</span></span>
-          </label>
-
-
-          <label style="display:block;margin-bottom:12px;">
-            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">🎥 ВІДЕОЗАМІТКА (кружечок) — окреме кругле відео перед постом</span>
-            <select name="video_note_creative_id" id="ret-vnote-select" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
-              <option value="">— немає —</option>
-            </select>
-            <small style="color:var(--ash);font-size:10px;">Обери відео з прикріплених креативів вище. TG покаже його кружечком (без підпису/кнопок).</small>
-          </label>
-
-          <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-              <span style="font-size:11px; color:var(--ash);">🔘 КНОПКИ під постом (inline)</span>
-              <button type="button" id="ret-add-button" style="background:var(--bg-2);border:1px solid var(--steel);color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;">+ Кнопка</button>
-            </div>
-            <div id="ret-buttons-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-          </div>
-        </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <label>
@@ -1292,7 +1292,13 @@ function openMessageDetail(id){
       const title = (document.querySelector('[name=title]')?.value || '').trim();
       const body = ta.value || '';
       const raw = (title ? `<b>${escHtml(title)}</b>\n\n` : '') + body;
-      if (prev) prev.innerHTML = tgToHtml(raw) || '<span style="color:#7c8b99;">— порожньо —</span>';
+      // кнопки у прев'ю — з кольорами Bot API 9.4
+      const BTN_BG = { primary: '#2f6fd0', success: '#2e9b57', danger: '#c8362f', '': 'rgba(255,255,255,.10)' };
+      const btns = (window.__retButtons || []).filter(b => (b.text || '').trim());
+      const btnHtml = btns.length ? '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' + btns.map(b =>
+        `<div style="background:${BTN_BG[b.style || ''] || BTN_BG['']};border-radius:7px;padding:7px 10px;text-align:center;font-size:12.5px;color:#fff;">${escHtml(b.text)}</div>`
+      ).join('') + '</div>' : '';
+      if (prev) prev.innerHTML = (tgToHtml(raw) || '<span style="color:#7c8b99;">— порожньо —</span>') + btnHtml;
       if (badge) {
         const hasMedia = ((window.retState && window.retState.modalCreatives) || []).length > 0;
         const limit = hasMedia ? 1024 : 4096;
@@ -1321,27 +1327,41 @@ function openMessageDetail(id){
     const flat = [];
     const raw = m.tg_buttons;
     if (Array.isArray(raw)) raw.forEach(row => {
-      if (Array.isArray(row)) row.forEach(x => x && flat.push({ text: x.text || '', url: x.url || '' }));
-      else if (row && typeof row === 'object') flat.push({ text: row.text || '', url: row.url || '' });
+      if (Array.isArray(row)) row.forEach(x => x && flat.push({ text: x.text || '', url: x.url || '', style: x.style || '' }));
+      else if (row && typeof row === 'object') flat.push({ text: row.text || '', url: row.url || '', style: row.style || '' });
     });
+    // Bot API 9.4: колір кнопки — primary (синій) / success (зелений) / danger (червоний) / без стилю
+    const STYLES = [
+      { v: '', lbl: '⚪ Звичайна' },
+      { v: 'primary', lbl: '🔵 Синя' },
+      { v: 'success', lbl: '🟢 Зелена' },
+      { v: 'danger', lbl: '🔴 Червона' },
+    ];
     const syncFromDom = () => {
       Array.from(list.querySelectorAll('.ret-btn-row')).forEach((r, i) => {
-        if (!flat[i]) flat[i] = { text: '', url: '' };
+        if (!flat[i]) flat[i] = { text: '', url: '', style: '' };
         flat[i].text = r.querySelector('.ret-btn-text')?.value || '';
         flat[i].url = r.querySelector('.ret-btn-url')?.value || '';
+        flat[i].style = r.querySelector('.ret-btn-style')?.value || '';
       });
     };
     const render = () => {
       list.innerHTML = flat.length ? flat.map((b, i) => `
         <div class="ret-btn-row" style="display:flex;gap:6px;align-items:center;">
           <input class="ret-btn-text" value="${escHtml(b.text)}" placeholder="Текст кнопки" style="flex:1;padding:7px 9px;background:var(--bg-2);border:1px solid var(--steel);color:#fff;border-radius:5px;font-size:12px;">
-          <input class="ret-btn-url" value="${escHtml(b.url)}" placeholder="https://..." style="flex:1.4;padding:7px 9px;background:var(--bg-2);border:1px solid var(--steel);color:#fff;border-radius:5px;font-size:12px;">
+          <input class="ret-btn-url" value="${escHtml(b.url)}" placeholder="https://..." style="flex:1.3;padding:7px 9px;background:var(--bg-2);border:1px solid var(--steel);color:#fff;border-radius:5px;font-size:12px;">
+          <select class="ret-btn-style" title="Колір кнопки" style="flex:none;width:112px;padding:7px 6px;background:var(--bg-2);border:1px solid var(--steel);color:#fff;border-radius:5px;font-size:11px;">
+            ${STYLES.map(s => `<option value="${s.v}" ${(b.style || '') === s.v ? 'selected' : ''}>${s.lbl}</option>`).join('')}
+          </select>
           <button type="button" data-bi="${i}" title="Прибрати" style="background:rgba(0,0,0,.4);border:1px solid var(--steel);color:#fff;border-radius:5px;width:28px;height:28px;cursor:pointer;flex:none;">×</button>
         </div>`).join('') : '<div style="color:var(--ash);font-size:11px;padding:4px 0;">Кнопок немає. «+ Кнопка» щоб додати.</div>';
-      list.querySelectorAll('[data-bi]').forEach(btn => btn.onclick = () => { syncFromDom(); flat.splice(+btn.dataset.bi, 1); render(); });
+      list.querySelectorAll('[data-bi]').forEach(btn => btn.onclick = () => { syncFromDom(); flat.splice(+btn.dataset.bi, 1); render(); refreshPrev(); });
+      list.querySelectorAll('.ret-btn-text, .ret-btn-url, .ret-btn-style').forEach(el => el.addEventListener('input', () => { syncFromDom(); refreshPrev(); }));
     };
-    if (addBtn) addBtn.onclick = () => { syncFromDom(); flat.push({ text: '', url: '' }); render(); };
+    const refreshPrev = () => { if (typeof window.__retRefreshPreview === 'function') window.__retRefreshPreview(); };
+    if (addBtn) addBtn.onclick = () => { syncFromDom(); flat.push({ text: '', url: '', style: '' }); render(); refreshPrev(); };
     render();
+    window.__retButtons = flat; // для прев'ю
   })();
 }
 
@@ -1513,10 +1533,15 @@ async function saveForm(form, id, overlay, opts){
   if (fd.get('filter_tariff')) audience_filter.tariff = fd.get('filter_tariff');
   if (fd.get('filter_status')) audience_filter.user_status = fd.get('filter_status');
   // Vira 29.07: TG-композер — кнопки/відеозамітка/dm_only
-  const tgButtons = Array.from(form.querySelectorAll('.ret-btn-row')).map(r => ({
-    text: (r.querySelector('.ret-btn-text')?.value || '').trim(),
-    url: (r.querySelector('.ret-btn-url')?.value || '').trim(),
-  })).filter(b => b.text && b.url);
+  const tgButtons = Array.from(form.querySelectorAll('.ret-btn-row')).map(r => {
+    const b = {
+      text: (r.querySelector('.ret-btn-text')?.value || '').trim(),
+      url: (r.querySelector('.ret-btn-url')?.value || '').trim(),
+    };
+    const st = (r.querySelector('.ret-btn-style')?.value || '').trim();
+    if (st) b.style = st; // Bot API 9.4: primary | success | danger
+    return b;
+  }).filter(b => b.text && b.url);
   const dmOnly = fd.get('dm_only') === 'on';
   const payload = {
     channel: fd.get('channel'),

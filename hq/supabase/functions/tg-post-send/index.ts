@@ -75,6 +75,8 @@ function buildInlineKeyboard(buttons: any[], pubId: string, campaign?: string): 
     const row = b.row ?? idx;
     if (!rows[row]) rows[row] = [];
     const btn: any = { text: (b.text || `Button ${idx+1}`).slice(0, 64) };
+    // Bot API 9.4 (30.07.2026): колір кнопки — primary | success | danger
+    if (b.style && ['primary','success','danger'].includes(String(b.style))) btn.style = String(b.style);
     if (b.type === 'web_app' && b.web_app_url) btn.web_app = { url: b.web_app_url };
     else if (b.type === 'callback') btn.callback_data = `p:${pubId}:${idx}`.slice(0, 64);
     else if (b.url) btn.url = appendUtm(b.url, pubId, idx, campaign);
