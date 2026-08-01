@@ -701,9 +701,12 @@ function formatPubForQueue(p: { id: string; title: string; publish_at: string },
 // повідомлення. Кладемо у tech_requests і одразу підтверджуємо. Claude розбирає за розкладом.
 const TECH_TAGS = /(^|\s)#(баг|буг|bug|фікс|фикс|fix|питання|вопрос|ідея|идея|idea|тех)\b/i;
 const BOT_MENTION = /@dreamcar_team_bot\b/i;
-// Vadym 01.08.2026: поки ТІЛЬКИ робоча група DreamCar SMM. В інших чатах не чіпаємо.
+// Vadym 01.08.2026: робочі чати, де ловимо тех-звернення.
+// SMM · BOARD · LTV RETENTION (у ретеншну два id — стара група + супергрупа після міграції).
 const TECH_CHATS = new Set<string>(
-  (Deno.env.get("TECH_REQUEST_CHATS") || "-1003933841573").split(",").map((s) => s.trim()).filter(Boolean),
+  (Deno.env.get("TECH_REQUEST_CHATS") ||
+    "-1003933841573,-1003883456849,-1004294474337,-4870485876")
+    .split(",").map((s) => s.trim()).filter(Boolean),
 );
 
 function classifyTech(text: string): string {
