@@ -347,7 +347,12 @@ async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
       if (r.messageId) {
         const newMap = (typeof pub.tg_message_id === 'object' && pub.tg_message_id) ? { ...pub.tg_message_id } : {};
         newMap[r.channelId] = r.messageId;
-        await sb.from('publications').update({ tg_message_id: newMap, tg_published_channel_id: r.channelId, autopost_status: 'sent' }).eq('id', pub.id);
+        // 01.08.2026 (Sasha #4): після успішного автопосту статус ставимо 'published'.
+        // Раніше лишався 'approved' → SMM думав, що пост не вийшов, і публікував/позначав вручну.
+        await sb.from('publications').update({
+          tg_message_id: newMap, tg_published_channel_id: r.channelId, autopost_status: 'sent',
+          status: 'published', published_at: new Date().toISOString(),
+        }).eq('id', pub.id);
         await recordAnalytics(sb, pub.id, r.channelId, r.messageId);
       }
       if (jobId) await sb.rpc('complete_autopost_job', { job_id: jobId, pub_id: pub.id }).catch(() => {});
