@@ -28,10 +28,33 @@ const TARGET_TG_CHAT_ID = Deno.env.get("DCSMM_TG_CHANNEL") || "-1003933841573";
 // Причина: GH Actions scheduled cron давав до 80хв затримки у пікові години (09/12/00:00).
 // Вікно тепер [now-15хв .. now] — постимо КОЛИ час настав (не +10хв наперед, інакше вихід
 // до publish_at). tg-post-send сам робить retry + оновлює autopost_status/tg_message_id.
+// 01.08.2026 (Sasha #4): пости не виходили. Причина — вікно було [now-15хв..now]:
+// якщо публікацію СХВАЛИЛИ вже ПІСЛЯ publish_at (звична ситуація), вона назавжди
+// випадала з вікна і не публікувалась ніколи. Тепер: вікно назад 12 год (пост виходить
+// одразу після схвалення), старші за 12 год → 'missed' (не постимо мовчки застаріле).
+const LOOKBACK_MS = 12 * 60 * 60 * 1000;
+const STUCK_MS = 20 * 60 * 1000;
+
 async function run(supabase: ReturnType<typeof createClient>) {
   const now = Date.now();
-  const fromIso = new Date(now - 15 * 60000).toISOString();
+  const fromIso = new Date(now - LOOKBACK_MS).toISOString();
   const toIso = new Date(now).toISOString();
+
+  // watchdog: звільняємо claim, що завис у 'processing' довше 20 хв (щоб був retry)
+  await supabase
+    .from("publications")
+    .update({ autopost_status: null })
+    .eq("autopost_status", "processing")
+    .lt("updated_at", new Date(now - STUCK_MS).toISOString());
+
+  // застарілі (approved, час минув >12 год, ще не публіковані) — позначаємо missed
+  await supabase
+    .from("publications")
+    .update({ autopost_status: "missed", autopost_error: "publish_at прострочено >12 год — автопост пропущено" })
+    .eq("status", "approved")
+    .lt("publish_at", fromIso)
+    .is("autopost_status", null)
+    .is("deleted_at", null);
 
   const { data: candidates, error: e1 } = await supabase
     .from("publications")
