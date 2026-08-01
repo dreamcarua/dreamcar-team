@@ -171,6 +171,20 @@
   }
 
   function insertIntoCard(aiData) {
+    // 01.08.2026 (Sasha #1): «після генерації перекидає на новий чернетку».
+    // Запам'ятовуємо картку, в якій працюємо, і повертаємо hash, якщо щось його збило
+    // (клік крізь модалку по календарю → createPub, ре-рендер тощо).
+    var hashBefore = location.hash;
+    var restoreHash = function () {
+      if (location.hash !== hashBefore && /^#publication\//.test(hashBefore)) {
+        console.warn('[ai-copy] hash змінився після генерації — повертаю у картку', hashBefore);
+        location.hash = hashBefore;
+      }
+    };
+    setTimeout(restoreHash, 60);
+    setTimeout(restoreHash, 400);
+    setTimeout(restoreHash, 1200); // після debounce-autosave (700мс)
+
     var textArea = document.getElementById('f_text');
     if (textArea) {
       var combined = aiData.text;
@@ -199,8 +213,9 @@
         if (typeof toast === 'function') toast('AI', 'error', String(err.message || err));
       }
     };
+    // Один binding (був подвійний onclick+addEventListener, плюс делегат на body —
+    // клік оброблявся 3 рази). Делегат нижче лишається як fallback із дедупом.
     btn.onclick = handler;
-    btn.addEventListener('click', handler);
     btn.__hqAiBound = true;
   }
 
