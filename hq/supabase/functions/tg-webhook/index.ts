@@ -696,6 +696,67 @@ function formatPubForQueue(p: { id: string; title: string; publish_at: string },
     `<i>Тисни кнопку щоб погодити / повернути / пропустити</i>`;
 }
 
+// ===== 01.08.2026: тех-звернення до бота (Вадим) =====
+// Ловимо у робочих чатах: #баг / #фікс / #питання / #ідея, згадку бота, або reply на його
+// повідомлення. Кладемо у tech_requests і одразу підтверджуємо. Claude розбирає за розкладом.
+const TECH_TAGS = /(^|\s)#(баг|буг|bug|фікс|фикс|fix|питання|вопрос|ідея|идея|idea|тех)\b/i;
+const BOT_MENTION = /@dreamcar_team_bot\b/i;
+
+function classifyTech(text: string): string {
+  const t = text.toLowerCase();
+  if (/#(питання|вопрос)/.test(t) || /\?\s*$/.test(text.trim())) return "question";
+  if (/#(ідея|идея|idea)/.test(t)) return "idea";
+  return "bug";
+}
+
+async function captureTechRequest(
+  supabase: ReturnType<typeof createClient>,
+  msg: TgMessage,
+  isGroup: boolean,
+): Promise<boolean> {
+  const text = (msg.text || (msg as any).caption || "").trim();
+  if (!text || text.startsWith("/")) return false;
+
+  const repliedToBot = !!(msg.reply_to_message && (msg.reply_to_message as any).from?.is_bot);
+  const hasTag = TECH_TAGS.test(text);
+  const mentioned = BOT_MENTION.test(text);
+  if (!hasTag && !mentioned && !repliedToBot) return false;
+  // у приватних із ботом працює AI-асистент — не перехоплюємо, крім явного тегу
+  if (!isGroup && !hasTag) return false;
+
+  const from = msg.from || ({} as any);
+  const fromName = [from.first_name, from.last_name].filter(Boolean).join(" ") || from.username || "невідомо";
+  const clean = text.replace(BOT_MENTION, "").trim();
+
+  const { data: row, error } = await supabase
+    .from("tech_requests")
+    .insert({
+      chat_id: String(msg.chat.id),
+      message_id: msg.message_id,
+      thread_msg_id: msg.message_id,
+      from_user_id: from.id || null,
+      from_name: fromName,
+      kind: classifyTech(text),
+      text: clean.slice(0, 4000),
+      raw: { chat_title: (msg.chat as any).title || null, replied_to_bot: repliedToBot },
+    })
+    .select("id, kind")
+    .maybeSingle();
+
+  if (error) { console.error("[tech_requests] insert", error); return false; }
+
+  const label = row?.kind === "question" ? "❓ Питання" : row?.kind === "idea" ? "💡 Ідея" : "🔧 Баг";
+  const ack = await tgSend(
+    msg.chat.id,
+    `${label} прийнято <b>#${row?.id}</b> — у черзі.\nРозберу й відпишу сюди.`,
+    { silent: true, reply_to_message_id: msg.message_id },
+  );
+  if (ack?.message_id) {
+    await supabase.from("tech_requests").update({ ack_message_id: ack.message_id }).eq("id", row!.id);
+  }
+  return true;
+}
+
 async function handleApprove(supabase: ReturnType<typeof createClient>, chatId: number, isGroup: boolean): Promise<void> {
   if (isGroup) { await tgSend(chatId, "🔒 /approve — тільки у DM.", { silent: true }); return; }
   const me = await findUser(supabase, chatId);
@@ -2366,6 +2427,16 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!msg.text) return new Response(JSON.stringify({ ok: true, ignored: "non-text" }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+    // ===== 01.08.2026 (Вадим): тех-звернення до бота =====
+    // «#баг ...» / «#фікс» / «#питання» / згадка @dreamcar_team_bot / reply на повідомлення бота
+    // → у чергу tech_requests. Claude розбирає за розкладом і відповідає в цей самий тред.
+    {
+      const handledTech = await captureTechRequest(supabase, msg, isGroup);
+      if (handledTech) {
+        return new Response(JSON.stringify({ ok: true, kind: "tech-request" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+    }
 
     const { cmd, payload } = parseCommand(msg.text);
     if (isGroup && !cmd) {
