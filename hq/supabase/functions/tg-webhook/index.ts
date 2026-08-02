@@ -757,7 +757,8 @@ async function captureTechRequest(
 
       // якщо це відповідь на ПРОПОЗИЦІЮ рішення — розпізнаємо підтвердження
       if (parent.status === "proposed") {
-        const yes = /^(так|ок|окей|ok|давай|погоджу|згод|+|👍|✅|роби|го|yes|апрув)/i.test(clean);
+        // ⚠️ «+» ОБОВ'ЯЗКОВО екранувати — інакше regex невалідний і вся функція падає (503).
+        const yes = /^(так|ок|окей|ok|давай|погоджу|згод|\+|👍|✅|роби|го|yes|апрув)/i.test(clean);
         const no = /^(ні|нет|no|стоп|не треба|відміна|скасу)/i.test(clean);
         if (yes) {
           await supabase.from("tech_requests")
