@@ -1796,6 +1796,8 @@
     <a class="nav-item" data-route="calendar" href="#calendar"><span class="ico">📅</span><span class="label">Календар</span><span class="count" id="navCntCalendar">0</span></a>
     <a class="nav-item" data-route="board" href="#board"><span class="ico">✅</span><span class="label">Дошка погоджень</span><span class="count" id="navCntBoard">0</span></a>
     <a class="nav-item" data-route="library" href="#library"><span class="ico">🖼️</span><span class="label">Бібліотека</span><span class="count" id="navCntLibrary">0</span></a>
+    <!-- 02.08.2026 tech#3 (Олександр): ідеї для реалізації + Апрув/Відхилено від Вадима/Артема/Давида -->
+    <a class="nav-item" data-route="notes" href="#notes"><span class="ico">📝</span><span class="label">Нотатки</span><span class="count" id="navCntNotes">0</span></a>
     <div class="nav-section">Аналітика</div>
     <a class="nav-item" href="/hq/instagram-analytics.html"><span class="ico">📷</span><span class="label">Instagram</span></a>
 
@@ -1922,6 +1924,8 @@
 <script src="app-board-view.js?v=202608021817-63a4de21oard" defer></script>
 <!-- 30.06.2026 #555 (P0 SMM weekly drag-drop): app-dragdrop-fix.js (v4) НЕ був у loader-chain → не вантажився взагалі. Через це (1) місяць-view drag-drop йшов лише через inline attachCalendarHandlers зі старим off-by-one, (2) тиждень-view карток (.week-card) не можна було перетягувати між днями. v4 = той самий bounding-rect scan для .cal-day + .week-col[data-date]. Підключаємо напряму. -->
 <script src="app-dragdrop-fix.js?v=202608021817-63a4de21week" defer></script>
+<!-- 02.08.2026 tech#3 (Олександр): сторінка «Нотатки» — ідеї + голосування Вадим/Артем/Давид -->
+<script src="app-notes.js?v=202608021817-63a4de21notes" defer></script>
 
 </body>
 </html>

@@ -945,6 +945,13 @@ function navigate() {
   if (route === 'calendar') { bc.innerHTML = 'Стіл SMM · <b>Календар</b>'; renderCalendar(main); }
   else if (route === 'board') { bc.innerHTML = 'Стіл SMM · <b>Дошка погоджень</b>'; renderBoard(main); }
   else if (route === 'library') { bc.innerHTML = 'Стіл SMM · <b>Бібліотека креативів</b>'; renderLibrary(main); }
+  // Tech-request #3 (02.08.2026): сторінка «Нотатки» — ідеї + Апрув/Відхилено
+  // від Вадима/Артема/Давида. Рендер живе в app-notes.js.
+  else if (route === 'notes') {
+    bc.innerHTML = 'Стіл SMM · <b>Нотатки</b>';
+    if (typeof window.renderNotes === 'function') renderNotes(main);
+    else main.innerHTML = '<div class="view-header"><h1>📝 Нотатки</h1></div>';
+  }
   else if (route === 'launches') { location.replace('/projects/'); return; }
   else if (route === 'publication' && args[0]) { openCard(args[0]); }
   else { bc.innerHTML = 'Стіл SMM · <b>Календар</b>'; renderCalendar(main); }
