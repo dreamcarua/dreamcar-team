@@ -1,0 +1,393 @@
+<!doctype html><html lang="uk" style="background:#0A0A0A"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DreamCar · Повний аналіз ринку</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0A0A0A;--bg2:#141414;--bg3:#1F1F1F;--line:#2A2A2A;--red:#E30613;--ash:#8a8a8a;--bone:#DDD;--text:#fff;--ok:#10B981;--warn:#F59E0B;--info:#3B82F6}
+html{scroll-behavior:smooth}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:#ededed;line-height:1.6;font-size:15px;-webkit-font-smoothing:antialiased}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(10,10,10,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:14px;height:54px;padding:0 20px}
+.logo{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;letter-spacing:1px}.logo .r{color:var(--red)}
+.sp{flex:1}
+.btn{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ash);border:1px solid var(--line);padding:6px 12px;border-radius:8px;text-decoration:none;white-space:nowrap;cursor:pointer;background:none}
+.btn:hover{border-color:var(--ash);color:#fff}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red)}
+.wrap{max-width:960px;margin:0 auto;padding:34px 20px 70px}
+.doc-hd{border-bottom:2px solid var(--red);padding-bottom:14px;margin-bottom:8px}
+.kick{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;color:var(--red);margin-bottom:8px}
+.doc-hd h1{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:30px;line-height:1.05;color:#fff}
+.doc-hd .meta{color:var(--ash);font-size:13px;margin-top:8px;font-family:'JetBrains Mono',monospace}
+h1.ch{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:22px;line-height:1.1;color:#fff;margin:40px 0 14px;padding-top:16px;border-top:2px solid var(--line)}
+h1.ch .num{color:var(--red);margin-right:10px}
+h2{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:16px;color:#fff;margin:26px 0 10px;letter-spacing:.3px}
+h3{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:13px;color:#fff;margin:18px 0 8px}
+p{margin:0 0 12px;color:#dcdcdc}
+b,strong{color:#fff;font-weight:700}
+a{color:#7dd3fc}
+ul,ol{margin:0 0 14px;padding-left:22px}li{margin:0 0 6px;color:#dcdcdc}
+hr{border:none;border-top:1.5px solid var(--red);margin:26px 0}
+code{font-family:'JetBrains Mono',monospace;font-size:.86em;background:#000;padding:1px 5px;border-radius:4px;color:#bfe}
+.small{font-size:12px;color:var(--ash)}
+.mono,.cnum{font-family:'JetBrains Mono',monospace}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;display:block;overflow-x:auto}
+th{background:#0f0f0f;color:#fff;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.4px;font-size:11px;text-align:left;padding:8px 10px;white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;color:#d8d8d8}
+tr:hover td{background:#181818}
+.insight,.delta{background:linear-gradient(180deg,#1a1413,#151515);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:11px;padding:15px 17px;margin:16px 0}
+.insight .t,.delta .dt{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:12px;letter-spacing:.8px;color:var(--red);margin-bottom:6px}
+.delta{border-left-color:#666}.delta .dt .keep{color:var(--ok)}.delta .dt .chg{color:var(--warn)}.delta .dt .add{color:var(--red)}
+.insight p,.delta p{margin:0 0 6px;font-size:13.5px}.insight p:last-child,.delta p:last-child{margin:0}
+.verd{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:1px 6px;border:1px solid #999;border-radius:4px;white-space:nowrap}
+.v-ok{color:var(--ok);border-color:var(--ok)}.v-chg{color:var(--warn);border-color:var(--warn)}.v-bad{color:var(--red);border-color:var(--red)}
+.foot{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);color:#6f6f6f;font-size:11.5px;font-family:'JetBrains Mono',monospace;line-height:1.7}
+@media print{.topbar{display:none}body{background:#fff;color:#111}.wrap{max-width:100%}h1.ch,h2,h3,.doc-hd h1,b{color:#000}p,li,td{color:#222}.insight,.delta{background:#f5f5f5}}
+</style></head><body>
+<div class="topbar"><div class="in"><span class="logo">DREAM<span class="r">CAR</span></span><span class="sp"></span><button class="btn red" onclick="window.print()">🖨 Зберегти в PDF</button><a class="btn" href="/info.html">← INFO</a></div></div>
+<div class="wrap"><div class="doc-hd"><div class="kick">/// РОЗВІДКА РИНКУ · 37 АГЕНТІВ · 13 РИНКІВ · 02.08.2026</div><h1>Конкуренти та інсайти — повний аналіз</h1><div class="meta">Звіт I: Project X (10 лінз) · Звіт II: світовий sweep · 2 раунди верифікації</div></div>
+<h1 class="ch"><span class="num">I</span>Project X Competitions — розбір по кісточках</h1><p><strong>10 незалежних агентів-лінз · 02.08.2026 · Лише звіт — жодних змін у стратегії</strong>
+Повні звіти 10 лінз (механіка, UI/UX, ціни, промо, інстант-шар, канали, довіра, membership, контент, тех) — у zip поруч. Тут — синтез: що у них ІНАКШЕ і що варто спробувати.</p>
+<hr />
+<h2>1. Хто вони насправді (паспорт)</h2>
+<p>Не «британський гігант», а <strong>румунський діаспорний стартап у британській обгортці, якому 14 місяців</strong>: PROJECTX COMPETITIONS LTD №16472053 (інкорп. 23.05.2025, Greenford, Лондон), засновник і лице бренду — Catalin Chiru (резидент Румунії; вийшов з директорів 06.2026). Уся жива комунікація румунською; англійський сайт — комплаєнс-вітрина. Квитки в £, призи в €. 3 вручення за 14 місяців (у нас — 19 за 7 років, сьогодні 20-те). TikTok-first: 88,3K там проти 1,4K на YouTube і <strong>539 у Telegram</strong> (наш бот — 14 060). Кастомний Laravel-сайт (не WooCommerce), high-risk еквайр Paytriot (не Stripe), ~99 активних оголошень у Meta Ad Library з другої сторінки «ProjectX Secundar» (натяк на бан основної), 6–13 нових крео щодня.</p>
+<p><strong>Головний висновок розвідки: це не зразок для наслідування цілком — це каталог окремих механік, частина з яких блискуча, частина токсична.</strong></p>
+<h2>2. Архітектурна відмінність №1: промо вбудоване в продукт</h2>
+<p>У нас промо — це календарні події поверх продукту (2 промо-дні/міс). У них <strong>промо — це сама механіка продукту</strong>, чотири зчеплені петлі:</p>
+<ol>
+<li><strong>Фіксований кап квитків</strong> (59 900 × £3) → видимий прогрес-бар «продано 38,2%».</li>
+<li><strong>Milestone prize-drops кожні 10%</strong>: €1 000–2 500 кешем / 600–1 500 бонус-квитків / X2-подвоювач — розігрується серед наявних покупців у момент перетину порогу. Прогрес-бар стає спільною ціллю: «лишилось 1 080 квитків до наступного дропу» — <strong>urgency без знижки ціни</strong>.</li>
+<li><strong>Mystery Box гарантовано кожні 25 квитків</strong> (бонус-квитки/X2/промокоди/кеш) — лутбокс, що формує кошики кратно 25.</li>
+<li><strong>Top-10 лідерборд покупців</strong> з кешем топ-3 (€5k/3k/2k) і довічним Elite-статусом.</li>
+</ol>
+<p>Ефект: <strong>~9–11 інфоприводів усередині одного циклу</strong> замість одного фіналу, з фіксованим призовим бюджетом ~9–11% валу. Подія кожні ~2 дні. Це пряма відповідь на нашу «яму» середини циклу.</p>
+<p><strong>Тіньова сторона (виміряно агентами):</strong> бонусна емісія тихо роздала <strong>+43,7% квитків</strong> (9 994 бонусних на 22 880 куплених) — шанси всіх пасивних покупців розмиті майже наполовину, і це ніде не пояснено; правил боксів/дропів НЕМАЄ в їхніх T&C; лічильник «глядачів» на сторінці — <strong>повністю синтетичний</strong> (random walk від сіда години — знайдено в коді).</p>
+<h2>3. Каталог відмінностей (у них ↔ у нас)</h2>
+<table>
+<thead>
+<tr>
+<th>Вимір</th>
+<th>Project X</th>
+<th>DreamCar</th>
+<th>Кому плюс</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Кап номерів</td>
+<td>Фіксований 59 900, видимий</td>
+<td>Без капу, прихований</td>
+<td>Їм: дефіцит і прогрес як механіка</td>
+</tr>
+<tr>
+<td>Ціна</td>
+<td>£3 квиток, тіри −5…−20%, quick-pick 1/125/250 → чек £300</td>
+<td>Тарифи 199–7 500₴, AOV 513₴</td>
+<td>Їм: інженерія чека; нам: доступність і обсяг</td>
+</tr>
+<tr>
+<td>Множник (виручка/приз)</td>
+<td>2,6–3,3× (кап £180k на приз ~£55k б/в)</td>
+<td>~4,5–5×</td>
+<td>Їм: «щедрість» як позиціонування</td>
+</tr>
+<tr>
+<td>Приз</td>
+<td><strong>Вживаний</strong> AMG 80 тис. км + cash alt €50k (нижче ринку)</td>
+<td>Нове/майже нове авто, без кеш-альтернативи</td>
+<td>Нам: чистота обіцянки</td>
+</tr>
+<tr>
+<td>Середина циклу</td>
+<td>9 інфоприводів (дропи/бокси/лідерборд)</td>
+<td>Яма з 2 промо-днями</td>
+<td>Їм — і сильно</td>
+</tr>
+<tr>
+<td>Фінал</td>
+<td>Лайв FB/YT/TikTok, «random у spreadsheet», без методу</td>
+<td>Протокол №20: два хеші, random.org, свідок, сертифікат</td>
+<td><strong>Нам — категорично</strong></td>
+</tr>
+<tr>
+<td>Публічна перевірка</td>
+<td>Check Ticket (email/№) — селф-сервіс</td>
+<td>Немає (кабінет будується)</td>
+<td>Їм</td>
+</tr>
+<tr>
+<td>Переможці</td>
+<td>Відео+№ квитка в день дро на сторінці конкурсу</td>
+<td>Пост у соцмережах, реєстр будується</td>
+<td>Їм за швидкість, нам за глибину історії</td>
+</tr>
+<tr>
+<td>Канали</td>
+<td>TikTok-органіка 88K + дуал-гео Meta (GB+RO) + founder-brand</td>
+<td>Моно-Meta + органіка 46% нових + TG 14K</td>
+<td>Розні сильні: їм TikTok, нам owned-канал</td>
+</tr>
+<tr>
+<td>CRM</td>
+<td>TG 539, email відсутній, рефералки нема</td>
+<td>TG 14 060 + SendPulse</td>
+<td><strong>Нам ×26</strong></td>
+</tr>
+<tr>
+<td>Retention-продукт</td>
+<td>Elite: топ-3 спендери довічно (казино-VIP у меритократичній обгортці)</td>
+<td>Клуб utility-first (проєкт)</td>
+<td>Нам юридично, їм за фактом запуску</td>
+</tr>
+<tr>
+<td>Довіра третьої сторони</td>
+<td>Trustpilot нуль, преса нуль, first-party only</td>
+<td>19 вручень, Google-присутність (з проблемами)</td>
+<td>Ніхто; наш протокол робить розрив</td>
+</tr>
+<tr>
+<td>Тех</td>
+<td>Laravel + fomo.json (поллінг 7с, edge-кеш 3с) — весь real-time без WebSocket</td>
+<td>Woo + Supabase, лендінг статичний</td>
+<td>Їм: FOMO-шар за копійки</td>
+</tr>
+<tr>
+<td>Юр-конструкція</td>
+<td>UK skill question + поштовий маршрут</td>
+<td>Промоакція AI-сервісу (токени = продукт)</td>
+<td>Нам: стійкіша до регуляторного тренду</td>
+</tr>
+</tbody>
+</table>
+<h2>4. Що варто спробувати (кандидати — НЕ рішення)</h2>
+<p><strong>S — швидкі (тижні, без зміни механіки участі):</strong>
+1. <strong>Прогрес-бар циклу + «наступна віха»</strong> на лендінгу і в боті. У них весь real-time — один JSON з поллінгом 7с і кешем 3с; на нашому Supabase це 1–2 спринти. Найдешевший великий ефект.
+2. <strong>«Перевір свій номер»</strong> — публічний селф-сервіс, поєднаний з нашими хешами протоколу (у них перевірка без доказів, у нас будуть докази без перевірки — зʼєднати = унікальна позиція ринку).
+3. <strong>Блок «Маємо власника» в день фіналу</strong> на сторінці циклу (відео + номер), не через 2 тижні.
+4. <strong>Sticky-CTA + quick-pick пресети чека</strong> (їхні 1/125/250 інженерять чек ~30× нашого AOV; наш аналог — пресети пакетів із «популярний вибір»).
+5. <strong>Лічильник «всього вручено авто/грн»</strong> — сумарний соціальний доказ на головній.</p>
+<p><strong>M — середні (потребують дизайну правил, тест на 1 цикл):</strong>
+6. <strong>Мілстоун-віхи циклу без азартної механіки</strong>: спільні цілі («на 50% бази циклу — розблоковуємо X для ВСІХ активних») з нагородою за активність у сервісі, а не рандомом серед платників — наша юр-рамка це дозволяє, їхню (рандом серед покупців) — не копіювати. 9 інфоприводів/цикл для бота і крео.
+7. <strong>Гарантований бонус за пакет</strong> (аналог Mystery Box без лотерейності): детермінований «гараж-бокс» токенів/утиліт за кожен N-й пакет — прозорий вміст, кап розмиття шансів ≤5% і публічне пояснення (їхня непрозора емісія 44% — антиприклад).
+8. <strong>«Ніч фіналів»</strong>: зшивати фінал авто + 1–2 мікро-дро в один вечірній ефір (їхні 3 дро 15.08 одним вікендом) — глядацька причина прийти.
+9. <strong>Launch-вікно 72 год</strong> з чесним одноразовим офером на старті циклу (їхній «3 days only» реально працює як ритуал старту; наш аналог — бонусні токени, не знижка ціни).</p>
+<p><strong>L — довгі ставки:</strong>
+10. <strong>Движок віх/боксів як продукт</strong> (їхня єдина справжня тех-фішка) — після книги номерів і кабінету.
+11. <strong>TikTok-канал з обличчям</strong> — їхні 88K зроблені фаундером за рік у діаспорній ніші; наш тест — 5 відео/тиждень × 2 тижні після вибору ведучого.
+12. <strong>Earned-статус Клубу</strong> (не купується — заробляється), але за <strong>активність/стаж володіння, НЕ за витрати</strong>: їхній спендер-лідерборд з кешем — юридично і етично токсичний, наша інверсія — «клуб за лояльність».</p>
+<h2>5. Що НЕ копіювати (червоні лінії)</h2>
+<ol>
+<li><strong>Кеш-рандом серед платників</strong> (дропи/бокси з грошима за фактом покупки) — пряма азартна механіка, ламає нашу юр-рамку.</li>
+<li><strong>Непрозора бонусна емісія</strong> (+44% квитків без пояснення шансів) — готовий матеріал для викривального відео.</li>
+<li><strong>Спендер-лідерборд з кеш-призами</strong> — субсидія китам ~50%, публічні витрати людей (у них видно повні імена і суми — GDPR-діра), соціальний тиск на витрати.</li>
+<li><strong>Б/в приз + кеш-альтернатива нижче ринку</strong> — множник 2,6–3,3× будується на цьому; наша обіцянка чистіша і це наш козир.</li>
+<li><strong>Синтетичні лічильники</strong> («зараз дивляться» з генератора) — якщо викриють, спалює всю довіру.</li>
+<li><strong>Tate-стилістика</strong> «Escape the Matrix», обіцянки коучингу/трейдингу переможцю — регуляторний і репутаційний ризик.</li>
+<li><strong>Perpetual sale</strong> (−20% launch → −25% → −40% в ендгеймі) — ерозія ціни, у нас 199₴ заморожений публічно і тест 249 уже коштував −50 пп ROI.</li>
+<li><strong>Механіки без правил у T&amp;C</strong> — у них бокси/дропи юридично не існують; кожна наша механіка — лише з опублікованими правилами.</li>
+</ol>
+<h2>6. Де ми обʼєктивно сильніші (не втратити)</h2>
+<p>Верифікованість фіналу (їхній «random у spreadsheet» проти нашого протоколу з хешами і свідком — після сьогоднішнього фіналу №20 це наш головний козир категорії); 19 вручень історії проти 3; owned-канал 14K проти 539; юридична конструкція utility-first проти skill-question-ритуалу (відповідь — у назві конкурсу); нова машина даних (P&amp;L циклів, атрибуція) — у них цього шару не видно взагалі.</p>
+<hr />
+<p><em>Методологія: 10 паралельних агентів-лінз, ~860 тис. токенів, першоджерела (сайт+HTML/JS-артефакти, T&amp;C, Companies House, Meta Ad Library API, TikTok/Telegram/YouTube), усі числа з датою заміру 02.08.2026. Сирі артефакти коду — px-research/projectx/raw/. Наступний етап — глобальний sweep операторів по всіх географіях.</em></p><h1 class="ch"><span class="num">II</span>Глобальний sweep prize-draw ринку</h1><p><strong>37 агентів · 13 ринків/сегментів · 2 раунди верифікації · 02.08.2026 · Лише звіт — стратегію не змінюємо</strong></p>
+<p>Це зведення 27 sweep-звітів (Batch A+B) поверх Звіту №1 (Project X). Мета — каталог механік, фішок і практик з усього світу з позначкою «що варто спробувати DreamCar». Повні звіти по кожному ринку — у zip. Усі числа звірені: ненадійні пом'якшені або прибрані (див. розділ 9).</p>
+<hr />
+<h2>1. Головний висновок одним абзацом</h2>
+<p>Ми обстежили ринок від Британії до Бразилії, від Дубая до Мельбурна. <strong>Ключове відкриття не «яку фішку скопіювати», а те, що модель DreamCar (токен-продукт + участь-бонус) — це не українська імпровізація, а найстійкіша у світі юридична конструкція, яку незалежно винайшли й відшліфували на чотирьох континентах:</strong> близькосхідний product-linkage (Big Ticket, Emirates Draw), американські dual-currency sweeps-казино (VGW $5,2 млрд виручки), бразильський título de capitalização (R$23 млрд ринку), індійські scratch-cards, австралійський utility-first (те, що закон 2027 дозволяє, коли б'є по LMCT+). Скрізь, де регулятор закручує гайки (Індія 2025, ОАЕ 2024, Австралія 2027, PL, DE), виживає рівно те, що робимо ми: реальний продукт, участь як бонус, чесний безкоштовний маршрут. <strong>Наша стратегічна перевага — не механіки (їх легко скопіювати), а те, що ми на правильному боці глобального регуляторного тренду. Наше завдання — не змінити модель, а посилити її найкращими світовими механіками залучення, довіри й монетизації, не зламавши юридичний фундамент.</strong></p>
+<p>Друге відкриття: <strong>у категорії майже ніхто не робить прозорість добре.</strong> 90% операторів доводять лише «випадковість чесна» (RNG), і майже ніхто — «список не змінювали». Наш протокол №20 (два хеші + random.org + свідок) вже сильніший за 90% планети. За майже нуль грошей його можна підняти до рівня, недосяжного жодному не-крипто конкуренту.</p>
+<h2>2. Карта ринків (13 профілів)</h2>
+<table>
+<thead>
+<tr>
+<th>Ринок</th>
+<th>Модель-домінанта</th>
+<th>Головна фішка для нас</th>
+<th>Юр-рамка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>UK</strong></td>
+<td>Skill-question competitions, консолідація (Winvia/BOTB публічна)</td>
+<td>BOTB: незалежний юрист+відео на дро; 7days: публічний RNG-скрипт; Pass £9.99 (9%→20% виручки)</td>
+<td>Skill усуває «випадковість»</td>
+</tr>
+<tr>
+<td><strong>Австралія</strong></td>
+<td>Підписки (LMCT+ 300k) + чаріті-хоум-лотереї</td>
+<td>Утиліта-мережа знижок; чаріті VIP $100/міс=50 квитків (легально через ліцензію)</td>
+<td>Bill 2027 б'є «підписку=доступ» — ми на правильному боці</td>
+</tr>
+<tr>
+<td><strong>США</strong></td>
+<td>Sweepstakes «no purchase necessary» + dual-currency казино</td>
+<td><strong>Dual-currency</strong> (Gold=продукт/Sweeps=приз) — точний близнюк нашої моделі; «податки сплачує організатор» у хедлайні (Dream Giveaway)</td>
+<td>Усуває «оплату», не «випадковість»</td>
+</tr>
+<tr>
+<td><strong>Німеччина/DACH</strong></td>
+<td>Ліцензована Soziallotterie (ZEAL) або безкоштовний Gewinnspiel</td>
+<td>Нотаріус+TÜV як trust-код; postcode-механіка «сусіди виграють разом»</td>
+<td>Сувора: платне авто = повна ліцензія або free</td>
+</tr>
+<tr>
+<td><strong>Близький Схід</strong></td>
+<td>Product-linkage (Big Ticket, Emirates Draw)</td>
+<td>Живий дзвінок переможцю в ефірі; cause-місія поверх продукту; обмежена прозора серія</td>
+<td>Азарт заборонено → product-linkage 15 років</td>
+</tr>
+<tr>
+<td><strong>LatAm</strong></td>
+<td>Rifas на номерах держлотереї</td>
+<td><strong>Держлотерея як безкоштовний RNG</strong>; вибір власного номера з сітки; título de capitalização</td>
+<td>Rifa нелегальна → фін-обгортка (BR)</td>
+</tr>
+<tr>
+<td><strong>Польща/CEE</strong></td>
+<td>loteria promocyjna (бренди) / konkurs (skill)</td>
+<td>Product-linked losowania брендів (Coca-Cola×Biedronka); BLIK-платіж; Чехія — авто в конкурсі БЕЗ дозволу</td>
+<td>Карта: konkurs (без дозволу) → loteria (дозвіл КАС, 10%)</td>
+</tr>
+<tr>
+<td><strong>Азія (IN/SEA)</strong></td>
+<td>Scratch-card після покупки + lucky draw брендів</td>
+<td><strong>Scratch-card прив'язана до транзакції</strong> (не до випадковості) — юр-магія; WhatsApp-видача</td>
+<td>Online Gaming Act 2025 вибив платний азарт, лишив product-linked</td>
+</tr>
+<tr>
+<td><strong>Туреччина/Балкани</strong></td>
+<td>çekiliş (нотаріус) + Instagram engagement-giveaway</td>
+<td>Engagement-entry (follow+tag+share) як віральний двигун; нотаріус</td>
+<td>TR: нотаріус обов'язковий за законом</td>
+</tr>
+<tr>
+<td><strong>Канада/IE/NZ/ZA</strong></td>
+<td>Charity dream lotteries + skill-testing question</td>
+<td><strong>Early-bird draw</strong> (купи раніше→додатковий розіграш) — ліки від «ями»; skill-матзадача</td>
+<td>CA: skill-testing question — Commonwealth хак</td>
+</tr>
+<tr>
+<td><strong>Чаріті-лотереї</strong></td>
+<td>Postcode/Omaze/Health Lottery</td>
+<td>Чаріті-обгортка знімає стигму+податки; storytelling будинків</td>
+<td>Society lottery ліцензія</td>
+</tr>
+<tr>
+<td><strong>SaaS-платформи</strong></td>
+<td>Gleam/Raffall/Tapkat</td>
+<td><strong>«Entries за дії»</strong> (share/refer/daily) — growth-loop; Raffall ескроу-довіра</td>
+<td>Інфраструктура, не оператор</td>
+</tr>
+<tr>
+<td><strong>Крипто/web3</strong></td>
+<td>Chainlink VRF, provably fair, PoolTogether</td>
+<td><strong>Provably fair</strong> (client+server seed+hash) — математична довіра без крипто; no-loss психологія</td>
+<td>Крипто-гемблінг заборонено в UA — брати лише ідею</td>
+</tr>
+</tbody>
+</table>
+<h2>3. Каталог механік — усе, що знайшли (згруповано)</h2>
+<h3>A. Залучення і віральність</h3>
+<ul>
+<li><strong>Entries/бонуси за дії</strong> (Gleam-модель): підписка, share, daily check-in, перегляд, опитування → бонусні номери. Ринок оцінює це найдорожче (Gleam ховає за $499/міс тариф).</li>
+<li><strong>Реферали з тригером на покупку друга</strong> (не реєстрацію): cash-винагорода ×2,2 результативніша за купон; 1,1% «супер-адвокатів» дають 30% приведених → потрібен леддер.</li>
+<li><strong>Engagement-entry</strong> (TR/IG): follow+tag+share — дешевий вірусний вхід, але матеріалізація 10-20%, треба конвертувати в owned-канал.</li>
+<li><strong>Postcode/спільнота виграє разом</strong> (DE/NL): «FOMO сусіда» &gt; індивідуальна жадоба; колективне святкування = безкоштовний PR.</li>
+</ul>
+<h3>B. Утримання між подіями (ліки від «ями» середини циклу)</h3>
+<ul>
+<li><strong>Milestone prize-drops кожні 10%</strong> (Project X): 9-11 інфоприводів/цикл, фіксований бюджет ~10% валу, urgency без знижки.</li>
+<li><strong>Early-bird / mid-campaign bonus draw</strong> (CA/NZ): купи до дати X → додатковий розіграш, номер лишається в головному — чистий upside. Каскад дедлайнів (Loyalty→Bonus→Early Bird→Final).</li>
+<li><strong>Scratch-card після транзакції</strong> (India, мільярди застосувань): миттєвий дофамін, завжди прив'язаний до вже здійсненого платежу (не до випадковості) — юридично чисто.</li>
+<li><strong>Daily check-in / streak</strong> у боті.</li>
+<li><strong>Gamified спільні цілі</strong>: «на 50% активної бази — розблокуємо X для ВСІХ».</li>
+</ul>
+<h3>C. Монетизація і чек</h3>
+<ul>
+<li><strong>Quick-pick пресети</strong> (1/125/250 → чек £300 ≈ 30× нашого AOV): center-stage «популярний» тягне масу вгору.</li>
+<li><strong>Знижка як «більше юнітів за той самий цінник»</strong> (Omaze ×2 entries/£, наш «×2» — вже канонічна форма) — масштабувати як механіку, не % на цінник.</li>
+<li><strong>Преміум-якір над топ-тарифом</strong> (MAX 9 990-12 000₴ над ULTIMATE): нуль ерозії, робить 7 500 «розумним».</li>
+<li><strong>One-tap платежі</strong> (Apple/Google Pay): +2-6% конверсії, найсильніше на чеках &lt;$80 — це рівно наш AOV; для WayForPay/Platon це конфіг, не інтеграція.</li>
+<li><strong>Wallet/credit що списується першим</strong> (BOTB Game Credit, Project X account credit): замикає гроші в системі, підіймає LTV.</li>
+<li><strong>«Податки сплачує організатор» у хедлайні</strong> (Dream Giveaway): наш гросап 403 тис — це готовий маркетинг-меседж, а не рядок P&amp;L.</li>
+</ul>
+<h3>D. Довіра і прозорість (наш стратегічний фронт)</h3>
+<ul>
+<li><strong>Provably fair</strong> (крипто-казино, працює без блокчейну): client seed + server seed + hash → кожен учасник сам перевіряє переможця. Строго сильніше за «random.org+свідок».</li>
+<li><strong>Держлотерея як RNG</strong> (LatAm): безкоштовна зовнішня ентропія, самоперевірка.</li>
+<li><strong>Незалежний юрист/нотаріус+відео</strong> (BOTB/TR/DE): інституційний trust-код.</li>
+<li><strong>Публічний pre-commit хешів</strong> до дро в каналі + <strong>«Перевір свій номер»</strong> self-serve.</li>
+<li><strong>Публічний RNG-скрипт</strong> постфактум (7days).</li>
+</ul>
+<h3>E. Продукт і UX</h3>
+<ul>
+<li><strong>Вибір власного номера з сітки</strong> (LatAm/MX): емоційна власність + FOMO + реферальний гачок — лягає на нашу книгу номерів.</li>
+<li><strong>Live-фід активності</strong> (тікер покупок, лічильник) — один JSON з поллінгом, дешево на Supabase (АЛЕ не синтетичні лічильники!).</li>
+<li><strong>Прогрес-бар циклу + «наступна віха»</strong>.</li>
+<li><strong>Check Ticket</strong> публічний.</li>
+<li><strong>Reaction/вручення-відео</strong> як окремий жанр — найсильніший крео-формат категорії.</li>
+</ul>
+<h2>4. Топ-20 ідей для DreamCar (пріоритизовано)</h2>
+<p>Кожна проходить наш тест utility-first (винагорода за активність/лояльність/утиліту, НЕ за випадковість покупки) і повагу до виміряного досвіду (вигорання бази −68%, ерозія ціни 249=−50пп ROI).</p>
+<p><strong>S — швидкі перемоги (тижні):</strong>
+1. <strong>Provably-fair шар поверх протоколу №20</strong> — client+server seed+хеш, «перевір переможця сам». Робить нас найпрозорішим оператором категорії поза крипто. ~0 грн.
+2. <strong>«Перевір свій номер» + публічний pre-commit хешів</strong> у боті/на сайті до фіналу.
+3. <strong>Прогрес-бар циклу + лічильник вручених авто</strong> на лендінгу і в боті (один JSON, Supabase).
+4. <strong>Live-фід активності</strong> (реальні покупки, НЕ синтетика).
+5. <strong>One-tap Apple/Google Pay</strong> — конфіг WayForPay/Platon, +2-6% конверсії.
+6. <strong>Reaction-відео з архіву 19 вручень</strong> → крео (актив уже є, FB Stories недовкладений).
+7. <strong>Гостьовий чекаут + мінімум полів</strong> (токен цифровий — адресні поля не потрібні).
+8. <strong>Реферал через TG deep-link</strong> <code>?start=ref_id</code> (тригер на покупку друга) — рефералки нема, а бот 14к готовий.</p>
+<p><strong>M — середні (тест на 1 цикл):</strong>
+9. <strong>Milestone-віхи циклу</strong> (спільні цілі, нагорода за активність усім, не рандом платникам) — 9 інфоприводів проти нашої «ями».
+10. <strong>Mid-campaign bonus draw / early-bird каскад</strong> — перетворити середину циклу на третій пік продажів.
+11. <strong>Quick-pick пресети пакетів</strong> з «популярний» center-stage — AOV +15-25%.
+12. <strong>Преміум-якір MAX над ULTIMATE</strong> — +2,7 пп виручки на хвіст без ерозії.
+13. <strong>Гарантований бонус за пакет</strong> (детермінований «гараж-бокс», прозорий вміст, кап розмиття ≤10%, публічний дроп-рейт) — на противагу непрозорій емісії Project X +44%.
+14. <strong>Daily check-in + bonus-номери за не-платіжні дії</strong> в боті.
+15. <strong>Живий дзвінок власнику в ефір фіналу</strong> (Big Ticket) — головний вірусний момент.
+16. <strong>Win-back безкоштовним номером</strong> (не знижкою): конвертує 3× краще (14,9% vs 5,4%), 55% бази сплячі.
+17. <strong>«Податки сплачує DreamCar» у хедлайн</strong> креативів і лендінга.</p>
+<p><strong>L — довгі ставки:</strong>
+18. <strong>TikTok-канал з обличчям</strong> (Project X 88k і LMCT+ побудовані на цьому; наш тест 5 відео/тиждень×2 тижні після вибору ведучого).
+19. <strong>Earned-статус Клубу</strong> за стаж/активність (НЕ за витрати — інверсія токсичного спендер-лідерборду).
+20. <strong>Вибір власного номера з сітки</strong> на базі книги номерів — емоційна залученість.</p>
+<h2>5. Що НЕ копіювати (зведені червоні лінії)</h2>
+<p>Кеш-рандом серед платників (дропи/бокси з грошима) · спендер-лідерборд з кеш-призами (субсидія китам ~50%, GDPR-діра, соц-тиск на витрати) · непрозора бонусна емісія · «підписка=доступ до розіграшу» (заборона AU 2027) · б/в приз + кеш-альтернатива нижче ринку · синтетичні лічильники · perpetual sale (−40% ерозія) · Tate-стилістика «Escape the Matrix»/обіцянки коучингу · механіки без правил у T&amp;C · SMS-оплата в PL (audioteksowa-пастка 25%) · токсичний Instagram-giveaway формат (матеріалізація 10-20%, репутація скаму) · повний web3-стек (крипто-гемблінг заборонено в UA).</p>
+<h2>6. Де DreamCar вже сильніший за світ (не втратити)</h2>
+<p>Owned-канал: TG-бот 14 060 проти Project X 539 (×26) · верифікованість фіналу вища за 90% ринку вже сьогодні · 19 вручень історії · utility-first юр-конструкція на правильному боці всіх регуляторних трендів · машина даних (P&amp;L циклів, атрибуція) — цього шару у конкурентів не видно · 80% повторних покупців — органічна база без спендер-тиску.</p>
+<h2>7. Регуляторна карта для майбутньої експансії</h2>
+<table>
+<thead>
+<tr>
+<th>Ринок</th>
+<th>Вхід</th>
+<th>Ключове</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Чехія</strong></td>
+<td>Найлегший — авто в споживчому конкурсі БЕЗ дозволу (немає vklad)</td>
+<td>Ідеальний перший полігон CEE</td>
+</tr>
+<tr>
+<td><strong>Польща</strong></td>
+<td>konkurs (skill, без дозволу) → loteria promocyjna (дозвіл КАС, 10%) за гейтами</td>
+<td>BLIK обов'язковий; діаспора 968 тис PESEL UKR; Мінфін+NSA: диспропорція ціна/приз не впливає на легальність</td>
+</tr>
+<tr>
+<td><strong>Німеччина</strong></td>
+<td>Безкоштовний Gewinnspiel + монетизація токенів (наша чинна модель лягає майже без змін)</td>
+<td>Нотаріус+TÜV як trust-код; діаспора 1,2-1,3 млн; ⚠️ ТМ-колізія</td>
+</tr>
+<tr>
+<td><strong>Австралія</strong></td>
+<td>Лише через ліцензію штату (як чаріті)</td>
+<td>Bill 2027 (ще не ухвалено, ціль «at risk») дозволяє саме utility-first</td>
+</tr>
+</tbody>
+</table>
+<h2>8. 🔴 Термінова знахідка поза планом: захист бренду «DreamCar»</h2>
+<p>Верифікація виявила: <strong>«Dream Car» як prize-бренд зайнято щонайменше у 5 юрисдикціях</strong> — ZEAL брендує «Dream Car Raffle» англійською (DE, запуск 04.2026), dreamcargiveaways.co.uk + BOTB «Dream Car» (UK), Big Ticket «Dream Car» (UAE), Dream Giveaway (US), Alberta Dream Car Raffle (CA). Чистий словесний знак «DreamCar» <strong>важко зареєструвати й захистити</strong> — він майже описовий. Це підсилює наш власний блокер (ТМ №232296, сплив 13.12.2026): при продовженні/новій заявці потрібен <strong>clearance-пошук EUIPO/UKIPO/CIPO + відмітний елемент</strong> (не голе «DreamCar»). Це не змінює стратегію — це вхідні для юрконтуру.</p>
+<h2>9. Методологія і чесність даних</h2>
+<p>37 агентів (10 лінз Project X + 27 sweep-агентів Batch A+B) + 2 раунди незалежної верифікації первинними джерелами (біржові звіти, урядові сайти, реєстри, Companies House, Meta Ad Library, оператори). <strong>Корекції після верифікації, враховані тут:</strong> «VGW ×2 стрибок» — прибрано (реальний ріст +19%); Winvia £170,3 млн — це 76% румунський онлайн-гемблінг, prize-draw ядро лише £40,3 млн; AU Bill 2027 — механізм підтверджено, дата «at risk» (сенат ~17.08.2026); India — токени прямо в визначенні ставки, product-linkage має бути справжнім; PL kwota bazowa 2025 = 8 167,77 PLN (мін. опłата 4 083,88); LMCT+ $72M ARR — [оцінка]. Позиції з [оцінка] в підзвітах — самозвітні дані операторів, не аудит.</p>
+<p><em>Повні звіти: projectx/ (10 лінз), sweep/ (13 ринків/горизонталей), verify/ (2 фактчеки) — у zip. Це дослідницький звіт; жодних змін у стратегії v4.0 не внесено.</em></p>
+<div class="foot">DREAMCAR · TEAM HUB · CONFIDENTIAL · 2026 · Згенеровано автономним аналітичним контуром · Кнопка «Зберегти в PDF» друкує цю сторінку у файл.</div>
+</div></body></html>
