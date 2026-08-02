@@ -904,8 +904,21 @@ const Modal = {
     m.className = 'modal' + (size ? ' ' + size : '');
     m.innerHTML = html;
     bd.classList.add('open');
-    bd.onclick = (e) => { if (e.target === bd) this.close(); };
+    // Tech-request #2 (02.08.2026): при виділенні тексту мишкою всередині модалки
+    // курсор часто виїжджає за її межі — mouseup стається на backdrop, і браузер
+    // шле click з target === backdrop (спільний предок down/up). Модалка закривалась.
+    // Фікс: закривати ЛИШЕ якщо і mousedown, і mouseup були на самому backdrop.
+    Modal._downOnBackdrop = false;
+    Modal._upOnBackdrop = false;
+    bd.onmousedown = (e) => { Modal._downOnBackdrop = (e.target === bd); };
+    bd.onmouseup   = (e) => { Modal._upOnBackdrop   = (e.target === bd); };
+    bd.onclick = (e) => { if (Modal.isBackdropClick(e)) this.close(); };
     document.addEventListener('keydown', this._esc);
+  },
+  // true лише для «чистого» кліку по затемненню, а не для хвоста виділення тексту
+  isBackdropClick(e) {
+    const bd = document.getElementById('modalBackdrop');
+    return e.target === bd && Modal._downOnBackdrop === true && Modal._upOnBackdrop === true;
   },
   close() {
     document.getElementById('modalBackdrop').classList.remove('open');
