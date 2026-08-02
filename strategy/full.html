@@ -1,0 +1,154 @@
+<!doctype html><html lang="uk" style="background:#0A0A0A"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DreamCar · Повна стратегія v4.0</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0A0A0A;--bg2:#141414;--bg3:#1F1F1F;--line:#2A2A2A;--red:#E30613;--ash:#8a8a8a;--bone:#DDD;--text:#fff;--ok:#10B981;--warn:#F59E0B;--info:#3B82F6}
+html{scroll-behavior:smooth}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:#ededed;line-height:1.6;font-size:15px;-webkit-font-smoothing:antialiased}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(10,10,10,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:14px;height:54px;padding:0 20px}
+.logo{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;letter-spacing:1px}.logo .r{color:var(--red)}
+.sp{flex:1}
+.btn{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ash);border:1px solid var(--line);padding:6px 12px;border-radius:8px;text-decoration:none;white-space:nowrap;cursor:pointer;background:none}
+.btn:hover{border-color:var(--ash);color:#fff}.btn.red{background:var(--red);color:#fff;border-color:var(--red)}
+.wrap{max-width:960px;margin:0 auto;padding:34px 20px 70px}
+.doc-hd{border-bottom:2px solid var(--red);padding-bottom:14px;margin-bottom:8px}
+.kick{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;color:var(--red);margin-bottom:8px}
+.doc-hd h1{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:30px;line-height:1.05;color:#fff}
+.doc-hd .meta{color:var(--ash);font-size:13px;margin-top:8px;font-family:'JetBrains Mono',monospace}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
+.toc a{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ash);border:1px solid var(--line);border-radius:16px;padding:5px 11px;text-decoration:none}
+.toc a:hover{border-color:var(--red);color:#fff}
+h2.ch{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:20px;line-height:1.1;color:#fff;margin:38px 0 12px;padding-top:16px;border-top:2px solid var(--line);scroll-margin-top:66px}
+h2.ch .num{color:var(--red);margin-right:10px}
+h3{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:14px;color:#fff;margin:20px 0 8px;letter-spacing:.3px}
+p{margin:0 0 12px;color:#dcdcdc}b,strong{color:#fff;font-weight:700}a{color:#7dd3fc}
+ul,ol{margin:0 0 14px;padding-left:22px}li{margin:0 0 6px;color:#dcdcdc}
+.mono{font-family:'JetBrains Mono',monospace}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;display:block;overflow-x:auto}
+th{background:#0f0f0f;color:#fff;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.4px;font-size:11px;text-align:left;padding:8px 10px;white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;color:#d8d8d8}td.wrap{min-width:200px}
+tr:hover td{background:#181818}.em{color:#fff;font-weight:600}
+.ins{background:linear-gradient(180deg,#1a1413,#151515);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:11px;padding:15px 17px;margin:16px 0}
+.ins .t{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:12px;letter-spacing:.8px;color:var(--red);margin-bottom:6px}.ins p{margin:0;font-size:13.5px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+.kpi{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:10px;padding:12px 14px}
+.kpi .v{font-family:'Oswald',sans-serif;font-weight:700;font-size:23px;color:#fff}.kpi .v .u{font-size:12px;color:var(--red)}
+.kpi .l{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ash);margin-top:6px;line-height:1.3}
+.foot{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);color:#6f6f6f;font-size:11.5px;font-family:'JetBrains Mono',monospace;line-height:1.7}
+@media print{.topbar,.toc{display:none}body{background:#fff;color:#111}.wrap{max-width:100%}h2.ch,h3,.doc-hd h1,b,.em{color:#000}p,li,td{color:#222}.ins{background:#f5f5f5}.kpi .v{color:#000}}
+</style></head><body>
+<div class="topbar"><div class="in"><span class="logo">DREAM<span class="r">CAR</span></span><span class="sp"></span><button class="btn red" onclick="window.print()">🖨 Зберегти в PDF</button><a class="btn" href="/info.html">← INFO</a></div></div>
+<div class="wrap">
+<div class="doc-hd"><div class="kick">/// СТРАТЕГІЯ №1 · БОЙОВА РЕДАКЦІЯ 4.0 · 30.07.2026</div><h1>Стратегія, що виконується — повна версія</h1><div class="meta">9 розділів · зріз даних 02.08.2026 · доповнює v3.0 (21.07) і v2.1 (08.07)</div></div>
+<div class="toc"><a href="#s0">00 Карта</a><a href="#s1">01 Ядро</a><a href="#s2">02 Фінал 72год</a><a href="#s3">03 Гроші</a><a href="#s4">04 Маркетинг</a><a href="#s5">05 Механізм</a><a href="#s6">06 Юридика</a><a href="#s7">07 Гейти</a><a href="#s8">08 Верифікація</a></div>
+
+<h2 class="ch" id="s0"><span class="num">00</span>Карта — одна сторінка, яку треба памʼятати</h2>
+<div class="kpis"><div class="kpi"><div class="v">7,72<span class="u">млн₴</span></div><div class="l">Виручка №20 · рекорд</div></div><div class="kpi"><div class="v">15 281</div><div class="l">Оплат · 9 831 покупець</div></div><div class="kpi"><div class="v">14 210</div><div class="l">Підписники каналу</div></div><div class="kpi"><div class="v">10 148</div><div class="l">Активних 30дн · North Star</div></div><div class="kpi"><div class="v">51 421</div><div class="l">Покупців lifetime</div></div></div>
+<h3>Стратегія — пʼять речень</h3>
+<ol>
+<li><b>DreamCar продає токени AI-сервісу; номер участі в щомісячній промоакції — бонус до продукту.</b> Продукт перший, участь другою, логи використання як доказ — юридичний фундамент моделі на всіх ринках.</li>
+<li><b>Виручку робить база власників, а не куплений трафік.</b> 80% покупців рекордного циклу — повторні; преміум-пакети дають 27% виручки при 5% оплат.</li>
+<li><b>Будуємо два активи довіри:</b> власний канал розсилок (14 тис.) і верифікований фінал за публічним Протоколом — першими в категорії.</li>
+<li><b>Кожен цикл фінансує наступний:</b> приз резервується і фіксується в системі до старту продажів; калібр росте за правилом (медіана 3 циклів ÷ 3,5); маржа ≥25% — червона лінія.</li>
+<li><b>Виконується лише те, що живе в системах:</b> задача існує, коли вона в черзі з виконавцем і артефактом; політика існує, коли на ній стоїть алерт; усе інше — архів.</li>
+</ol>
+<h3>Три числа</h3>
+<p><b>7,72 млн ₴</b> — виручка №20 (рекорд за 7 років і 20 авто; перевершив e-tron). <b>14 210</b> — підписники власного каналу (найцінніший актив, створений за 9 днів). <b>136 днів</b> — до спливу ТМ №232296, єдина незворотна втрата попереду.</p>
+
+<h2 class="ch" id="s1"><span class="num">01</span>Ядро: діагноз, керівна політика, сім дій</h2>
+<div class="ins"><div class="t">Діагноз — ключова перешкода</div><p>DreamCar — прибуткова машина монетизації власної бази, яку стримують дві речі, і жодна з них не ринок. <b>Перша:</b> до бази немає власних рейок — канал доступу орендований (Meta зі стелею 25 тис.₴/день і втомою, SendPulse), книги номерів і зовнішньої перевірюваності не існує. <b>Друга:</b> дії стратегії не мають механізму запуску — усе впирається в один людський контур, який виконує те, що заходить через живу розмову, і не виконує того, що лежить у документі. Решта — маржа, ризики, експансія — наслідки цих двох обмежень.</p></div>
+<h3>Керівна політика — 90 днів</h3>
+<p>Уся потужність контуру — на глибину власної бази через власні рейки: щомісячний перевірюваний преміум-цикл (Протокол + зовнішній RNG + архівний доказ незмінності правил) продається базі через власний TG-канал і книгу номерів; маржа добирається глибиною, не шириною і не знижками; entry 199 ₴ заморожений публічно. Поза цим — лише два зовнішні замки: ретейнер юриста і продовження ТМ. Задача, що не посилює цю політику, у критичний шлях не потрапляє.</p>
+<h3>Сім когерентних дій (замість двадцяти)</h3>
+<ol>
+<li><b>Фінал за протоколом-мінімум:</b> два хеші, зовнішній RNG, свідок, реєстр вручень, ран-бук ефіру, наповнена фінальна кампанія.</li>
+<li><b>Власний канал у бій:</b> токен бота → 3 розсилки фінального вікна на 14 тис. з каркасом згоди/відписки.</li>
+<li><b>Три замки даних:</b> фіксація призу/резерву + привʼязка каси до циклів + pay_provider 100% і стоп течі атрибуції.</li>
+<li><b>Механізм самозапуску:</b> черга в системах, щоденний автозапуск, дайджест-блокери, статус = артефакт.</li>
+<li><b>ТМ №232296:</b> перевірка запису + клопотання про продовження; критерій — вхідний номер НОІВ.</li>
+<li><b>Юрконтур без єдиної точки відмови:</b> ретейнер (ескалація щодня) + матриця разових виконавців уже зараз.</li>
+<li><b>Книга номерів, Етап 0:</b> реєстр №20 першим інкрементом; далі за потужністю. Гейт, не дата.</li>
+</ol>
+<h3>North Star і калібр призів</h3>
+<p><b>North Star v4.0 = активні покупці за 30 днів</b> (сьогодні 10 148) — згладжує цикли, рахується live. Базова лінія для гейтів — медіана трьох циклів, не пік рекорду. Парні метрики: net на активного + частка преміум-хвоста (27%). <b>Калібр призу = медіана 3 циклів ÷ 3,5</b> з запобіжником маржі ≥25% (замість зламаної рекордами VR≤3): №21 ≈ 1,8 млн (коридор 1,6–2,0); резерв = повна вартість вручення (2,34 млн при калібрі 1,8: авто + гросап), до старту продажів.</p>
+<h3>Що v4.0 змінює у v3.0</h3>
+<table><thead><tr><th>Було у v3.0</th><th>Стало у v4.0</th><th>Підстава</th></tr></thead><tbody>
+<tr><td class="wrap">20 задач + 4 дії</td><td class="wrap em">7 дій ядра + черга 10, WIP ≤3</td><td class="wrap">Рухались 2/20; пропускна 2–3/тиждень</td></tr>
+<tr><td class="wrap">«Друга нога» = Google Ads</td><td class="wrap em">№1 TG-канал; №2 органіка; платні за гейтами</td><td class="wrap">Google 0 руху; TG готово; органіка 46%</td></tr>
+<tr><td class="wrap">VR-політика ≤3</td><td class="wrap em">Калібр = медіана 3 ÷ 3,5 + маржа ≥25%</td><td class="wrap">№20 VR ~5; e-tron 5,1</td></tr>
+<tr><td class="wrap">North Star = унікальні/цикл</td><td class="wrap em">Активні 30дн + net/актив + преміум</td><td class="wrap">80% повторних; розкид ×3</td></tr>
+<tr><td class="wrap">План у PDF, статуси вручну</td><td class="wrap em">«Прийняття = розгортання»: черга, статус=артефакт</td><td class="wrap">0 задач плану в системі</td></tr>
+</tbody></table>
+
+<h2 class="ch" id="s2"><span class="num">02</span>72 години: фінал як актив довіри</h2>
+<p>Ставка: вручення авто на рекордній аудиторії. Ризик №1 — не нечесний фінал, а <b>чесний фінал без доказів</b>: недоведена чесність на такій аудиторії читається як нечесність — і один вечір здатен зачепити базу, що дає 70–85% виручки. Дата фіналу не рухається за жодних обставин; якщо щось червоне — спрощується формат, не дата.</p>
+<h3>Протокол-мінімум за 48 годин</h3>
+<ul>
+<li><b>Два хеші:</b> SHA-256 замороженого списку номерів публікується до ефіру (основний Т-24 + «хвіст» Т-4 для оплат, що зайшли пізніше) з канонічною серіалізацією.</li>
+<li><b>Зовнішній RNG</b> (random.org Third-Party Draw) у кадрі + fallback commit-reveal, якщо онбординг не встигає.</li>
+<li><b>Незалежний свідок</b> (юрист/аудитор разово, не чекаючи ретейнера) підтверджує freeze і збіг хешів.</li>
+<li><b>Запис без склейок</b> + реєстр попередніх вручень на екрані + «податки платить DreamCar».</li>
+<li><b>Сертифікат циклу PDF</b> (дата, кількість номерів, хеш, draw ID, підпис свідка) + архівний пакет.</li>
+</ul>
+<div class="ins"><div class="t">Ран-бук ефіру</div><p>GO/NO-GO за 6 год → відсічка «хвоста» і freeze → завантаження списку в RNG → ефір (реєстр вручень → механіка → хеші → draw наживо → звірка номера → дзвінок власнику) → ≤2 год розкриття знеособленого списку + запис → Т+24 сертифікат + архівний пакет (перша готова відповідь банку/органу).</p></div>
+
+<h2 class="ch" id="s3"><span class="num">03</span>Гроші: політики стають транзакціями</h2>
+<p>Кожне фінансове правило переводиться в одну з двох форм: <b>переказ із документом</b> або <b>обмеження в системі з алертом</b>. Правило, яке не блокує дію, — побажання.</p>
+<h3>Резервне правило (48 годин)</h3>
+<p>Письмова фіксація викупу призу → поля в системі. Сегрегація гросапу (~403 тис) на окремий рахунок. Earmark резерву №21 = <b>повна вартість вручення</b> (1,75 млн для класу 1,35 / 2,34 млн для калібру 1,8). Правило запуску: продажі наступного циклу не стартують без рядка резерву і скріна балансу.</p>
+<h3>Калібр призів</h3>
+<p>База калібрування B = медіана виручки 3 останніх авто-циклів. <b>Приз = B ÷ 3,5</b> (коридор VR 2,5–4,0; ≥5 — червона зона). Маржинальний запобіжник: калібр не росте, якщо прогнозна маржа &lt;25%. Розблокування вищого класу: два поспіль цикли ≥6 млн + маржа ≥30% + резерв наступного ≥50%.</p>
+<h3>Три замки даних</h3>
+<table><thead><tr><th>Замок</th><th>Було</th><th>Стало</th></tr></thead><tbody>
+<tr><td class="em">Приз↔система</td><td class="wrap">prize_purchased_at = null; резерв ніде</td><td class="wrap">Поля викупу/резерву; гейт старту; алерт «резерв &lt; вартості вручення»</td></tr>
+<tr><td class="em">Каса↔цикл</td><td class="wrap">launch_id = 0 тх; розрив in vs deals</td><td class="wrap">launch_id + категорія обовʼязкові; щоденна звірка ±5% з алертом</td></tr>
+<tr><td class="em">Оплата↔маршрут</td><td class="wrap">pay_provider 0%; теча атрибуції</td><td class="wrap">Фікс на рівні вебхука/тригера; стоп pending на закритих циклах; бекфіл</td></tr>
+</tbody></table>
+<p>Преміум-хвіст (5% оплат = 27% виручки) обслуговується сервісом, не пушем: іменний контакт для топ-шару, алерт концентрації P95+ &gt;45%, red line «нуль ремаркетингу після самопаузи».</p>
+
+<h2 class="ch" id="s4"><span class="num">04</span>Маркетинг: три ноги і канон-як-код</h2>
+<p><b>Нога №1</b> — власний TG-канал (14 тис., гранична вартість повідомлення ≈0, захист доступу до 70–85% повторної виручки). <b>Нога №2</b> — органіка (~46% нових). <b>Нога №3</b> — платні за гейтами: Meta працює далі (real 4,67/30дн), TikTok перед Google — лише після замків атрибуції і CAC-рамки (реалістично Q4).</p>
+<h3>Канон-як-код (алерт-пак war-room)</h3>
+<p>Кожне правило канону = перевірка з порогом і каналом алерту (принцип deadman — перевіряємо відсутність): порожня фінальна кампанія при Д≤7 (CRITICAL), freq per-role (&gt;5/8), pixel &lt;3,7 три дні, спенд &gt;25 тис без флага, каданс промо ≥2/міс = блок, pay_provider &lt;100%/день, приплив нових &lt;300/7дн, здоровʼя акаунта (спенд=0/недокрут/модерація), Д-7 auto-arm.</p>
+<h3>CAC-рамка (замість «400 або вимкнути»)</h3>
+<p>Бліц/подія ≤350 ₴ · cold у вікнах ≤600 · cold-evergreen у ямі ≤900 при капі 3–5 тис/день · blended ≤600 з payback ≤2 цикли. Передумова будь-якої оцінки — латка exclusions cold. Промо-календар №21 затверджується до старту: вікно запуску без промо → промо-1 «×2» ~день 12 → промо-2 предметне Д-8 → преміум-день Д-4 → DC|F+крео у фінал-вікні.</p>
+
+<h2 class="ch" id="s5"><span class="num">05</span>Механізм виконання: план, що запускає себе сам</h2>
+<p>Ланцюг «стратегія → черга → сесія → артефакт → статус → звіт» у v3.0 обірвався на першій ланці. Вісім елементів самозапуску: один файл черги (queue.md) · правило першого кроку сесії · щоденний автозапуск 07:30 (proposal-mode) · WIP-ліміт 3 · дайджест-блокери з лічильником днів · статус = артефакт (коміт з лінком) · пʼятничний план/факт · тест на живучість.</p>
+<div class="ins"><div class="t">Прийняття = розгортання</div><p>Стратегія чинна після імпорту черги в системи, створення автозапуску 07:30, підключення блокер-рядків до дайджеста і заведення алертів — не після прочитання. Стратегія без залитої черги вважається неопублікованою.</p></div>
+<h3>Бойова черга (10 одиниць + задача №0)</h3>
+<table><thead><tr><th>Q</th><th>Одиниця</th><th>Артефакт-доказ</th></tr></thead><tbody>
+<tr><td>0</td><td class="em">Розгортання v4.0</td><td>Крон 07:30 + дайджест із блоком</td></tr>
+<tr><td>1</td><td class="em">Фінал-пакет</td><td>Сторінки протоколу + сертифікат</td></tr>
+<tr><td>2</td><td class="em">Домен-гігієна</td><td>Wayback-знімки; чисті title</td></tr>
+<tr><td>3</td><td class="em">Розсилки фіналу</td><td>№1 доставлена; звіт відписок</td></tr>
+<tr><td>4</td><td class="em">Замки даних ✅</td><td>0 нових pending; pay_provider 100%</td></tr>
+<tr><td>5</td><td class="em">ТМ №232296</td><td>Вхідний номер НОІВ до 08.08</td></tr>
+<tr><td>6</td><td class="em">Юрконтур</td><td>Договір свідка; скан ретейнера</td></tr>
+<tr><td>7</td><td class="em">ФОП-безпека</td><td>Тест-платіж; алерти 85/95%</td></tr>
+<tr><td>8</td><td class="em">Книга номерів, Етап 0</td><td>Розбіжність &lt;0,1% по №20</td></tr>
+<tr><td>9</td><td class="em">Дані аудиторії</td><td>Анкета + лічильник ЄС</td></tr>
+<tr><td>10</td><td class="em">Безпека-беклог ✅</td><td>0 critical advisors; RLS увімкнено</td></tr>
+</tbody></table>
+
+<h2 class="ch" id="s6"><span class="num">06</span>Юридика: докази замість документів</h2>
+<p>Конструкція «промоакція AI-сервісу» проходить власний тест 3 з 4 (немає окремої ціни участі; токен = послуга; історія вручень) — четверта відповідь (логи використання) добудовується. Принцип: юридичний захист існує, лише коли він «в архіві з вхідним номером», і на обсягах 6+ млн/цикл буває лише автоматичним або відсутнім.</p>
+<h3>Тріаж (Д-3)</h3>
+<p>Топ-ризики: фінал без формалізованого протоколу · ТМ (сплив, продовження не ініційоване) · правила не зафіксовані незмінно · масова розсилка без каркасу згоди · тест «за що платить учасник» без логів · фіскальне вручення (гросап). Відсутність зовнішнього юриста — множник усіх.</p>
+<h3>ТМ-маршрут без ретейнера</h3>
+<p>Головна дія — клопотання про продовження + збір (для резидента-власника не потребує ретейнера): перевірка запису в СІС → вибір каналу (власник з КЕП / довіреність / разовий повірений) → подання, <b>критерій закриття = вхідний номер + платіжка в архіві</b>. Розсилки на 14 тис.: один субʼєкт-відправник, реєстр згод, opt-out у кожному повідомленні, лексикон-фільтр кодом. Замість єдиної точки відмови — матриця разових виконавців (свідок, повірений, податковий, юрист з ІВ).</p>
+
+<h2 class="ch" id="s7"><span class="num">07</span>Горизонт: три гейти на 90 днів</h2>
+<p>Гейт — не дата, а перевірюваний стан системи.</p>
+<table><thead><tr><th>Гейт</th><th>Умови</th></tr></thead><tbody>
+<tr><td class="em">1 · Фінал доведено<br><span class="mono" style="color:var(--ash)">~05.08</span></td><td class="wrap">Фінал за протоколом-мінімум → сертифікат · резерв №21 зафіксований · канал відкритий (токен + ≥2 розсилки) · механізм розгорнутий</td></tr>
+<tr><td class="em">2 · Рейки покладено<br><span class="mono" style="color:var(--ash)">~01.09</span></td><td class="wrap">ТМ: вхідний номер НОІВ · pay_provider 100% 14 днів, теча зупинена, каса↔цикли · книга номерів №20 звірено · №21 за паспортом циклу</td></tr>
+<tr><td class="em">3 · Система без героїзму<br><span class="mono" style="color:var(--ash)">~30.09</span></td><td class="wrap">Два фінали поспіль за Протоколом (№21 з /verify) · кабінет Етап 0→MVP · North Star ≥ базової лінії з трендом · тиждень без живих сесій — черга рухалась</td></tr>
+</tbody></table>
+<p><b>Icebox (за гейтами, не датами):</b> Польща/ЄС (Чехія — перший полігон), кабінет MVP, Google/TikTok зі спендом, бренд-замір. Кожен вихід — через чергу з інкрементом і артефактом.</p>
+
+<h2 class="ch" id="s8"><span class="num">08</span>Верифікація</h2>
+<p>Редакція зібрана за один автономний цикл у чотири контури: (1) свіжі первинні дані (SQL до прод-БД, meta-analytics, git-журнал, Meta API); (2) панель із 7 незалежних критиків, що атакували v3.0; (3) два раунди верифікації чисел/дат/логіки/лексикону; (4) незалежний бізнес-аудит 5 лінз фінальної редакції — вердикт 5/5 «SHIP WITH FIXES», нуль «REWORK», критичні знахідки інтегровані того ж дня (резервний гейт повної вартості, RLS-вразливість, датчики припливу, бюджетна сітка DC|F, CAC-рамка).</p>
+<p>Позиції-оцінки до зовнішнього підтвердження: маржа №20 ~50±5% (до звірки /finance/), прогноз фіналу, вилка гросапу 364–403 тис, вартість активу підписників. Довідники лишаються чинними: v2.1 (192 стор., доменна глибина), v3.0 (59 стор., фактологічний фундамент і повний ризик-реєстр).</p>
+
+<div class="foot">DREAMCAR · TEAM HUB · CONFIDENTIAL · 2026 · Повна редакція v4.0 (PDF 26 стор.) — у Cowork-чаті та DreamCar.AI/ на Mac. Машиночитні джерела: repo dreamcar-team/marketing/strategy-v4/ · Кнопка «Зберегти в PDF» друкує цю сторінку у файл.</div>
+</div></body></html>
