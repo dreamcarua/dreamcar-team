@@ -306,6 +306,30 @@
       <div class="tile-meta">/// dashboard.dreamcar.ua</div>
     </a>
 
+    <a href="#strategy" class="tile">
+      <span class="tile-badge new">NEW</span>
+      <div class="tile-icon">🧭</div>
+      <div class="tile-title">СТРАТЕГІЯ</div>
+      <div class="tile-desc">Бойова редакція 4.0: ядро, 7 дій, North Star, гейти.</div>
+      <div class="tile-meta">/// #strategy</div>
+    </a>
+
+    <a href="#action" class="tile">
+      <span class="tile-badge new">NEW</span>
+      <div class="tile-icon">🎯</div>
+      <div class="tile-title">ЕКШН-ПЛАН</div>
+      <div class="tile-desc">Бойова черга, блокери, політики-алерти, прогрес.</div>
+      <div class="tile-meta">/// #action</div>
+    </a>
+
+    <a href="#research" class="tile">
+      <span class="tile-badge new">NEW</span>
+      <div class="tile-icon">🔬</div>
+      <div class="tile-title">КОНКУРЕНТИ</div>
+      <div class="tile-desc">Світова розвідка: механіки, топ-20 ідей, висновки.</div>
+      <div class="tile-meta">/// #research</div>
+    </a>
+
   </div>
 </section>
 
@@ -394,6 +418,354 @@
 
   </div>
 </section>
+
+<!-- ═══════════════ СТРАТЕГІЧНІ РОЗДІЛИ (додано 02.08.2026) ═══════════════ -->
+<style>
+  #strategy,#action,#research{scroll-margin-top:76px;}
+  .st-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+  .st-kpi{background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:12px;padding:14px 16px;}
+  .st-kpi .v{font-family:'Oswald',sans-serif;font-weight:700;font-size:26px;color:var(--text);line-height:1;}
+  .st-kpi .v .u{font-size:14px;color:var(--red);}
+  .st-kpi .l{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--grey);margin-top:7px;line-height:1.35;}
+  .st-kpi.g{border-left-color:#10B981;} .st-kpi.b{border-left-color:#3B82F6;} .st-kpi.a{border-left-color:#F59E0B;}
+  .st-lead{color:var(--grey-2);font-size:15px;max-width:820px;margin-bottom:22px;line-height:1.6;}
+  .st-steps{counter-reset:st;display:grid;gap:10px;margin-bottom:8px;}
+  .st-step{display:flex;gap:13px;background:var(--bg-2);border:1px solid var(--border);border-radius:11px;padding:13px 16px;}
+  .st-step .no{counter-increment:st;font-family:'Oswald',sans-serif;font-weight:700;color:var(--red);font-size:20px;min-width:24px;}
+  .st-step .no::before{content:counter(st);}
+  .st-step .x{font-size:14px;color:var(--grey-2);} .st-step .x b{color:var(--text);}
+  .st-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;}
+  .st-grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;}
+  .st-card{background:var(--bg-2);border:1px solid var(--border);border-radius:13px;padding:16px 18px;}
+  .st-card h4{font-family:'Oswald',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:.4px;color:var(--text);margin-bottom:8px;}
+  .st-card h4 .tn{font-family:'JetBrains Mono',monospace;color:var(--red);margin-right:8px;}
+  .st-card p{font-size:13.5px;color:var(--grey-2);margin-bottom:7px;} .st-card p:last-child{margin-bottom:0;} .st-card .mut{color:var(--grey);}
+  .st-ins{background:linear-gradient(180deg,#1a1413,var(--bg-2));border:1px solid var(--border);border-left:3px solid var(--red);border-radius:12px;padding:16px 18px;margin:18px 0;}
+  html[data-dc-theme="light"] .st-ins{background:var(--bg-2);}
+  .st-ins .t{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:12px;letter-spacing:1px;color:var(--red);margin-bottom:7px;}
+  .st-ins p{margin:0;font-size:14px;color:var(--grey-2);} .st-ins b{color:var(--text);}
+  .st-call{background:rgba(227,6,19,.07);border:1px solid rgba(227,6,19,.3);border-radius:12px;padding:15px 18px;margin:18px 0;}
+  .st-call .t{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:12.5px;letter-spacing:.5px;color:#ff5560;margin-bottom:6px;}
+  .st-call p{margin:0;font-size:13.5px;color:var(--grey-2);} .st-call b{color:var(--text);}
+  .st-gates{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;}
+  .st-gate{background:var(--bg-2);border:1px solid var(--border);border-radius:13px;padding:16px 18px;position:relative;overflow:hidden;}
+  .st-gate::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red);}
+  .st-gate h4{font-family:'Oswald',sans-serif;font-size:14px;text-transform:uppercase;color:var(--text);margin-bottom:2px;}
+  .st-gate .when{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--red);margin-bottom:9px;}
+  .st-gate ul{margin:0;padding-left:17px;color:var(--grey-2);font-size:12.7px;} .st-gate li{margin:4px 0;}
+  .st-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:12px;-webkit-overflow-scrolling:touch;}
+  .st-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+  .st-tbl th{background:#0f0f0f;color:#fff;font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:10.5px;text-align:left;padding:9px 11px;white-space:nowrap;}
+  html[data-dc-theme="light"] .st-tbl th{background:#111;}
+  .st-tbl td{border-bottom:1px solid var(--border);padding:9px 11px;vertical-align:top;color:var(--grey-2);}
+  .st-tbl td.wrap{white-space:normal;min-width:180px;} .st-tbl td.nowrap{white-space:nowrap;}
+  .st-tbl tr:hover td{background:var(--bg-3);} .st-tbl .em{color:var(--text);font-weight:600;}
+  .st-pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid var(--border);white-space:nowrap;}
+  .st-ai{color:#7dd3fc;border-color:#2b5a70;} .st-la{color:#fcd34d;border-color:#6d5216;} .st-l{color:#fca5a5;border-color:#7f1d1d;}
+  .st-ok{color:#10B981;border-color:#14603f;} .st-prog{color:#F59E0B;border-color:#6d4e12;} .st-open{color:var(--grey);}
+  .st-bar{height:8px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:12px;}
+  .st-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--red),#ff5560);width:0;transition:width .5s;}
+  .st-legend{display:flex;gap:14px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--grey);margin-top:10px;}
+  .st-legend span{display:inline-flex;align-items:center;gap:5px;} .st-dot{width:9px;height:9px;border-radius:3px;}
+  .st-ideas{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:13px;}
+  .st-idea{background:var(--bg-2);border:1px solid var(--border);border-radius:13px;padding:15px 16px;display:flex;flex-direction:column;gap:8px;transition:border-color .18s,transform .18s;}
+  .st-idea:hover{border-color:var(--red);transform:translateY(-2px);}
+  .st-idea .top{display:flex;align-items:center;gap:8px;}
+  .st-tier{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;}
+  .st-tier.S{background:rgba(16,185,129,.16);color:#10B981;} .st-tier.M{background:rgba(245,158,11,.16);color:#F59E0B;} .st-tier.L{background:rgba(59,130,246,.16);color:#3B82F6;}
+  .st-idea .ttl{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13px;color:var(--text);letter-spacing:.3px;line-height:1.2;}
+  .st-idea .grp{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--grey);text-transform:uppercase;letter-spacing:.5px;}
+  .st-idea .bd{font-size:12.7px;color:var(--grey-2);} .st-idea .why{font-size:12.3px;color:var(--grey-2);border-top:1px solid var(--border);padding-top:7px;} .st-idea .why b{color:#10B981;} .st-idea .rk{font-size:11.5px;color:#bda;opacity:.8;}
+  .st-uf{font-family:'JetBrains Mono',monospace;font-size:9px;color:#10B981;border:1px solid #14603f;border-radius:5px;padding:1px 6px;margin-left:auto;white-space:nowrap;}
+  .st-red{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:10px;}
+  .st-redi{background:rgba(227,6,19,.05);border:1px solid rgba(227,6,19,.22);border-radius:10px;padding:12px 14px;font-size:12.7px;color:var(--grey-2);} .st-redi b{color:#ff8088;}
+  details.st-acc{background:var(--bg-2);border:1px solid var(--border);border-radius:11px;margin:12px 0;overflow:hidden;}
+  details.st-acc summary{cursor:pointer;padding:13px 16px;font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13px;letter-spacing:.4px;color:var(--text);list-style:none;display:flex;align-items:center;gap:10px;}
+  details.st-acc summary::-webkit-details-marker{display:none;}
+  details.st-acc summary .cv{color:var(--red);transition:transform .2s;font-size:11px;} details.st-acc[open] summary .cv{transform:rotate(90deg);}
+  details.st-acc .in{padding:0 16px 16px;}
+  .st-src{color:var(--grey);font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:8px;}
+</style>
+
+<div class="divider"></div>
+
+<!-- ── 1 · СТРАТЕГІЯ ── -->
+<section class="section" id="strategy">
+  <div class="section-label">/// 🧭 СТРАТЕГІЯ · БОЙОВА РЕДАКЦІЯ 4.0</div>
+  <h2 class="section-h2">СТРАТЕГІЯ, ЩО ВИКОНУЄТЬСЯ</h2>
+  <p class="st-lead">Не третє переписування змісту, а перенесення стратегії з документа в системи, які не забувають. Уся потужність контуру — на глибину власної бази через власні рейки: перевірюваний фінал, власний канал, книга номерів.</p>
+
+  <div class="st-kpis">
+    <div class="st-kpi"><div class="v">7,72 <span class="u">млн₴</span></div><div class="l">Виручка №20 · рекорд групи</div></div>
+    <div class="st-kpi g"><div class="v">15 281</div><div class="l">Оплат · 9 831 покупець</div></div>
+    <div class="st-kpi b"><div class="v">14 210</div><div class="l">Підписники TG-каналу</div></div>
+    <div class="st-kpi a"><div class="v">10 148</div><div class="l">Активних / 30дн · North Star</div></div>
+    <div class="st-kpi"><div class="v">51 421</div><div class="l">Покупців lifetime</div></div>
+  </div>
+
+  <div class="st-steps">
+    <div class="st-step"><div class="no"></div><div class="x"><b>DreamCar продає токени AI-сервісу; номер участі в щомісячній промоакції — бонус до продукту.</b> Продукт перший, участь другою, логи використання як доказ — юридичний фундамент моделі на всіх ринках.</div></div>
+    <div class="st-step"><div class="no"></div><div class="x"><b>Виручку робить база власників, а не куплений трафік.</b> 80% покупців рекордного циклу — повторні; преміум-пакети дають 27% виручки при 5% оплат.</div></div>
+    <div class="st-step"><div class="no"></div><div class="x"><b>Будуємо два активи довіри:</b> власний канал розсилок (14 тис.) і верифікований фінал за публічним Протоколом — першими в категорії.</div></div>
+    <div class="st-step"><div class="no"></div><div class="x"><b>Кожен цикл фінансує наступний:</b> приз резервується і фіксується в системі до старту продажів; калібр росте за правилом (медіана 3 циклів ÷ 3,5), маржа ≥25% — червона лінія.</div></div>
+    <div class="st-step"><div class="no"></div><div class="x"><b>Виконується лише те, що живе в системах:</b> задача існує, коли вона в черзі з виконавцем і артефактом; політика існує, коли на ній стоїть алерт; усе інше — архів.</div></div>
+  </div>
+
+  <div class="st-ins"><div class="t">Діагноз — ключова перешкода</div><p>DreamCar — прибуткова машина монетизації власної бази, яку стримують дві речі, і жодна з них не ринок. <b>Перша:</b> до бази немає власних рейок — канал доступу орендований (Meta, SendPulse), книги номерів і зовнішньої перевірюваності не існує. <b>Друга:</b> дії не мають механізму запуску — усе впирається в один людський контур, який виконує те, що заходить через живу розмову, і не виконує того, що лежить у документі. Решта — маржа, ризики, експансія — наслідки цих двох обмежень.</p></div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:24px 0 12px;">Сім когерентних дій</h3>
+  <div class="st-grid2">
+    <div class="st-card"><h4><span class="tn">1</span>Фінал за протоколом-мінімум</h4><p>Два хеші, зовнішній RNG, свідок, реєстр вручень, ран-бук ефіру, наповнена фінальна кампанія.</p></div>
+    <div class="st-card"><h4><span class="tn">2</span>Власний канал у бій</h4><p>Токен бота → 3 розсилки фінального вікна на 14 тис. з каркасом згоди/відписки.</p></div>
+    <div class="st-card"><h4><span class="tn">3</span>Три замки даних</h4><p>Фіксація призу/резерву + привʼязка каси до циклів + pay_provider 100% і стоп течі атрибуції.</p></div>
+    <div class="st-card"><h4><span class="tn">4</span>Механізм самозапуску</h4><p>Черга в системах, щоденний автозапуск, дайджест-блокери, статус = артефакт.</p></div>
+    <div class="st-card"><h4><span class="tn">5</span>ТМ №232296</h4><p>Перевірка запису + клопотання про продовження; критерій — вхідний номер НОІВ.</p></div>
+    <div class="st-card"><h4><span class="tn">6</span>Юрконтур без єдиної точки відмови</h4><p>Ретейнер (ескалація щодня) + матриця разових виконавців уже зараз.</p></div>
+    <div class="st-card"><h4><span class="tn">7</span>Книга номерів, Етап 0</h4><p>Реєстр №20 першим інкрементом; далі за потужністю. Гейт, не дата.</p></div>
+  </div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:24px 0 12px;">North Star · калібр призів · три ноги</h3>
+  <div class="st-grid2">
+    <div class="st-card"><h4>North Star v4.0</h4><p><b>Активні покупці за 30 днів</b> — згладжує цикли, рахується live, відповідає діагнозу. Базова лінія для гейтів — медіана трьох циклів, не пік рекорду.</p><p class="mut">Парні метрики: net на активного + частка преміум-хвоста (27%), щоб North Star не накачати промо-днями.</p></div>
+    <div class="st-card"><h4>Калібр призів (замість VR≤3)</h4><p>Стара політика зламана рекордами (№20 → VR ~5). <b>Приз = медіана 3 циклів ÷ 3,5</b> з запобіжником маржі ≥25%.</p><p class="mut">№21 ≈ 1,8 млн (коридор 1,6–2,0). Резерв = повна вартість вручення (2,34 млн: авто + гросап), до старту продажів.</p></div>
+    <div class="st-card"><h4>Три ноги залучення</h4><p><b>№1</b> власний TG-канал (14 тис., гранична вартість ≈0). <b>№2</b> органіка (~46% нових). <b>№3</b> платні за гейтами: Meta працює, TikTok перед Google — після замків атрибуції.</p></div>
+  </div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:24px 0 12px;">Три гейти на 90 днів <span style="font-family:'JetBrains Mono';font-size:11px;color:var(--grey);">(стан, не дата)</span></h3>
+  <div class="st-gates">
+    <div class="st-gate"><h4>Гейт 1 · Фінал доведено</h4><div class="when">очікування ~05.08</div><ul><li>Фінал №20 за протоколом-мінімум → сертифікат</li><li>Резерв №21 зафіксований переказом і в системі</li><li>Канал відкритий: токен + ≥2 розсилки</li><li>Механізм розгорнутий: черга + автозапуск + блокери</li></ul></div>
+    <div class="st-gate"><h4>Гейт 2 · Рейки покладено</h4><div class="when">очікування ~01.09</div><ul><li>ТМ: вхідний номер НОІВ + рішення про ТОВ</li><li>Замки даних: pay_provider 100%, теча зупинена, каса↔цикли</li><li>Книга номерів: №20 звірено; №21 з книги</li><li>№21 за паспортом: приз ~1,8 млн, промо-календар</li></ul></div>
+    <div class="st-gate"><h4>Гейт 3 · Система без героїзму</h4><div class="when">очікування ~30.09</div><ul><li>Два фінали поспіль за Протоколом (№21 з /verify)</li><li>Кабінет Етап 0→MVP за гейтом книги</li><li>North Star ≥ базової лінії з трендом</li><li>Тиждень без живих сесій — черга рухалась</li></ul></div>
+  </div>
+
+  <details class="st-acc"><summary><span class="cv">▶</span>Що v4.0 змінює у v3.0 — і чому</summary><div class="in">
+    <div class="st-scroll"><table class="st-tbl">
+      <thead><tr><th>Було у v3.0</th><th>Стало у v4.0</th><th>Підстава</th></tr></thead>
+      <tbody>
+        <tr><td class="wrap">20 задач + 4 дії, 33 зобовʼязання</td><td class="wrap em">7 дій ядра + черга 10, WIP ≤3</td><td class="wrap">Рухались 2/20; пропускна 2–3/тиждень</td></tr>
+        <tr><td class="wrap">«Друга нога» = Google Ads</td><td class="wrap em">№1 TG-канал; №2 органіка; платні за гейтами</td><td class="wrap">Google 0 руху; TG готово; органіка 46%</td></tr>
+        <tr><td class="wrap">VR-політика ≤3</td><td class="wrap em">Калібр = медіана 3 ÷ 3,5 + маржа ≥25%</td><td class="wrap">№20 VR ~5; e-tron 5,1</td></tr>
+        <tr><td class="wrap">North Star = унікальні/цикл</td><td class="wrap em">Активні 30дн + net/актив + преміум</td><td class="wrap">80% повторних; розкид ×3</td></tr>
+        <tr><td class="wrap">План у PDF, статуси вручну</td><td class="wrap em">«Прийняття = розгортання»: черга, статус=артефакт</td><td class="wrap">0 задач плану в системі; статуси мертві</td></tr>
+      </tbody>
+    </table></div>
+  </div></details>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── 2 · ЕКШН-ПЛАН ── -->
+<section class="section" id="action">
+  <div class="section-label">/// 🎯 ЕКШН-ПЛАН · БОЙОВА ЧЕРГА v4.0</div>
+  <h2 class="section-h2">ЩО РОБИМО ЗАРАЗ</h2>
+  <p class="st-lead">Задача №1 зверху · статус змінюється лише комітом з лінком на артефакт · WIP ≤3 · жива ідея → inbox-хвіст, обгін лише явним свопом. Канонічне джерело — <span style="font-family:'JetBrains Mono';color:var(--grey-2)">queue.md</span> у repo dreamcar-team.</p>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:0 0 12px;">Людські блокери <span style="font-family:'JetBrains Mono';font-size:11px;color:var(--grey);">(щоденний рядок у дайджест)</span></h3>
+  <div class="st-scroll"><table class="st-tbl">
+    <thead><tr><th>Блокер</th><th>Дедлайн</th><th>Стан</th></tr></thead>
+    <tbody>
+      <tr><td class="wrap em">Фіксація призу X6M + перекази резерву №21 (повна вартість вручення)</td><td class="nowrap">31.07 / 01.08</td><td><span class="st-pill st-open">prize = null</span></td></tr>
+      <tr><td class="wrap em">Токен публічного бота (розблоковує розсилки на 14 тис.)</td><td class="nowrap">31.07 15:00</td><td><span class="st-pill st-open">чекає</span></td></tr>
+      <tr><td class="wrap em">Рішення: час ефіру + відсічка списку (хеші Т-24 / Т-4)</td><td class="nowrap">фінал 02.08</td><td><span class="st-pill st-open">власник</span></td></tr>
+      <tr><td class="wrap em">Свідок у кадр (разово, не чекаючи ретейнера)</td><td class="nowrap">01.08</td><td><span class="st-pill st-open">дзвінок</span></td></tr>
+      <tr><td class="wrap em">Ретейнер юриста (ескалація щодня)</td><td class="nowrap">07.08</td><td><span class="st-pill st-open">блокер №1</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:22px 0 6px;">Бойова черга <span id="stQk" style="font-family:'JetBrains Mono';font-size:12px;color:var(--red);">0/11</span></h3>
+  <p style="font-size:12px;color:var(--grey);margin:0 0 10px;">Клікайте прапорець, коли одиниця готова — прогрес рахується локально у вашому браузері.</p>
+  <div class="st-scroll"><table class="st-tbl" id="stQueue">
+    <thead><tr><th style="width:30px"></th><th>Q</th><th>Одиниця</th><th>Перший інкремент ≤1 сесії</th><th>Тип</th><th>Стан</th></tr></thead>
+    <tbody>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">0</td><td class="em wrap">Розгортання v4.0</td><td class="wrap">Імпорт черги + автозапуск 07:30 (proposal-mode) + блокери + алерт-пак</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">1</td><td class="em wrap">Фінал-пакет</td><td class="wrap">Сторінка протоколу-мінімум + кодекс; ран-бук 02.08</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">2</td><td class="em wrap">Домен-гігієна</td><td class="wrap">Cloudflare allowlist + 301 кореня + Wayback-знімки правил</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">3</td><td class="em wrap">Розсилки фіналу</td><td class="wrap">3 тексти + згода/відписка + лексикон-фільтр + черга з журналом, прогін ≥2 000</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">4</td><td class="em wrap">Замки даних</td><td class="wrap">Стоп течі e-tron + поля призу в launches + pay_provider бекфіл</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-prog">🟨 у роботі</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">5</td><td class="em wrap">ТМ №232296</td><td class="wrap">Перевірка СІС + розрахунок збору + драфт клопотання</td><td><span class="st-pill st-la">Л+AI</span></td><td><span class="st-pill st-open">⬜ до 08.08</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">6</td><td class="em wrap">Юрконтур</td><td class="wrap">Ретейнер + матриця разових (повірений/аудитор/податковий)</td><td><span class="st-pill st-la">Л+AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">7</td><td class="em wrap">ФОП-безпека</td><td class="wrap">Маршрутизація на Недвигу + бойовий тест + алерти 85/95%</td><td><span class="st-pill st-la">Л+AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">8</td><td class="em wrap">Книга номерів, Етап 0</td><td class="wrap">Append-only реєстр (hash-chain) + імпорт №20 + звірка</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">9</td><td class="em wrap">Дані аудиторії</td><td class="wrap">Питання «хто в ЄС» + причини сну (вибірка ≥500 до 31.08)</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-open">⬜</span></td></tr>
+      <tr><td><input type="checkbox" class="stqc"></td><td class="em">10</td><td class="em wrap">Безпека-беклог</td><td class="wrap">RLS ✓ 31.07 → інвентаризація разових функцій (199 SEC DEFINER)</td><td><span class="st-pill st-ai">AI</span></td><td><span class="st-pill st-prog">🟨 у роботі</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="st-bar"><i id="stQbar"></i></div>
+  <div class="st-legend">
+    <span><span class="st-dot" style="background:#7dd3fc"></span>AI — виконує AI-контур</span>
+    <span><span class="st-dot" style="background:#fcd34d"></span>Л+AI — людина + AI</span>
+    <span><span class="st-dot" style="background:#F59E0B"></span>у роботі</span>
+    <span><span class="st-dot" style="background:#10B981"></span>готово</span>
+  </div>
+
+  <div class="st-call"><div class="t">✅ Зроблено автономно 31.07 (перші інкременти)</div><p><b>Q10:</b> RLS увімкнено на bot_subscribers (14 тис.) і kasa_fop_registry — закрита жива вразливість перед фіналом. <b>Q4:</b> знайдено корінь течі атрибуції → міграція + бекфіл 3 024 угод → BMW X6M + ETL-фікс. <b>DC|F:</b> порожня фінальна кампанія наповнена 4 крео, доставка підтверджена.</p></div>
+
+  <details class="st-acc"><summary><span class="cv">▶</span>Політики-алерти (політика без алерта не публікується)</summary><div class="in">
+    <div class="st-scroll"><table class="st-tbl">
+      <thead><tr><th>Політика</th><th>Поріг / тригер</th><th>Канал</th></tr></thead>
+      <tbody>
+        <tr><td class="em">Резерв призу до старту</td><td class="nowrap">рядок у launches + скрін</td><td>Гейт запуску циклу</td></tr>
+        <tr><td class="em">Калібр призу B÷3,5</td><td class="nowrap">маржа прогнозу &lt;25% = стоп</td><td>Паспорт циклу</td></tr>
+        <tr><td class="em">Каданс промо</td><td class="nowrap">≥2/міс = блок третього</td><td>Алерт-пак war-room</td></tr>
+        <tr><td class="em">Стеля спенду</td><td class="nowrap">&gt;25 тис/день без флага</td><td>Алерт-пак war-room</td></tr>
+        <tr><td class="em">ФОП-ліміти</td><td class="nowrap">85% warn · 95% crit</td><td>Дайджест + BOARD</td></tr>
+        <tr><td class="em">Атрибуція</td><td class="nowrap">pay_provider &lt;100%/день</td><td>Алерт-пак war-room</td></tr>
+        <tr><td class="em">Приплив нових</td><td class="nowrap">&lt;300/7дн warn · &lt;200 crit</td><td>Ревізія acquisition</td></tr>
+      </tbody>
+    </table></div>
+  </div></details>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── 3 · КОНКУРЕНТИ & ІНСАЙТИ ── -->
+<section class="section" id="research">
+  <div class="section-label">/// 🔬 РОЗВІДКА РИНКУ · 37 АГЕНТІВ · 13 РИНКІВ</div>
+  <h2 class="section-h2">КОНКУРЕНТИ &amp; ІНСАЙТИ</h2>
+  <p class="st-lead">Розбір Project X по кісточках (10 лінз) + світова розвідка prize-draw операторів від Британії до Бразилії, від Дубая до Мельбурна. Механіки, ціни, промо, канали, довіра. 2 раунди незалежної верифікації першоджерелами.</p>
+
+  <div class="st-ins"><div class="t">Головне відкриття</div><p>Модель DreamCar (токен-продукт + участь-бонус) — не українська імпровізація, а <b>найстійкіша у світі юридична конструкція</b>, яку незалежно винайшли на чотирьох континентах: близькосхідний product-linkage, американські dual-currency казино, бразильський título de capitalização, індійські scratch-cards, австралійський utility-first. Скрізь, де регулятор закручує гайки (Індія 2025, ОАЕ 2024, Австралія 2027), виживає рівно те, що робимо ми. <b>Наша перевага — не механіки (їх легко скопіювати), а те, що ми на правильному боці глобального регуляторного тренду.</b> Друге: у категорії майже ніхто не робить прозорість добре — наш протокол фіналу вже сильніший за 90% планети.</p></div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:22px 0 12px;">Порівняння з ринком</h3>
+  <div class="st-scroll"><table class="st-tbl">
+    <thead><tr><th>Вимір</th><th>Project X (UK/RO)</th><th>Лідери ринку</th><th>DreamCar</th><th>+</th></tr></thead>
+    <tbody>
+      <tr><td class="em nowrap">Модель входу</td><td class="wrap">Skill-question «competition»</td><td class="wrap">Product-linkage / dual-currency</td><td class="wrap em">Токен-продукт + номер бонусом</td><td class="nowrap">нам</td></tr>
+      <tr><td class="em nowrap">Середина циклу</td><td class="wrap">9–11 інфоприводів (milestone-дропи)</td><td class="wrap">Early-bird / bonus draws</td><td class="wrap em">«Яма» + 2 промо-дні</td><td class="nowrap" style="color:var(--grey)">їм</td></tr>
+      <tr><td class="em nowrap">Фінал / чесність</td><td class="wrap">«random у spreadsheet»</td><td class="wrap">Нотаріус / юрист+відео</td><td class="wrap em">2 хеші + random.org + свідок + сертифікат</td><td class="nowrap">нам</td></tr>
+      <tr><td class="em nowrap">Власний канал</td><td class="wrap">Telegram 539</td><td class="wrap">Email-бази, підписки</td><td class="wrap em">TG-бот 14 210</td><td class="nowrap">нам ×26</td></tr>
+      <tr><td class="em nowrap">Історія довіри</td><td class="wrap">3 вручення / 14 міс.</td><td class="wrap">Omaze/BOTB — роки</td><td class="wrap em">20 вручень / 7 років</td><td class="nowrap">нам</td></tr>
+      <tr><td class="em nowrap">Канали залучення</td><td class="wrap">TikTok 88K + founder-brand</td><td class="wrap">TikTok-first, reaction-відео</td><td class="wrap em">Mono-Meta + органіка 46%</td><td class="nowrap" style="color:var(--grey)">розні</td></tr>
+      <tr><td class="em nowrap">Монетизація хвоста</td><td class="wrap">Спендер-лідерборд (кеш китам)</td><td class="wrap">Преміум-якорі, wallet-credit</td><td class="wrap em">Преміум 27% органічно</td><td class="nowrap">нам</td></tr>
+      <tr><td class="em nowrap">Ціна входу</td><td class="wrap">£3, тіри −5…−20%</td><td class="wrap">$5–25 dual-currency</td><td class="wrap em">199₴ заморожено</td><td class="nowrap" style="color:var(--grey)">розні</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:24px 0 10px;">Каталог механік світу <span style="font-family:'JetBrains Mono';font-size:11px;color:var(--grey);">(що у них інакше)</span></h3>
+  <div class="chip-list" id="stMchips" style="margin-bottom:14px;">
+    <a class="reg-chip" data-mg="all" style="background:var(--red);color:#fff;border-color:var(--red);">Усі</a>
+    <a class="reg-chip" data-mg="engage">Залучення</a>
+    <a class="reg-chip" data-mg="retain">Утримання</a>
+    <a class="reg-chip" data-mg="money">Монетизація</a>
+    <a class="reg-chip" data-mg="trust">Довіра</a>
+    <a class="reg-chip" data-mg="ux">Продукт / UX</a>
+  </div>
+  <div class="st-ideas" id="stMechs"></div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:26px 0 8px;">Топ-20 ідей для DreamCar <span style="font-family:'JetBrains Mono';font-size:11px;color:var(--grey);">(кандидати, не рішення)</span></h3>
+  <p style="font-size:12.5px;color:var(--grey);margin:0 0 12px;">Кожна проходить тест <b style="color:#10B981">utility-first</b> (винагорода за активність/лояльність/утиліту, НЕ за випадковість покупки) і повагу до виміряного досвіду.</p>
+  <div class="chip-list" id="stIchips" style="margin-bottom:14px;">
+    <a class="reg-chip" data-f="all" style="background:var(--red);color:#fff;border-color:var(--red);">Усі</a>
+    <a class="reg-chip" data-f="S">🟢 Швидкі</a>
+    <a class="reg-chip" data-f="M">🟡 Середні</a>
+    <a class="reg-chip" data-f="L">🔵 Довгі</a>
+  </div>
+  <div class="st-ideas" id="stIdeas"></div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:26px 0 12px;">Що НЕ копіювати <span style="font-family:'JetBrains Mono';font-size:11px;color:var(--grey);">(червоні лінії)</span></h3>
+  <div class="st-red">
+    <div class="st-redi"><b>Кеш-рандом серед платників</b> — пряма азартна механіка, ламає юр-рамку.</div>
+    <div class="st-redi"><b>Спендер-лідерборд з кеш-призами</b> — субсидія китам ~50%, GDPR-діра, тиск на витрати.</div>
+    <div class="st-redi"><b>Непрозора бонусна емісія</b> (+44% квитків) — матеріал для викривального відео.</div>
+    <div class="st-redi"><b>«Підписка = доступ до розіграшу»</b> — це забороняє AU Bill 2027.</div>
+    <div class="st-redi"><b>Б/в приз + кеш-альтернатива нижче ринку</b> — наша обіцянка чистіша.</div>
+    <div class="st-redi"><b>Синтетичні лічильники</b> — якщо викриють, спалює довіру.</div>
+    <div class="st-redi"><b>Perpetual sale</b> (−40% ерозія) — у нас 199₴ заморожений.</div>
+    <div class="st-redi"><b>Механіки без правил у T&amp;C</b> — кожна наша лише з опублікованими правилами.</div>
+    <div class="st-redi"><b>Tate-стилістика</b> + обіцянки коучингу переможцю — регуляторний ризик.</div>
+  </div>
+
+  <h3 style="font-family:'Oswald';font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--text);margin:26px 0 12px;">Де ми вже сильніші</h3>
+  <div class="st-grid3">
+    <div class="st-card"><h4>Верифікованість фіналу</h4><p>«random у spreadsheet» конкурентів проти нашого протоколу з хешами і свідком.</p></div>
+    <div class="st-card"><h4>Owned-канал ×26</h4><p>TG-бот 14 210 проти Project X 539. Безкоштовна дистрибуція до бази назавжди.</p></div>
+    <div class="st-card"><h4>Історія 20 вручень</h4><p>7 років і 20 авто проти 3 вручень за 14 місяців у конкурента.</p></div>
+    <div class="st-card"><h4>Utility-first конструкція</h4><p>Токени = продукт, на правильному боці всіх регуляторних трендів.</p></div>
+    <div class="st-card"><h4>Машина даних</h4><p>P&amp;L циклів, атрибуція, книга номерів — цього шару у конкурентів не видно.</p></div>
+    <div class="st-card"><h4>Органічна база</h4><p>80% повторних без спендер-тиску — здорова структура, не кити.</p></div>
+  </div>
+
+  <details class="st-acc" style="margin-top:22px;"><summary><span class="cv">▶</span>Регуляторна карта експансії</summary><div class="in">
+    <div class="st-scroll"><table class="st-tbl">
+      <thead><tr><th>Ринок</th><th>Вхід</th><th>Ключове</th></tr></thead>
+      <tbody>
+        <tr><td class="em nowrap">🇨🇿 Чехія</td><td class="wrap">Авто в споживчому конкурсі БЕЗ дозволу</td><td class="wrap">Ідеальний перший полігон CEE</td></tr>
+        <tr><td class="em nowrap">🇵🇱 Польща</td><td class="wrap">konkurs (skill) → loteria promocyjna (дозвіл КАС, 10%)</td><td class="wrap">BLIK обовʼязковий; діаспора 968 тис.; Мінфін+NSA: диспропорція ціна/приз не впливає на легальність</td></tr>
+        <tr><td class="em nowrap">🇩🇪 Німеччина</td><td class="wrap">Безкоштовний Gewinnspiel + монетизація токенів</td><td class="wrap">Нотаріус+TÜV; ⚠️ ТМ-колізія «Dream Car Raffle» (ZEAL)</td></tr>
+        <tr><td class="em nowrap">🇦🇺 Австралія</td><td class="wrap">Лише через ліцензію штату</td><td class="wrap">Bill 2027 (ще не ухвалено) дозволяє саме utility-first</td></tr>
+      </tbody>
+    </table></div>
+  </div></details>
+
+  <div class="st-call"><div class="t">🔴 Термінова знахідка: захист бренду «DreamCar»</div><p>«Dream Car» як prize-бренд зайнято щонайменше у <b>5 юрисдикціях</b> (ZEAL DE, BOTB/dreamcargiveaways UK, Big Ticket UAE, Dream Giveaway US, Alberta CA). Чистий словесний знак майже описовий — важко захистити. Підсилює блокер ТМ №232296 (сплив 13.12.2026): при продовженні/новій заявці потрібен clearance-пошук EUIPO/UKIPO/CIPO + відмітний елемент, не голе «DreamCar». Вхідні для юрконтуру, не зміна стратегії.</p></div>
+
+  <p class="st-src">Методологія: 37 агентів (10 лінз Project X + 27 sweep по 13 ринках) + 2 раунди верифікації первинними джерелами. Повні звіти — market-research-sources.zip (31 звіт) + брендований PDF. Дослідницький розділ; змін у Стратегії v4.0 не внесено до окремого рішення власників.</p>
+</section>
+
+<script>
+(function(){
+  // queue progress
+  var qcs=[].slice.call(document.querySelectorAll('.stqc')),qbar=document.getElementById('stQbar'),qk=document.getElementById('stQk');
+  function qupd(){var d=0;qcs.forEach(function(c){c.closest('tr').style.opacity=c.checked?'.45':'1';if(c.checked)d++;});if(qbar)qbar.style.width=(100*d/qcs.length)+'%';if(qk)qk.textContent=d+'/'+qcs.length+(d===qcs.length?' · готово 🎉':'');}
+  qcs.forEach(function(c){c.addEventListener('change',qupd);});qupd();
+
+  // mechanics catalog
+  var MECH=[
+   {g:'engage',t:'Entries за дії',x:'Бонусні номери за підписку, share, daily check-in, опитування (Gleam-модель). Ринок оцінює найдорожче.'},
+   {g:'engage',t:'Реферал з тригером на покупку',x:'Винагорода коли друг КУПИВ, не зареєструвався. Cash ×2,2 результативніше за купон.'},
+   {g:'engage',t:'Engagement-entry (follow+tag+share)',x:'Дешевий вірусний вхід (TR/IG). Матеріалізація 10–20% — конвертувати в owned-канал.'},
+   {g:'engage',t:'Спільнота виграє разом (postcode)',x:'«FOMO сусіда» сильніший за індивідуальну жадобу; колективне святкування = безкоштовний PR (DE/NL).'},
+   {g:'retain',t:'Milestone prize-drops кожні 10%',x:'Project X: 9–11 інфоприводів/цикл, фіксований бюджет ~10% валу, urgency без знижки. Відповідь на «яму».'},
+   {g:'retain',t:'Early-bird / bonus draw',x:'Купи до дати X → додатковий розіграш, номер лишається в головному — чистий upside (CA/NZ).'},
+   {g:'retain',t:'Scratch-card після транзакції',x:'Миттєвий дофамін, завжди привʼязаний до вже здійсненого платежу (не до випадковості) — юридично чисто. Мільярди в Індії.'},
+   {g:'retain',t:'Gamified спільні цілі',x:'«На 50% активної бази — розблокуємо X для ВСІХ». Daily check-in / streak у боті.'},
+   {g:'money',t:'Quick-pick пресети чека',x:'1/125/250 → чек £300 ≈ 30× нашого AOV; center-stage «популярний» тягне масу вгору.'},
+   {g:'money',t:'Знижка як «більше юнітів»',x:'Omaze ×2 entries/£ — масштабувати як механіку, не % на цінник. Наш «×2» уже канонічна форма.'},
+   {g:'money',t:'Преміум-якір над топ-тарифом',x:'MAX над ULTIMATE: нуль ерозії. Wallet/credit що списується першим — замикає гроші в системі.'},
+   {g:'money',t:'One-tap платежі',x:'Apple/Google Pay: +2–6% конверсії на чеках <$80 — рівно наш AOV. Для WayForPay/Platon це конфіг.'},
+   {g:'money',t:'«Податки сплачує організатор» у хедлайні',x:'Dream Giveaway робить це головним меседжем. Наш гросап — готовий маркетинг.'},
+   {g:'trust',t:'Provably fair',x:'Client seed + server seed + hash → кожен сам перевіряє переможця. Працює БЕЗ блокчейну. Сильніше за «random.org + свідок».'},
+   {g:'trust',t:'Держлотерея як RNG',x:'Безкоштовна зовнішня ентропія + самоперевірка (LatAm rifas).'},
+   {g:'trust',t:'Незалежний юрист/нотаріус + відео',x:'Інституційний trust-код (BOTB/TR/DE). Публічний pre-commit хешів + «Перевір свій номер».'},
+   {g:'trust',t:'Публічний RNG-скрипт',x:'7days публікує скрипт постфактум — кожен відтворює результат.'},
+   {g:'ux',t:'Вибір власного номера з сітки',x:'Емоційна власність + FOMO + реферальний гачок (LatAm/MX). Лягає на книгу номерів.'},
+   {g:'ux',t:'Live-фід активності',x:'Тікер покупок, лічильник — один JSON з поллінгом, дешево на Supabase. АЛЕ не синтетика!'},
+   {g:'ux',t:'Прогрес-бар циклу + «наступна віха»',x:'Спільна ціль замість знижки. Check Ticket публічний self-serve.'},
+   {g:'ux',t:'Reaction / вручення-відео',x:'Найсильніший крео-формат категорії. У нас 20 вручень в архіві майже не використані.'},
+  ];
+  var MG={engage:'Залучення',retain:'Утримання',money:'Монетизація',trust:'Довіра',ux:'Продукт / UX'};
+  function rMech(f){document.getElementById('stMechs').innerHTML=MECH.filter(function(m){return f==='all'||m.g===f;}).map(function(m){return '<div class="st-idea"><span class="grp">'+MG[m.g]+'</span><div class="ttl">'+m.t+'</div><div class="bd">'+m.x+'</div></div>';}).join('');}
+  [].slice.call(document.querySelectorAll('#stMchips .reg-chip')).forEach(function(c){c.addEventListener('click',function(e){e.preventDefault();[].slice.call(document.querySelectorAll('#stMchips .reg-chip')).forEach(function(x){x.style.background='';x.style.color='';x.style.borderColor='';});c.style.background='var(--red)';c.style.color='#fff';c.style.borderColor='var(--red)';rMech(c.getAttribute('data-mg'));});});
+  rMech('all');
+
+  // ideas catalog
+  var IDEAS=[
+   {n:1,tier:'S',g:'Довіра',t:'Provably-fair шар поверх протоколу',x:'Client+server seed+хеш, «перевір переможця сам». Найпрозоріший оператор категорії поза крипто.',w:'~0 грн, максимальний ефект на довіру',r:'Чітка публічна інструкція перевірки'},
+   {n:2,tier:'S',g:'Довіра',t:'«Перевір свій номер» + pre-commit хешів',x:'Публічний пошук номера + публікація хешів списку до фіналу.',w:'Зʼєднує наші докази з їхньою зручністю',r:'Знеособлення даних у видачі'},
+   {n:3,tier:'S',g:'Продукт',t:'Прогрес-бар циклу + лічильник авто',x:'Спільна ціль замість знижки + сумарний соціальний доказ «20 авто».',w:'Один JSON на Supabase — дешево',r:'Тільки реальні дані'},
+   {n:4,tier:'S',g:'Продукт',t:'Live-фід активності',x:'Реальні покупки і бонуси у стрічці на сторінці циклу.',w:'FOMO без витрат; тривіально',r:'НЕ синтетичні лічильники'},
+   {n:5,tier:'S',g:'Монетизація',t:'One-tap Apple / Google Pay',x:'Конфіг WayForPay/Platon; +2–6% конверсії на нашому AOV.',w:'Найдешевший приріст конверсії',r:'Тест до фінал-вікна'},
+   {n:6,tier:'S',g:'Канали',t:'Reaction-відео з архіву 20 вручень',x:'Нарізати наявний архів у крео; FB Stories (недовкладений).',w:'Актив уже знято; топ-формат',r:'Згода власників'},
+   {n:7,tier:'S',g:'Продукт',t:'Гостьовий чекаут + мінімум полів',x:'Токен цифровий — адресні поля не потрібні.',w:'Кожне поле коштує конверсії',r:'Баланс з антифродом'},
+   {n:8,tier:'S',g:'Залучення',t:'Реферал через TG deep-link',x:'?start=ref_id, тригер на покупку друга. Бот готовий.',w:'Рефералки нема — чистий upside',r:'Захист від самореферала'},
+   {n:9,tier:'M',g:'Утримання',t:'Milestone-віхи циклу',x:'Спільні цілі, нагорода за активність УСІМ (не рандом платникам).',w:'9 інфоприводів проти «ями»',r:'Нагорода за активність, НЕ за випадковість'},
+   {n:10,tier:'M',g:'Утримання',t:'Mid-campaign bonus draw / early-bird',x:'Купи до дати → додатковий розіграш, номер лишається в головному.',w:'Третій пік продажів у циклі',r:'Прозорі правила у T&C'},
+   {n:11,tier:'M',g:'Монетизація',t:'Quick-pick пресети пакетів',x:'«Популярний» center-stage; інженерія чека.',w:'AOV +15–25% за досвідом лідерів',r:'Не тиснути на дрібних'},
+   {n:12,tier:'M',g:'Монетизація',t:'Преміум-якір MAX над ULTIMATE',x:'Новий верхній тариф робить 7 500₴ «розумним».',w:'+2,7 пп виручки на хвіст без ерозії',r:'Реальна цінність пакета'},
+   {n:13,tier:'M',g:'Утримання',t:'Гарантований бонус за пакет',x:'Детермінований «гараж-бокс» токенів за кожен N-й пакет — прозорий вміст.',w:'Драйв Mystery Box без лотерейності',r:'Кап розмиття ≤10%, публічний дроп-рейт'},
+   {n:14,tier:'M',g:'Залучення',t:'Daily check-in + бонуси за не-платіжні дії',x:'Streak у боті; активність винагороджується.',w:'Утримання уваги між подіями',r:'Ліміт щоб не інфлювати номери'},
+   {n:15,tier:'M',g:'Канали',t:'Живий дзвінок власнику в ефір',x:'Big Ticket-механіка — головний вірусний момент.',w:'Найсильніший емоційний хук',r:'Згода, дубль-дзвінок за 5 хв'},
+   {n:16,tier:'M',g:'Утримання',t:'Win-back безкоштовним номером',x:'Не знижкою: конвертує 3× краще (14,9% vs 5,4%). 55% бази сплячі.',w:'Реактивація в owned-каналі ≈0 грн',r:'Holdout ≥10% для заміру'},
+   {n:17,tier:'M',g:'Монетизація',t:'«Податки сплачує DreamCar» у хедлайн',x:'Гросап 403 тис — маркетинг-меседж, не лише рядок P&L.',w:'Знімає заперечення «а податки?»',r:'Тримати обіцянку буквально'},
+   {n:18,tier:'L',g:'Канали',t:'TikTok-канал з обличчям',x:'Project X 88K і LMCT+ на цьому. Тест 5 відео/тиждень × 2 тижні.',w:'Другий органічний канал, дешевий вхід',r:'Потрібне обличчя + конвеєр'},
+   {n:19,tier:'L',g:'Лояльність',t:'Earned-статус Клубу',x:'За стаж/активність, НЕ за витрати — інверсія спендер-лідерборду.',w:'Лояльність без юр/етичних ризиків',r:'Критерії, щоб не купувалось'},
+   {n:20,tier:'L',g:'Продукт',t:'Вибір власного номера з сітки',x:'На базі книги номерів — емоційна залученість + реферальний гачок.',w:'Унікальна власність номера',r:'Після Етапу 0 книги номерів'},
+  ];
+  function rIdeas(f){document.getElementById('stIdeas').innerHTML=IDEAS.filter(function(i){return f==='all'||i.tier===f;}).map(function(i){return '<div class="st-idea"><div class="top"><span class="st-tier '+i.tier+'">'+i.tier+'</span><span class="ttl">'+i.n+'. '+i.t+'</span><span class="st-uf">utility-first ✓</span></div><span class="grp">'+i.g+'</span><div class="bd">'+i.x+'</div><div class="why"><b>Чому:</b> '+i.w+'</div><div class="rk">⚠ '+i.r+'</div></div>';}).join('');}
+  [].slice.call(document.querySelectorAll('#stIchips .reg-chip')).forEach(function(c){c.addEventListener('click',function(e){e.preventDefault();[].slice.call(document.querySelectorAll('#stIchips .reg-chip')).forEach(function(x){x.style.background='';x.style.color='';x.style.borderColor='';});c.style.background='var(--red)';c.style.color='#fff';c.style.borderColor='var(--red)';rIdeas(c.getAttribute('data-f'));});});
+  rIdeas('all');
+})();
+</script>
 
 <div style="text-align:center; padding: 32px 16px 48px; color:var(--grey); font-size:10px; font-family:'JetBrains Mono', monospace; letter-spacing:0.18em;">
   DREAMCAR · TEAM HUB · CONFIDENTIAL · 2026
