@@ -31,7 +31,7 @@
       .replace(/"/g, '&quot;');
   }
   function say(msg, kind) {
-    if (typeof window.toast === 'function') window.toast(msg, kind || 'success');
+    if (typeof toast === 'function') toast(msg, kind || 'success');
   }
 
   // ---------------------------------------------------------------
@@ -97,12 +97,15 @@
   // Дані
   // ---------------------------------------------------------------
   function voters() {
-    var all = (window.Store && Store.users) ? Store.users() : [];
+    var all = (typeof Store !== 'undefined' && Store.users) ? Store.users() : [];
     return all
       .filter(function (u) { return VOTER_ROLES.indexOf(String(u.role)) !== -1 && u.is_active !== false; })
       .sort(function (a, b) { return VOTER_ROLES.indexOf(String(a.role)) - VOTER_ROLES.indexOf(String(b.role)); });
   }
-  function me() { return (window.Store && Store.currentUser) ? Store.currentUser() : null; }
+  // Store/App оголошені через `const` у app-core.js — це global LEXICAL binding,
+  // якого НЕМА як властивості window. Через це перевірка по window віддавала
+  // undefined, me() -> null, і «Додати ідею» мовчки падало. Тому typeof-guard.
+  function me() { return (typeof Store !== 'undefined' && Store.currentUser) ? Store.currentUser() : null; }
   function canVote() {
     var u = me();
     return !!u && VOTER_ROLES.indexOf(String(u.role)) !== -1;
@@ -177,11 +180,11 @@
 
   function paint() {
     var root = document.getElementById('main');
-    if (!root || window.App && App.view !== 'notes') return;
+    if (!root || (typeof App !== 'undefined' && App.view !== 'notes')) return;
     var host = document.getElementById('notesList');
     if (!host) return;
 
-    var users = (window.Store && Store.users) ? Store.users() : [];
+    var users = (typeof Store !== 'undefined' && Store.users) ? Store.users() : [];
     var myUser = me();
     var myId = myUser ? myUser.id : null;
     var editable = canVote();
