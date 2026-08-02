@@ -360,7 +360,9 @@ function openCard(id) {
     const bd = document.getElementById('modalBackdrop');
     if (!bd) return;
     bd.onclick = (e) => {
-      if (e.target !== bd) return;
+      // Tech-request #2 (02.08.2026): не закривати картку, якщо це «хвіст» виділення
+      // тексту (mousedown усередині модалки → mouseup на backdrop). Див. Modal.open.
+      if (!Modal.isBackdropClick(e)) return;
       const ind = document.getElementById('autosaveInd');
       const isSaving = ind && ind.classList.contains('saving');
       const isNew = p && p._isNew;
