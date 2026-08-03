@@ -25,7 +25,7 @@ ul,ol{margin:0 0 14px;padding-left:22px}li{margin:0 0 6px;color:#dcdcdc}
 .mono{font-family:'JetBrains Mono',monospace}
 table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;display:block;overflow-x:auto}
 th{background:#0f0f0f;color:#fff;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.4px;font-size:11px;text-align:left;padding:8px 10px;white-space:nowrap}
-td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;color:#d8d8d8}td.wrap{min-width:200px}
+td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;color:#d8d8d8}td.tw{min-width:200px}
 tr:hover td{background:#181818}.em{color:#fff;font-weight:600}
 .ins{background:linear-gradient(180deg,#1a1413,#151515);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:11px;padding:15px 17px;margin:16px 0}
 .ins .t{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:12px;letter-spacing:.8px;color:var(--red);margin-bottom:6px}.ins p{margin:0;font-size:13.5px}
@@ -72,11 +72,11 @@ tr:hover td{background:#181818}.em{color:#fff;font-weight:600}
 <p><b>North Star v4.0 = активні покупці за 30 днів</b> (сьогодні 10 148) — згладжує цикли, рахується live. Базова лінія для гейтів — медіана трьох циклів, не пік рекорду. Парні метрики: net на активного + частка преміум-хвоста (27%). <b>Калібр призу = медіана 3 циклів ÷ 3,5</b> з запобіжником маржі ≥25% (замість зламаної рекордами VR≤3): №21 ≈ 1,8 млн (коридор 1,6–2,0); резерв = повна вартість вручення (2,34 млн при калібрі 1,8: авто + гросап), до старту продажів.</p>
 <h3>Що v4.0 змінює у v3.0</h3>
 <table><thead><tr><th>Було у v3.0</th><th>Стало у v4.0</th><th>Підстава</th></tr></thead><tbody>
-<tr><td class="wrap">20 задач + 4 дії</td><td class="wrap em">7 дій ядра + черга 10, WIP ≤3</td><td class="wrap">Рухались 2/20; пропускна 2–3/тиждень</td></tr>
-<tr><td class="wrap">«Друга нога» = Google Ads</td><td class="wrap em">№1 TG-канал; №2 органіка; платні за гейтами</td><td class="wrap">Google 0 руху; TG готово; органіка 46%</td></tr>
-<tr><td class="wrap">VR-політика ≤3</td><td class="wrap em">Калібр = медіана 3 ÷ 3,5 + маржа ≥25%</td><td class="wrap">№20 VR ~5; e-tron 5,1</td></tr>
-<tr><td class="wrap">North Star = унікальні/цикл</td><td class="wrap em">Активні 30дн + net/актив + преміум</td><td class="wrap">80% повторних; розкид ×3</td></tr>
-<tr><td class="wrap">План у PDF, статуси вручну</td><td class="wrap em">«Прийняття = розгортання»: черга, статус=артефакт</td><td class="wrap">0 задач плану в системі</td></tr>
+<tr><td class="tw">20 задач + 4 дії</td><td class="tw em">7 дій ядра + черга 10, WIP ≤3</td><td class="tw">Рухались 2/20; пропускна 2–3/тиждень</td></tr>
+<tr><td class="tw">«Друга нога» = Google Ads</td><td class="tw em">№1 TG-канал; №2 органіка; платні за гейтами</td><td class="tw">Google 0 руху; TG готово; органіка 46%</td></tr>
+<tr><td class="tw">VR-політика ≤3</td><td class="tw em">Калібр = медіана 3 ÷ 3,5 + маржа ≥25%</td><td class="tw">№20 VR ~5; e-tron 5,1</td></tr>
+<tr><td class="tw">North Star = унікальні/цикл</td><td class="tw em">Активні 30дн + net/актив + преміум</td><td class="tw">80% повторних; розкид ×3</td></tr>
+<tr><td class="tw">План у PDF, статуси вручну</td><td class="tw em">«Прийняття = розгортання»: черга, статус=артефакт</td><td class="tw">0 задач плану в системі</td></tr>
 </tbody></table>
 
 <h2 class="ch" id="s2"><span class="num">02</span>72 години: фінал як актив довіри</h2>
@@ -99,9 +99,9 @@ tr:hover td{background:#181818}.em{color:#fff;font-weight:600}
 <p>База калібрування B = медіана виручки 3 останніх авто-циклів. <b>Приз = B ÷ 3,5</b> (коридор VR 2,5–4,0; ≥5 — червона зона). Маржинальний запобіжник: калібр не росте, якщо прогнозна маржа &lt;25%. Розблокування вищого класу: два поспіль цикли ≥6 млн + маржа ≥30% + резерв наступного ≥50%.</p>
 <h3>Три замки даних</h3>
 <table><thead><tr><th>Замок</th><th>Було</th><th>Стало</th></tr></thead><tbody>
-<tr><td class="em">Приз↔система</td><td class="wrap">prize_purchased_at = null; резерв ніде</td><td class="wrap">Поля викупу/резерву; гейт старту; алерт «резерв &lt; вартості вручення»</td></tr>
-<tr><td class="em">Каса↔цикл</td><td class="wrap">launch_id = 0 тх; розрив in vs deals</td><td class="wrap">launch_id + категорія обовʼязкові; щоденна звірка ±5% з алертом</td></tr>
-<tr><td class="em">Оплата↔маршрут</td><td class="wrap">pay_provider 0%; теча атрибуції</td><td class="wrap">Фікс на рівні вебхука/тригера; стоп pending на закритих циклах; бекфіл</td></tr>
+<tr><td class="em">Приз↔система</td><td class="tw">prize_purchased_at = null; резерв ніде</td><td class="tw">Поля викупу/резерву; гейт старту; алерт «резерв &lt; вартості вручення»</td></tr>
+<tr><td class="em">Каса↔цикл</td><td class="tw">launch_id = 0 тх; розрив in vs deals</td><td class="tw">launch_id + категорія обовʼязкові; щоденна звірка ±5% з алертом</td></tr>
+<tr><td class="em">Оплата↔маршрут</td><td class="tw">pay_provider 0%; теча атрибуції</td><td class="tw">Фікс на рівні вебхука/тригера; стоп pending на закритих циклах; бекфіл</td></tr>
 </tbody></table>
 <p>Преміум-хвіст (5% оплат = 27% виручки) обслуговується сервісом, не пушем: іменний контакт для топ-шару, алерт концентрації P95+ &gt;45%, red line «нуль ремаркетингу після самопаузи».</p>
 
@@ -140,9 +140,9 @@ tr:hover td{background:#181818}.em{color:#fff;font-weight:600}
 <h2 class="ch" id="s7"><span class="num">07</span>Горизонт: три гейти на 90 днів</h2>
 <p>Гейт — не дата, а перевірюваний стан системи.</p>
 <table><thead><tr><th>Гейт</th><th>Умови</th></tr></thead><tbody>
-<tr><td class="em">1 · Фінал доведено<br><span class="mono" style="color:var(--ash)">~05.08</span></td><td class="wrap">Фінал за протоколом-мінімум → сертифікат · резерв №21 зафіксований · канал відкритий (токен + ≥2 розсилки) · механізм розгорнутий</td></tr>
-<tr><td class="em">2 · Рейки покладено<br><span class="mono" style="color:var(--ash)">~01.09</span></td><td class="wrap">ТМ: вхідний номер НОІВ · pay_provider 100% 14 днів, теча зупинена, каса↔цикли · книга номерів №20 звірено · №21 за паспортом циклу</td></tr>
-<tr><td class="em">3 · Система без героїзму<br><span class="mono" style="color:var(--ash)">~30.09</span></td><td class="wrap">Два фінали поспіль за Протоколом (№21 з /verify) · кабінет Етап 0→MVP · North Star ≥ базової лінії з трендом · тиждень без живих сесій — черга рухалась</td></tr>
+<tr><td class="em">1 · Фінал доведено<br><span class="mono" style="color:var(--ash)">~05.08</span></td><td class="tw">Фінал за протоколом-мінімум → сертифікат · резерв №21 зафіксований · канал відкритий (токен + ≥2 розсилки) · механізм розгорнутий</td></tr>
+<tr><td class="em">2 · Рейки покладено<br><span class="mono" style="color:var(--ash)">~01.09</span></td><td class="tw">ТМ: вхідний номер НОІВ · pay_provider 100% 14 днів, теча зупинена, каса↔цикли · книга номерів №20 звірено · №21 за паспортом циклу</td></tr>
+<tr><td class="em">3 · Система без героїзму<br><span class="mono" style="color:var(--ash)">~30.09</span></td><td class="tw">Два фінали поспіль за Протоколом (№21 з /verify) · кабінет Етап 0→MVP · North Star ≥ базової лінії з трендом · тиждень без живих сесій — черга рухалась</td></tr>
 </tbody></table>
 <p><b>Icebox (за гейтами, не датами):</b> Польща/ЄС (Чехія — перший полігон), кабінет MVP, Google/TikTok зі спендом, бренд-замір. Кожен вихід — через чергу з інкрементом і артефактом.</p>
 
