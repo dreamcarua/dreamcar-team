@@ -1,0 +1,127 @@
+<!doctype html><html lang="uk" style="background:#0A0A0A"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DreamCar · Екшн-план · бойова черга v4.0</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0A0A0A;--bg2:#141414;--bg3:#1F1F1F;--line:#2A2A2A;--red:#E30613;--ash:#8a8a8a;--bone:#DDD;--text:#fff;--ok:#10B981;--warn:#F59E0B;--info:#3B82F6}
+html{scroll-behavior:smooth}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:#ededed;line-height:1.6;font-size:15px;-webkit-font-smoothing:antialiased}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(10,10,10,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:14px;height:54px;padding:0 20px}
+.logo{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;letter-spacing:1px}.logo .r{color:var(--red)}
+.sp{flex:1}
+.btn{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ash);border:1px solid var(--line);padding:6px 12px;border-radius:8px;text-decoration:none;white-space:nowrap;cursor:pointer;background:none}
+.btn:hover{border-color:var(--ash);color:#fff}.btn.red{background:var(--red);color:#fff;border-color:var(--red)}
+.wrap{max-width:960px;margin:0 auto;padding:34px 20px 70px}
+.doc-hd{border-bottom:2px solid var(--red);padding-bottom:14px;margin-bottom:8px}
+.kick{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;color:var(--red);margin-bottom:8px}
+.doc-hd h1{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:30px;line-height:1.05;color:#fff}
+.doc-hd .meta{color:var(--ash);font-size:13px;margin-top:8px;font-family:'JetBrains Mono',monospace}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
+.toc a{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ash);border:1px solid var(--line);border-radius:16px;padding:5px 11px;text-decoration:none}
+.toc a:hover{border-color:var(--red);color:#fff}
+h2.ch{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:20px;line-height:1.1;color:#fff;margin:38px 0 12px;padding-top:16px;border-top:2px solid var(--line);scroll-margin-top:66px}
+h2.ch .num{color:var(--red);margin-right:10px}
+h3{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:14px;color:#fff;margin:20px 0 8px;letter-spacing:.3px}
+p{margin:0 0 12px;color:#dcdcdc}b,strong{color:#fff;font-weight:700}a{color:#7dd3fc}
+ul,ol{margin:0 0 14px;padding-left:22px}li{margin:0 0 6px;color:#dcdcdc}
+.mono{font-family:'JetBrains Mono',monospace}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;display:block;overflow-x:auto}
+th{background:#0f0f0f;color:#fff;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.4px;font-size:11px;text-align:left;padding:8px 10px;white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;color:#d8d8d8}td.tw{min-width:200px;white-space:normal}td.nw{white-space:nowrap}
+tr:hover td{background:#181818}.em{color:#fff;font-weight:600}
+.ins{background:linear-gradient(180deg,#1a1413,#151515);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:11px;padding:15px 17px;margin:16px 0}
+.ins .t{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:12px;letter-spacing:.8px;color:var(--red);margin-bottom:6px}.ins p{margin:0;font-size:13.5px}
+.ins.ok{border-left-color:var(--ok)}.ins.ok .t{color:var(--ok)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+.kpi{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:10px;padding:12px 14px}
+.kpi .v{font-family:'Oswald',sans-serif;font-weight:700;font-size:23px;color:#fff}.kpi .v .u{font-size:12px;color:var(--red)}
+.kpi .l{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ash);margin-top:6px;line-height:1.3}
+.pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid var(--line);white-space:nowrap}
+.p-ai{color:#7dd3fc;border-color:#2b5a70}.p-la{color:#fcd34d;border-color:#6d5216}.p-ok{color:#10B981;border-color:#14603f}.p-prog{color:#F59E0B;border-color:#6d4e12}.p-open{color:var(--ash)}
+.bar{height:9px;background:var(--bg3);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:14px 0 6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--red),#ff5560);width:0;transition:width .5s}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ash);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:5px}.dot{width:9px;height:9px;border-radius:3px}
+.qhint{font-size:12px;color:var(--ash);margin:2px 0 8px}
+.foot{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);color:#6f6f6f;font-size:11.5px;font-family:'JetBrains Mono',monospace;line-height:1.7}
+@media print{.topbar,.toc{display:none}body{background:#fff;color:#111}.wrap{max-width:100%}h2.ch,h3,.doc-hd h1,b,.em{color:#000}p,li,td{color:#222}.ins{background:#f5f5f5}.kpi .v{color:#000}}
+</style></head><body>
+<div class="topbar"><div class="in"><span class="logo">DREAM<span class="r">CAR</span></span><span class="sp"></span><button class="btn red" onclick="window.print()">🖨 Зберегти в PDF</button><a class="btn" href="/info.html">← INFO</a></div></div>
+<div class="wrap">
+<div class="doc-hd"><div class="kick">/// ЕКШН-ПЛАН · БОЙОВА ЧЕРГА v4.0 · queue.md</div><h1>Що робимо зараз — повна черга</h1><div class="meta">10 одиниць + задача №0 · WIP ≤3 · статус = артефакт · зріз 02.08.2026</div></div>
+<div class="toc"><a href="#rules">Правила</a><a href="#block">Блокери</a><a href="#queue">Черга</a><a href="#done">Зроблено</a><a href="#mech">Механізм</a><a href="#pol">Політики-алерти</a><a href="#gate">Після Гейту 1</a><a href="#off">Поза чергою</a></div>
+
+<h2 class="ch" id="rules"><span class="num">•</span>Правила черги</h2>
+<p>Задача №1 — зверху. Статус змінюється <b>лише комітом з лінком на артефакт</b>, не словами. WIP ≤3 одночасно. Жива ідея йде в inbox-хвіст; обгін — лише явним свопом. Кожна DreamCar-сесія перед основною роботою: якщо топ-задачу можна просунути за ≤15 хв — просунь; ні — рядок у skip-log. Канонічне джерело — <span class="mono">queue.md</span> у repo dreamcar-team; team_tasks — дзеркало.</p>
+<div class="kpis"><div class="kpi"><div class="v">11</div><div class="l">Одиниць у черзі (0–10)</div></div><div class="kpi"><div class="v">2</div><div class="l">🟨 у роботі (Q4, Q10)</div></div><div class="kpi"><div class="v">6</div><div class="l">Людських блокерів</div></div><div class="kpi"><div class="v">≤3</div><div class="l">WIP-ліміт</div></div></div>
+
+<h2 class="ch" id="block"><span class="num">01</span>Людські блокери</h2>
+<p>Рядок у щоденний дайджест до закриття. Це рішення власника або дії поза AI-контуром — вони стримують критичний шлях сильніше за будь-яку задачу з черги.</p>
+<table><thead><tr><th>Блокер</th><th>Дедлайн</th><th>Стан</th><th>Прострочка</th></tr></thead><tbody>
+<tr><td class="tw em">Токен публічного бота (розблоковує розсилки на 14 210)</td><td class="nw">31.07 15:00</td><td><span class="pill p-open">⬜ open</span></td><td class="nw">—</td></tr>
+<tr><td class="tw em">Письмова фіксація: X6M викуплено? де авто/документи? + перекази (гросап 403 тис · резерв №21 = повна вартість вручення: 1,75 млн клас 1,35 / 2,34 млн калібр 1,8)</td><td class="nw">31.07 / 01.08</td><td><span class="pill p-open">⬜ open</span></td><td class="nw">резерв 6 дн</td></tr>
+<tr><td class="tw em">Рішення: час ефіру + відсічка списку (два хеші Т-24 і Т-4)</td><td class="nw">фінал 02.08</td><td><span class="pill p-open">⬜ open</span></td><td class="nw">—</td></tr>
+<tr><td class="tw em">Свідок у кадр: дзвінок і згода (договір/репетиція 01.08)</td><td class="nw">31.07 18:00</td><td><span class="pill p-open">⬜ open</span></td><td class="nw">—</td></tr>
+<tr><td class="tw em">Рішення «хто в кадрі» (ведучий фіналу)</td><td class="nw">31.07 18:00</td><td><span class="pill p-open">⬜ open</span></td><td class="nw">з 30.07</td></tr>
+<tr><td class="tw em">Ретейнер юриста (ескалація щодня)</td><td class="nw">07.08</td><td><span class="pill p-open">⬜ open</span></td><td class="nw">2 дні</td></tr>
+</tbody></table>
+
+<h2 class="ch" id="queue"><span class="num">02</span>Бойова черга <span id="qk" style="font-family:'JetBrains Mono';font-size:14px;color:var(--red)">0/11</span></h2>
+<p class="qhint">Клікайте прапорець, коли одиниця готова — прогрес рахується локально у вашому браузері (нічого не надсилається).</p>
+<div class="bar"><i id="qbar"></i></div>
+<div class="legend"><span><span class="dot" style="background:#7dd3fc"></span>AI — виконує AI-контур</span><span><span class="dot" style="background:#fcd34d"></span>Л+AI — людина + AI</span><span><span class="dot" style="background:#F59E0B"></span>у роботі</span><span><span class="dot" style="background:#10B981"></span>готово</span></div>
+<table id="qtbl"><thead><tr><th style="width:26px"></th><th>Q</th><th>Одиниця (зливає W1)</th><th>Перший інкремент ≤1 сесії</th><th>Артефакт-доказ</th><th>Тип</th><th>Стан</th></tr></thead><tbody>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">0</td><td class="tw em">Розгортання v4.0</td><td class="tw">Імпорт черги (canonical queue.md, team_tasks дзеркало) + автозапуск 07:30 у proposal-mode (без прод-DDL/розсилок/Meta-мутацій без апруву) + блокер-рядки + алерт-пак</td><td class="tw">Крон існує; перший дайджест із блоком</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">1</td><td class="tw em">Фінал-пакет (W1-13+10+14)</td><td class="tw">Сторінка протоколу-мінімум + кодекс одним блоком; ран-бук 02.08 (розд. 02 стратегії)</td><td class="tw">Опубліковані сторінки; сертифікат після фіналу</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">2</td><td class="tw em">Домен-гігієна (W1-07+11)</td><td class="tw">Cloudflare allowlist + 301 кореня + Wayback-знімки правил/головної/протоколу</td><td class="tw">Знімки в архіві; титли чисті</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">3</td><td class="tw em">Розсилки фіналу</td><td class="tw">3 тексти + каркас згоди/відписки + лексикон-фільтр + відправка через чергу з журналом (ідемпотентність, resume) + прогін ≥2 000 перед повною базою</td><td class="tw">Розсилка №1 доставлена; звіт доставки/відписок</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">4</td><td class="tw em">Замки даних (W1-01)</td><td class="tw">✅ 31.07: корінь течі знайдено (normalize без префікса №20 + тригер не читав raw_payload) → міграція + бекфіл 3 024 pending → BMW X6M + ETL-фікс. Лишилось: шаблон SendPulse (~15/день), поля призу, pay_provider-бекфіл</td><td class="tw">0 нових pending у закритих циклах; pay_provider 100%/день</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-prog">🟨 у роботі</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">5</td><td class="tw em">ТМ №232296 (W1-03)</td><td class="tw">Перевірка запису в СІС + розрахунок збору + драфт клопотання про продовження</td><td class="tw">Вхідний номер НОІВ до 08.08</td><td><span class="pill p-la">Л+AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">6</td><td class="tw em">Юрконтур (W1-02)</td><td class="tw">Пакет ретейнера + матриця разових виконавців (повірений/аудитор/податковий)</td><td class="tw">Договір свідка; скан ретейнера</td><td><span class="pill p-la">Л+AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">7</td><td class="tw em">ФОП-безпека (W1-06)</td><td class="tw">Наказ маршрутизації на Недвигу + бойовий тест до 01.08 + алерти 85/95%</td><td class="tw">Тест-платіж пройшов; алерт живий</td><td><span class="pill p-la">Л+AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">8</td><td class="tw em">Книга номерів, Етап 0 (W1-18)</td><td class="tw">Схема реєстру (append-only: REVOKE + заборонний тригер + hash-chain + зовнішній дамп) + імпорт лише №20; звірка з фінальним експортом</td><td class="tw">Розбіжність &lt;0,1% по №20</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">9</td><td class="tw em">Дані аудиторії (W1-04+15)</td><td class="tw">Питання «хто в ЄС» у чинну анкету (вибірка ≥500 до 31.08) + 2–3 питання про причини сну</td><td class="tw">Анкета оновлена; лічильник відповідей</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-open">⬜</span></td></tr>
+<tr><td><input type="checkbox" class="qc"></td><td class="em">10</td><td class="tw em">Безпека-беклог (W1-17 партіями)</td><td class="tw">✅ 31.07: RLS увімкнено на bot_subscribers і kasa_fop_registry (фронт перевірено грепом; воркери на service_role неторкнуті). Далі: інвентаризація разових функцій (199 SECURITY DEFINER, ~105 Edge fn)</td><td class="tw">Advisors: 0 critical; RLS увімкнено ✓</td><td><span class="pill p-ai">AI</span></td><td><span class="pill p-prog">🟨 у роботі</span></td></tr>
+</tbody></table>
+
+<h2 class="ch" id="done"><span class="num">03</span>Зроблено автономно (перші інкременти)</h2>
+<div class="ins ok"><div class="t">✅ 31.07–02.08 · закрито без участі власника</div><p><b>Q10:</b> RLS увімкнено на bot_subscribers (14 тис.) і kasa_fop_registry — закрита жива вразливість перед фіналом (advisors без critical). <b>Q4:</b> знайдено корінь течі атрибуції (normalize_project без префікса №20 + тригер читав не те поле) → міграція fix_normalize_project_bmwx6m + бекфіл 3 024 угод → BMW X6M + ETL-фікс у repo. <b>DC|F:</b> порожня фінальна кампанія наповнена 4 крео, доставка підтверджена (спенд і покази пішли). <b>Публікація:</b> стратегія, план і розвідка винесені у team.dreamcar.ua.</p></div>
+
+<h2 class="ch" id="mech"><span class="num">04</span>Механізм: прийняття = розгортання</h2>
+<p>Ланцюг «стратегія → черга → сесія → артефакт → статус → звіт» у v3.0 обірвався на першій ланці: план лежав у PDF, а виконувалось те, що заходило через живу розмову. v4.0 робить план таким, що запускає себе сам.</p>
+<div class="ins"><div class="t">Вісім елементів самозапуску</div><p><b>1.</b> Один файл черги (queue.md) як канон. <b>2.</b> Правило першого кроку сесії (просунь топ або запиши skip). <b>3.</b> Щоденний автозапуск 07:30 у proposal-mode (без прод-DDL/розсилок/Meta-мутацій без апруву). <b>4.</b> WIP-ліміт 3. <b>5.</b> Дайджест-блокери з лічильником днів прострочки. <b>6.</b> Статус = артефакт (коміт з лінком, не слова). <b>7.</b> Пʼятничний план/факт. <b>8.</b> Тест на живучість: тиждень без живих сесій — черга все одно рухалась. <b>Стратегія без залитої черги вважається неопублікованою.</b></p></div>
+
+<h2 class="ch" id="pol"><span class="num">05</span>Політики-алерти</h2>
+<p>Політика без алерта не публікується. Кожне правило — це перевірка з порогом і каналом (принцип deadman: перевіряємо відсутність очікуваного).</p>
+<table><thead><tr><th>Політика</th><th>Поріг / тригер</th><th>Канал</th></tr></thead><tbody>
+<tr><td class="em nw">Резерв призу до старту</td><td class="tw">рядок у launches + скрін балансу</td><td class="tw">Гейт запуску циклу</td></tr>
+<tr><td class="em nw">Калібр призу B÷3,5</td><td class="tw">прогнозна маржа &lt;25% = стоп</td><td class="tw">Паспорт циклу</td></tr>
+<tr><td class="em nw">Порожня фінальна кампанія</td><td class="tw">немає крео при Д≤7</td><td class="tw">CRITICAL · алерт-пак</td></tr>
+<tr><td class="em nw">Каданс промо</td><td class="tw">≥2/міс = блок третього</td><td class="tw">Алерт-пак war-room</td></tr>
+<tr><td class="em nw">Стеля спенду</td><td class="tw">&gt;25 тис/день без флага</td><td class="tw">Алерт-пак war-room</td></tr>
+<tr><td class="em nw">Частота (freq)</td><td class="tw">per-role &gt;5/8</td><td class="tw">Алерт-пак war-room</td></tr>
+<tr><td class="em nw">Pixel-якість</td><td class="tw">&lt;3,7 три дні поспіль</td><td class="tw">Ревізія крео/події</td></tr>
+<tr><td class="em nw">ФОП-ліміти</td><td class="tw">85% warn · 95% crit</td><td class="tw">Дайджест + BOARD</td></tr>
+<tr><td class="em nw">Атрибуція</td><td class="tw">pay_provider &lt;100%/день</td><td class="tw">Алерт-пак war-room</td></tr>
+<tr><td class="em nw">Приплив нових</td><td class="tw">&lt;300/7дн warn · &lt;200 crit</td><td class="tw">Ревізія acquisition</td></tr>
+<tr><td class="em nw">Здоровʼя акаунта</td><td class="tw">спенд=0 / недокрут / модерація</td><td class="tw">Алерт-пак war-room</td></tr>
+</tbody></table>
+
+<h2 class="ch" id="gate"><span class="num">06</span>Після Гейту 1 (свопом, за підсумками бізнес-аудиту 5 лінз)</h2>
+<ul>
+<li><b>Whale-шар №21:</b> SQL «хто за 58 ULTIMATE» + іменований власник; алерти P95+ &gt;45% і cool-down; red line «нуль ремаркетингу після самопаузи».</li>
+<li><b>Органіка/жнива фіналу:</b> 2–3 мід-тир інтеграції (комплаєнс-пак v3) + відгуки/PR/зачистка викривального контенту 03–07.08; KPI «нові не-Meta ≥10% на №21».</li>
+<li><b>LTV-когорта:</b> SQL повторності нових №18/№19 → перевиведення CAC-рамки (зараз: бліц ≤350 · cold у вікнах ≤600 · яма ≤900 кап 3–5к · blended ≤600 payback ≤2 цикли).</li>
+<li><b>Один ціновий тест №21:</b> «×3» для повторних або order bump (рішення після Гейту 1).</li>
+</ul>
+
+<h2 class="ch" id="off"><span class="num">07</span>Поза чергою</h2>
+<p><b>Розчинено в механізмі/політиках:</b> W1-09 (→ автозапуск + дайджест + пʼятничний план/факт), W1-08 (→ правило калібру призів, розд. 03 стратегії).</p>
+<p><b>Icebox (повертаються гейтом, не датою):</b> W1-19 кабінет MVP (гейт: книга №20 звірена), W1-16 Google/TikTok зі спендом (гейт: pay_provider 100% + CAC-рішення), W1-20 SEO-KPI (після фіналу і протоколу).</p>
+<p><b>Рішення власника, не задача:</b> W1-12 «лице бренду» (рядок-лічильник у дайджесті). <b>Виконується щодня поза чергою:</b> W1-05 war-room (канон + алерт-пак).</p>
+<div class="ins"><div class="t">Skip-log</div><p>Порожньо — заповнюють сесії. Кожен день, коли топ-задачу не вдалось просунути за ≤15 хв, лишає тут рядок із причиною. Порожній skip-log при статичній черзі — сам собою алерт.</p></div>
+
+<div class="foot">DREAMCAR · TEAM HUB · CONFIDENTIAL · 2026 · Джерело: Стратегія №1 · Бойова редакція 4.0, розд. 05. Канонічна черга: repo dreamcar-team/marketing/strategy-v4/queue.md · Прогрес чекбоксів зберігається лише у вашому браузері на час перегляду.</div>
+</div>
+<script>
+(function(){var qcs=[].slice.call(document.querySelectorAll('.qc')),bar=document.getElementById('qbar'),k=document.getElementById('qk');function upd(){var d=0;qcs.forEach(function(c){c.closest('tr').style.opacity=c.checked?'.45':'1';if(c.checked)d++;});if(bar)bar.style.width=(100*d/qcs.length)+'%';if(k)k.textContent=d+'/'+qcs.length+(d===qcs.length?' · готово 🎉':'');}qcs.forEach(function(c){c.addEventListener('change',upd);});upd();})();
+</script>
+</body></html>
