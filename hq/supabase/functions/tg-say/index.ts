@@ -30,6 +30,20 @@ Deno.serve(async (req) => {
   let body: any = {};
   if (req.method === "POST") { try { body = await req.json(); } catch { /* ignore */ } }
 
+  // Видалити повідомлення бота: ?delete=<message_id>&chat=<...>
+  const delId = body.delete || url.searchParams.get("delete");
+  if (delId) {
+    const rawC = String(body.chat || url.searchParams.get("chat") || "smm");
+    const cid = ALIASES[rawC.toLowerCase()] || rawC;
+    const r = await fetch(`https://api.telegram.org/bot${TG}/deleteMessage`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: cid, message_id: Number(delId) }),
+    });
+    const j = await r.json();
+    return new Response(JSON.stringify({ ok: !!j.ok, deleted: delId, chat_id: cid, err: j.description }),
+      { headers: { "content-type": "application/json" } });
+  }
+
   const rawChat = String(body.chat || url.searchParams.get("chat") || "smm");
   const text = String(body.text || url.searchParams.get("text") || "").trim();
   const replyTo = body.reply_to || url.searchParams.get("reply_to");
