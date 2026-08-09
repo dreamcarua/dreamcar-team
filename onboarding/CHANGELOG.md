@@ -8,6 +8,31 @@
 
 ---
 
+## 08–09.08.2026 — 🔍 Повний аудит систем (безпека + продуктивність)
+
+> Деталі: **[onboarding/AUDIT_2026-08-09.md](AUDIT_2026-08-09.md)**
+
+### Безпека
+- 🛡 **14 Edge Functions без auth закриті** — всі під `x-hq-cron-secret`, fail-closed (500/401). Верифіковано: 12/12 → 401 без секрету.
+- 🛡 **Повна ротація секретів** — `HQ_CRON_SECRET`/`HQ_WEBHOOK_SECRET` (старі спалені в публічному git): 99 cron-jobs + 8 SQL-функцій + Edge env через GH Action `rotate-hq-secrets.yml`. 0 фейлів після ротації.
+- 🛡 `dc-media-archive`: анонімний register/probe закритий (був канал ексфільтрації медіа). `tg-webhook`: секрет із env, bare POST → 401.
+- 🛡 **Buyer-RLS обхід закритий**: dashboard-RPC (SECURITY DEFINER) переписані на core+wrapper з `_dash_viewer_ctx()` — buyer бачить лише свої utm_term, anon → порожньо.
+- 🛡 Stored XSS: екрановано TG-кнопки (href), прев'ю медіа (src), authChip, tooltip імен — hq/retention/tasks.
+- 🛡 `dashboard-dreamcar/SECURITY.md`: плейнтекст MySQL/SSH/WP паролі вичищені з публічного репо (🔴 ротація на хостингу — на Вадимові).
+
+### Workflows / ETL
+- 💥 **`kill-all-ads.yml`: видалено annual cron** — щороку 2 серпня вбивав би всі Meta-кампанії. Тільки ручний запуск.
+- ⚡ ETL sleep-loops прибрані (mysql 6×5хв, fb-ads 2×15хв) — усунуто шторм подвійних запусків і «canceled»-помилки (~64 тис. idle-хв/міс).
+- 🔧 `sync_sendpulse_deals`: курсор по `updated_at` (старі угоди зі зміненим статусом тепер ресинкаються). `sync_mysql`: `--limit` не нищить курсор. `sync_fb_ads`: retry по Meta `error.code` + `raise_for_status` у пагінації.
+
+### Retention / Tasks / черги
+- 🔧 `retention-scheduler` v43: більше не позначає `dm_broadcast`-розсилки failed (їх веде `retention-bot-broadcast`); фікс escapeHtml.
+- 🔧 tasks: realtime-канали не дублюються при TOKEN_REFRESHED; drag-drop bind-once (був N-кратний UPDATE).
+- 🔧 Клінап: 57 зомбі `sending` у retention → failed з поясненням; 4 липневі notif-errors → skipped; tech#12 → done; ~60 орфанних `verify_pub` crons вичищено.
+
+### Верифікація
+- ✅ Endpoint-батч (401/200), деплой `2d714e9` success, 0 cron-фейлів, Chrome smoke 4 сайтів — 0 console-помилок.
+
 ## 02.08.2026 — Тех-звернення команди (черга `tech_requests`)
 
 ### HQ · Нотатки (нова сторінка)
