@@ -100,6 +100,12 @@ async function sendTG(chatId: string, text: string) {
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
+    // 08.08.2026 (аудит): був без auth — будь-хто міг злити внутрішній контент-план
+    // або запостити його ботом у чужий чат через ?chat=. Тепер секрет обов'язковий.
+    const SEC = Deno.env.get("HQ_CRON_SECRET") ?? "";
+    const got = req.headers.get("x-hq-cron-secret") || url.searchParams.get("secret");
+    if (!SEC) return new Response(JSON.stringify({ ok: false, error: "secret not configured" }), { status: 500 });
+    if (got !== SEC) return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401 });
     const dry = url.searchParams.get("dry") === "1";
     const chat = url.searchParams.get("chat") || SMM_CHAT;
 

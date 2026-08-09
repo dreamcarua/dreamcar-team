@@ -135,8 +135,10 @@ Deno.serve(async (req) => {
   const dry = url.searchParams.get("dry") === "1";
   const chat = url.searchParams.get("chat") || CHAT;
   const oneId = url.searchParams.get("id");
+  // 08.08.2026 (аудит): dry більше не обходить auth (витікали прев'ю неопублікованого контенту)
   const got = req.headers.get("x-hq-cron-secret") || url.searchParams.get("secret");
-  if (!dry && CRON && got !== CRON) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+  if (!CRON) return new Response(JSON.stringify({ error: "secret not configured" }), { status: 500 });
+  if (got !== CRON) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
 
   try {
     let q = sb.from("retention_messages").select("id, title, preview_text, status, publish_at").eq("channel", "tg").is("deleted_at", null);

@@ -235,8 +235,11 @@ Deno.serve(async (req) => {
   const test = url.searchParams.get("test");
   const limit = parseInt(url.searchParams.get("limit") || "0", 10) || 0;
   const confirm = url.searchParams.get("confirm") === "1";
+  // 08.08.2026 (аудит): fail-closed + dry-run теж під секретом (витікали audience_count,
+  // реальні chat_id підписників і текст неопублікованих розсилок)
   const got = req.headers.get("x-hq-cron-secret") || url.searchParams.get("secret");
-  const authed = CRON ? got === CRON : true;
+  const authed = !!CRON && got === CRON;
+  if (!authed) return new Response(JSON.stringify({ ok: false, error: CRON ? "unauthorized" : "secret not configured" }), { status: CRON ? 401 : 500 });
 
   if (!TG) return new Response(JSON.stringify({ ok: false, error: "Бот-токен не заданий (PUBLIC_BOT_TOKEN/TG_BOT_TOKEN)" }), { status: 400 });
   if (!id) return new Response(JSON.stringify({ ok: false, error: "?id=<retention_message_id> обов'язковий" }), { status: 400 });

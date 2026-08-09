@@ -12,7 +12,8 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-const HQ_CRON_SECRET = "5a4b2557c83feaea9ca716f0e99db2efe38410474bc086b956d50f50bb3573d5";
+// 08.08.2026 (аудит): був захардкоджений у публічному git → ротовано, тільки env.
+const HQ_CRON_SECRET = Deno.env.get("HQ_CRON_SECRET") ?? "";
 
 function cors(): HeadersInit {
   return {

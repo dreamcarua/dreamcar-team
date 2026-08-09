@@ -264,6 +264,12 @@ async function processRecurring(): Promise<number> {
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
+    // 08.08.2026 (аудит): був без auth — анонім міг спамити нагадуваннями всій команді
+    // й плодити recurring-задачі. Тепер тільки cron-секрет.
+    const SEC = Deno.env.get('HQ_CRON_SECRET') ?? '';
+    const got = req.headers.get('x-hq-cron-secret') || url.searchParams.get('secret');
+    if (!SEC) return new Response(JSON.stringify({ ok: false, error: 'secret not configured' }), { status: 500 });
+    if (got !== SEC) return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), { status: 401 });
     const r24 = url.searchParams.get('skip_r24') ? 0 : await enqueueReminders24h();
     const over = url.searchParams.get('skip_overdue') ? 0 : await enqueueOverdue();
     const digest = url.searchParams.get('skip_digest') ? 0 : await enqueueDailyDigest();
@@ -274,7 +280,7 @@ Deno.serve(async (req) => {
     if (r24 + over + digest + recurring > 0 && !url.searchParams.get('skip_worker')) {
       const r = await fetch(NOTIFY_URL + '?limit=50', {
         method: 'POST',
-        headers: { 'authorization': `Bearer ${SUPABASE_SERVICE_KEY}` },
+        headers: { 'x-hq-cron-secret': Deno.env.get('HQ_CRON_SECRET') ?? '' }, // 08.08.2026 аудит
       });
       workerResult = await r.json().catch(() => ({ ok: false }));
     }

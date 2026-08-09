@@ -758,7 +758,8 @@ function renderPreviewSection(p) {
     }
     if (cr.length === 1) {
       const c = cr[0];
-      const url = c.thumbnail_url || c.compressed_url || c.preview;
+      // 08.08.2026 (аудит XSS): src завжди екранується; emoji-preview не підставляємо в src
+      const url = escapeHtml(c.thumbnail_url || c.compressed_url || '');
       if (c.type === 'video') {
         return `<div class="pv-single" style="position:relative;background:#000;">
           <video src="${url}" style="display:block;width:100%;max-height:520px;object-fit:contain;background:#000;" muted playsinline></video>
@@ -773,7 +774,7 @@ function renderPreviewSection(p) {
     const items = cr.slice(0, 10);
     const cols = items.length === 2 ? 2 : items.length === 3 ? 3 : 2;
     const cells = items.map((c, i) => {
-      const url = c.thumbnail_url || c.compressed_url || c.preview;
+      const url = escapeHtml(c.thumbnail_url || c.compressed_url || ''); // 08.08.2026 аудит XSS
       const isVid = c.type === 'video';
       const more = i === 9 && cr.length > 10 ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600;">+${cr.length-10}</div>` : '';
       return `<div style="position:relative;background:#0a0a0d;aspect-ratio:1;overflow:hidden;">
@@ -794,8 +795,8 @@ function renderPreviewSection(p) {
       // Album: рендеримо як HTML посилання у caption (точно як edge fn робить)
       const links = buttons.map((b, idx) => {
         const text = (b.text || `Кнопка ${idx+1}`).slice(0, 64);
-        if (b.type === 'url' && b.url) return `🔗 <a href="${b.url}" target="_blank" style="color:#3390ec;">${tgFormatToHtml(text)}</a>`;
-        if (b.type === 'web_app' && b.web_app_url) return `📱 <a href="${b.web_app_url}" target="_blank" style="color:#3390ec;">${tgFormatToHtml(text)}</a>`;
+        if (b.type === 'url' && b.url) return `🔗 <a href="${escapeHtml(b.url)}" target="_blank" style="color:#3390ec;">${tgFormatToHtml(text)}</a>`;
+        if (b.type === 'web_app' && b.web_app_url) return `📱 <a href="${escapeHtml(b.web_app_url)}" target="_blank" style="color:#3390ec;">${tgFormatToHtml(text)}</a>`;
         return '';
       }).filter(Boolean).join('<br>');
       return links ? `<div style="margin-top:10px;font-size:13px;line-height:1.6;">${links}</div>` : '';

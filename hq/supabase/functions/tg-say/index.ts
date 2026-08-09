@@ -24,8 +24,10 @@ const ALIASES: Record<string, string> = {
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
+  // 08.08.2026 (аудит): fail-closed — відсутній env-секрет більше не відкриває функцію
   const got = req.headers.get("x-hq-cron-secret") || url.searchParams.get("secret");
-  if (CRON && got !== CRON) return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401 });
+  if (!CRON) return new Response(JSON.stringify({ ok: false, error: "secret not configured" }), { status: 500 });
+  if (got !== CRON) return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401 });
 
   let body: any = {};
   if (req.method === "POST") { try { body = await req.json(); } catch { /* ignore */ } }

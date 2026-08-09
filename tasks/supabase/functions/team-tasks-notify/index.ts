@@ -334,6 +334,20 @@ async function processBatch(limit = 25): Promise<{ processed: number; sent_tg: n
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
+    // 08.08.2026 (аудит): був без auth. Дозволено: cron-секрет АБО валідний JWT
+    // залогіненого користувача (фронтенд Tasks тригерить воркер після дій).
+    const SEC = Deno.env.get('HQ_CRON_SECRET') ?? '';
+    const got = req.headers.get('x-hq-cron-secret') || url.searchParams.get('secret');
+    let allowed = !!SEC && got === SEC;
+    if (!allowed) {
+      const authz = req.headers.get('authorization') || '';
+      const token = authz.startsWith('Bearer ') ? authz.slice(7) : '';
+      if (token) {
+        const { data } = await supabase.auth.getUser(token);
+        allowed = !!data?.user;
+      }
+    }
+    if (!allowed) return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), { status: 401 });
     const limit = parseInt(url.searchParams.get('limit') ?? '25', 10);
     const result = await processBatch(Math.min(limit, 100));
     return new Response(JSON.stringify({ ok: true, ...result, ts: new Date().toISOString() }), {

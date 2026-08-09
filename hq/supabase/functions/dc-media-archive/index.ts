@@ -17,7 +17,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const TG_BOT_TOKEN = Deno.env.get("TG_BOT_TOKEN")!;
-const CRON_SECRET = Deno.env.get("DC_CRON_SECRET") || "5a4b2557c83feaea9ca716f0e99db2efe3841047";
+// 08.08.2026 (аудит): fallback-літерал прибрано (був спалений у git), тільки env.
+const CRON_SECRET = Deno.env.get("DC_CRON_SECRET") ?? "";
 const MEDIA_CHAT_KEY = 'dc_media_chat_id';
 const MAX_URL_BYTES = 20 * 1024 * 1024;   // TG: по URL тягне лише до 20МБ
 const MAX_TG_BYTES = 50 * 1024 * 1024;    // хард-ліміт бота
@@ -233,9 +234,11 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const probe = url.searchParams.get('probe') === '1';
   const action = url.searchParams.get('action');
-  const headerSecret = req.headers.get('x-cron-secret');
-  const isAuthed = headerSecret === CRON_SECRET || probe || action === 'register';
-  if (!isAuthed) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
+  // 08.08.2026 (аудит): probe/register БУЛИ без auth — канал ексфільтрації (будь-хто міг
+  // зареєструвати свій chat_id і отримувати ВЕСЬ архів медіа). Тепер секрет обов'язковий для всього.
+  const headerSecret = req.headers.get('x-cron-secret') ?? req.headers.get('x-hq-cron-secret');
+  if (!CRON_SECRET) return new Response(JSON.stringify({ error: 'secret not configured' }), { status: 500 });
+  if (headerSecret !== CRON_SECRET) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
 
   try {
     if (probe) return new Response(JSON.stringify(await probeKnownChats()), { status: 200, headers: { 'Content-Type': 'application/json' } });
