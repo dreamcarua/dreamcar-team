@@ -12,7 +12,9 @@
 // =====================================================================
 
 // deno-lint-ignore-file no-explicit-any
-const HQ_CRON_SECRET = "5a4b2557c83feaea9ca716f0e99db2efe38410474bc086b956d50f50bb3573d5";
+// 08.08.2026 (аудит): секрет БУВ захардкоджений у публічному git → спалений і ротований.
+// Тепер лише env, fail-fast якщо не заданий.
+const HQ_CRON_SECRET = Deno.env.get("HQ_CRON_SECRET") ?? "";
 
 function corsHeaders(): HeadersInit {
   return {

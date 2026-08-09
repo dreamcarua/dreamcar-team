@@ -393,7 +393,7 @@ async function checkAuth() {
     document.getElementById('loginGate').style.display = 'none';
     document.getElementById('appContent').style.display = 'grid';
     document.getElementById('signOutBtn').style.display = 'inline-flex';
-    document.getElementById('authChip').innerHTML = `<span class="user-chip">✓ ${(pu.name || pu.email).toUpperCase().slice(0, 16)}</span>`;
+    document.getElementById('authChip').innerHTML = `<span class="user-chip">✓ ${String((pu.name || pu.email)).toUpperCase().slice(0, 16).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}</span>`; // 08.08.2026 аудит XSS
     window.dispatchEvent(new CustomEvent('ret-ready'));
   } else {
     document.getElementById('loginGate').style.display = 'flex';

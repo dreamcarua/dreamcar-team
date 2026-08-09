@@ -914,7 +914,7 @@ function openMessageDetail(id){
           const thumb = c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
           const isVideo = c.type === 'video';
           return `<div data-cid="${cid}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:1px solid var(--steel); border-radius:6px; overflow:hidden;">
-            ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.display='none'">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:24px;">${isVideo ? '🎬' : '🖼'}</div>`}
+            ${thumb ? `<img src="${escHtml(thumb)}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.display='none'">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:24px;">${isVideo ? '🎬' : '🖼'}</div>`}
             ${isVideo ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff;">▶ VIDEO</div>' : ''}
             <button type="button" data-remove="${cid}" title="Прибрати" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.7); color:#fff; border:none; border-radius:3px; width:20px; height:20px; cursor:pointer; font-size:14px; line-height:1;">×</button>
           </div>`;
@@ -1021,7 +1021,7 @@ function openMessageDetail(id){
               usedBadge = `<div style="position:absolute; top:4px; left:4px; background:rgba(168,85,247,0.85); color:#fff; border-radius:10px; padding:1px 6px; font-size:10px; font-weight:700; z-index:2; cursor:help;" title="${tipLines.replace(/[<>&"]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]))}">🔗 ${uses.length}</div>`;
             }
             return `<div data-cid="${c.id}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:2px solid ${isSel ? 'var(--red, #E30613)' : 'var(--steel)'}; border-radius:6px; overflow:hidden; cursor:pointer;" title="${safeName}">
-              ${thumb ? `<img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : ''}
+              ${thumb ? `<img src="${escHtml(thumb)}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : ''}
               <div class="cre-emoji-fallback" style="position:absolute; inset:0; display:${thumb ? 'none' : 'flex'}; flex-direction:column; align-items:center; justify-content:center; font-size:32px; gap:4px; pointer-events:none; background:var(--bg-2);"><span>${emojiIcon}</span><span style="font-size:9px; color:var(--ash); padding:0 6px; text-align:center; word-break:break-all; line-height:1.2;">${safeName.slice(0, 20)}</span></div>
               ${usedBadge}
               ${isSel ? '<div style="position:absolute; top:4px; right:4px; background:var(--red, #E30613); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px; z-index:2;">✓</div>' : ''}

@@ -1551,7 +1551,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
       try {
         await fetch("https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/notify-tg", {
           method: "POST",
-          headers: { "Content-Type":"application/json", "x-hq-secret": "10b4e4588f679775068f0de314851e40157b8146f71f628da2303d7dfccef5dd" },
+          headers: { "Content-Type":"application/json", "x-hq-secret": Deno.env.get("HQ_WEBHOOK_SECRET") ?? "" }, // 08.08.2026 аудит: літерал ротовано → env
           body: JSON.stringify({ entity: "publication", id: pubId, event: "UPDATE", status: "published", old_status: pubBefore.status }),
         });
       } catch(e) { console.error("notify-tg invoke", e); }
