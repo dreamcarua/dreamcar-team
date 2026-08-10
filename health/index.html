@@ -142,9 +142,11 @@ function readiness(rd){
  h+='</div></div>';
  const acwr=ld.acwr!=null?num(ld.acwr):null;
  const lvlcol=ld.level==='висока'?'#E30613':(ld.level==='низька'?'#F59E0B':'#10B981');
+ const noLoad=(ld.steps==null&&ld.active==null&&ld.exercise==null);
  const stp=num(ld.steps)||0, goal=num(ld.steps_goal)||8000; const pct=Math.min(100,stp/goal*100);
  let lh='<div class="rd" style="background:var(--card);margin-top:10px"><div style="flex:1"><div class="nm">⚡ Денне навантаження <span class="sub" style="font-weight:400">(зростає протягом дня)</span></div>';
- lh+='<div class="mt">👟 '+f(stp)+' / '+f(goal)+' кроків · 🔥 '+f(ld.active)+' ккал'+(ld.exercise!=null?' · 🏋️ '+f(ld.exercise)+' хв трен.':'')+'</div>';
+ lh+=noLoad?'<div class="mt sub">Даних за сьогодні ще немає — синк не приносив активність. Це не «0 кроків».</div>'
+          :'<div class="mt">👟 '+f(stp)+' / '+f(goal)+' кроків · 🔥 '+f(ld.active)+' ккал'+(ld.exercise!=null?' · 🏋️ '+f(ld.exercise)+' хв трен.':'')+'</div>';
  lh+='<div class="b" style="height:8px;background:#2A2A2A;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#10B981"></i></div>';
  lh+='<div class="mt">Навантаження 7д:28д <b style="color:'+lvlcol+'">'+(acwr!=null?acwr:'—')+' '+esc(ld.level||'')+'</b> · '+esc(ld.note||'')+'</div>';
  lh+='</div></div>';
@@ -522,7 +524,7 @@ function render(D,cached){
  const k=D.kpi||{},co=D.corr||{},rc=D.records||{},mon=D.monthly||[],wk=D.workouts||{},cov=D.coverage||[],labs=D.labs||{},meds=D.meds||[],img=D.imaging||[],rem=D.reminders||[];
  const ser=c=>mon.map(r=>num(r[c]));
  const lastD=(cov||[]).map(c=>c.last).filter(Boolean).sort().pop();
- const todayStr=new Date().toISOString().slice(0,10);
+ const todayStr=new Date().toLocaleDateString('sv');
  const fresh=lastD===todayStr?'🟢 дані за сьогодні':'🟠 останні дані: '+(lastD||'—');
  const gt=new Date(D.generated_at);
  const upd=gt.toDateString()===new Date().toDateString()?gt.toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'}):gt.toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
@@ -578,7 +580,7 @@ function render(D,cached){
  h+=kc('Кроки',f(k.steps_90),'/день','',delta(k.steps_90,k.steps_prev,'higher'),dspark('st','steps','#10B981'));
  h+=kc('Активні ккал',f(k.act_90),'/день','','',spark(ser('active_kcal'),'#EC4899'));
  h+=kc('Тренування',f(k.ex_90),'хв/день','','',dspark('ex','exercise_min','#22D3EE'));
- h+=kc('Вага',f(k.w_last,1),'кг','','',spark(ser('weight_kg'),'#F59E0B'));
+ h+=kc('Вага',f(k.w_last,1),'кг',(k.bmi_last!=null?('BMI '+f(k.bmi_last,1)+(num(k.bmi_last)>=25?' · надвага':(num(k.bmi_last)<18.5?' · дефіцит':' · норма'))):''),'',spark(ser('weight_kg'),'#F59E0B'));
  h+='</div>';
  h+='<h2>Графіки <span class="pb" id="pb">'+(hasDaily?'<button data-m="90d" class="on">90 дн</button>':'')+'<button data-m="12">1р</button><button data-m="36"'+(hasDaily?'':' class="on"')+'>3р</button><button data-m="0">Усе</button></span></h2><div class="charts" id="charts"></div>';
  let ce='<h2>Звʼязки та рекорди</h2><details><summary>Показати звʼязки показників і рекорди</summary><div style="padding:6px 8px"><div class="corr">';
@@ -655,10 +657,20 @@ function initSpy(){
  function load(){tries++;
   fetch(API+'?k='+encodeURIComponent(t)+'&cb='+Date.now(),{cache:'no-store'}).then(r=>r.json().then(D=>({s:r.status,D:D}))).then(({s,D})=>{
    if(s===401){sub.innerHTML='Невірний токен доступу.';try{localStorage.removeItem(TKEY);}catch(e){}return;}
-   if((D&&D.building)||s===503){if(!hadCache)sub.innerHTML='Дані збираються… ('+tries+')';if(tries<5)setTimeout(load,3000);return;}
+   if((D&&D.building)||s===503){
+     if(!hadCache)sub.innerHTML=tries<5?('Дані збираються… ('+tries+')')
+       :'Дані ще збираються. <a href="#" style="color:#93C5FD" onclick="location.reload();return false">оновити зараз</a>';
+     if(tries<5)setTimeout(load,3000);return;}
    if(!D||D.error){if(!hadCache)sub.innerHTML=esc((D&&D.error)||'немає даних');return;}
    lastOk=Date.now();tries=0;
    try{localStorage.setItem(KEY,JSON.stringify({t:Date.now(),D:D}));}catch(e){}
+   // не перемальовуємо, якщо дані не змінились — інакше закриваються розгорнуті блоки
+   if(window.__lastGen && D.generated_at===window.__lastGen){
+     const el=document.getElementById('sub');
+     if(el)el.innerHTML=el.innerHTML.replace(/ · <span class="spin"><\/span> оновлюю…/,'');
+     hadCache=true;return;
+   }
+   window.__lastGen=D.generated_at;
    render(D,false);hadCache=true;
   }).catch(e=>{
    if(tries<5){setTimeout(load,3000);}
