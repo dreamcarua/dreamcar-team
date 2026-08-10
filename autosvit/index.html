@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Автосвіт — DreamCar Team</title>
+<script src="https://brand.dreamcar.ua/assets/global-header.js?v=20260610a" defer></script>
+<!-- dc-shared-storage СИНХРОННО ПЕРЕД module для SSO -->
+<script src="/projects/dc-shared-storage.js?v=202607211336-40820dcb"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Manrope:wght@400;500;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0a0a;--bg-2:#141414;--bg-3:#1f1f1f;--border:rgba(255,255,255,.08);
+        --fg:#fff;--ash:#888;--steel:#aaa;--dc:#E30613;--ok:#4ac07c;--warn:#fbbf24;
+        --h:'Oswald',Impact,sans-serif;--m:'JetBrains Mono',monospace;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);font-family:'Manrope',-apple-system,sans-serif;min-height:100vh}
+  .container{max-width:1140px;margin:0 auto;padding:24px 20px 90px}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin:60px 0 20px;flex-wrap:wrap}
+  .page-head h1{font-family:var(--h);font-size:38px;text-transform:uppercase;letter-spacing:.01em}
+  .page-head h1 span{color:var(--dc)}
+  .page-head .sub{color:var(--ash);font-size:13px;margin-top:6px;max-width:560px;line-height:1.5}
+  .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{padding:9px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-2);color:var(--fg);cursor:pointer;font-size:13px;font-family:inherit;transition:.15s}
+  .btn:hover:not(:disabled){background:var(--bg-3);border-color:rgba(255,255,255,.2)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--dc);border-color:var(--dc);font-weight:600}
+  .btn.primary:hover:not(:disabled){background:#c20510}
+  .btn.ok{border-color:rgba(74,192,124,.5);color:var(--ok)}
+  .btn.sm{padding:6px 11px;font-size:12px}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--border);border-top:3px solid var(--dc);margin:18px 0 24px}
+  .stat{background:var(--bg-2);padding:15px 16px}
+  .stat .n{font-family:var(--m);font-size:24px;font-weight:700;line-height:1}
+  .stat .l{font-family:var(--m);font-size:9px;letter-spacing:.1em;color:var(--ash);text-transform:uppercase;margin-top:7px;line-height:1.4}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;flex-wrap:wrap}
+  .tab{padding:11px 16px;background:none;border:none;border-bottom:2px solid transparent;color:var(--ash);cursor:pointer;font-size:13px;font-family:inherit;font-weight:600}
+  .tab:hover{color:#fff}
+  .tab.on{color:#fff;border-bottom-color:var(--dc)}
+  .tab .cnt{font-family:var(--m);font-size:11px;color:var(--ash);margin-left:5px}
+
+  .pane{display:none}.pane.on{display:block}
+  .feed{display:flex;flex-direction:column;gap:14px}
+
+  .card{background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--dc);border-radius:10px;overflow:hidden}
+  .card.blocked{border-left-color:#c0392b}
+  .card.approved{border-left-color:var(--ok)}
+  .card-h{padding:15px 18px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .card-h .grow{flex:1;min-width:220px}
+  .rub{display:inline-block;padding:3px 9px;border-radius:4px;font-family:var(--m);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:rgba(227,6,19,.15);color:#ff6577;margin-bottom:8px}
+  .rub.g{background:rgba(74,192,124,.15);color:var(--ok)}
+  .rub.y{background:rgba(251,191,36,.15);color:var(--warn)}
+  .rub.n{background:rgba(255,255,255,.07);color:var(--steel)}
+  .card-t{font-size:16px;font-weight:700;line-height:1.35}
+  .hook{color:var(--steel);font-size:13.5px;margin-top:7px;font-style:italic}
+  .card-b{padding:0 18px 16px;display:none}
+  .card.open .card-b{display:block}
+  .sec{margin-top:14px}
+  .sec-l{font-family:var(--m);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash);margin-bottom:6px}
+  .txt{background:#000;border:1px solid var(--border);border-radius:7px;padding:11px 13px;font-size:13.5px;line-height:1.6;white-space:pre-wrap;color:#e8e8e8}
+  textarea.txt{width:100%;resize:vertical;min-height:110px;font-family:inherit}
+  .frames{display:flex;flex-direction:column;gap:6px}
+  .fr{display:grid;grid-template-columns:58px 1fr;gap:10px;background:#000;border:1px solid var(--border);border-radius:6px;padding:9px 11px;font-size:12.5px}
+  .fr .s{font-family:var(--m);color:var(--dc);font-weight:700}
+  .fr .d b{display:block;color:#fff;font-weight:600;margin-bottom:2px}
+  .fr .d i{color:var(--steel);font-style:normal}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .tag{font-family:var(--m);font-size:11px;color:#60a5fa;background:rgba(96,165,250,.1);padding:3px 8px;border-radius:4px}
+  .row-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+  .flag{font-family:var(--m);font-size:11px;padding:4px 9px;border-radius:5px;margin-top:8px;display:inline-block}
+  .flag.bad{background:rgba(192,57,43,.18);color:#ff8b7e}
+  .flag.warn{background:rgba(251,191,36,.15);color:var(--warn)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#000;font-family:var(--m);font-size:9px;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:11px 12px;border-bottom:2px solid var(--dc);color:#fff}
+  td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--steel);vertical-align:top}
+  td b{color:#fff}
+  .mono{font-family:var(--m);font-size:11.5px}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+  .dot.g{background:var(--ok)}.dot.r{background:var(--dc)}.dot.n{background:#555}
+
+  .empty{text-align:center;padding:56px 20px;color:var(--ash)}
+  .empty h3{font-size:17px;margin-bottom:8px;color:#fff}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:var(--bg-3);border:1px solid var(--border);border-left:3px solid var(--dc);padding:13px 20px;border-radius:9px;font-size:13.5px;z-index:999;display:none;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+  .toast.show{display:block}
+  .toast.ok{border-left-color:var(--ok)}
+  .who{font-family:var(--m);font-size:11px;color:var(--ash)}
+  @media(max-width:640px){.page-head h1{font-size:28px}.container{padding:16px 14px 80px}}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="page-head">
+    <div>
+      <h1>Авто<span>світ</span></h1>
+      <div class="sub">Конвеєр авто-контенту, яким розбавляємо контент проєктів. Приводи збираються самі, чернетки генеруються під IG, Telegram і TikTok, заборонена лексика ріжеться до апрува.</div>
+      <div class="who" id="who"></div>
+    </div>
+    <div class="acts">
+      <button class="btn" id="btnCollect" onclick="avCollect()">🔄 Зібрати приводи</button>
+      <button class="btn primary" id="btnGen" onclick="avGenerate()">⚡ Згенерувати чернетки</button>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs">
+    <button class="tab on" data-p="drafts" onclick="avTab('drafts')">Чернетки <span class="cnt" id="c-drafts">0</span></button>
+    <button class="tab" data-p="leads" onclick="avTab('leads')">Черга приводів <span class="cnt" id="c-leads">0</span></button>
+    <button class="tab" data-p="approved" onclick="avTab('approved')">Затверджено <span class="cnt" id="c-approved">0</span></button>
+    <button class="tab" data-p="rubrics" onclick="avTab('rubrics')">Рубрики <span class="cnt" id="c-rubrics">0</span></button>
+    <button class="tab" data-p="sources" onclick="avTab('sources')">Джерела <span class="cnt" id="c-sources">0</span></button>
+  </div>
+
+  <div class="pane on" id="p-drafts"><div class="feed" id="f-drafts"></div></div>
+  <div class="pane" id="p-leads"><div class="feed" id="f-leads"></div></div>
+  <div class="pane" id="p-approved"><div class="feed" id="f-approved"></div></div>
+  <div class="pane" id="p-rubrics"><div id="f-rubrics"></div></div>
+  <div class="pane" id="p-sources"><div id="f-sources"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+const SUPABASE_URL='https://wotghlaehnvxyeacznvv.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
+const API = SUPABASE_URL + '/functions/v1/autosvit-api';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth:{ persistSession:true, autoRefreshToken:true, storageKey:'sb-dreamcar-hq-auth-token',
+         storage: window.dcStorage, detectSessionInUrl:true }
+});
+
+let RUB={}, IDEAS=[], LEADS=[], SOURCES=[], ME=null, BUSY=false;
+
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const dt = s => s ? new Date(s).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+
+function toast(msg, ok){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(ok?' ok':'');
+  clearTimeout(window.__avT); window.__avT=setTimeout(()=>{t.className='toast';},4200);
+}
+
+async function api(action, payload){
+  const { data:{ session } } = await sb.auth.getSession();
+  const h = { 'Content-Type':'application/json' };
+  if (session?.access_token) h['Authorization'] = 'Bearer ' + session.access_token;
+  const r = await fetch(API,{ method:'POST', headers:h, body: JSON.stringify({ action, ...(payload||{}) }) });
+  const j = await r.json().catch(()=>({error:'bad response'}));
+  if (!r.ok || j.error) throw new Error(j.error || ('HTTP '+r.status));
+  return j;
+}
+
+function legalFlag(ch){
+  const b=(ch&&ch.legal_block)||[], w=(ch&&ch.legal_warn)||[];
+  if(b.length) return `<div class="flag bad">⛔ Заборонена лексика: ${esc(b.join(', '))}</div>`;
+  if(w.length) return `<div class="flag warn">⚠ Обережні слова: ${esc(w.join(', '))}</div>`;
+  return `<div class="flag" style="background:rgba(74,192,124,.13);color:var(--ok)">✓ Лексика чиста</div>`;
+}
+
+function ideaCard(i){
+  const r = RUB[i.rubric_slug]||{};
+  const blocked = ((i.checks&&i.checks.legal_block)||[]).length>0;
+  const frames = Array.isArray(i.script_video)? i.script_video : [];
+  const sc = i.checks && i.checks.self_check || {};
+  const isApproved = i.status==='approved';
+  return `
+  <div class="card ${blocked?'blocked':''} ${isApproved?'approved':''}" id="card-${i.id}">
+    <div class="card-h" onclick="avToggle('${i.id}')" style="cursor:pointer">
+      <div class="grow">
+        <span class="rub ${blocked?'':(isApproved?'g':'')}">${esc(r.name||i.rubric_slug)}</span>
+        ${i.needs_face?'<span class="rub n">потрібен Вадим у кадрі</span>':''}
+        ${i.status==='rework'?'<span class="rub y">на переписування</span>':''}
+        <div class="card-t">${esc(i.title)}</div>
+        ${i.hook?`<div class="hook">«${esc(i.hook)}»</div>`:''}
+        ${legalFlag(i.checks)}
+      </div>
+      <div class="mono" style="color:var(--ash)">${dt(i.created_at)}</div>
+    </div>
+    <div class="card-b">
+      ${sc.so_what?`<div class="sec"><div class="sec-l">Правило «і що?»</div><div class="txt">${esc(sc.so_what)}</div></div>`:''}
+      <div class="sec"><div class="sec-l">Instagram</div><textarea class="txt" id="ig-${i.id}">${esc(i.body_ig||'')}</textarea></div>
+      <div class="sec"><div class="sec-l">Telegram</div><textarea class="txt" id="tg-${i.id}">${esc(i.body_tg||'')}</textarea></div>
+      ${i.first_frame_tt?`<div class="sec"><div class="sec-l">Перший кадр під TikTok</div><div class="txt">${esc(i.first_frame_tt)}</div></div>`:''}
+      ${frames.length?`<div class="sec"><div class="sec-l">Сценарій відео</div><div class="frames">${
+        frames.map(f=>`<div class="fr"><div class="s">${esc(f.sec||'')}</div><div class="d"><b>${esc(f.frame||'')}</b><i>${esc(f.vo||'')}</i></div></div>`).join('')
+      }</div></div>`:''}
+      ${(i.hashtags||[]).length?`<div class="tags">${i.hashtags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+      ${(i.sources||[]).length?`<div class="sec"><div class="sec-l">Джерело</div><div class="mono" style="color:var(--ash);word-break:break-all">${i.sources.map(s=>esc(s)).join('<br>')}</div></div>`:''}
+      <div class="row-acts">
+        ${isApproved
+          ? `<span class="mono" style="color:var(--ok)">✓ Затверджено ${esc(i.decided_by||'')} · публікація створена</span>`
+          : `<button class="btn ok sm" onclick="avApprove('${i.id}')">✅ Затвердити</button>
+             <button class="btn sm" onclick="avSave('${i.id}')">💾 Зберегти правки</button>
+             <button class="btn sm" onclick="avRework('${i.id}')">↩️ На переписування</button>
+             <button class="btn sm" onclick="avKill('${i.id}')">🗑 У стоп</button>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function leadCard(l){
+  const r = RUB[l.rubric_slug]||{};
+  const facts = l.facts && Object.keys(l.facts).length ? l.facts : null;
+  return `
+  <div class="card">
+    <div class="card-h">
+      <div class="grow">
+        <span class="rub ${l.score>=80?'g':(l.score>=60?'':'n')}">${esc(r.name||l.rubric_slug||'без рубрики')}</span>
+        <span class="rub n">${esc(l.source)}</span>
+        <div class="card-t">${esc(l.title)}</div>
+        ${l.raw_text?`<div class="hook">${esc(String(l.raw_text).slice(0,320))}</div>`:''}
+        ${facts?`<div class="sec"><div class="sec-l">Фактура</div><div class="txt mono" style="font-size:12px">${esc(JSON.stringify(facts,null,1))}</div></div>`:'<div class="flag warn">⚠ Без цифр — матеріал буде слабкий</div>'}
+      </div>
+      <div style="text-align:right">
+        <div class="mono" style="font-size:20px;color:${l.score>=80?'var(--ok)':(l.score>=60?'#fff':'var(--ash)')}">${l.score}</div>
+        <div class="mono" style="font-size:9px;color:var(--ash)">РЕЛЕВАНТНІСТЬ</div>
+      </div>
+    </div>
+    <div class="card-b" style="display:block;padding-top:0">
+      <div class="row-acts" style="margin-top:0">
+        <button class="btn primary sm" onclick="avGenOne('${l.id}')">⚡ Зробити чернетку</button>
+        ${l.source_url?`<a class="btn sm" href="${esc(l.source_url)}" target="_blank" rel="noopener">Джерело ↗</a>`:''}
+        <button class="btn sm" onclick="avLeadReject('${l.id}')">✕ Не треба</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const drafts = IDEAS.filter(i=>i.status==='draft'||i.status==='rework');
+  const appr   = IDEAS.filter(i=>i.status==='approved');
+  const noFacts = LEADS.filter(l=>!l.facts||!Object.keys(l.facts).length).length;
+
+  document.getElementById('stats').innerHTML = [
+    ['n', drafts.length, 'Чернеток чекають на рішення'],
+    ['n', LEADS.length, 'Приводів у черзі'],
+    ['n', appr.length, 'Затверджено й у публікаціях'],
+    ['n', SOURCES.filter(s=>s.active).length, 'Активних джерел'],
+    ['n', noFacts, 'Приводів без цифр'],
+  ].map(([_,n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+
+  document.getElementById('c-drafts').textContent = drafts.length;
+  document.getElementById('c-leads').textContent = LEADS.length;
+  document.getElementById('c-approved').textContent = appr.length;
+  document.getElementById('c-rubrics').textContent = Object.keys(RUB).length;
+  document.getElementById('c-sources').textContent = SOURCES.length;
+
+  document.getElementById('f-drafts').innerHTML = drafts.length
+    ? drafts.map(ideaCard).join('')
+    : '<div class="empty"><h3>Чернеток немає</h3><p>Візьми привід із черги або тисни «Згенерувати чернетки».</p></div>';
+  document.getElementById('f-approved').innerHTML = appr.length
+    ? appr.map(ideaCard).join('')
+    : '<div class="empty"><h3>Поки нічого не затверджено</h3></div>';
+  document.getElementById('f-leads').innerHTML = LEADS.length
+    ? LEADS.map(leadCard).join('')
+    : '<div class="empty"><h3>Черга порожня</h3><p>Тисни «Зібрати приводи» — система обійде джерела.</p></div>';
+
+  document.getElementById('f-rubrics').innerHTML = `<table><thead><tr>
+    <th>Рубрика</th><th>Формат</th><th>День</th><th>Платформи</th><th>Яку метрику тягне</th><th>Обличчя</th></tr></thead><tbody>${
+    Object.values(RUB).sort((a,b)=>a.sort_order-b.sort_order).map(r=>`<tr>
+      <td><b>${esc(r.name)}</b><div class="mono" style="color:var(--ash)">${esc(r.slug)}</div></td>
+      <td class="mono">${esc(r.content_type)}</td>
+      <td class="mono">${['','Пн','Вт','Ср','Чт','Пт','Сб','Нд'][r.slot_dow||0]||'—'}</td>
+      <td class="mono">${(r.platforms||[]).join(' · ')}</td>
+      <td>${esc(r.goal)}</td>
+      <td>${r.needs_face?'<span style="color:var(--dc)">так</span>':'—'}</td></tr>`).join('')
+  }</tbody></table>`;
+
+  document.getElementById('f-sources').innerHTML = `<table><thead><tr>
+    <th>Джерело</th><th>Тип</th><th>Що дає</th><th>Останній обхід</th></tr></thead><tbody>${
+    SOURCES.map(s=>`<tr>
+      <td><span class="dot ${String(s.last_fetch_note||'').startsWith('ok')?'g':(String(s.last_fetch_note||'').startsWith('err')?'r':'n')}"></span><b>${esc(s.name)}</b>
+          <div class="mono" style="color:var(--ash)">${esc(s.region)} · пріоритет ${s.priority}</div></td>
+      <td class="mono">${esc(s.category)}</td>
+      <td>${esc(s.gives||'')}</td>
+      <td class="mono" style="color:var(--ash)">${s.last_fetch_at?dt(s.last_fetch_at)+'<br>'+esc(s.last_fetch_note||''):'—'}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+async function load(){
+  try{
+    const d = await api('board');
+    RUB = Object.fromEntries((d.rubrics||[]).map(r=>[r.slug,r]));
+    IDEAS = d.ideas||[]; LEADS = d.leads||[]; SOURCES = d.sources||[]; ME = d.me;
+    document.getElementById('who').textContent = ME
+      ? `Ти увійшов як ${ME.name} — дії доступні`
+      : 'Читання відкрите. Щоб затверджувати — увійди в HQ, сесія підхопиться сама.';
+    render();
+  }catch(e){ toast('Не завантажилось: '+e.message); }
+}
+
+function busy(on, label){
+  BUSY = on;
+  for (const id of ['btnCollect','btnGen']) document.getElementById(id).disabled = on;
+  if (on && label) toast(label);
+}
+
+// --- глобальні хендлери для inline onclick (module scope не видно з HTML)
+window.avTab = function(p){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.p===p));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on', x.id==='p-'+p));
+};
+window.avToggle = function(id){
+  const c = document.getElementById('card-'+id);
+  if (c) c.classList.toggle('open');
+};
+window.avCollect = async function(){
+  if (BUSY) return;
+  busy(true,'Обходжу джерела — це до двох хвилин…');
+  try{ const r = await api('collect',{per_source:6});
+    toast(`Зібрано: ${r.picked||0} нових приводів з ${(r.fetched||[]).length} джерел`, true); await load();
+  }catch(e){ toast(e.message); } finally{ busy(false); }
+};
+window.avGenerate = async function(){
+  if (BUSY) return;
+  busy(true,'Генерую чернетки — приблизно 40 секунд на кожну…');
+  try{ const r = await api('generate',{count:3, notify:false});
+    toast(`Готово: ${r.drafts||0} чернеток, ${r.rework||0} на переписування`, true); await load();
+  }catch(e){ toast(e.message); } finally{ busy(false); }
+};
+window.avGenOne = async function(leadId){
+  if (BUSY) return;
+  busy(true,'Роблю чернетку з цього приводу…');
+  try{ await api('generate',{lead_id:leadId, notify:false});
+    toast('Чернетка готова — вкладка «Чернетки»', true); await load(); window.avTab('drafts');
+  }catch(e){ toast(e.message); } finally{ busy(false); }
+};
+window.avSave = async function(id){
+  try{
+    const r = await api('save',{ id, body_ig: document.getElementById('ig-'+id).value, body_tg: document.getElementById('tg-'+id).value });
+    toast(r.legal_block && r.legal_block.length ? 'Збережено, але є заборонена лексика: '+r.legal_block.join(', ') : 'Збережено ✓', !(r.legal_block||[]).length);
+    await load();
+  }catch(e){ toast(e.message); }
+};
+window.avApprove = async function(id){
+  try{
+    const r = await api('approve',{ id });
+    toast(`Затверджено ✓ Публікацію заплановано на ${dt(r.publish_at)} · ${(r.platforms||[]).join(', ')}`, true);
+    await load();
+  }catch(e){ toast(e.message); }
+};
+window.avRework = async function(id){
+  const note = prompt('Що переписати?');
+  if (note===null) return;
+  try{ await api('rework',{ id, note }); toast('Відправлено на переписування', true); await load(); }
+  catch(e){ toast(e.message); }
+};
+window.avKill = async function(id){
+  try{ await api('kill',{ id }); toast('У стоп', true); await load(); }
+  catch(e){ toast(e.message); }
+};
+window.avLeadReject = async function(id){
+  try{ await api('lead_reject',{ id }); toast('Прибрано з черги', true); await load(); }
+  catch(e){ toast(e.message); }
+};
+
+load();
+</script>
+</body>
+</html>
