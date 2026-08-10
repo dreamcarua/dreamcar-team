@@ -145,8 +145,11 @@ function readiness(rd){
  const noLoad=(ld.steps==null&&ld.active==null&&ld.exercise==null);
  const stp=num(ld.steps)||0, goal=num(ld.steps_goal)||8000; const pct=Math.min(100,stp/goal*100);
  let lh='<div class="rd" style="background:var(--card);margin-top:10px"><div style="flex:1"><div class="nm">⚡ Денне навантаження <span class="sub" style="font-weight:400">(зростає протягом дня)</span></div>';
+ const ageH=num(ld.data_age_hrs);
  lh+=noLoad?'<div class="mt sub">Даних за сьогодні ще немає — синк не приносив активність. Це не «0 кроків».</div>'
-          :'<div class="mt">👟 '+f(stp)+' / '+f(goal)+' кроків · 🔥 '+f(ld.active)+' ккал'+(ld.exercise!=null?' · 🏋️ '+f(ld.exercise)+' хв трен.':'')+'</div>';
+          :'<div class="mt">👟 '+f(stp)+' / '+f(goal)+' кроків · 🔥 '+f(ld.active)+' ккал'+(ld.exercise!=null?' · 🏋️ '+f(ld.exercise)+' хв трен.':'')
+            +(ld.partial&&ld.as_of?' <span class="sub">(станом на '+esc(ld.as_of)+')</span>':'')+'</div>';
+ if(ageH!=null&&ageH>3)lh+='<div class="mt" style="color:#FBBF24">⏳ Дані відстають ~'+Math.round(ageH)+' год — це не підсумок дня. Відкрий Health Auto Export на iPhone.</div>';
  lh+='<div class="b" style="height:8px;background:#2A2A2A;border-radius:6px;position:relative;margin-top:8px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct+'%;background:#10B981"></i></div>';
  lh+='<div class="mt">Навантаження 7д:28д <b style="color:'+lvlcol+'">'+(acwr!=null?acwr:'—')+' '+esc(ld.level||'')+'</b> · '+esc(ld.note||'')+'</div>';
  lh+='</div></div>';
