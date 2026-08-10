@@ -1452,6 +1452,42 @@ async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
   );
 }
 
+
+// ===== 10.08.2026: «Автосвіт» — апрув чернеток кнопками з DM Вадима =====
+// callback_data: av:a|<ideaId> (затвердити) / av:r|<ideaId> (переписати) / av:k|<ideaId> (стоп)
+async function handleAutosvitCb(cb: TgCallbackQuery): Promise<void> {
+  const raw = (cb.data || "").slice(3); // після "av:"
+  const [cmd, ideaId] = raw.split("|");
+  const map: Record<string, string> = { a: "approve", r: "rework", k: "kill" };
+  const action = map[cmd];
+  if (!action || !ideaId) { await tgAnswerCallback(cb.id, "?"); return; }
+  const actor = [cb.from?.first_name, (cb.from as any)?.last_name].filter(Boolean).join(" ") || cb.from?.username || "TG";
+  const secret = Deno.env.get("HQ_CRON_SECRET") ?? "";
+  let res = "";
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/autosvit-api`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-hq-cron-secret": secret },
+      body: JSON.stringify({ action, id: ideaId, actor, note: action === "rework" ? "з TG" : undefined }),
+    });
+    const j: any = await r.json().catch(() => ({}));
+    if (r.ok && j.ok) {
+      if (action === "approve") {
+        const when = j.publish_at
+          ? new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(j.publish_at))
+          : "";
+        res = `✅ Затверджено${when ? ` · вихід ${when}` : ""}${Array.isArray(j.platforms) ? ` · ${j.platforms.join(", ")}` : ""}`;
+      } else res = action === "rework" ? "↩️ На переписування" : "🗑 У стоп";
+    } else res = "❌ " + String(j.error || ("HTTP " + r.status)).slice(0, 140);
+  } catch (e) { res = "❌ " + String(e).slice(0, 100); }
+  const m = cb.message;
+  if (m?.chat?.id && m.message_id) {
+    const orig = String((m as any).text || "").split("\n").slice(0, 4).join("\n");
+    await tgEditMessage(m.chat.id, m.message_id, `${escHtml(orig)}\n\n${res}`);
+  }
+  await tgAnswerCallback(cb.id, res.replace(/<[^>]+>/g, "").slice(0, 190));
+}
+
 async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgCallbackQuery): Promise<void> {
   const data = (cb.data || "").trim();
   const msg = cb.message;
@@ -1459,6 +1495,8 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
 
   const parts = data.split(":");
   const action = parts[0];
+
+  if (action === "av") { await handleAutosvitCb(cb); return; }
 
   if (action === "rwkN" || action === "rwkQ") {
     const via = action === "rwkQ" ? "Q" : "N";
