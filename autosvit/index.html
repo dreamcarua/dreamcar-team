@@ -85,6 +85,10 @@
   .toast.show{display:block}
   .toast.ok{border-left-color:var(--ok)}
   .who{font-family:var(--m);font-size:11px;color:var(--ash)}
+  body.lock .btn{pointer-events:none;opacity:.5}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chip{font-family:var(--m);font-size:10.5px;padding:3px 9px;border-radius:5px;background:rgba(74,192,124,.12);color:var(--ok);border:1px solid rgba(74,192,124,.25)}
+  .qa{font-family:var(--m);font-size:10px;color:var(--ash);letter-spacing:.03em;margin-top:12px;line-height:1.6}
   @media(max-width:640px){.page-head h1{font-size:28px}.container{padding:16px 14px 80px}}
 </style>
 </head>
@@ -98,6 +102,7 @@
       <div class="who" id="who"></div>
     </div>
     <div class="acts">
+      <button class="btn" onclick="avPack()">🎬 Пакет для зйомки</button>
       <button class="btn" id="btnCollect" onclick="avCollect()">🔄 Зібрати приводи</button>
       <button class="btn primary" id="btnGen" onclick="avGenerate()">⚡ Згенерувати чернетки</button>
     </div>
@@ -137,6 +142,8 @@ let RUB={}, IDEAS=[], LEADS=[], SOURCES=[], ME=null, BUSY=false;
 
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const dt = s => s ? new Date(s).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+const safeUrl = u => /^https?:\/\//i.test(String(u||'')) ? u : '#';
+const lock = on => document.body.classList.toggle('lock', !!on);
 
 function toast(msg, ok){
   const t=document.getElementById('toast');
@@ -176,6 +183,8 @@ function ideaCard(i){
         ${i.status==='rework'?'<span class="rub y">на переписування</span>':''}
         <div class="card-t">${esc(i.title)}</div>
         ${i.hook?`<div class="hook">«${esc(i.hook)}»</div>`:''}
+        ${i.hook_alt?`<div class="hook" style="opacity:.7">альт: «${esc(i.hook_alt)}»</div>`:''}
+        ${i.metrics&&i.metrics.ig?`<div class="chips"><span class="chip">охоплення ${i.metrics.ig.reach??'—'}</span><span class="chip">збереження ${i.metrics.ig.saved??'—'}</span><span class="chip">пересилання ${i.metrics.ig.shares??'—'}</span>${i.metrics.tg?`<span class="chip">TG ${i.metrics.tg.views??'—'} / fwd ${i.metrics.tg.forwards??'—'}</span>`:''}</div>`:''}
         ${legalFlag(i.checks)}
       </div>
       <div class="mono" style="color:var(--ash)">${dt(i.created_at)}</div>
@@ -184,6 +193,8 @@ function ideaCard(i){
       ${sc.so_what?`<div class="sec"><div class="sec-l">Правило «і що?»</div><div class="txt">${esc(sc.so_what)}</div></div>`:''}
       <div class="sec"><div class="sec-l">Instagram</div><textarea class="txt" id="ig-${i.id}">${esc(i.body_ig||'')}</textarea></div>
       <div class="sec"><div class="sec-l">Telegram</div><textarea class="txt" id="tg-${i.id}">${esc(i.body_tg||'')}</textarea></div>
+      ${i.body_th!==null&&i.body_th!==undefined?`<div class="sec"><div class="sec-l">Threads</div><textarea class="txt" id="th-${i.id}" style="min-height:70px">${esc(i.body_th||'')}</textarea></div>`:''}
+      ${Array.isArray(i.slides)&&i.slides.length?`<div class="sec"><div class="sec-l">Слайди каруселі</div><div class="frames">${i.slides.map(s=>`<div class="fr"><div class="s">${esc(String(s.n??''))}</div><div class="d"><b>${esc(s.title||'')}</b><i>${esc(s.text||'')}</i></div></div>`).join('')}</div></div>`:''}
       ${i.first_frame_tt?`<div class="sec"><div class="sec-l">Перший кадр під TikTok</div><div class="txt">${esc(i.first_frame_tt)}</div></div>`:''}
       ${frames.length?`<div class="sec"><div class="sec-l">Сценарій відео</div><div class="frames">${
         frames.map(f=>`<div class="fr"><div class="s">${esc(f.sec||'')}</div><div class="d"><b>${esc(f.frame||'')}</b><i>${esc(f.vo||'')}</i></div></div>`).join('')
@@ -198,6 +209,7 @@ function ideaCard(i){
              <button class="btn sm" onclick="avRework('${i.id}')">↩️ На переписування</button>
              <button class="btn sm" onclick="avKill('${i.id}')">🗑 У стоп</button>`}
       </div>
+      ${!isApproved?`<div class="qa">Перед затвердженням: цифри звірені з джерелом · лексика чиста · гачок обрано (основний чи альт) · формат відповідає дню сітки</div>`:''}
     </div>
   </div>`;
 }
@@ -223,7 +235,7 @@ function leadCard(l){
     <div class="card-b" style="display:block;padding-top:0">
       <div class="row-acts" style="margin-top:0">
         <button class="btn primary sm" onclick="avGenOne('${l.id}')">⚡ Зробити чернетку</button>
-        ${l.source_url?`<a class="btn sm" href="${esc(l.source_url)}" target="_blank" rel="noopener">Джерело ↗</a>`:''}
+        ${l.source_url?`<a class="btn sm" href="${esc(safeUrl(l.source_url))}" target="_blank" rel="noopener">Джерело ↗</a>`:''}
         <button class="btn sm" onclick="avLeadReject('${l.id}')">✕ Не треба</button>
       </div>
     </div>
@@ -231,8 +243,8 @@ function leadCard(l){
 }
 
 function render(){
-  const drafts = IDEAS.filter(i=>i.status==='draft'||i.status==='rework');
-  const appr   = IDEAS.filter(i=>i.status==='approved');
+  const drafts = IDEAS.filter(i=>['draft','sent','rework'].includes(i.status));
+  const appr   = IDEAS.filter(i=>['approved','published'].includes(i.status));
   const noFacts = LEADS.filter(l=>!l.facts||!Object.keys(l.facts).length).length;
 
   document.getElementById('stats').innerHTML = [
@@ -294,10 +306,11 @@ async function load(){
 }
 
 function busy(on, label){
-  BUSY = on;
+  BUSY = on; lock(on);
   for (const id of ['btnCollect','btnGen']) document.getElementById(id).disabled = on;
   if (on && label) toast(label);
 }
+async function act(fn){ if (BUSY) return; lock(true); try { await fn(); } finally { lock(false); } }
 
 // --- глобальні хендлери для inline onclick (module scope не видно з HTML)
 window.avTab = function(p){
@@ -329,33 +342,52 @@ window.avGenOne = async function(leadId){
     toast('Чернетка готова — вкладка «Чернетки»', true); await load(); window.avTab('drafts');
   }catch(e){ toast(e.message); } finally{ busy(false); }
 };
-window.avSave = async function(id){
+window.avSave = function(id){ act(async ()=>{
   try{
-    const r = await api('save',{ id, body_ig: document.getElementById('ig-'+id).value, body_tg: document.getElementById('tg-'+id).value });
+    const th = document.getElementById('th-'+id);
+    const r = await api('save',{ id, body_ig: document.getElementById('ig-'+id).value, body_tg: document.getElementById('tg-'+id).value, ...(th?{body_th:th.value}:{}) });
     toast(r.legal_block && r.legal_block.length ? 'Збережено, але є заборонена лексика: '+r.legal_block.join(', ') : 'Збережено ✓', !(r.legal_block||[]).length);
     await load();
   }catch(e){ toast(e.message); }
-};
-window.avApprove = async function(id){
+});};
+window.avApprove = function(id){ act(async ()=>{
   try{
     const r = await api('approve',{ id });
     toast(`Затверджено ✓ Публікацію заплановано на ${dt(r.publish_at)} · ${(r.platforms||[]).join(', ')}`, true);
     await load();
   }catch(e){ toast(e.message); }
-};
-window.avRework = async function(id){
+});};
+window.avRework = function(id){
   const note = prompt('Що переписати?');
   if (note===null) return;
-  try{ await api('rework',{ id, note }); toast('Відправлено на переписування', true); await load(); }
-  catch(e){ toast(e.message); }
+  act(async ()=>{ try{ await api('rework',{ id, note }); toast('Відправлено на переписування', true); await load(); } catch(e){ toast(e.message); } });
 };
-window.avKill = async function(id){
+window.avKill = function(id){ act(async ()=>{
   try{ await api('kill',{ id }); toast('У стоп', true); await load(); }
   catch(e){ toast(e.message); }
-};
-window.avLeadReject = async function(id){
+});};
+window.avLeadReject = function(id){ act(async ()=>{
   try{ await api('lead_reject',{ id }); toast('Прибрано з черги', true); await load(); }
   catch(e){ toast(e.message); }
+});};
+window.avPack = function(){
+  const items = IDEAS.filter(i=>i.needs_face && ['draft','sent','approved'].includes(i.status));
+  if (!items.length){ toast('Немає чернеток, де потрібен Вадим у кадрі'); return; }
+  const w = window.open('', '_blank');
+  const rows = items.map((i,n)=>{
+    const frames = (Array.isArray(i.script_video)?i.script_video:[]).map(f=>`<tr><td class="s">${esc(f.sec||'')}</td><td><b>${esc(f.frame||'')}</b><br>${esc(f.vo||'')}</td></tr>`).join('');
+    return `<section><h2>${n+1}. ${esc(i.title)}</h2><p class="h">«${esc(i.hook||'')}»${i.hook_alt?` &nbsp;/&nbsp; альт: «${esc(i.hook_alt)}»`:''}</p><table>${frames}</table><p class="tele">${esc((i.body_ig||'').replace(/\n+/g,' '))}</p></section>`;
+  }).join('');
+  w.document.write(`<!DOCTYPE html><html lang="uk"><head><meta charset="utf-8"><title>Пакет для зйомки — Автосвіт</title><style>
+    body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 24px;color:#111;line-height:1.6}
+    h1{font-size:26px} h2{font-size:19px;margin:34px 0 6px;border-top:2px solid #E30613;padding-top:16px}
+    .h{font-style:italic;color:#444;margin:4px 0 10px} table{width:100%;border-collapse:collapse;font-size:14px}
+    td{border:1px solid #ddd;padding:8px 10px;vertical-align:top} td.s{width:64px;font-weight:bold;color:#E30613}
+    .tele{background:#f6f6f6;padding:12px 14px;font-size:15px;border-left:3px solid #E30613}
+    @media print{h2{page-break-before:auto}}
+  </style></head><body><h1>🎬 Пакет для батч-зйомки · ${items.length} ролик(ів)</h1>
+  <p>Один сетап, суфлер нижче. Порядок довільний. Роздрукуй або відкрий на планшеті.</p>${rows}</body></html>`);
+  w.document.close();
 };
 
 load();
