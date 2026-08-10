@@ -100,20 +100,23 @@ curl -X POST "https://graph.threads.net/v1.0/$THREADS_USER_ID/threads_publish" \
   -d "creation_id=$CID" -d "access_token=$THREADS_TOKEN"
 ```
 
-## 7. Auto-refresh tokens
+## 7. Auto-refresh tokens ✅ ГОТОВО
 
-Long-lived tokens живуть 60 днів. Створю Edge Function `meta-token-refresh` (cron раз на 50 днів):
-```bash
-curl "https://graph.facebook.com/v20.0/refresh_access_token?grant_type=fb_exchange_token&client_secret=$META_APP_SECRET&access_token=$CURRENT_TOKEN"
-```
+Реалізовано як workflow **`.github/workflows/meta-token-refresh.yml`** (cron `0 4 1 * *` — 1-го числа щомісяця, задовго до 60-денної експірації). Обмінює user-token, Threads-token, пере-деривує page-token і **записує назад у GH secrets + Supabase Edge env**.
+
+Edge Function тут не годиться: вона не може переписати власні секрети. Workflow самопропускається, доки Meta-секрети не встановлені.
+
+Потрібні секрети для роботи: `META_APP_ID`, `META_APP_SECRET`, `META_USER_TOKEN` (60-денний long-lived user token з кроку 4.2), опційно `META_FB_PAGE_ID`, `META_THREADS_TOKEN`, а також `GH_PAT_SECRETS` (PAT зі scope `secrets`, щоб переписувати secrets) і `SUPABASE_ACCESS_TOKEN`.
 
 ## 8. Що далі (Phase 2 — я роблю)
 
 Як тільки секрети будуть у GH Actions + Supabase:
-1. `meta-autopost-worker.sh` (GH Action) — publish по queue WHERE platform IN ('ig','fb','threads')
-2. Розширення `tg-autopost-worker.sh` — фільтр WHERE platform = 'tg'
-3. HQ frontend — per-platform status badges (queued / processing / posted / failed)
-4. `meta-token-refresh` Edge Function
+1. `meta-autopost-worker.sh` (GH Action) — publish по queue WHERE platform IN ('ig','fb','threads') ✅ готово (dark без секретів)
+2. Розширення `tg-autopost-worker.sh` — фільтр WHERE platform = 'tg' ✅
+3. HQ frontend — per-platform status badges (queued / processing / posted / failed) — ⬜ TODO
+4. `meta-token-refresh` ✅ готово (workflow, див. §7)
+
+> ⚠️ **Статом на 10.08.2026 весь Meta-автопост DARK:** секрети `META_*` не встановлені, воркер щоразу soft-skip. Щоб активувати — пройди кроки 1-5 (одноразово, ~45-60 хв) і заповни секрети.
 
 Перший live тест — тестовий пост у DreamCar IG/Threads/FB.
 

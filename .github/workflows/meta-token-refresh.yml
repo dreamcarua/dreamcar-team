@@ -1,0 +1,127 @@
+name: Meta Token Refresh (60-day long-lived)
+
+# Meta long-lived User token і Threads token живуть 60 днів. Цей workflow раз на місяць
+# (≈кожні 30 днів, задовго до експірації) обмінює поточні токени на свіжі й ЗАПИСУЄ їх
+# назад у GH secrets + Supabase Edge env — щоб IG/FB/Threads автопост не помер тихо.
+#
+# Edge Function для цього не годиться: вона не може переписати власні секрети без
+# management-токена. Тому — workflow (той самий патерн, що sync-public-bot-token.yml).
+#
+# Самопропуск: якщо META_APP_ID / META_APP_SECRET / токенів немає — тихо виходить (Meta
+# автопост ще не активований, див. docs/META_AUTOPOST_SETUP.md).
+
+on:
+  schedule:
+    - cron: '0 4 1 * *'   # 1-го числа кожного місяця, 04:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: meta-token-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Refresh long-lived user token
+        id: userttok
+        env:
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          META_USER_TOKEN: ${{ secrets.META_USER_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${META_APP_ID:-}" ] || [ -z "${META_APP_SECRET:-}" ] || [ -z "${META_USER_TOKEN:-}" ]; then
+            echo "::notice::Meta secrets ще не налаштовані — skip. Див. docs/META_AUTOPOST_SETUP.md"
+            echo "skip=1" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          RESP=$(curl -sS -G "https://graph.facebook.com/v20.0/oauth/access_token" \
+            -d "grant_type=fb_exchange_token" \
+            -d "client_id=$META_APP_ID" \
+            -d "client_secret=$META_APP_SECRET" \
+            -d "fb_exchange_token=$META_USER_TOKEN")
+          NEW=$(echo "$RESP" | jq -r '.access_token // empty')
+          if [ -z "$NEW" ]; then echo "::error::refresh user token не вдався: $RESP"; exit 1; fi
+          echo "::add-mask::$NEW"
+          echo "new_user_token=$NEW" >> "$GITHUB_OUTPUT"
+          echo "skip=0" >> "$GITHUB_OUTPUT"
+          echo "✓ user token оновлено"
+
+      - name: Refresh Threads token
+        id: threads
+        if: steps.userttok.outputs.skip == '0'
+        env:
+          META_THREADS_TOKEN: ${{ secrets.META_THREADS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${META_THREADS_TOKEN:-}" ]; then echo "no_threads=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          RESP=$(curl -sS -G "https://graph.threads.net/refresh_access_token" \
+            -d "grant_type=th_refresh_token" \
+            -d "access_token=$META_THREADS_TOKEN")
+          NEW=$(echo "$RESP" | jq -r '.access_token // empty')
+          if [ -z "$NEW" ]; then echo "::warning::Threads refresh не вдався (можливо <24год від видачі): $RESP"; echo "no_threads=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "::add-mask::$NEW"
+          echo "new_threads_token=$NEW" >> "$GITHUB_OUTPUT"
+          echo "✓ threads token оновлено"
+
+      - name: Re-derive Page token (не expires, але привʼязаний до user token)
+        id: page
+        if: steps.userttok.outputs.skip == '0'
+        env:
+          NEW_USER_TOKEN: ${{ steps.userttok.outputs.new_user_token }}
+          META_FB_PAGE_ID: ${{ secrets.META_FB_PAGE_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${META_FB_PAGE_ID:-}" ]; then echo "no_page=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          RESP=$(curl -sS -G "https://graph.facebook.com/v20.0/$META_FB_PAGE_ID" \
+            -d "fields=access_token" -d "access_token=$NEW_USER_TOKEN")
+          NEW=$(echo "$RESP" | jq -r '.access_token // empty')
+          if [ -z "$NEW" ]; then echo "::warning::page token re-derive не вдався: $RESP"; echo "no_page=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "::add-mask::$NEW"
+          echo "new_page_token=$NEW" >> "$GITHUB_OUTPUT"
+          echo "✓ page token оновлено"
+
+      - name: Persist → GH secrets
+        if: steps.userttok.outputs.skip == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_SECRETS }}
+          NEW_USER_TOKEN: ${{ steps.userttok.outputs.new_user_token }}
+          NEW_THREADS_TOKEN: ${{ steps.threads.outputs.new_threads_token }}
+          NEW_PAGE_TOKEN: ${{ steps.page.outputs.new_page_token }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::GH_PAT_SECRETS відсутній — не можу переписати secrets. Додай PAT зі scope secrets."; exit 1
+          fi
+          printf '%s' "$NEW_USER_TOKEN" | gh secret set META_USER_TOKEN --repo dreamcarua/dreamcar-team
+          [ -n "${NEW_PAGE_TOKEN:-}" ] && printf '%s' "$NEW_PAGE_TOKEN" | gh secret set META_FB_PAGE_TOKEN --repo dreamcarua/dreamcar-team || true
+          [ -n "${NEW_THREADS_TOKEN:-}" ] && printf '%s' "$NEW_THREADS_TOKEN" | gh secret set META_THREADS_TOKEN --repo dreamcarua/dreamcar-team || true
+          echo "✓ GH secrets оновлено"
+
+      - name: Persist → Supabase Edge env
+        if: steps.userttok.outputs.skip == '0'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: supabase secrets set
+        if: steps.userttok.outputs.skip == '0'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          NEW_USER_TOKEN: ${{ steps.userttok.outputs.new_user_token }}
+          NEW_THREADS_TOKEN: ${{ steps.threads.outputs.new_threads_token }}
+          NEW_PAGE_TOKEN: ${{ steps.page.outputs.new_page_token }}
+        run: |
+          set -euo pipefail
+          PROJECT_REF="${REF:-wotghlaehnvxyeacznvv}"
+          : > /tmp/meta.env
+          echo "META_USER_TOKEN=$NEW_USER_TOKEN" >> /tmp/meta.env
+          [ -n "${NEW_PAGE_TOKEN:-}" ] && echo "META_FB_PAGE_TOKEN=$NEW_PAGE_TOKEN" >> /tmp/meta.env || true
+          [ -n "${NEW_THREADS_TOKEN:-}" ] && echo "META_THREADS_TOKEN=$NEW_THREADS_TOKEN" >> /tmp/meta.env || true
+          supabase secrets set --env-file /tmp/meta.env --project-ref "$PROJECT_REF"
+          rm -f /tmp/meta.env
+          echo "✓ Edge env оновлено ($PROJECT_REF)"
+
+permissions:
+  contents: read
