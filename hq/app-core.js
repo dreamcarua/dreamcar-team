@@ -952,6 +952,17 @@ function navigate() {
     if (typeof window.renderNotes === 'function') renderNotes(main);
     else main.innerHTML = '<div class="view-header"><h1>📝 Нотатки</h1></div>';
   }
+  // 10.08.2026 (Олександр): шаблони проєкту — Чек-лист + Базовий контент-план
+  else if (route === 'checklist') {
+    bc.innerHTML = 'Стіл SMM · <b>Чек-лист</b>';
+    if (typeof window.renderChecklist === 'function') renderChecklist(main);
+    else main.innerHTML = '<div class="view-header"><h1>✅ Чек-лист</h1></div>';
+  }
+  else if (route === 'content-plan') {
+    bc.innerHTML = 'Стіл SMM · <b>Базовий контент-план</b>';
+    if (typeof window.renderContentPlan === 'function') renderContentPlan(main);
+    else main.innerHTML = '<div class="view-header"><h1>🗂 Базовий контент-план</h1></div>';
+  }
   else if (route === 'launches') { location.replace('/projects/'); return; }
   else if (route === 'publication' && args[0]) { openCard(args[0]); }
   else { bc.innerHTML = 'Стіл SMM · <b>Календар</b>'; renderCalendar(main); }
