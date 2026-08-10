@@ -1453,22 +1453,44 @@ async function handleHelp(chatId: number, isGroup: boolean): Promise<void> {
 }
 
 
-// ===== 10.08.2026: «Автосвіт» — апрув чернеток кнопками з DM Вадима =====
-// callback_data: av:a|<ideaId> (затвердити) / av:r|<ideaId> (переписати) / av:k|<ideaId> (стоп)
-async function handleAutosvitCb(cb: TgCallbackQuery): Promise<void> {
-  const raw = (cb.data || "").slice(3); // після "av:"
+// ===== 10.08.2026: «Автосвіт» — апрув чернеток кнопками з DM Вадима (av-regen-flow-v2) =====
+// av:a|<id> затвердити · av:r|<id> спитати правки (force_reply → перегенерація) · av:k|<id> стоп
+async function handleAutosvitCb(supabase: ReturnType<typeof createClient>, cb: TgCallbackQuery): Promise<void> {
+  const raw = (cb.data || "").slice(3);
   const [cmd, ideaId] = raw.split("|");
-  const map: Record<string, string> = { a: "approve", r: "rework", k: "kill" };
-  const action = map[cmd];
-  if (!action || !ideaId) { await tgAnswerCallback(cb.id, "?"); return; }
+  if (!ideaId) { await tgAnswerCallback(cb.id, "?"); return; }
   const actor = [cb.from?.first_name, (cb.from as any)?.last_name].filter(Boolean).join(" ") || cb.from?.username || "TG";
   const secret = Deno.env.get("HQ_CRON_SECRET") ?? "";
+  const chatId = cb.message?.chat?.id, msgId = cb.message?.message_id;
+
+  if (cmd === "r") {
+    // спитати, що саме змінити — відповідь reply запустить перегенерацію
+    const { data: idea } = await supabase.from("autosvit_ideas").select("id,title").eq("id", ideaId).maybeSingle();
+    if (!idea) { await tgAnswerCallback(cb.id, "Не знайдено"); return; }
+    const r = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId, parse_mode: "HTML",
+        reply_markup: { force_reply: true, input_field_placeholder: "Що змінити?" },
+        text: `↩️ Що змінити в «${escHtml(idea.title)}»?\nВідповідай reply на це повідомлення — перероблю і надішлю нову картку.`,
+      }),
+    });
+    const j: any = await r.json().catch(() => ({}));
+    const pid = j?.result?.message_id;
+    if (pid) await supabase.from("autosvit_ideas").update({ edit_prompt_msg_id: pid }).eq("id", ideaId);
+    await tgAnswerCallback(cb.id, "Напиши, що змінити ↩️");
+    return;
+  }
+
+  const map: Record<string, string> = { a: "approve", k: "kill" };
+  const action = map[cmd];
+  if (!action) { await tgAnswerCallback(cb.id, "?"); return; }
   let res = "";
   try {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/autosvit-api`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-hq-cron-secret": secret },
-      body: JSON.stringify({ action, id: ideaId, actor, note: action === "rework" ? "з TG" : undefined }),
+      body: JSON.stringify({ action, id: ideaId, actor }),
     });
     const j: any = await r.json().catch(() => ({}));
     if (r.ok && j.ok) {
@@ -1477,13 +1499,12 @@ async function handleAutosvitCb(cb: TgCallbackQuery): Promise<void> {
           ? new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(j.publish_at))
           : "";
         res = `✅ Затверджено${when ? ` · вихід ${when}` : ""}${Array.isArray(j.platforms) ? ` · ${j.platforms.join(", ")}` : ""}`;
-      } else res = action === "rework" ? "↩️ На переписування" : "🗑 У стоп";
+      } else res = "🗑 У стоп";
     } else res = "❌ " + String(j.error || ("HTTP " + r.status)).slice(0, 140);
   } catch (e) { res = "❌ " + String(e).slice(0, 100); }
-  const m = cb.message;
-  if (m?.chat?.id && m.message_id) {
-    const orig = String((m as any).text || "").split("\n").slice(0, 4).join("\n");
-    await tgEditMessage(m.chat.id, m.message_id, `${escHtml(orig)}\n\n${res}`);
+  if (chatId && msgId) {
+    const orig = String((cb.message as any).text || "").split("\n").slice(0, 4).join("\n");
+    await tgEditMessage(chatId, msgId, `${escHtml(orig)}\n\n${res}`);
   }
   await tgAnswerCallback(cb.id, res.replace(/<[^>]+>/g, "").slice(0, 190));
 }
@@ -1496,7 +1517,7 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
   const parts = data.split(":");
   const action = parts[0];
 
-  if (action === "av") { await handleAutosvitCb(cb); return; }
+  if (action === "av") { await handleAutosvitCb(supabase, cb); return; }
 
   if (action === "rwkN" || action === "rwkQ") {
     const via = action === "rwkQ" ? "Q" : "N";
@@ -2495,6 +2516,27 @@ Deno.serve(async (req: Request) => {
 
     // ===== 05.06.2026: TG Task Bot — inline 📌 / reply 📌 / /task → extract task =====
     // Async fire-and-forget auto-discovery tg_username
+    // ===== «Автосвіт»: reply з правками на force_reply бота → перегенерація =====
+    if (!isGroup && msg.reply_to_message && msg.text) {
+      const avRid = msg.reply_to_message.message_id;
+      const { data: avIdea } = await supabase.from("autosvit_ideas").select("id,title").eq("edit_prompt_msg_id", avRid).maybeSingle();
+      if (avIdea) {
+        const avNote = String(msg.text).trim().slice(0, 600);
+        await supabase.from("autosvit_ideas").update({ edit_prompt_msg_id: null }).eq("id", avIdea.id);
+        const avSecret = Deno.env.get("HQ_CRON_SECRET") ?? "";
+        const avP = fetch(`${SUPABASE_URL}/functions/v1/autosvit-generate`, {
+          method: "POST", headers: { "Content-Type": "application/json", "x-hq-cron-secret": avSecret },
+          body: JSON.stringify({ regen_idea: avIdea.id, note: avNote }),
+        }).then((r) => r.text()).catch((e) => console.error("[av-regen]", e));
+        try { (globalThis as any).EdgeRuntime?.waitUntil?.(avP); } catch (_e) { /* ok */ }
+        await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, parse_mode: "HTML", text: `⚙️ Переробляю «${escHtml(avIdea.title)}» з урахуванням правок — нова картка за ~хвилину.` }),
+        }).catch(() => {});
+        return new Response(JSON.stringify({ ok: true, kind: "autosvit-regen" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+    }
+
     tryAutoDiscoverUsername(supabase, msg).catch((e) => console.warn("[tg-discover]", e));
     pushToBuffer(supabase, msg).catch((e) => console.warn("[tg-buffer]", e));
 
