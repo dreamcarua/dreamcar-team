@@ -36,10 +36,23 @@ async function spGet(path: string, token: string): Promise<any> {
 
 // Витягти TG chat_id з об'єкта чату SendPulse.
 // Форма: row.contact.telegram_id = справжній TG chat_id; row.contact.id = SP contact-id (НЕ chat_id).
-function extractChat(c: any): { chat_id: string | null; username?: string; first_name?: string; last_name?: string; sp_id?: string; lang?: string; banned?: boolean } {
+// Нормалізація «довіри» (survey-змінна trust у SendPulse) у стабільний код сегмента.
+function mapUserStatus(trust?: string): string | null {
+  if (!trust) return null;
+  const t = trust.toLowerCase();
+  if (t.includes("давно")) return "loyal";        // «Давно з вами, вірю в удачу!»
+  if (t.includes("підпис") || t.includes("подпис")) return "new"; // «Тільки підписався»
+  if (t.includes("повз") || t.includes("мимо")) return "cold";    // «Просто проходив повз»
+  return null;
+}
+
+function extractChat(c: any): { chat_id: string | null; username?: string; first_name?: string; last_name?: string; sp_id?: string; lang?: string; banned?: boolean; unsubscribed_at?: string | null; user_status?: string | null } {
   const ct = c.contact || c;
   const cd = ct.channel_data || {};
+  const vars = ct.variables || {};
   const chat_id = ct.telegram_id ?? cd.id ?? cd.user_id ?? c.telegram_id ?? null;
+  // SendPulse TG-статус: 1=активний, 4=відписаний/заблокований. + явний unsubscribed_at.
+  const unsub = ct.unsubscribed_at || (String(ct.status) === "4" ? (ct.last_activity_at || new Date().toISOString()) : null);
   return {
     chat_id: chat_id != null ? String(chat_id) : null,
     username: cd.username || ct.username,
@@ -48,6 +61,8 @@ function extractChat(c: any): { chat_id: string | null; username?: string; first
     lang: cd.language_code || cd.lang,
     sp_id: ct.id ? String(ct.id) : undefined,
     banned: ct.is_banned === true,
+    unsubscribed_at: unsub,
+    user_status: mapUserStatus(vars.trust),
   };
 }
 
@@ -103,7 +118,13 @@ Deno.serve(async (req) => {
         batch.push({
           chat_id: e.chat_id, username: e.username || null, first_name: e.first_name || null,
           last_name: e.last_name || null, lang: e.lang || null, sp_contact_id: e.sp_id || null,
-          source: "sendpulse", is_active: !e.banned, raw: c, updated_at: new Date().toISOString(),
+          source: "sendpulse",
+          // 10.08.2026 фікс: відписаний ≠ активний. is_active лише коли НЕ banned І НЕ unsubscribed —
+          // інакше broadcast полетів би на 1138 відписаних (спам, ризик бану бота).
+          is_active: !e.banned && !e.unsubscribed_at,
+          unsubscribed_at: e.unsubscribed_at || null,
+          user_status: e.user_status || null,
+          raw: c, updated_at: new Date().toISOString(),
         });
       }
       if (batch.length) {
