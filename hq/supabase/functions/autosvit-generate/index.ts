@@ -1,5 +1,5 @@
-// «Автосвіт» :: генератор v3.5 — сценарій відео як головний продукт (гачок 0-2с, відкрита петля, подача) + еталони голосу + regen з нотатками
-// POST  header: x-hq-cron-secret   { lead_id?|brief?|regen_idea?+note?, count?, dry_run?, notify?, resend_cards? }
+// «Автосвіт» :: генератор v3.5.1 — відео як головний продукт; async-режим проти 150s idle-ліміту; max_tokens 16000
+// POST  header: x-hq-cron-secret   { lead_id?|brief?|regen_idea?+note?, count?, dry_run?, notify?, resend_cards?, async? }
 
 const SB_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -44,8 +44,8 @@ async function claude(prompt: string): Promise<{ text: string; stop: string }> {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": AI_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
-        signal: AbortSignal.timeout(120000),
+        body: JSON.stringify({ model: MODEL, max_tokens: 16000, messages: [{ role: "user", content: prompt }] }),
+        signal: AbortSignal.timeout(180000),
       });
       if (r.status === 429 || r.status >= 500) { last = `anthropic ${r.status}`; await r.text(); }
       else if (!r.ok) throw new Error(`anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
@@ -233,6 +233,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { /* ok */ }
   const dryRun = body.dry_run === true;
   const notify = body.notify !== false;
+  const wantAsync = body.async === true;
   const limit = Math.min(Math.max(parseInt(body.count ?? "3", 10) || 3, 1), 8);
   const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -259,32 +260,40 @@ Deno.serve(async (req) => {
         if (l) { brief = `${l.title}\n${l.raw_text || ""}`.trim(); facts = JSON.stringify(l.facts || {}); }
       }
       const note = String(body.note || "").slice(0, 600);
-      const prevScript = Array.isArray(idea.script_video) && idea.script_video.length
-        ? `\nсценарій відео (попередній):\n${idea.script_video.map((f: any) => `${f.sec || ""}: ${f.vo || f.frame || ""}`).join("\n")}`
-        : "";
-      const extra = `\n\nПОПЕРЕДНЯ ВЕРСІЯ (засновник її вже бачив і відправив на доробку):\nhook: ${idea.hook || ""}\nbody_ig:\n${idea.body_ig || ""}${prevScript}\n\n🔴 ПРАВКИ ВІД ВАДИМА — головна вимога цієї ітерації: ${note || "зроби глибше, живіше, з яскравішою родзинкою"}\nЗбережи сильне з попередньої версії, виправ вказане, не повторюй слабких місць дослівно.`;
-      const exemplars = await fetchExemplars();
-      const res = await claude(buildPrompt(rub, brief, facts, (idea.sources || [])[0] || "", crypto.randomUUID().slice(0, 8), exemplars, extra));
-      const out = parseJson(res.text);
-      if (!out || out.insufficient) return new Response(JSON.stringify({ error: "regen failed", stop: res.stop }), { status: 502, headers: JH });
-      const lex = lexCheck(fullText(out));
-      const status = lex.block.length ? "rework" : "draft";
-      const upd = (await sb(`autosvit_ideas?id=eq.${idea.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          title: String(out.title || idea.title).slice(0, 300), hook: out.hook || null, hook_alt: out.hook_alt || null,
-          theme: out.theme || idea.theme, body_ig: out.body_ig || null, body_tg: out.body_tg || null, body_th: out.body_th || null,
-          script_video: Array.isArray(out.script_video) ? out.script_video : [],
-          slides: Array.isArray(out.slides) ? out.slides : [],
-          first_frame_tt: out.first_frame_tt || null,
-          hashtags: Array.isArray(out.hashtags) ? out.hashtags : [],
-          checks: { ...(idea.checks || {}), legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, prompt_ver: "v3.5-regen", regen_note: note, regenerated_at_kyiv: kyiv() },
-          status, edit_prompt_msg_id: null, tg_message_id: null,
-        }),
-      }))?.[0];
-      let sentN = 0;
-      if (notify && status === "draft") sentN = await sendCards([upd], rubNames, true);
-      return new Response(JSON.stringify({ ok: true, regenerated: true, status, sent: sentN, legal_block: lex.block }), { status: 200, headers: JH });
+      const runRegen = async () => {
+        const prevScript = Array.isArray(idea.script_video) && idea.script_video.length
+          ? `\nсценарій відео (попередній):\n${idea.script_video.map((f: any) => `${f.sec || ""}: ${f.vo || f.frame || ""}`).join("\n")}`
+          : "";
+        const extra = `\n\nПОПЕРЕДНЯ ВЕРСІЯ (засновник її вже бачив і відправив на доробку):\nhook: ${idea.hook || ""}\nbody_ig:\n${idea.body_ig || ""}${prevScript}\n\n🔴 ПРАВКИ ВІД ВАДИМА — головна вимога цієї ітерації: ${note || "зроби глибше, живіше, з яскравішою родзинкою"}\nЗбережи сильне з попередньої версії, виправ вказане, не повторюй слабких місць дослівно.`;
+        const exemplars = await fetchExemplars();
+        const res = await claude(buildPrompt(rub, brief, facts, (idea.sources || [])[0] || "", crypto.randomUUID().slice(0, 8), exemplars, extra));
+        const out = parseJson(res.text);
+        if (!out || out.insufficient) return { code: 502, payload: { error: "regen failed", stop: res.stop } };
+        const lex = lexCheck(fullText(out));
+        const status = lex.block.length ? "rework" : "draft";
+        const upd = (await sb(`autosvit_ideas?id=eq.${idea.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            title: String(out.title || idea.title).slice(0, 300), hook: out.hook || null, hook_alt: out.hook_alt || null,
+            theme: out.theme || idea.theme, body_ig: out.body_ig || null, body_tg: out.body_tg || null, body_th: out.body_th || null,
+            script_video: Array.isArray(out.script_video) ? out.script_video : [],
+            slides: Array.isArray(out.slides) ? out.slides : [],
+            first_frame_tt: out.first_frame_tt || null,
+            hashtags: Array.isArray(out.hashtags) ? out.hashtags : [],
+            checks: { ...(idea.checks || {}), legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, prompt_ver: "v3.5-regen", regen_note: note, regenerated_at_kyiv: kyiv() },
+            status, edit_prompt_msg_id: null, tg_message_id: null,
+          }),
+        }))?.[0];
+        let sentN = 0;
+        if (notify && status === "draft") sentN = await sendCards([upd], rubNames, true);
+        return { code: 200, payload: { ok: true, regenerated: true, status, sent: sentN, legal_block: lex.block } };
+      };
+      if (wantAsync) {
+        EdgeRuntime.waitUntil(runRegen().then((r) => console.log("regen bg done:", JSON.stringify(r.payload).slice(0, 180))).catch((e) => console.error("regen bg fail:", e)));
+        return new Response(JSON.stringify({ ok: true, accepted: true, mode: "async" }), { status: 202, headers: JH });
+      }
+      const rr = await runRegen();
+      return new Response(JSON.stringify(rr.payload), { status: rr.code, headers: JH });
     }
 
     const jobs: Array<{ lead: any; rubric: any; brief: string; facts: string; src: string }> = [];
@@ -305,76 +314,85 @@ Deno.serve(async (req) => {
     }
     if (!jobs.length) return new Response(JSON.stringify({ ok: true, generated: 0, note: "немає свіжих приводів зі статусом new" }), { status: 200, headers: JH });
 
-    const exemplars = await fetchExemplars();
+    const runBatch = async () => {
+      const exemplars = await fetchExemplars();
 
-    async function processJob(j: any): Promise<any> {
-      try {
-        if (j.lead) {
-          const live = await sb(`autosvit_ideas?lead_id=eq.${j.lead.id}&status=neq.killed&select=id&limit=1`);
-          if (live?.length) {
-            await sb(`autosvit_leads?id=eq.${j.lead.id}`, { method: "PATCH", body: JSON.stringify({ status: "used", updated_at: new Date().toISOString() }) });
-            return { rubric: j.rubric.slug, skipped: "ідея вже існує" };
+      async function processJob(j: any): Promise<any> {
+        try {
+          if (j.lead) {
+            const live = await sb(`autosvit_ideas?lead_id=eq.${j.lead.id}&status=neq.killed&select=id&limit=1`);
+            if (live?.length) {
+              await sb(`autosvit_leads?id=eq.${j.lead.id}`, { method: "PATCH", body: JSON.stringify({ status: "used", updated_at: new Date().toISOString() }) });
+              return { rubric: j.rubric.slug, skipped: "ідея вже існує" };
+            }
           }
+          const mark = crypto.randomUUID().slice(0, 8);
+          const res = await claude(buildPrompt(j.rubric, j.brief, j.facts, j.src, mark, exemplars));
+          const out = parseJson(res.text);
+          if (!out) return { rubric: j.rubric.slug, error: "parse_failed", stop: res.stop };
+          if (out.insufficient) {
+            if (j.lead) await sb(`autosvit_leads?id=eq.${j.lead.id}`, { method: "PATCH", body: JSON.stringify({ status: "rejected", updated_at: new Date().toISOString() }) });
+            return { rubric: j.rubric.slug, skipped: out.missing || "бракує фактури" };
+          }
+          const lex = lexCheck(fullText(out));
+          const status = lex.block.length ? "rework" : "draft";
+          const checks = { legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, generated_at_kyiv: kyiv(), stop_reason: res.stop, prompt_ver: "v3.5-craft" };
+          if (dryRun) return { rubric: j.rubric.slug, title: out.title, status, checks };
+
+          const ins = await sb("autosvit_ideas", {
+            method: "POST",
+            body: JSON.stringify({
+              lead_id: j.lead?.id ?? null, rubric_slug: j.rubric.slug,
+              title: String(out.title || "").slice(0, 300), hook: out.hook || null, hook_alt: out.hook_alt || null,
+              theme: out.theme || null, body_ig: out.body_ig || null, body_tg: out.body_tg || null, body_th: out.body_th || null,
+              script_video: Array.isArray(out.script_video) ? out.script_video : [],
+              slides: Array.isArray(out.slides) ? out.slides : [],
+              first_frame_tt: out.first_frame_tt || null,
+              hashtags: Array.isArray(out.hashtags) ? out.hashtags : [],
+              sources: j.src ? [j.src] : [], checks,
+              needs_face: !!j.rubric.needs_face, status, model: MODEL,
+            }),
+          });
+          const idea = Array.isArray(ins) ? ins[0] : ins;
+          if (j.lead) await sb(`autosvit_leads?id=eq.${j.lead.id}`, { method: "PATCH", body: JSON.stringify({ status: "used", updated_at: new Date().toISOString() }) });
+          return { id: idea.id, idea, rubric: j.rubric.slug, title: out.title, status, legal_block: lex.block };
+        } catch (e) {
+          console.error("job failed:", j.rubric?.slug, e);
+          return { rubric: j.rubric?.slug, error: String((e as Error).message || e).slice(0, 160) };
         }
-        const mark = crypto.randomUUID().slice(0, 8);
-        const res = await claude(buildPrompt(j.rubric, j.brief, j.facts, j.src, mark, exemplars));
-        const out = parseJson(res.text);
-        if (!out) return { rubric: j.rubric.slug, error: "parse_failed", stop: res.stop };
-        if (out.insufficient) {
-          if (j.lead) await sb(`autosvit_leads?id=eq.${j.lead.id}`, { method: "PATCH", body: JSON.stringify({ status: "rejected", updated_at: new Date().toISOString() }) });
-          return { rubric: j.rubric.slug, skipped: out.missing || "бракує фактури" };
+      }
+
+      const made: any[] = [];
+      for (let i = 0; i < jobs.length; i += 3) {
+        made.push(...await Promise.all(jobs.slice(i, i + 3).map(processJob)));
+      }
+
+      const ok = made.filter((m) => m.id && m.status === "draft");
+      const blocked = made.filter((m) => m.id && m.status === "rework");
+      const failed = made.filter((m) => m.error);
+
+      if (!dryRun && notify) {
+        try { await sendCards(ok.map((m) => m.idea), rubNames); } catch (e) { console.error("cards:", e); }
+        const stale = await sb(`autosvit_ideas?status=in.(draft,sent)&created_at=lt.${encodeURIComponent(new Date(Date.now() - 5 * 864e5).toISOString())}&select=id`).catch(() => []);
+        const lines = [`<b>Автосвіт — підсумок генерації</b>`, `${esc(kyiv())} за Києвом`, ``,
+          `Карток на апрув у Вадима: ${ok.length} · на переписування: ${blocked.length}` + (failed.length ? ` · збоїв: ${failed.length}` : "")];
+        if (blocked.length) { lines.push(``, `<b>Заборонена лексика:</b>`); blocked.forEach((b) => lines.push(`• ${esc(b.title)} — ${esc((b.legal_block || []).join(", "))}`)); }
+        if (failed.length) { lines.push(``, `<b>Збої:</b>`); failed.forEach((f) => lines.push(`• ${esc(f.rubric || "?")}: ${esc(f.error)}`)); }
+        if (stale?.length) lines.push(``, `⏳ Чекають рішення понад 5 днів: ${stale.length}`);
+        if (ok.length || blocked.length || failed.length) {
+          await sb("tg_notify_queue", { method: "POST", body: JSON.stringify({ chat_id: SMM_CHAT, text: lines.join("\n"), parse_mode: "HTML", source: "autosvit-generate" }) }).catch(() => {});
         }
-        const lex = lexCheck(fullText(out));
-        const status = lex.block.length ? "rework" : "draft";
-        const checks = { legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, generated_at_kyiv: kyiv(), stop_reason: res.stop, prompt_ver: "v3.5-craft" };
-        if (dryRun) return { rubric: j.rubric.slug, title: out.title, status, checks };
-
-        const ins = await sb("autosvit_ideas", {
-          method: "POST",
-          body: JSON.stringify({
-            lead_id: j.lead?.id ?? null, rubric_slug: j.rubric.slug,
-            title: String(out.title || "").slice(0, 300), hook: out.hook || null, hook_alt: out.hook_alt || null,
-            theme: out.theme || null, body_ig: out.body_ig || null, body_tg: out.body_tg || null, body_th: out.body_th || null,
-            script_video: Array.isArray(out.script_video) ? out.script_video : [],
-            slides: Array.isArray(out.slides) ? out.slides : [],
-            first_frame_tt: out.first_frame_tt || null,
-            hashtags: Array.isArray(out.hashtags) ? out.hashtags : [],
-            sources: j.src ? [j.src] : [], checks,
-            needs_face: !!j.rubric.needs_face, status, model: MODEL,
-          }),
-        });
-        const idea = Array.isArray(ins) ? ins[0] : ins;
-        if (j.lead) await sb(`autosvit_leads?id=eq.${j.lead.id}`, { method: "PATCH", body: JSON.stringify({ status: "used", updated_at: new Date().toISOString() }) });
-        return { id: idea.id, idea, rubric: j.rubric.slug, title: out.title, status, legal_block: lex.block };
-      } catch (e) {
-        console.error("job failed:", j.rubric?.slug, e);
-        return { rubric: j.rubric?.slug, error: String((e as Error).message || e).slice(0, 160) };
       }
+
+      return { generated: made.length, drafts: ok.length, rework: blocked.length, failed: failed.length, items: made.map(({ idea, ...rest }) => rest) };
+    };
+
+    if (wantAsync) {
+      EdgeRuntime.waitUntil(runBatch().then((r) => console.log("batch bg done:", JSON.stringify(r).slice(0, 180))).catch((e) => console.error("batch bg fail:", e)));
+      return new Response(JSON.stringify({ ok: true, accepted: true, mode: "async", jobs: jobs.length }), { status: 202, headers: JH });
     }
-
-    const made: any[] = [];
-    for (let i = 0; i < jobs.length; i += 3) {
-      made.push(...await Promise.all(jobs.slice(i, i + 3).map(processJob)));
-    }
-
-    const ok = made.filter((m) => m.id && m.status === "draft");
-    const blocked = made.filter((m) => m.id && m.status === "rework");
-    const failed = made.filter((m) => m.error);
-
-    if (!dryRun && notify) {
-      try { await sendCards(ok.map((m) => m.idea), rubNames); } catch (e) { console.error("cards:", e); }
-      const stale = await sb(`autosvit_ideas?status=in.(draft,sent)&created_at=lt.${encodeURIComponent(new Date(Date.now() - 5 * 864e5).toISOString())}&select=id`).catch(() => []);
-      const lines = [`<b>Автосвіт — підсумок генерації</b>`, `${esc(kyiv())} за Києвом`, ``,
-        `Карток на апрув у Вадима: ${ok.length} · на переписування: ${blocked.length}` + (failed.length ? ` · збоїв: ${failed.length}` : "")];
-      if (blocked.length) { lines.push(``, `<b>Заборонена лексика:</b>`); blocked.forEach((b) => lines.push(`• ${esc(b.title)} — ${esc((b.legal_block || []).join(", "))}`)); }
-      if (failed.length) { lines.push(``, `<b>Збої:</b>`); failed.forEach((f) => lines.push(`• ${esc(f.rubric || "?")}: ${esc(f.error)}`)); }
-      if (stale?.length) lines.push(``, `⏳ Чекають рішення понад 5 днів: ${stale.length}`);
-      if (ok.length || blocked.length || failed.length) {
-        await sb("tg_notify_queue", { method: "POST", body: JSON.stringify({ chat_id: SMM_CHAT, text: lines.join("\n"), parse_mode: "HTML", source: "autosvit-generate" }) }).catch(() => {});
-      }
-    }
-
-    return new Response(JSON.stringify({ ok: true, generated: made.length, drafts: ok.length, rework: blocked.length, failed: failed.length, items: made.map(({ idea, ...rest }) => rest) }), { status: 200, headers: JH });
+    const rb = await runBatch();
+    return new Response(JSON.stringify({ ok: true, ...rb }), { status: 200, headers: JH });
   } catch (e) {
     console.error("autosvit-generate:", e);
     return new Response(JSON.stringify({ error: "internal" }), { status: 500, headers: JH });
