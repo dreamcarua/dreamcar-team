@@ -9,13 +9,13 @@
 <meta http-equiv="Expires" content="0">
 <title>DreamCar HQ · Стіл SMM</title>
 <!-- GLOBAL BRAND HEADER — обов'язково на ВСІХ сторінках проекту для навігації -->
-<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202608110652-bb901be1" defer></script>
+<script data-cfasync="false" src="https://brand.dreamcar.ua/assets/global-header.js?v=202608111251-e2ad763c" defer></script>
 <script src="config.js"></script>
 <!-- 08.06.2026 R2 (Давид login loop fix): підключаємо shared storage у HQ -->
 <!-- Раніше HQ використовував дефолтний localStorage без cookie sync — це могло
      створювати ситуацію коли Tasks через cookie бачив старий expired token,
      а HQ свіжий → cross-app session drift → login loop. -->
-<script src="dc-shared-storage.js?v=202608110652-bb901be1"></script>
+<script src="dc-shared-storage.js?v=202608111251-e2ad763c"></script>
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config
   if (window.HQ_CONFIG?.SUPABASE_URL && window.HQ_CONFIG?.SUPABASE_ANON_KEY) {
@@ -1719,7 +1719,7 @@
     .fab-create { display: flex; }
   }
 </style>
-<script src="dc-theme.js?v=202608110652-bb901be1" defer></script>
+<script src="dc-theme.js?v=202608111251-e2ad763c" defer></script>
 </head>
 <body>
 
@@ -1915,24 +1915,24 @@
 })();
 </script>
 
-<script src="app-core.js?v=202608110652-bb901be1tzfix" defer></script>
-<script src="app-views.js?v=202608110652-bb901be1ilters" defer></script>
+<script src="app-core.js?v=202608111251-e2ad763ctzfix" defer></script>
+<script src="app-views.js?v=202608111251-e2ad763cilters" defer></script>
 <!-- 09.06.2026 #207/#208/#209: loader chain (app-locks → app-extras → ...) на production не стартувала.
      Через це app-overview-modal.js, app-extras.js, app-duplicate-to.js НЕ завантажувались.
      Олександр і Давид бачили старий edit modal без кнопки Дублювати + без креативів у preview.
      Тепер вантажимо chain напряму. -->
-<script src="app-locks.js?v=202608110652-bb901be1" defer></script>
-<script src="app-overview-modal.js?v=202608110652-bb901be1" defer></script>
-<script src="app-duplicate-to.js?v=202608110652-bb901be1" defer></script>
+<script src="app-locks.js?v=202608111251-e2ad763c" defer></script>
+<script src="app-overview-modal.js?v=202608111251-e2ad763c" defer></script>
+<script src="app-duplicate-to.js?v=202608111251-e2ad763c" defer></script>
 <!-- 30.06.2026 #554 (P0 SMM drag-drop): app-board-view.js (режим Дошка / kanban з drag-drop карток між статусами) НЕ був у loader-chain і не вантажився → картки на Дошці не перетягувались взагалі. Підключаємо напряму. -->
-<script src="app-board-view.js?v=202608110652-bb901be1oard" defer></script>
+<script src="app-board-view.js?v=202608111251-e2ad763coard" defer></script>
 <!-- 30.06.2026 #555 (P0 SMM weekly drag-drop): app-dragdrop-fix.js (v4) НЕ був у loader-chain → не вантажився взагалі. Через це (1) місяць-view drag-drop йшов лише через inline attachCalendarHandlers зі старим off-by-one, (2) тиждень-view карток (.week-card) не можна було перетягувати між днями. v4 = той самий bounding-rect scan для .cal-day + .week-col[data-date]. Підключаємо напряму. -->
-<script src="app-dragdrop-fix.js?v=202608110652-bb901be1week" defer></script>
+<script src="app-dragdrop-fix.js?v=202608111251-e2ad763cweek" defer></script>
 <!-- 02.08.2026 tech#3 (Олександр): сторінка «Нотатки» — ідеї + голосування Вадим/Артем/Давид -->
-<script src="app-notes.js?v=202608110652-bb901be1notes" defer></script>
+<script src="app-notes.js?v=202608111251-e2ad763cnotes" defer></script>
 <!-- 10.08.2026 (Олександр): «Чек-лист» (шаблон+інстанси) + «Базовий контент-план» -->
-<script src="app-checklist.js?v=202608110652-bb901be1l1" defer></script>
-<script src="app-content-plan.js?v=202608110652-bb901be1p1" defer></script>
+<script src="app-checklist.js?v=202608111251-e2ad763cl1" defer></script>
+<script src="app-content-plan.js?v=202608111251-e2ad763cp1" defer></script>
 
 </body>
 </html>
