@@ -1,4 +1,4 @@
-// «Автосвіт» :: генератор v3.5.1 — відео як головний продукт; async-режим проти 150s idle-ліміту; max_tokens 16000
+// «Автосвіт» :: генератор v3.6 — відео як головний продукт; async-режим проти 150s idle-ліміту; max_tokens 16000
 // POST  header: x-hq-cron-secret   { lead_id?|brief?|regen_idea?+note?, count?, dry_run?, notify?, resend_cards?, async? }
 
 const SB_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -110,6 +110,19 @@ const CRAFT_VIDEO = `ВІДЕО — ГОЛОВНИЙ ПРОДУКТ ЦІЄЇ С�
 
 ПРИКЛАД РІВНЯ (кадр гачка): frame: «Вадим спиною до камери дивиться під авто на підйомнику, різко обертається в камеру» · txt: «48 000 ІРЖАВІЮТЬ» · vo: «Оця балка щойно вбила міф про вічну Тойоту» · how: «різкий поворот, тицяє пальцем вгору». ОСЬ ТАКИЙ РІВЕНЬ КОЖНОГО КАДРУ.`;
 
+const CRAFT_VIDEO_STORY = `ФОРМАТ: СТОРІ-РІЛЗ 60-90 СЕКУНД. Це не набір фактів — це ІСТОРІЯ з початком, напругою і розвʼязкою. Глядач проходить шлях: зачепився → втягнувся → здивувався → отримав користь → захотів відповісти.
+
+СТРУКТУРА (12-16 кадрів):
+1) ХОЛОДНИЙ ГАЧОК (0-3с): кадр+фраза, що ламають шаблон, + петля-обіцянка на фінал.
+2) СЕТАП (3-12с): герой/предмет/ситуація. Конкретика, не абстракція.
+3) РОЗВИТОК (12-35с): 2-3 біти історії з наростанням; кожен біт = нова деталь + перебивка.
+4) ПОВОРОТ (35-50с): момент «ого, а я думав інакше». Найсильніший факт тут.
+5) ЦІНА ПИТАННЯ (50-65с): що це означає для глядача особисто — гроші/безпека/звичка.
+6) РОЗВʼЯЗКА ПЕТЛІ (65-80с): виконуємо обіцянку з гачка; мораль одним реченням.
+7) ФІНАЛ (80-90с): питання-вибір, що ділить аудиторію на два табори.
+
+ПРАВИЛА ПОДАЧІ ТІ САМІ, ЩО Й ДЛЯ КОРОТКОГО ВІДЕО: дослівні репліки до 12 слів, перебивка кожні 5-7 сек (зміна плану/предмет у руках/локація/наїзд на цифру), оверлей 2-4 слова, how на кожен кадр. Емоційна крива: іронія → цікавість → серйозність → тепло/ностальгія → виклик. ЗАБОРОНЕНО «Привіт» і назву рубрики на старті.`;
+
 async function fetchExemplars(): Promise<string> {
   try {
     const ve = await sb("autosvit_exemplars?active=eq.true&source=eq.vadym_edit&select=text_body&order=created_at.desc&limit=2");
@@ -121,15 +134,17 @@ async function fetchExemplars(): Promise<string> {
   } catch { return ""; }
 }
 
-function buildPrompt(r: any, brief: string, facts: string, src: string, mark: string, exemplars: string, extra = "") {
+function buildPrompt(r: any, brief: string, facts: string, src: string, mark: string, exemplars: string, extra = "", fmt = "") {
   const isCarousel = r.content_type === "carousel";
+  const story = fmt === "story";
+  const vidBlock = story ? CRAFT_VIDEO_STORY : CRAFT_VIDEO;
   return `Ти — головний редактор і НАЙКРАЩИЙ автор контент-системи «Автосвіт» бренду DreamCar. Твоя робота — не переказати новину, а зробити з неї матеріал, який пересилають друзям, і відео, яке додивляються до кінця.
 
 ${CANON}
 
 ${CRAFT}
 
-${CRAFT_VIDEO}
+${vidBlock}
 ${exemplars}
 РУБРИКА: «${r.name}» · МЕТРИКА: ${r.goal} · ФОРМАТ: ${r.content_type}
 ЯК ПИСАТИ ЦЮ РУБРИКУ: ${r.prompt_hint}
@@ -151,7 +166,7 @@ ${brief}
  "body_ig": "800–1300 символів за драматургією, абзаци через порожній рядок, перший рядок = hook",
  "body_tg": "1400–2200, глибша версія з <b>підзаголовками</b>",
  "body_th": "Threads до 450: розмовна, гостра, фінал — питання-вибір",
- "script_video": [{"sec":"0-2","frame":"що в кадрі + план зйомки + де перебивка","txt":"оверлей 2-4 слова","vo":"ДОСЛІВНА розмовна фраза до 12 слів","how":"подача: темп/емоція/жест"}] — 6-9 кадрів на 30-45 сек за правилами ВІДЕО,
+ "script_video": [{"sec":"0-2","frame":"що в кадрі + план зйомки + де перебивка","txt":"оверлей 2-4 слова","vo":"ДОСЛІВНА розмовна фраза до 12 слів","how":"подача: темп/емоція/жест"}] — ${story ? "12-16 кадрів на 60-90 сек за СТРУКТУРОЮ СТОРІ-РІЛЗА" : "6-9 кадрів на 30-45 сек за правилами ВІДЕО"},
  "video_meta": {"hook_options":[{"frame":"кадр","vo":"фраза"},{"frame":"інший кут","vo":"фраза"},{"frame":"третій кут","vo":"фраза"}],"open_loop":"обіцянка з кадрів 1-2","payoff":"розвʼязка в передостанньому кадрі","brand_bridge":"нативний місток до DreamCar одним реченням або порожньо"},${isCarousel ? `
  "slides": [{"n":1,"title":"до 40","text":"до 140"}] — 7-8 слайдів: 1 гачок-цифра, 2-6 розвиток, 7 родзинка, 8 висновок+джерело,` : ""}
  "first_frame_tt": "TikTok-кадр, гостріший за IG, до 120",
@@ -260,13 +275,14 @@ Deno.serve(async (req) => {
         if (l) { brief = `${l.title}\n${l.raw_text || ""}`.trim(); facts = JSON.stringify(l.facts || {}); }
       }
       const note = String(body.note || "").slice(0, 600);
+      const rfmt = String(body.video_fmt || (idea.checks || {}).video_fmt || "");
       const runRegen = async () => {
         const prevScript = Array.isArray(idea.script_video) && idea.script_video.length
           ? `\nсценарій відео (попередній):\n${idea.script_video.map((f: any) => `${f.sec || ""}: ${f.vo || f.frame || ""}`).join("\n")}`
           : "";
         const extra = `\n\nПОПЕРЕДНЯ ВЕРСІЯ (засновник її вже бачив і відправив на доробку):\nhook: ${idea.hook || ""}\nbody_ig:\n${idea.body_ig || ""}${prevScript}\n\n🔴 ПРАВКИ ВІД ВАДИМА — головна вимога цієї ітерації: ${note || "зроби глибше, живіше, з яскравішою родзинкою"}\nЗбережи сильне з попередньої версії, виправ вказане, не повторюй слабких місць дослівно.`;
         const exemplars = await fetchExemplars();
-        const res = await claude(buildPrompt(rub, brief, facts, (idea.sources || [])[0] || "", crypto.randomUUID().slice(0, 8), exemplars, extra));
+        const res = await claude(buildPrompt(rub, brief, facts, (idea.sources || [])[0] || "", crypto.randomUUID().slice(0, 8), exemplars, extra, rfmt));
         const out = parseJson(res.text);
         if (!out || out.insufficient) return { code: 502, payload: { error: "regen failed", stop: res.stop } };
         const lex = lexCheck(fullText(out));
@@ -280,7 +296,7 @@ Deno.serve(async (req) => {
             slides: Array.isArray(out.slides) ? out.slides : [],
             first_frame_tt: out.first_frame_tt || null,
             hashtags: Array.isArray(out.hashtags) ? out.hashtags : [],
-            checks: { ...(idea.checks || {}), legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, prompt_ver: "v3.5-regen", regen_note: note, regenerated_at_kyiv: kyiv() },
+            checks: { ...(idea.checks || {}), legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, video_fmt: rfmt || null, prompt_ver: "v3.6-regen", regen_note: note, regenerated_at_kyiv: kyiv() },
             status, edit_prompt_msg_id: null, tg_message_id: null,
           }),
         }))?.[0];
@@ -296,11 +312,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify(rr.payload), { status: rr.code, headers: JH });
     }
 
-    const jobs: Array<{ lead: any; rubric: any; brief: string; facts: string; src: string }> = [];
+    const jobs: Array<{ lead: any; rubric: any; brief: string; facts: string; src: string; fmt: string }> = [];
     if (body.brief) {
       const r = byslug[body.rubric_slug];
       if (!r) return new Response(JSON.stringify({ error: "unknown rubric_slug" }), { status: 400, headers: JH });
-      jobs.push({ lead: null, rubric: r, brief: String(body.brief).slice(0, 4000), facts: String(body.facts || "").slice(0, 3000), src: String(body.source_url || "") });
+      jobs.push({ lead: null, rubric: r, brief: String(body.brief).slice(0, 4000), facts: String(body.facts || "").slice(0, 3000), src: String(body.source_url || ""), fmt: String(body.video_fmt || "") });
     } else {
       const freshFrom = encodeURIComponent(new Date(Date.now() - 14 * 864e5).toISOString());
       const q = body.lead_id && UUID.test(body.lead_id)
@@ -309,7 +325,7 @@ Deno.serve(async (req) => {
       for (const l of await sb(q)) {
         const r = byslug[l.rubric_slug];
         if (!r) continue;
-        jobs.push({ lead: l, rubric: r, brief: `${l.title}\n${l.raw_text || ""}`.trim(), facts: JSON.stringify(l.facts || {}), src: l.source_url || l.source });
+        jobs.push({ lead: l, rubric: r, brief: `${l.title}\n${l.raw_text || ""}`.trim(), facts: JSON.stringify(l.facts || {}), src: l.source_url || l.source, fmt: String(body.video_fmt || "") });
       }
     }
     if (!jobs.length) return new Response(JSON.stringify({ ok: true, generated: 0, note: "немає свіжих приводів зі статусом new" }), { status: 200, headers: JH });
@@ -327,7 +343,7 @@ Deno.serve(async (req) => {
             }
           }
           const mark = crypto.randomUUID().slice(0, 8);
-          const res = await claude(buildPrompt(j.rubric, j.brief, j.facts, j.src, mark, exemplars));
+          const res = await claude(buildPrompt(j.rubric, j.brief, j.facts, j.src, mark, exemplars, "", j.fmt));
           const out = parseJson(res.text);
           if (!out) return { rubric: j.rubric.slug, error: "parse_failed", stop: res.stop };
           if (out.insufficient) {
@@ -336,7 +352,7 @@ Deno.serve(async (req) => {
           }
           const lex = lexCheck(fullText(out));
           const status = lex.block.length ? "rework" : "draft";
-          const checks = { legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, generated_at_kyiv: kyiv(), stop_reason: res.stop, prompt_ver: "v3.5-craft" };
+          const checks = { legal_block: lex.block, legal_warn: lex.warn, self_check: out.self_check || {}, video_meta: out.video_meta || null, video_fmt: j.fmt || null, generated_at_kyiv: kyiv(), stop_reason: res.stop, prompt_ver: "v3.6-craft" };
           if (dryRun) return { rubric: j.rubric.slug, title: out.title, status, checks };
 
           const ins = await sb("autosvit_ideas", {
