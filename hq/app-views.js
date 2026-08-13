@@ -449,7 +449,13 @@ function renderCreativeStripItems(creativeIds) {
     } else {
       inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:#666;">${isVideo ? '🎬' : '🖼'}</div>`;
     }
-    return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}" style="position:relative;overflow:hidden;">${inner}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
+    // 13.08.2026: HDR-відео з iPhone Telegram перетискає САМ (HLG 10-bit → H.264 8-bit SDR)
+    // і псує кольори/якість. Ми віддаємо файл 1:1 (pass-through) — попереджаємо автора,
+    // щоб знімав у SDR (Камера → Формати → вимкнути HDR-відео).
+    const hdrBadge = (c.is_hdr === true)
+      ? '<span title="HDR-відео (iPhone HLG). Telegram сам перетисне його у SDR — якість може впасти. Порада: вимкни HDR у Камера → Формати." style="position:absolute;left:4px;top:4px;background:rgba(224,164,88,.92);color:#1a1a1a;font-size:8.5px;font-weight:700;padding:2px 5px;border-radius:3px;font-family:JetBrains Mono,monospace;letter-spacing:.3px;">⚠ HDR</span>'
+      : '';
+    return `<div class="cs-item" data-id="${cid}" title="${escapeHtml(c.name)}${c.is_hdr===true?' · ⚠ HDR — TG перетисне сам, якість може впасти':''}" style="position:relative;overflow:hidden;">${inner}${hdrBadge}<div class="cs-remove" data-remove="${cid}">×</div></div>`;
   }).join('');
 }
 

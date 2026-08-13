@@ -408,6 +408,16 @@ case "$SRC_PRIMARIES" in
 esac
 echo "Color: transfer=${SRC_TRANSFER} primaries=${SRC_PRIMARIES} pix=${SRC_PIXFMT} HDR=${IS_HDR}"
 
+# 13.08.2026: пишемо прапорець у БД — HQ показує бейдж «⚠ HDR» на картці креативу.
+# Причина: TG сам перетискає HDR (HLG 10-bit → SDR 8-bit) і псує якість; ми віддаємо 1:1.
+# Автору краще знімати у SDR (iPhone: Камера → Формати → HDR-відео вимкнути).
+if [ "$IS_HDR" = "yes" ]; then HDR_FLAG=true; else HDR_FLAG=false; fi
+curl -sS -X PATCH "$SUPABASE_URL/rest/v1/creatives?id=eq.$CRE_ID" \
+  -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+  -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+  -d "{\"is_hdr\": $HDR_FLAG}" >/dev/null 2>&1 \
+  && echo "✓ is_hdr=$HDR_FLAG PATCH-ed" || echo "::warning::is_hdr PATCH failed (не критично)"
+
 # HDR pass-through: source у межах TG ліміту (50MB) → upload as-is і exit
 if [ "$IS_HDR" = "yes" ] && [ "$IN_SIZE" -le $((49 * 1024 * 1024)) ]; then
   echo "=== HDR source detected — pass-through (no encode) ==="
