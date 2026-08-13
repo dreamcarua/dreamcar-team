@@ -1931,6 +1931,10 @@
 <!-- 02.08.2026 tech#3 (Олександр): сторінка «Нотатки» — ідеї + голосування Вадим/Артем/Давид -->
 <script src="app-notes.js?v=202608131657-165a084anotes" defer></script>
 <!-- 10.08.2026 (Олександр): «Чек-лист» (шаблон+інстанси) + «Базовий контент-план» -->
+<!-- 13.08.2026: миттєвий тригер compress/autopost. GH-cron '*/3' реально ходить раз на ~60 хв
+     → відео-пости виходили із затримкою до години (кейс «тест 2 ТГ 22:00» → 22:44).
+     Другий шар поверх DB-тригера trg_dispatch_compress_on_video (той працює завжди). -->
+<script src="app-dispatch-hooks.js?v=20260813-disp1" defer></script>
 <script src="app-checklist.js?v=202608131657-165a084al1" defer></script>
 <script src="app-content-plan.js?v=202608131657-165a084ap1" defer></script>
 
