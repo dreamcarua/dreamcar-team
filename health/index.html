@@ -176,6 +176,56 @@ function miniBar(label,val,target,col,invert){
  return '<div style="flex:1;min-width:130px"><div class="sub" style="display:flex;justify-content:space-between"><span>'+label+'</span><b style="color:'+(danger?'#E30613':'#EDEDED')+'">'+f(v,1)+'/'+f(t,0)+'</b></div>'+
    '<div style="height:6px;background:#2A2A2A;border-radius:4px;overflow:hidden;margin-top:3px"><i style="display:block;height:100%;width:'+pct+'%;background:'+(danger?'#E30613':col)+'"></i></div></div>';
 }
+function balChip(label,val,unit,goodDir){
+ if(val==null)return '';
+ const v=num(val); const good = goodDir==='high'? v>=0 : v<=0;
+ const col=good?'#10B981':(Math.abs(v)>(goodDir==='high'?15:3)?'#E30613':'#F59E0B');
+ return '<div class="rec"><div class="v" style="color:'+col+'">'+(v>0?'+':'')+f(v,1)+'</div><div class="l">'+label+' '+unit+'/день</div></div>';
+}
+function nutritionHistoryBlock(D){
+ const nh=D.nutrition_history||{}; const days=nh.days||[]; const t=nh.targets||{};
+ if(!days.length||num(nh.logged_days)<1)return '';
+ let h='<h2>📊 Харчування · 30 днів <span class="sub" style="text-transform:none;letter-spacing:0">(залоговано '+f(nh.logged_days)+' дн)</span></h2>';
+ // 4 ряди міні-барів: kcal, білок, клітковина, насичені
+ const rows=[
+  ['ккал','kcal',num(t.kcal),'#10B981','near'],   // близько до цілі = добре
+  ['білок','prot',num(t.protein),'#3B82F6','high'],
+  ['клітковина','fib',num(t.fiber),'#22D3EE','high'],
+  ['насичені','sat',num(t.sat_max),'#F59E0B','low']];
+ h+='<div class="panel" style="padding:12px 14px">';
+ for(const [lab,key,target,col,dir] of rows){
+  h+='<div class="sub" style="margin:6px 0 3px">'+lab+' <span style="opacity:.6">(ціль '+(dir==='low'?'≤':'')+f(target)+')</span></div>';
+  h+='<div style="display:flex;gap:2px;align-items:flex-end;height:26px">';
+  for(const d of days){
+   const v=num(d[key]);
+   let bg='#252525',hh=4,tip=d.d+': —';
+   if(v!=null&&d.meals>=1){
+    const r=target?v/target:0; hh=Math.max(4,Math.min(26,r*20));
+    if(dir==='low') bg=v<=target?'#10B981':(v<=target*1.3?'#F59E0B':'#E30613');
+    else if(dir==='high') bg=v>=target?'#10B981':(v>=target*0.6?'#F59E0B':'#E30613');
+    else bg=(v>=target*0.8&&v<=target*1.1)?'#10B981':(v<target*0.8?'#F59E0B':'#E30613');
+    if(d.meals<2){bg='#8A8A8A';} // неповний день — сірий
+    tip=d.d+': '+f(v,1);
+   }
+   h+='<div title="'+tip+'" style="flex:1;height:'+hh+'px;background:'+bg+';border-radius:2px 2px 0 0"></div>';
+  }
+  h+='</div>';
+ }
+ h+='<div class="sub" style="margin-top:6px">🟢 у цілі · 🟡 недобір/близько · 🔴 сильне відхилення · сірий = неповний день (менше 2 прийомів)</div>';
+ // зведений баланс
+ const b7=nh.balance7, b30=nh.balance30;
+ if(b7||b30){
+  h+='<div class="sub" style="margin-top:12px;text-transform:uppercase;letter-spacing:.5px">Баланс до цілей (середнє/день)</div>';
+  if(b7){h+='<div class="sub" style="margin:6px 0 2px">за 7 днів ('+f(b7.n)+' повних):</div><div class="recs">'
+    +balChip('ккал',b7.kcal,'','near')+balChip('білок',b7.protein,'г','high')
+    +balChip('клітковина',b7.fiber,'г','high')+balChip('насичені',b7.sat_fat,'г','low')+'</div>';}
+  if(b30&&num(b30.n)>num((b7||{}).n||0)){h+='<div class="sub" style="margin:8px 0 2px">за 30 днів ('+f(b30.n)+' повних): білок закрито '
+    +f(b30.protein_days_ok)+'/'+f(b30.n)+' дн · клітковина '+f(b30.fiber_days_ok)+'/'+f(b30.n)
+    +' · насичені в межах '+f(b30.sat_days_ok)+'/'+f(b30.n)+'</div>';}
+ }
+ h+='</div>';
+ return h;
+}
 function nutritionBlock(D){
  const t=D.targets||{}; const e=t.eaten||{}; const meals=num(e.meals)||0;
  if(t.kcal==null)return '';
@@ -599,6 +649,7 @@ function render(D,cached){
  h+=strainBlock(D.whoop);
  h+=stressBlock(D.oura,D.whoop);
  h+=nutritionBlock(D);
+ h+=nutritionHistoryBlock(D);
  h+=weightBlock(D);
  h+=hydrationBlock(D);
  h+=weekBlock(D.week);
