@@ -118,6 +118,17 @@ const Store = {
       history: (historyByPub[p.id] || []).map(h => ({ id: h.id, at: h.at, author: h.actor_id, action: h.action, detail: h.detail })),
       createdAt: p.created_at,
       updatedAt: p.updated_at,
+      // 14.08.2026 (аудит «загублених полів»): ці колонки читаються у app-multi-approver-fix.js
+      // (p.approved_by), app-next-action.js (pub.next_action_*) і в per-platform датах, але у
+      // мапінг не потрапляли — тож будь-який повний refresh Store їх обнуляв, і блок
+      // «Наступна дія» / галочки погоджень зникали до перезавантаження сторінки.
+      approved_by: p.approved_by || [],
+      next_action_user_id: p.next_action_user_id || null,
+      next_action_kind: p.next_action_kind || null,
+      next_action_note: p.next_action_note || null,
+      next_action_set_at: p.next_action_set_at || null,
+      next_action_set_by: p.next_action_set_by || null,
+      platform_dates: p.platform_dates || {},
       // #233.7 TG Autopost v2 fields
       tg_buttons: p.tg_buttons || [],
       tg_pin: p.tg_pin || false,
@@ -212,7 +223,7 @@ const Store = {
     try {
       const { data, error } = await window.supabase
         .from('creatives')
-        .select('id, thumbnail_url, compressed_url, compressed_url_hevc, compressed_status, drive_file_id, width_px, height_px, size_bytes, duration_sec, name, type')
+        .select('id, thumbnail_url, poster_url, is_hdr, compressed_url, compressed_url_hevc, compressed_status, compressed_at, drive_file_id, width_px, height_px, size_bytes, duration_sec, name, type')
         .in('id', ids)
         .is('deleted_at', null);
       if (error) { console.warn('[refreshCreatives]', error); return false; }
@@ -223,7 +234,10 @@ const Store = {
         const c = cache.find(x => x.id === fresh.id);
         if (!c) return;
         // Тільки thumb/compress поля + базові — НЕ перезаписуємо обчислені (size human, res, color, preview).
-        const fields = ['thumbnail_url', 'compressed_url', 'compressed_url_hevc', 'compressed_status', 'drive_file_id', 'name', 'type', 'width_px', 'height_px'];
+        // 14.08.2026 (аудит): додано poster_url/is_hdr/compressed_at — плитка бібліотеки
+        // показує саме poster_url, а бейдж «⚠ HDR» читає is_hdr; без них картка після
+        // компресії лишалась із старим прев'ю до повного перезавантаження сторінки.
+        const fields = ['thumbnail_url', 'poster_url', 'is_hdr', 'compressed_url', 'compressed_url_hevc', 'compressed_status', 'compressed_at', 'drive_file_id', 'name', 'type', 'width_px', 'height_px'];
         fields.forEach(f => {
           if (fresh[f] !== undefined && fresh[f] !== c[f]) {
             c[f] = fresh[f];

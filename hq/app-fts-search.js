@@ -28,7 +28,10 @@
 
     var resp = await window.supabase
       .from('publications')
-      .select('id, title, text, status, publish_at, deadline_on, platforms:publication_platforms(platform)')
+      // 14.08.2026 (аудит): колонки `text` у publications НЕМАЄ — вона зветься text_body.
+      // PostgREST падав на весь запит → глобальний пошук мовчки повертав 0 результатів.
+      // Аліас text:text_body лишає споживачам звичне поле `text`.
+      .select('id, title, text:text_body, status, publish_at, deadline_on, platforms:publication_platforms(platform)')
       .textSearch('search_tsv', query, { type: 'websearch', config: 'simple' })
       .is('deleted_at', null)
       .limit(limit);

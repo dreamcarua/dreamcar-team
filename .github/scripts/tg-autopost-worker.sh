@@ -95,7 +95,7 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
   fi
 
   # Запит ВСІХ creatives publication у правильному порядку (для media group)
-  CREATIVES_JSON=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&select=creative_id,creatives(id,type,thumbnail_url,compressed_url,compressed_url_hevc,compressed_status,compressed_size_bytes,compressed_hevc_size_bytes,drive_file_id,name)" \
+  CREATIVES_JSON=$(curl -sS "$SUPABASE_URL/rest/v1/creative_publications?publication_id=eq.$PUB_ID&order=sort_order.asc&select=creative_id,creatives(id,type,thumbnail_url,compressed_url,compressed_url_hevc,compressed_status,compressed_at,compressed_size_bytes,compressed_hevc_size_bytes,drive_file_id,name)" \
     -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" | jq -c '[.[] | .creatives]')
   CRE_COUNT=$(echo "$CREATIVES_JSON" | jq 'length')
   echo "Creatives count: $CRE_COUNT"
@@ -111,8 +111,13 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
   CRE_HEVC_SIZE=$(echo "$CREATIVE"   | jq -r '.compressed_hevc_size_bytes // 0')
   echo "First creative: type=$CRE_TYPE | compressed=$CRE_COMPRESSED_STATUS (h264=$CRE_COMPRESSED_SIZE, hevc=$CRE_HEVC_SIZE)"
 
-  # Якщо є відео що ще стискається у будь-якому creative — defer
-  ANY_VIDEO_PENDING=$(echo "$CREATIVES_JSON" | jq -r '[.[] | select(.type=="video" and (.compressed_status=="pending" or .compressed_status=="processing"))] | length')
+  # Якщо є відео що ще стискається у будь-якому creative — defer.
+  # 14.08.2026 (аудит): додано compressed_at. HARD RULE — compressed_status брехливий:
+  # фронт ставить 'ready' одразу при аплоаді, ще до реальної компресії. Тригер
+  # trg_creatives_force_pending_video це ловить, але покладатись лише на нього не можна —
+  # ціна помилки = пост у канал з HEVC/HDR оригіналом, який TG не показує inline.
+  # 'failed'/'n/a' НЕ дефферимо, інакше публікація зависне назавжди (там fallback на ffmpeg).
+  ANY_VIDEO_PENDING=$(echo "$CREATIVES_JSON" | jq -r '[.[] | select(.type=="video" and (.compressed_status=="pending" or .compressed_status=="processing" or (.compressed_status=="ready" and (.compressed_at // null) == null)))] | length')
   if [ "$ANY_VIDEO_PENDING" -gt 0 ]; then
     echo "::warning::Some video creative still compressing — defer +3min"
     curl -sS -X PATCH "$SUPABASE_URL/rest/v1/publications?id=eq.$PUB_ID" \
