@@ -44,9 +44,17 @@ Deno.serve(async (req) => {
     if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 });
     const rows = (found || []) as any[];
 
-    const { data: alerted } = await sb.from("unmapped_project_alerts").select("project_value");
-    const seen = new Set((alerted || []).map((r: any) => r.project_value));
-    const fresh = rows.filter(r => !seen.has(r.project_value));
+    // 14.08.2026: раніше алерт слався ОДИН раз назавжди — його легко пропустити в DM,
+    // і проєкт «3 IPHONE» півдня висів незмаплений (дашборд показував 0 оплат при 923 лідах).
+    // Тепер нагадуємо кожні 3 години, ПОКИ проєкт не змаплено (аліас додано → зникає зі списку).
+    const REMIND_HOURS = 3;
+    const { data: alerted } = await sb.from("unmapped_project_alerts").select("project_value, alerted_at");
+    const lastAt = new Map((alerted || []).map((r: any) => [r.project_value, r.alerted_at]));
+    const fresh = rows.filter(r => {
+      const prev = lastAt.get(r.project_value);
+      if (!prev) return true;
+      return (Date.now() - new Date(prev).getTime()) > REMIND_HOURS * 3600 * 1000;
+    });
 
     if (dry) {
       return new Response(JSON.stringify({ ok: true, dry: true, all: rows, new_since_last_alert: fresh }, null, 2),
@@ -69,8 +77,10 @@ Deno.serve(async (req) => {
 
     const res = await sendTG(text);
     if (res.ok) {
-      await sb.from("unmapped_project_alerts").insert(
-        fresh.map(r => ({ project_value: r.project_value, deals_at_alert: r.deals, revenue_at_alert: r.revenue }))
+      // upsert, не insert: повторне нагадування оновлює alerted_at (PK = project_value)
+      await sb.from("unmapped_project_alerts").upsert(
+        fresh.map(r => ({ project_value: r.project_value, deals_at_alert: r.deals, revenue_at_alert: r.revenue, alerted_at: new Date().toISOString() })),
+        { onConflict: "project_value" }
       );
     }
     return new Response(JSON.stringify({ ok: true, sent: res.ok, tg: res, alerted: fresh.map(r => r.project_value) }),
