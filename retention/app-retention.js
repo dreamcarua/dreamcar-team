@@ -999,7 +999,9 @@ function openMessageDetail(id){
           // Якщо thumbnail_url/poster_url немає → одразу emoji fallback. Якщо image без thumb → ОК, compressed_url можна.
           const thumbOf = (c) => {
             if (c.type === 'video') {
-              return c.thumbnail_url || c.poster_url || '';
+              // 14.08.2026 (Віра): порядок був зворотний — thumbnail_url у відео часто = URL самого mp4,
+              // тож <img> не рендерився і плитка була порожня. poster_url (JPEG-кадр) має бути ПЕРШИМ.
+              return c.poster_url || c.thumbnail_url || '';
             }
             return c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
           };

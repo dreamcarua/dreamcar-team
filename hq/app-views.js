@@ -223,7 +223,9 @@ function renderLibGrid(type, q) {
     const u = Store.user(c.uploadedBy);
     const dur = c.duration ? `<div class="lt-dur">${formatDur(c.duration)}</div>` : '';
     // #228 (Олександр UX): library tile — реальний thumbnail замість emoji
-    const libThumb = c.thumbnail_url || c.compressed_url || '';
+    // 14.08.2026 (Віра): у відео thumbnail_url = URL самого відео (не картинка) → <img> не рендерився,
+    // плитка була порожня. poster_url (JPEG-кадр із compress-воркера) має бути ПЕРШИМ. #389.
+    const libThumb = c.poster_url || c.thumbnail_url || c.compressed_url || '';
     const libIsVideo = c.type === 'video';
     const libInner = libThumb
       ? `<img src="${escapeHtml(libThumb)}" alt="" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">${libIsVideo ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.7);">▶</span>' : ''}`
@@ -437,7 +439,7 @@ function renderCreativeStripItems(creativeIds) {
     const c = Store.creative(cid); if (!c) return '';
     // #225 + #262 (Олександр UX): показуємо реальний thumbnail замість emoji
     // #262: якщо thumbnail+compressed ще не готові — show placeholder з compress status
-    const thumb = c.thumbnail_url || c.compressed_url || '';
+    const thumb = c.poster_url || c.thumbnail_url || c.compressed_url || '';   // #389: poster першим (відео)
     const isVideo = c.type === 'video' || /\.(mp4|mov|webm)$/i.test(thumb);
     const compressStatus = (c.compressed_status || '').toLowerCase();
     const isPending = !thumb && compressStatus && compressStatus !== 'failed';
