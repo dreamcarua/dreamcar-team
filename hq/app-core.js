@@ -146,6 +146,10 @@ const Store = {
         // → overview-modal crRow() показував emoji-fallback замість реальної картинки.
         // Давид: "Не отображают креативи".
         thumbnail_url: c.thumbnail_url,
+        // 14.08.2026 (Віра): poster_url не пробрасувався у Store → плитки відео в Бібліотеці були
+        // порожні (у відео thumbnail_url = URL самого mp4, як <img> не рендериться). #389.
+        poster_url: c.poster_url,
+        is_hdr: c.is_hdr,           // 13.08.2026: бейдж «⚠ HDR» на картці
         compressed_url: c.compressed_url,
         compressed_url_hevc: c.compressed_url_hevc,
         drive_file_id: c.drive_file_id,
