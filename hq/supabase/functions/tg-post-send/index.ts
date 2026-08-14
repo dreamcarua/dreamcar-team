@@ -117,7 +117,7 @@ function buildCaption(pub: any, buttonsInCaption?: any[]): string {
   return lines.join('\n');
 }
 async function loadCreatives(sb: any, pubId: string): Promise<any[]> {
-  const { data } = await sb.from('creative_publications').select('creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, compressed_url, compressed_url_hevc, poster_url, width_px, height_px, duration_sec, drive_file_id, name)').eq('publication_id', pubId).order('sort_order', { ascending: true });
+  const { data } = await sb.from('creative_publications').select('creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, compressed_url, compressed_url_hevc, poster_url, width_px, height_px, duration_sec, drive_file_id, name, compressed_at, compressed_status)').eq('publication_id', pubId).order('sort_order', { ascending: true });
   if (!data) return [];
   return data.map((row: any) => row.creatives).filter((c: any) => !!c);
 }
@@ -251,6 +251,13 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
   const dims: string[] = [];
   for (const c of creatives) {
     if (c.type === 'video') {
+      // HARD RULE 30.06.2026: відео можна слати ЛИШЕ коли compressed_at IS NOT NULL.
+      // compressed_status брехливий — фронт ставить 'ready' одразу при аплоаді, і в TG
+      // тоді летить HEVC/HDR оригінал, який не показується inline.
+      // 'failed'/'n/a' пропускаємо у fallback, щоб публікація не зависла назавжди.
+      if (!c.compressed_at && ['pending', 'processing', 'ready'].includes(String(c.compressed_status || ''))) {
+        throw new Error(`video "${c.name}": ще стискається (compressed_at порожній) — публікація відкладена`);
+      }
       const vid = c.compressed_url || c.compressed_url_hevc;
       if (!vid) { errors.push(`video "${c.name}": немає URL`); continue; }
       const cls = await classifyMedia(vid, 'video', c.name || 'video', c.thumbnail_url);

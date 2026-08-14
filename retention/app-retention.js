@@ -97,6 +97,11 @@ async function loadAll(){
       supabase.from('rubrics').select('id,name,color').order('sort_order'),
     ]);
     Store.rubrics = (rubrics && !rubrics.error) ? (rubrics.data || []) : [];
+    // 14.08.2026 (аудит): колонки rubric_id у retention_messages може ще не бути (у SMM вона є,
+    // тут — за міграцією). Запит select('*'), тож факт наявності беремо з форми рядка:
+    // якщо колонки нема — не рендеримо селектор і не пишемо поле, інакше UPDATE впаде цілком.
+    Store.hasRubricCol = !!(msgs && !msgs.error && (msgs.data || []).length
+      && Object.prototype.hasOwnProperty.call(msgs.data[0], 'rubric_id'));
     Store.rubricsById = new Map(Store.rubrics.map(r => [r.id, r]));
     Store.ghostSmm = (ghostSmm && !ghostSmm.error) ? (ghostSmm.data || []) : [];
     if (msgs.error) throw msgs.error;
@@ -774,7 +779,7 @@ function openMessageDetail(id){
           </div>
           <div id="ret-tg-preview" style="background:#1b2733;border:1px solid var(--steel);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.55;color:#e9edf0;word-break:break-word;min-height:44px;"></div>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
           <label>
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ДАТА І ЧАС ВІДПРАВКИ *</span>
             <input type="datetime-local" name="publish_at" required value="${toLocalDt(m.publish_at)}" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
@@ -786,6 +791,17 @@ function openMessageDetail(id){
               ${Store.projects.map(p => `<option value="${p.id}" ${m.project_id === p.id ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
             </select>
           </label>
+          ${Store.hasRubricCol ? `
+          <label>
+            <!-- 14.08.2026 (аудит): панель фільтрів по рубриках і колір border-left картки
+                 читають rubric_id, але у формі не було ЖОДНОГО способу його поставити —
+                 тож фільтри завжди показували 0, а картки були сірі. -->
+            <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">РУБРИКА</span>
+            <select name="rubric_id" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
+              <option value="">— Без рубрики —</option>
+              ${(Store.rubrics || []).map(r => `<option value="${r.id}" ${m.rubric_id === r.id ? 'selected' : ''}>${escHtml(r.name)}</option>`).join('')}
+            </select>
+          </label>` : ''}
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
           <label>
@@ -960,7 +976,9 @@ function openMessageDetail(id){
       if (pickBtn) pickBtn.onclick = async () => {
         const [creRes, useRes] = await Promise.all([
           window.supabase.from('creatives')
-            .select('id, name, type, thumbnail_url, compressed_url, drive_file_id, scopes')
+            // 14.08.2026 (аудит): + poster_url/is_hdr — thumbOf() бере передусім poster_url,
+            // без нього відео у пікері бібліотеки лишалось сірим квадратом.
+            .select('id, name, type, thumbnail_url, poster_url, is_hdr, compressed_url, drive_file_id, scopes')
             .is('deleted_at', null).order('uploaded_at', { ascending: false }).limit(200),
           window.supabase.from('v_creative_usages')
             .select('creative_id, source, ref_title, ref_at, channels'),
@@ -1552,6 +1570,7 @@ async function saveForm(form, id, overlay, opts){
     body: fd.get('body') || '',
     publish_at: new Date(fd.get('publish_at')).toISOString(),
     project_id: fd.get('project_id') || null,
+    ...(Store.hasRubricCol ? { rubric_id: fd.get('rubric_id') || null } : {}),
     audience_list_id: (fd.get('audience_list_id') || '').trim() || null,
     audience_filter,
     notes: (fd.get('notes') || '').trim(),

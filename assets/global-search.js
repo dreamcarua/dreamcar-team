@@ -157,7 +157,9 @@
     try {
       const [pubs, tasks, cre, users] = await Promise.all([
         sb.from('publications').select('id,title,status').is('deleted_at', null).ilike('title', ql).limit(5),
-        sb.from('team_tasks').select('id,title,status,priority').ilike('title', ql).limit(5),
+        // 14.08.2026 (аудит): бракувало .is('deleted_at', null) — глобальний пошук
+        // показував видалені задачі нарівні з живими.
+        sb.from('team_tasks').select('id,title,status,priority').is('deleted_at', null).ilike('title', ql).limit(5),
         sb.from('creatives').select('id,name,type').is('deleted_at', null).ilike('name', ql).limit(5),
         sb.from('users').select('id,name,email,role').or(`name.ilike.${ql},email.ilike.${ql}`).limit(5),
       ]);
