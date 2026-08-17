@@ -1,12 +1,7 @@
-select json_build_object(
-  'ipm_by_day', (select json_agg(x order by (x->>'d')) from (
-      select json_build_object('d', (paid_at at time zone 'Europe/Kyiv')::date, 'c', count(*), 's', sum(amount)) x
-      from dashboard_deals
-      where project = 'IPHONE 17 PRO MAX' and status='pay'
-      group by 1) t),
-  'three_by_day', (select json_agg(x order by (x->>'d')) from (
-      select json_build_object('d', (paid_at at time zone 'Europe/Kyiv')::date, 'c', count(*), 's', sum(amount)) x
-      from dashboard_deals
-      where project = '3 IPHONE' and status='pay'
-      group by 1) t2)
-) as r;
+with agg as (
+  select project, (paid_at at time zone 'Europe/Kyiv')::date d, count(*) c, sum(amount) s
+  from dashboard_deals
+  where status='pay' and project in ('IPHONE 17 PRO MAX','3 IPHONE')
+  group by 1,2
+)
+select json_agg(json_build_object('p',project,'d',d,'c',c,'s',s) order by project, d) as r from agg;
