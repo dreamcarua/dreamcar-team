@@ -2,12 +2,12 @@ do $$
 declare ok boolean := false;
 begin
   begin
-    update dashboard_projects set deal_project_values = deal_project_values || 'MOTORCYCLE'
+    update dashboard_projects
+       set deal_project_values = deal_project_values || array['MOTORCYCLE']
      where code = '3iphone';
   exception when unique_violation then ok := true;
   end;
   if not ok then raise exception 'GUARD НЕ СПРАЦЮВАВ — перетин aliasів пройшов!'; end if;
-  raise notice 'guard ok';
 end $$;
 
 select json_build_object(
