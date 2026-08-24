@@ -26,6 +26,7 @@ concurrency:
 jobs:
   bust:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # ВАЖЛИВО: не реагувати на власні коміти cache-bust (бо нескінченний цикл)
     # Не reагувати тільки на власні auto-generated commits (точна фраза 'auto cache bust v=')
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'auto cache bust v=')"
