@@ -1,8 +1,12 @@
+with d as (
+  select date_start, sum(spend) s, count(*) c
+  from dashboard_ads_data
+  where date_start >= current_date - 30 and coalesce(platform,'meta')<>'google'
+  group by 1)
 select json_build_object(
-  'google_ads', (select json_build_object('rows',count(*),'spend',round(coalesce(sum(spend),0)),'last',max(date_start))
-     from dashboard_ads_data where platform='google' and date_start >= current_date - 30),
-  'meta_ads_7d', (select json_build_object('rows',count(*),'spend',round(coalesce(sum(spend),0)),'last',max(date_start))
-     from dashboard_ads_data where coalesce(platform,'meta')<>'google' and date_start >= current_date - 7),
-  'tables_like', (select json_agg(table_name) from information_schema.tables
-     where table_schema='public' and (table_name ilike '%tg_post%' or table_name ilike '%ig_insight%' or table_name ilike '%ig_media%'))
+  'meta_by_day', (select json_agg(json_build_object('d',date_start,'spend',round(s),'rows',c) order by date_start desc) from d),
+  'tg_post_analytics', (select json_build_object('rows_30d',count(*),'last',max(fetched_at))
+     from tg_post_analytics where fetched_at >= now() - interval '30 days'),
+  'ig_media', (select json_build_object('rows_30d',count(*),'last',max(created_at))
+     from dashboard_ig_media where created_at >= now() - interval '30 days')
 ) as r;
