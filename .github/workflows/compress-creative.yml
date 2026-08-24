@@ -4,7 +4,10 @@ name: Compress Creative Worker
 # стискає, заливає у R2, оновлює compressed_url + status='ready'.
 on:
   schedule:
-    - cron: '*/3 * * * *'  # кожні 3 хв
+    # 24.08: було */3 (кожні 3 хв). 86% запусків (257 із 298) не знаходили роботи,
+    # але встигали поставити ffmpeg+ImageMagick — ~2 хв рахунку намарно.
+    # Тепер */10 + дешева перевірка черги ПЕРЕД встановленням (крок peek нижче).
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -16,9 +19,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Дешева read-only перевірка черги (~2 с) ДО важкого apt-get.
+      # peek_compress_jobs() повторює критерії claim_compress_jobs 1:1, нічого не claim'ить.
+      - name: Peek queue (skip everything if empty)
+        id: peek
+        env:
+          SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
+          SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
+        run: |
+          N=$(curl -sS --max-time 20 -X POST "$SUPABASE_URL/rest/v1/rpc/peek_compress_jobs" \
+                -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+                -H "Content-Type: application/json" -d '{}' || echo "")
+          case "$N" in ''|*[!0-9]*) echo "peek недоступний — працюємо як завжди"; N=1 ;; esac
+          echo "pending=$N" >> "$GITHUB_OUTPUT"
+          echo "::notice::У черзі на стиснення: $N"
+
       - uses: actions/checkout@v4
+        if: steps.peek.outputs.pending != '0'
 
       - name: Install ffmpeg + jq + python3 + ImageMagick + HEIC support
+        if: steps.peek.outputs.pending != '0'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg jq python3 imagemagick libheif-examples libheif1
@@ -27,6 +47,7 @@ jobs:
           sudo sed -i 's@<policy domain="coder" rights="none" pattern="HEIF" />@<policy domain="coder" rights="read|write" pattern="HEIF" />@g' /etc/ImageMagick-6/policy.xml || true
 
       - name: Run compress worker
+        if: steps.peek.outputs.pending != '0'
         env:
           SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
           SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
