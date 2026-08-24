@@ -11,6 +11,7 @@ on:
 jobs:
   fix:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: supabase/setup-cli@v1
         with:
