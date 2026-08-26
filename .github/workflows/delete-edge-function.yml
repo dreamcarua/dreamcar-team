@@ -1,0 +1,70 @@
+name: Delete Edge Function
+
+# 26.08.2026: у репо був спосіб ДЕПЛОЇТИ Edge Function (deploy-edge-functions.yml),
+# але не було способу її ВИДАЛИТИ — «мертві» функції накопичувались у проєкті.
+# Цей воркфлоу знімає функцію через Supabase Management API за slug.
+#
+# Запуск: Actions → Delete Edge Function → Run workflow → slug + confirm=<slug>.
+# Подвійне підтвердження навмисне: видалення незворотне.
+
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: 'Slug функції (напр. tech-requests-watchdog)'
+        required: true
+      confirm:
+        description: 'Повтори slug для підтвердження'
+        required: true
+
+concurrency:
+  group: delete-edge-function
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Перевірити підтвердження
+        run: |
+          set -euo pipefail
+          test "${{ inputs.slug }}" = "${{ inputs.confirm }}" \
+            || { echo "::error::slug і confirm не збігаються — нічого не роблю"; exit 1; }
+
+      - name: Видалити
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SLUG: ${{ inputs.slug }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Немає SUPABASE_ACCESS_TOKEN"; exit 1; }
+          test -n "$PROJECT_REF" || { echo "::error::Немає SUPABASE_PROJECT_REF"; exit 1; }
+
+          HTTP=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
+            -X DELETE "https://api.supabase.com/v1/projects/$PROJECT_REF/functions/$SLUG" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+
+          echo "HTTP $HTTP"
+          cat /tmp/resp.json || true
+          echo
+          case "$HTTP" in
+            2*) echo "✅ Функцію $SLUG видалено" ;;
+            404) echo "::error::Функції $SLUG не існує"; exit 1 ;;
+            *)  echo "::error::Не видалено (HTTP $HTTP)"; exit 1 ;;
+          esac
+
+      - name: Перевірити що зникла
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SLUG: ${{ inputs.slug }}
+        run: |
+          set -euo pipefail
+          HTTP=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -X GET "https://api.supabase.com/v1/projects/$PROJECT_REF/functions/$SLUG" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+          test "$HTTP" = "404" \
+            && echo "✅ Верифіковано: $SLUG більше немає" \
+            || { echo "::error::Функція все ще на місці (HTTP $HTTP)"; exit 1; }
