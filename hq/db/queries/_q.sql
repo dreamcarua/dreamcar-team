@@ -1,11 +1,5 @@
-do $$
-declare rid bigint;
-begin
-  select net.http_get(
-    url := 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/smm-content-watchdog?dry=1',
-    headers := jsonb_build_object('x-hq-cron-secret', (select value from app_secrets where key='hq_cron_secret')),
-    timeout_milliseconds := 25000) into rid;
-  perform pg_sleep(12);
-  create temp table _res as select status_code, content from net._http_response where id = rid;
-end $$;
-select json_build_object('status',status_code,'body',left(content,600)) as r from _res;
+select json_agg(json_build_object('status',r.status_code,'body',left(r.content,300)) order by r.id desc) as res
+from net._http_response r
+join net.http_request_queue q on q.id = r.id
+where q.url ilike '%smm-content-watchdog%'
+limit 3;
