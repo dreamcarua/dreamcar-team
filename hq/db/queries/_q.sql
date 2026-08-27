@@ -1,11 +1,11 @@
-select json_build_object(
-  'watchdog_test', (select json_build_object('status',status_code,'body',left(content,400))
-     from net._http_response order by id desc limit 1),
-  'pg_net_last_hour', (select count(*) from net._http_response where created > now() - interval '1 hour'),
-  'cron_jobs_active', (select count(*) from cron.job where active),
-  'cron_http_per_day', (select sum(case
-       when schedule ~ '^\*/([0-9]+)' then 1440 / nullif((regexp_match(schedule,'^\*/([0-9]+)'))[1]::int,0)
-       when schedule ~ '^[0-9,]+ \*' then array_length(string_to_array(split_part(schedule,' ',1),','),1) * 24
-       else 1 end)
-     from cron.job where active and command ilike '%http_post%')
-) as r;
+do $$
+declare rid bigint;
+begin
+  select net.http_get(
+    url := 'https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/smm-content-watchdog?dry=1',
+    headers := jsonb_build_object('x-hq-cron-secret', (select value from app_secrets where key='hq_cron_secret')),
+    timeout_milliseconds := 25000) into rid;
+  perform pg_sleep(12);
+  create temp table _res as select status_code, content from net._http_response where id = rid;
+end $$;
+select json_build_object('status',status_code,'body',left(content,600)) as r from _res;
