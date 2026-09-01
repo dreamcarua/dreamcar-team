@@ -92,6 +92,13 @@ jobs:
               info|*) EMOJI="🤖" ;;
             esac
             TS=$(date -u +"%H:%M UTC · %d.%m")
+            # v4 (01.09.2026): «<115», «a<b», «Р&Д» ламали parse_mode=HTML —
+            # TG читав "<115" як відкриття тега 115 і давав 400. Екрануємо лише
+            # ті "<" і "&", що НЕ починають дозволений тег / готову сутність.
+            TEXT=$(printf '%s' "$TEXT" | perl -CSD -pe '
+              s{&(?!(?:amp|lt|gt|quot|apos|\#\d+);)}{&amp;}g;
+              s{<(?!/?(?:b|strong|i|em|u|ins|s|strike|del|a|code|pre|span|tg-spoiler|blockquote)[\s/>])}{&lt;}g;
+            ')
             # v2 (#531, 20.06.2026): прибрано sed escape <,>,& — payload містить
             # навмисний HTML (<b>, <i>, <a>) який TG має рендерити. Раніше escape
             # ламав <b> → &lt;b&gt; і у чаті теги відображались літерально.
@@ -111,7 +118,9 @@ jobs:
               # і тег виглядатиме як plain text. Краще ніж втратити нотифікацію.
               echo "::warning::HTML parse fail (HTTP $HTTP), fallback to plain text:"
               cat /tmp/tg-resp.txt
-              PLAIN_MSG=$(echo "$MSG" | sed -E 's|</?(b|i|u|s|a|code|pre|em|strong|tg-spoiler)[^>]*>||gi')
+              # ⚠ роздільник тільки '#': з 's|...|' альтернатива (a|b) з'їдала роздільник
+            #   і sed падав з "unknown option to `s'" — fallback не працював жодного разу.
+            PLAIN_MSG=$(echo "$MSG" | sed -E 's#</?(b|i|u|s|a|code|pre|em|strong|tg-spoiler|span|blockquote)[^>]*>##gi')
               HTTP2=$(curl -s -o /tmp/tg-resp2.txt -w "%{http_code}" \
                 "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
                 -d "chat_id=$TG_CHAT_ID" \
