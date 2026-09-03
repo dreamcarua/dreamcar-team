@@ -1,0 +1,58 @@
+name: report-to-telegram
+
+# Agent commits reports/YYYY-MM-DD-HHMM-<slug>.json on main → this sends it to the project Telegram chat.
+# Secrets required (repo → Settings → Secrets → Actions, or `gh secret set NAME --body "..."`):
+#   TG_BOT_TOKEN, TG_CHAT_ID  — the names actually used in this repo (see docs/tooling.md).
+# Plain text on purpose: a report with "<" or ">" must never be swallowed by markup.
+
+on:
+  push:
+    # `memory-v8` is temporary: it lets the very first report prove the channel
+    # before the branch is merged. Removed right after the delivery check.
+    branches: [main, memory-v8]
+    paths: ["reports/*.json"]
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Send new reports
+        env:
+          TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          CHAT: ${{ secrets.TG_CHAT_ID }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then
+            echo "::error::TG_BOT_TOKEN or TG_CHAT_ID is not set"; exit 1; fi
+          if git cat-file -e "$BEFORE" 2>/dev/null; then
+            FILES=$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER" -- 'reports/*.json')
+          else
+            FILES=$(git show --name-only --pretty= --diff-filter=A "$AFTER" -- 'reports/*.json')
+          fi
+          [ -z "$FILES" ] && { echo "no new reports"; exit 0; }
+          for f in $FILES; do
+            TEXT=$(jq -r '
+              "📋 " + (.project // "project") + " · " + (.date // "") +
+              "\n\n" + (.summary // "") +
+              (if .breaks_if_not_done then "\n\n⚠ If not done: " + .breaks_if_not_done else "" end) +
+              (if (.open_tasks // 0) > 0 then "\n\nOpen tasks: " + (.open_tasks|tostring) + ((.on_us // 0) as $u | if $u > 0 then " (" + ($u|tostring) + " on us)" else "" end) else "" end) +
+              (if .waiting_for then "\n\nWaiting for: " + .waiting_for else "" end) +
+              (if .link then "\n" + .link else "" end)
+            ' "$f" | head -c 3900)
+            RESP=$(curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${CHAT}" \
+              --data-urlencode "text=${TEXT}" \
+              --data-urlencode "disable_web_page_preview=true")
+            echo "$RESP" | jq -e '.ok' >/dev/null || { echo "::error::Telegram refused $f: $RESP"; exit 1; }
+            echo "sent $f"
+          done
