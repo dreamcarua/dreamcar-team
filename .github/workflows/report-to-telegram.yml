@@ -7,9 +7,7 @@ name: report-to-telegram
 
 on:
   push:
-    # `memory-v8` is temporary: it lets the very first report prove the channel
-    # before the branch is merged. Removed right after the delivery check.
-    branches: [main, memory-v8]
+    branches: [main]
     paths: ["reports/*.json"]
 
 permissions:
