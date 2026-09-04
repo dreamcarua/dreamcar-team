@@ -53,7 +53,7 @@ Production система для команди DreamCar (https://dreamcar.ua) �
 ## Contacts
 
 - CEO: Vadym Gryshyn (vg@abrisart.com)
-- Технічний партнер: Phillip (співзасновник)
+- Співзасновник DreamCar: Артем
 
 ## License
 
