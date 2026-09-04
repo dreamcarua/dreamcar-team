@@ -89,3 +89,29 @@
 | Нотифікація Вадиму | `cowork-notify/*.json` | звіт у `reports/*.json`; крайній випадок — DM боту | 01.09.2026, коли HTML-парсинг валив повідомлення |
 | Доставка звіту | `report-to-telegram.yml` | якщо `TG_CHAT_ID` вказує не туди — `/start@dreamcar_team_bot` у потрібному чаті + `gh secret set TG_CHAT_ID --body` | — |
 | Стиснення відео | воркер у Actions | клієнтське стиснення в браузері (`app-client-compress.js`) | коли черга стоїть |
+
+## Конвеєр «Автосвіт» (внесено 04.09.2026 з чату 10-11.08.2026)
+
+- Джерело правди контенту: `autosvit_leads` → `autosvit_ideas` (partial unique: один живий матеріал на лід, killed не блокує) → `publications`.
+- Еталони голосу: `autosvit_exemplars` (2 vadym_edit + 3 ig_top у промпт). Авто-поповнення: збереження з `big_edit` >10% довжини тексту + approve → INSERT vadym_edit.
+- Крони: collect 05:30 UTC щодня · batch пн 06:00 UTC (`{"count":5,"async":true}`) · daily-ops 06:45 UTC. Усі через pg_cron + `net.http_post`.
+- `checks` (jsonb) — звалище метаданих (prompt_ver, video_meta, video_fmt, legal_block, big_edit, edited_by); його читають і картка апруву, і approve-логіка.
+- Хто ще пише: Вадим редагує зі сторінки (api save), tg-webhook міняє статуси, daily-ops ревертить обірвані approve (>30 хв) і ріже ліди старші за 21 день.
+- Картки апруву шле бот у DM Вадиму; кнопки обробляє `tg-webhook` (гілка `av:`).
+
+## Конвеєр авто-відповідей IG (внесено 04.09.2026 з чату 04.09)
+
+pg_cron poll `*/5` → Edge `ig-comments` (fetch IG → routing → чернетка) → картка в TG апрув-боту → людина тапає → `ig-comments-bot` постить у IG Graph. **Нічого не постить без ручного тапу.** Backfill-джоби вимкнені назавжди. Тон і частка відповідей — у `dashboard_settings.ig_comments_sys` (jsonb), модель — у `dashboard_settings.ig_comments_model`; правити тон = один SQL-upsert, без редеплою. Метрики постів: `dashboard_ig_media` (ETL, історія лише з 25.03.2026 — це весь наявний обсяг, не фільтр).
+
+## Календар публікацій (внесено 04.09.2026 з чату 30.06.2026)
+
+- Month-view: `renderMonth()` → `.cal-day[data-date]`; week-view: `renderWeek()` → `.week-col[data-date]`; обидва слухає `app-dragdrop-fix.js` → `movePubToDate()` → UPDATE.
+- Board-view: 4 колонки (Чернетка → На погодженні → Погоджено → Опубліковано), drag між колонками = зміна статусу.
+- Loader-chain `app-core.js` → ~52 файли; статичні файли поза ланцюгом потребують прямого `<script>` (див. traps).
+
+## Схема launches (внесено 04.09.2026 з чату 03.08.2026)
+
+- У `launches` НЕМА колонки `project` — є `deal_aliases` (масив). Мапінг: `dashboard_deals.project` (нормалізоване ETL-імʼя, напр. `BMW X6M`) звіряється з `launches.deal_aliases`.
+- Оплачені угоди рахувати через `paid_at IS NOT NULL`, не через `status`.
+- Ціна циклу — `launches.prize_cost_uah`; резерв призу — `launches.prize_purchased_at` (історично null у всіх).
+- `dashboard_deals` — джерело правди угод (SendPulse CRM + WooCommerce + Make.com, realtime). «rows» у `list_tables` — застарілий стат, не рахунок.
