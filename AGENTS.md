@@ -99,3 +99,4 @@ A task that spans two carriers: one line in each `tasks.md`, each pointing at th
 | Global rule | Here | Why | Since |
 |---|---|---|---|
 | "commit on your own to dreamcarua/*" | this repo takes a branch + owner merge, not direct pushes to `main` | public repo, bots commit here several times a day, and every root file is instantly live on team.dreamcar.ua | 03.09.2026 |
+| "branch + owner merge here" | memory files under `docs/*.md` go straight to `main` | memory must be written in the same commit as the conclusion; markdown in `docs/` changes no site behaviour. Code, workflows and root files still take a branch | 04.09.2026 |

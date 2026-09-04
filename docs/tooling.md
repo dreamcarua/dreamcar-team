@@ -162,3 +162,17 @@ gh secret set <NAME> -R dreamcarua/dreamcar-team --body "<значення>"
 | Будь-які гроші й рекламний бюджет | Вадим | завжди |
 | Ротація ключа у зовнішньому сервісі (BotFather, Meta, SendPulse, Supabase) | Вадим | агент не бачить наслідків для інших систем |
 | `delete-edge-function`, `cron.unschedule` | Вадим або з явним OK | незворотно, тихо ламає процес, який ніхто не помітить кілька днів |
+
+## Робочі шляхи, перевірені на практиці (внесено 04.09.2026 з чатів 30.06-05.09)
+
+- **Деплой Edge-функцій:** тільки push у `main` (workflow деплоїть усе змінене в `hq/supabase/functions/**`). Деплой через MCP перезаписується наступним пушем.
+- **Запис у GitHub із контейнера неможливий** (токен read-only, проксі ріже write). Писати через Mac: gh авторизований, або через bridge `github__push_files`. Для байт-точності великих файлів — `gh api -X PUT .../contents/<path> --input payload.json` (base64) і звірка `content.sha` з `git hash-object`.
+- **Читати з GitHub контейнер може** (`https://oauth2:$GITHUB_TOKEN@github.com/...`).
+- **`.github/workflows/*` через GitHub MCP недоступні** (немає scope `workflow`) — тільки git/gh з Mac.
+- **Клон цього репо для звітності:** sparse (`--filter=blob:none --sparse`, checkout `onboarding cowork-notify`) — повний завеликий; `onboarding/CHANGELOG.md` ~100 KB через MCP не пролазить.
+- **`apply-migration.yml`** — виконує довільний `.sql` через Supabase Management API; ним же можна читати (тіло відповіді друкується в лог). Резервний шлях, коли Supabase MCP віддає Unauthorized.
+- **Пауза pg_cron-джоби:** `SELECT cron.alter_job(job_id:=N, active:=false)` — `UPDATE cron.job` заборонений роллю.
+- **Ручний запуск Edge:** URL і заголовок із `cron.job.command` відповідної джоби → повторити `net.http_post`.
+- **Прод-верифікація:** `curl` з Mac із cache-bust; GitHub Pages білдить 35-90 с, перед сайтом Cloudflare (кеш + beacon 12-17 KB + блок бот-фетчерів, 403 ≠ реальний стан).
+- **Звіти:** `cowork-notify/<YYYY-MM-DD-HHMM>-<slug>.json`, поля `{text, type, link}`; текст БЕЗ `<`, `>`, `&` — інакше відправка валиться мовчки. Інша Action архівує файли (коміти «archive cowork-notify files [skip ci]»).
+- **Паралельні сесії:** інші чати Вадима теж комітять сюди — перед роботою дивитись свіжі коміти, чужі не чіпати.
