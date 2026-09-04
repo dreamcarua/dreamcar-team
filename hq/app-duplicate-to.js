@@ -39,7 +39,16 @@
     if (!pdef) return;
     try {
       var newPub = JSON.parse(JSON.stringify(p));
-      newPub.id = 'p_' + shortId() + Date.now().toString(36);
+      // 05.09.2026 (баг Олександра, #дублювати-на): був 'p_' + shortId() + Date.now() —
+      // локальний ID з часів localStorage. У backend-режимі publications.id це uuid,
+      // тож _persistPub() падав на валідації: «Невалідний UUID публікації: p_2dq4ehismtnbc7yv».
+      // Дубль створювався в UI, але не зберігався — і людина бачила заповнену картку,
+      // яка мовчки не існує в базі.
+      // Той самий баг уже виправляли 09.06.2026 у app-views.js (#201), але пройшлись
+      // лише по одному файлу — цей лишився чекати, поки хтось скористається «Дублювати на».
+      newPub.id = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : ('p_' + shortId() + Date.now().toString(36)); // legacy fallback
       newPub.platforms = [platId];
       newPub.status = 'draft';
       newPub.approved_by = [];
