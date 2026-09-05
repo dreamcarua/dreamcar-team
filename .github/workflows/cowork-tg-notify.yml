@@ -86,6 +86,7 @@ jobs:
             case "$TYPE" in
               deploy) EMOJI="🚀" ;;
               task) EMOJI="✅" ;;
+              fix) EMOJI="🛠" ;;
               warn) EMOJI="⚠️" ;;
               error) EMOJI="🔴" ;;
               question) EMOJI="❓" ;;
