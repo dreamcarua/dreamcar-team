@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 1
+          fetch-depth: 20   # 05.09.2026: потрібна історія для rebase при гонці пушів
 
       - name: Compute short SHA + timestamp
         id: ver
@@ -83,7 +83,20 @@ jobs:
             exit 0
           fi
           git commit -m "🤖 auto cache bust v=$VERSION [skip ci]"
-          git push
+          # 05.09.2026: два коміти в main з різницею в секунди (напр. мердж двох PR підряд)
+          # робили push non-fast-forward, воркфлоу падав і версії ?v= НЕ бампались —
+          # тобто користувачі лишались на старих ассетах, а помилка виглядала як разова.
+          PUSHED=0
+          for i in 1 2 3 4 5; do
+            if git push; then PUSHED=1; break; fi
+            echo "::warning::push відхилено (main зрушив), спроба $i — rebase і повтор"
+            git pull --rebase --autostash origin main || true
+            sleep $((i * 3))
+          done
+          if [ "$PUSHED" != "1" ]; then
+            echo "::error::Cache bust не запушився після 5 спроб"
+            exit 1
+          fi
           echo "::notice::Committed cache bust"
 
       - name: Cloudflare cache purge (edge invalidation)
