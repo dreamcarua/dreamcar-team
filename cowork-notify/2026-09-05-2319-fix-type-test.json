@@ -1,0 +1,1 @@
+{ "text": "<b>cowork-tg-notify.yml</b>: додано тип <code>fix</code>. Якщо це повідомлення прийшло з 🛠 замість 🤖, PAT з дозволом Workflows і новий тип працюють.", "type": "fix", "link": "https://github.com/dreamcarua/dreamcar-team/commit/a30fcae4939b29745f301011d13e248383cad3dd" }
