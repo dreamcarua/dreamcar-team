@@ -175,6 +175,10 @@ async function verifyPublication(sb: any, pubId: string, igMediaCache: IGMedia[]
   }
 
   if (pub.verified_status === "requested") {
+    // 04.09.2026: питання вже поставлене — крон свою роботу зробив, далі відповідає людина кнопкою.
+    // Без цього рядка джоба лишалась у cron.job назавжди: розклад «хв год день місяць *» без року,
+    // тож вона перезапускалась щороку. Так накопичився 61 сміттєвий verify_pub_ (прибрано 04.09.2026).
+    await cleanupCronJob(sb, pubId);
     return { result: "already_asked" };
   }
 
@@ -184,6 +188,8 @@ async function verifyPublication(sb: any, pubId: string, igMediaCache: IGMedia[]
     detail: `T+3min manual question (IG check empty) → group + ${stakeholders.length} DM`, actor_id: SYSTEM_ACTOR_ID,
   });
   await requestManualConfirmation(pub, stakeholders, platforms);
+  // Питання поставлене — джоба більше не потрібна (див. коментар вище).
+  await cleanupCronJob(sb, pubId);
   return { result: "asked" };
 }
 
