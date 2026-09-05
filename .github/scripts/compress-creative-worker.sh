@@ -476,7 +476,7 @@ if [ "$IS_HDR" = "yes" ]; then
     -c:v libx265 -preset medium -profile:v main10 -pix_fmt yuv420p10le \
     -x265-params "${HDR_X265_PARAMS}:pass=1:stats=${PASS_LOG_HEVC}" \
     -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
-    -vf "$HDR_SCALE" \
+    -vf "$HDR_SCALE" -fps_mode cfr \
     -color_primaries bt2020 -color_trc arib-std-b67 -colorspace bt2020nc \
     -an -f null /dev/null
 
@@ -485,7 +485,7 @@ if [ "$IS_HDR" = "yes" ]; then
     -c:v libx265 -preset medium -profile:v main10 -pix_fmt yuv420p10le -tag:v hvc1 \
     -x265-params "${HDR_X265_PARAMS}:pass=2:stats=${PASS_LOG_HEVC}" \
     -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 110 / 100))k" -bufsize "$((VIDEO_KBPS * 2))k" \
-    -vf "$HDR_SCALE" \
+    -vf "$HDR_SCALE" -fps_mode cfr \
     -color_primaries bt2020 -color_trc arib-std-b67 -colorspace bt2020nc \
     -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
     -movflags +faststart \
@@ -576,51 +576,76 @@ X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset slow -tune film"
 X264_PARAMS="bframes=8:b-adapt=2:ref=6:no-fast-pskip=1:aq-mode=3:aq-strength=1.0:psy-rd=1.0,0.15:rc-lookahead=60:trellis=2:me=hex:subme=8:mixed-refs=1:8x8dct=1:weightb=1:weightp=2:merange=24:qcomp=0.7:deblock=-1,-1"
 
 echo ""
-echo "[H.264 Pass 1/2] slow analyzing @ ${VIDEO_KBPS}k..."
-ffmpeg -y -v error -stats -i "$INPUT" \
-  $X264_OPTS \
-  -x264-params "$X264_PARAMS" \
-  -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 115 / 100))k" -bufsize "$((VIDEO_KBPS * 25 / 10))k" \
-  -vf "$SCALE_FILTER" \
-  -pass 1 -passlogfile "$PASS_LOG" \
-  -an -f null /dev/null
+# 05.09.2026 · two-pass ABR → capped CRF (одним проходом)
+#
+# Що ламалось: pass 1 аналізує N кадрів, pass 2 після приведення до CFR отримує N+k
+# (джерело .mov з iPhone пише VFR, ffmpeg дублює кадри — у логу видно dup=18).
+# x264 читає stats-файл коротшим за потік → "Incomplete MB-tree stats file" → SIGSEGV,
+# воркер падає з exit 139 і креатив назавжди позначається failed.
+#
+# Чому CRF, а не полагоджений two-pass: ми не ЦІЛИМОСЬ у бітрейт, ми маємо не перевищити
+# стелю 49.5 MB. Для стелі правильний інструмент — capped CRF: якість фіксована,
+# maxrate/bufsize не дають вилізти за межу. Немає stats-файла — немає цього класу падінь.
+# Бонус: один прохід замість двох (≈2× швидше) і файл зазвичай помітно менший за стелю,
+# тобто швидше вантажиться і в TG, і в IG.
+#
+# -fps_mode cfr нормалізує VFR-джерело на вході в енкодер, а не всередині x264.
 
-echo "[H.264 Pass 2/2] Encoding @ ${VIDEO_KBPS}k + ${AUDIO_KBPS}k AAC..."
-ffmpeg -y -v error -stats -i "$INPUT" \
-  $X264_OPTS \
-  -x264-params "$X264_PARAMS" \
-  -b:v "${VIDEO_KBPS}k" -maxrate "$((VIDEO_KBPS * 115 / 100))k" -bufsize "$((VIDEO_KBPS * 25 / 10))k" \
-  -vf "$SCALE_FILTER" \
-  -pass 2 -passlogfile "$PASS_LOG" \
-  -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
-  -movflags +faststart -pix_fmt yuv420p \
-  "$OUTPUT"
-  # #292: видалив -metadata:s:v:0 rotate=0
-  # ffmpeg 6.x autorotate=on автоматично обертає фрейми ПЕРЕД scale,
-  # тому output вже physical-rotated. Force-strip rotation tag не потрібен
-  # і призводив до mismatch між container metadata і реальним output → quadratic TG preview.
+CRF=18            # 1080p з телефона: візуально прозоро
+CRF_STEP=3
+CRF_MAX=30
+ENC_ATTEMPT=0
 
-OUT_SIZE=$(stat -c%s "$OUTPUT")
-
-if [ "$OUT_SIZE" -gt "$TARGET_BUDGET_BYTES" ]; then
-  RETRY_KBPS=$((VIDEO_KBPS * 93 / 100))
-  echo "::warning::H.264 overshoot ($OUT_SIZE > $TARGET_BUDGET_BYTES). Retry @ ${RETRY_KBPS}k..."
+encode_h264() {
+  local crf="$1"
   ffmpeg -y -v error -stats -i "$INPUT" \
-    $X264_OPTS -x264-params "$X264_PARAMS" \
-    -b:v "${RETRY_KBPS}k" -maxrate "$((RETRY_KBPS * 110 / 100))k" -bufsize "$((RETRY_KBPS * 2))k" \
-    -vf "$SCALE_FILTER" \
-    -pass 1 -passlogfile "$PASS_LOG" -an -f null /dev/null
-  ffmpeg -y -v error -stats -i "$INPUT" \
-    $X264_OPTS -x264-params "$X264_PARAMS" \
-    -b:v "${RETRY_KBPS}k" -maxrate "$((RETRY_KBPS * 110 / 100))k" -bufsize "$((RETRY_KBPS * 2))k" \
-    -vf "$SCALE_FILTER" \
-    -pass 2 -passlogfile "$PASS_LOG" \
+    $X264_OPTS \
+    -x264-params "$X264_PARAMS" \
+    -crf "$crf" -maxrate "${VIDEO_KBPS}k" -bufsize "$((VIDEO_KBPS * 2))k" \
+    -vf "$SCALE_FILTER" -fps_mode cfr \
     -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
     -movflags +faststart -pix_fmt yuv420p \
     "$OUTPUT"
+}
+
+# Аварійний профіль: без кастомних x264-params і без нашої фільтрації тонких налаштувань.
+# Використовується лише якщо основний енкод впав — краще трохи гірший файл, ніж failed-креатив.
+encode_h264_safe() {
+  local crf="$1"
+  echo "::warning::Основний енкод впав — пробуємо безпечний профіль (preset medium, crf $crf)"
+  ffmpeg -y -v error -stats -i "$INPUT" \
+    -c:v libx264 -profile:v high -preset medium \
+    -crf "$crf" -maxrate "${VIDEO_KBPS}k" -bufsize "$((VIDEO_KBPS * 2))k" \
+    -vf "$SCALE_FILTER" -fps_mode cfr \
+    -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
+    -movflags +faststart -pix_fmt yuv420p \
+    "$OUTPUT"
+}
+
+while : ; do
+  echo ""
+  echo "[H.264 capped CRF] crf=${CRF}, стеля ${VIDEO_KBPS}k + ${AUDIO_KBPS}k AAC..."
+  if ! encode_h264 "$CRF"; then
+    encode_h264_safe "$((CRF + 2))"
+  fi
   OUT_SIZE=$(stat -c%s "$OUTPUT")
-  VIDEO_KBPS=$RETRY_KBPS
-fi
+  if [ "$OUT_SIZE" -le "$TARGET_BUDGET_BYTES" ]; then break; fi
+  ENC_ATTEMPT=$((ENC_ATTEMPT + 1))
+  if [ "$CRF" -ge "$CRF_MAX" ] || [ "$ENC_ATTEMPT" -ge 4 ]; then
+    echo "::warning::CRF-драбина вичерпана на crf=${CRF} (${OUT_SIZE} b) — жорсткий ABR як остання спроба"
+    ffmpeg -y -v error -stats -i "$INPUT" \
+      $X264_OPTS -x264-params "$X264_PARAMS" \
+      -b:v "$((VIDEO_KBPS * 90 / 100))k" -maxrate "${VIDEO_KBPS}k" -bufsize "$((VIDEO_KBPS * 2))k" \
+      -vf "$SCALE_FILTER" -fps_mode cfr \
+      -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
+      -movflags +faststart -pix_fmt yuv420p \
+      "$OUTPUT"
+    OUT_SIZE=$(stat -c%s "$OUTPUT")
+    break
+  fi
+  CRF=$((CRF + CRF_STEP))
+  echo "::warning::Перевищення стелі (${OUT_SIZE} > ${TARGET_BUDGET_BYTES}) → crf=${CRF}"
+done
 
 OUT_MB=$(awk "BEGIN{printf \"%.1f\", $OUT_SIZE/1024/1024}")
 RATIO=$(awk "BEGIN{printf \"%.0f\", ($OUT_SIZE*100)/$IN_SIZE}")
