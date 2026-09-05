@@ -1,0 +1,1 @@
+{ "text": "<b>Global instructions v2</b>: підготовлено англомовну версію інструкцій Cowork (1641 → 1378 токенів). Знайдено 2 помилки в старій: назва workflow (cowork-tg-notify.yml, не cowork-notify.yml) і type \"fix\" не існує в Action. Файл у чаті, чекає на затвердження.", "type": "task" }
