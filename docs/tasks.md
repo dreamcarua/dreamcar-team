@@ -64,3 +64,5 @@ Tracker: `team_tasks` у Supabase (сторінка `team.dreamcar.ua/tasks/`). 
 - ⚪ **RLS на 5 backup-таблицях** — Supabase security alert, low priority. [30.06]
 - ⏸ **#49 Олександр (SMM)** — «посилання на кліп + прибрати повідомлення з групи TG+TT». Чекало його відповіді в SMM-чаті.
 - ⏸ **#32 Онбординг: кнопки не реагують** — чекає репро.
+
+- ⏸ **PR #3 `fix/compress-capped-crf` чекає мерджу власника** — two-pass енкод падає на VFR-відео з iPhone (SIGSEGV, креатив у `failed`). Після мерджу повернути в чергу креатив `ba4df100-7aea-45f6-9a05-eff41acfa26a`: `update creatives set compressed_status='pending', compress_attempts=0, compress_error=null where id='ba4df100-7aea-45f6-9a05-eff41acfa26a';` — зараз у нього вже 3 спроби, тож наступне падіння зробить його `failed`. [Claude 05.09]
