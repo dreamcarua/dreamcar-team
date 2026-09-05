@@ -208,7 +208,6 @@
 **Do:** для стелі за розміром (49.5 MB під Telegram) використовувати capped CRF одним проходом (`-crf` + `-maxrate` + `-bufsize`), а не two-pass ABR: two-pass потрібен, коли ціль — точний бітрейт, а не стеля. На будь-якому шляху енкоду тримати `-fps_mode cfr`, щоб проходи бачили однакову кількість кадрів. Перед тим як ховати креатив у `failed`, пробувати аварійний профіль (`preset medium`, без кастомних x264-params).
 **Seen:** 05.09.2026 · ✅ виправлено (PR #3), перевірено на файлі, який упав: 27.3 MB, 559 кадрів, без падіння
 
-<<<<<<< HEAD
 <!-- Harvested 05.09.2026 from the Health chat (session of 24.08.2026). Health/DayWeft is another Cowork session's zone (hub dreamcarua/dayweft-memory); only the repo- and account-level findings live here. Original dates kept. -->
 
 ### Видалене з репо лишається в історії — і репо публічний
@@ -246,11 +245,9 @@
 **Cause:** для приватних репо це Advanced Security, окремий продукт; Pro дає лише для публічних.
 **Do:** не обіцяй цю функцію для `sneco`, `abrisart-dashboards` та інших приватних репо акаунта. Dependabot і branch protection працюють скрізь. Для публічного `dreamcar-team` сканування є.
 **Seen:** 24.08.2026 · ✅
-=======
 ### Воркфлоу, що комітить у main, падає від гонки пушів
 **Symptom:** `Auto Cache Bust` падає за 6 секунд: `! [rejected] main -> main (fetch first)`.
 **Cause:** два коміти в main із різницею в секунди (мердж двох PR підряд) — воркфлоу порахував версію на одному SHA, а поки правив файли, main пішов уперед. `git push` без rebase = non-fast-forward.
 **Чому це не косметика:** коли він падає, `?v=` у фронтенді НЕ бампається і CF-purge не виконується. Команда сидить на старих ассетах, а в пошті це виглядає як разовий збій CI.
 **Do:** будь-який воркфлоу, що пушить у main, має пушити в циклі з `git pull --rebase --autostash origin main` між спробами і `fetch-depth` ≥ 20. Сюди комітять боти й кілька сесій одночасно — гонка не виняток, а норма.
 **Seen:** 05.09.2026 · ✅ виправлено (PR #4), перевірено ручним запуском: версія бампнулась
->>>>>>> 696281c (memory: three fixes merged and verified in prod)
