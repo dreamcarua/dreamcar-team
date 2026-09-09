@@ -21,7 +21,7 @@
 |---|---|---|
 | Supabase project ref | `wotghlaehnvxyeacznvv` | усі виклики MCP, URL edge-функцій `https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/<fn>` |
 | Домен сайту | `team.dreamcar.ua` | GitHub Pages, `CNAME` у корені, source = гілка `main`, шлях `/` |
-| Бот команди | `@dreamcar_team_bot` | нотифікації, погодження, DM-дайджести, cowork-notify, kasa-watchdog |
+| Бот команди | `@dreamcar_team_bot` | нотифікації, погодження, DM-дайджести, kasa-watchdog; звіти агента з 05.09.2026 — **не тут**, див. Reporting |
 | Публічний бот учасників | токен у GH secret `PUBLIC_BOT_TOKEN` | нативна DM-розсилка на базу (≈14 тис. підписників у `bot_subscribers`) |
 | Репозиторій | `dreamcarua/dreamcar-team`, публічний, default branch `main` | — |
 
@@ -69,8 +69,8 @@ gh secret set <NAME> -R dreamcarua/dreamcar-team --body "<значення>"
 
 | Воркфлоу | Що робить | Чим керується | Ручний запуск |
 |---|---|---|---|
-| `cowork-tg-notify.yml` | міст Cowork → Telegram: читає новий `cowork-notify/<ts>.json` `{text,type,link}`, шле в TG через `@dreamcar_team_bot`, потім переносить файл у `cowork-notify/archive/` комітом `[skip ci]` | push у `cowork-notify/*.json` на `main` | немає `workflow_dispatch` — тригериться лише комітом файлу |
-| `report-to-telegram.yml` | звіти агента: новий `reports/*.json` → повідомлення в TG (plain text) | push у `reports/*.json` на `main` | комітом файлу звіту |
+| `cowork-tg-notify.yml` | legacy-міст Cowork → Telegram цього репо: читає новий `cowork-notify/<ts>.json` `{text,type,link}`, шле в TG через `@dreamcar_team_bot`, потім переносить файл у `cowork-notify/archive/` комітом `[skip ci]`. ⚠️ **Не для звітів агента з 05.09.2026** — репо публічне, звіти йдуть у приватний міст `dreamcarua/memory-kit` | push у `cowork-notify/*.json` на `main` | немає `workflow_dispatch` — тригериться лише комітом файлу |
+| `report-to-telegram.yml` | ⚠️ мертвий: був каналом звітів агента (`reports/*.json` → TG plain text), останній запуск 03.09.2026; звіти перенесено в `dreamcarua/memory-kit` | push у `reports/*.json` на `main` | не запускати |
 | `update-survey.yml` | оновлює дані опитування в `survey.html` і комітить, якщо змінились | cron `0 7 * * *` (09:00 CEST) | `gh workflow run update-survey.yml` |
 | `ig-digest.yml` | AI-дайджест Instagram-органіки → таблиця `dashboard_ig_ai_daily` + DM Вадиму | cron `0 6 * * *` (09:00 Kyiv) | `gh workflow run ig-digest.yml` |
 | `meta-digest.yml` | щоденний дайджест Meta Ads у TG (`scripts/meta_digest.py`) | cron `0 6 * * *` | `gh workflow run meta-digest.yml` |
@@ -104,7 +104,9 @@ gh secret set <NAME> -R dreamcarua/dreamcar-team --body "<значення>"
 
 Перевірити стан вебхука: `curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"` — має бути URL `https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/tg-webhook` і `pending_update_count: 0`. Полагодити — воркфлоу `fix-tg-webhook.yml` (не руками, щоб секрет не потрапив у історію shell).
 
-## Міст `cowork-notify` — як ним користуються всі репо DreamCar
+## Міст `cowork-notify` у цьому репо — legacy, не канал звітів
+
+⚠️ З 05.09.2026 це **не** канал звітів: репозиторій публічний, і кожен звіт лишався в його історії назавжди. Звіти всіх проєктів ідуть у приватний міст `dreamcarua/memory-kit` (див. Reporting). Нижче — опис механізму, який поки що лишається живим для внутрішніх нотифікацій самого цього репо.
 
 Односторонній канал «агент → Telegram Вадиму». Працює так:
 
@@ -115,7 +117,7 @@ gh secret set <NAME> -R dreamcarua/dreamcar-team --body "<значення>"
 2. `cowork-tg-notify.yml` ловить push, шле повідомлення через `@dreamcar_team_bot` (`parse_mode=HTML`, при помилці парсингу — fallback у plain text) і **переносить файл** у `cowork-notify/archive/` комітом `chore: archive cowork-notify files [skip ci]`.
 3. `type` визначає емодзі; `link` рендериться як «🔗 Відкрити».
 
-Інші репозиторії DreamCar шлють свої повідомлення **через цей самий каталог у цьому репо** (комітом сюди), бо міст і токен живуть тут. Для звітів агента є окремий, структурований канал — `reports/` (нижче).
+Раніше інші репозиторії DreamCar слали свої повідомлення **через цей самий каталог у цьому репо**. З 05.09.2026 так не роблять: і звіти, і нотифікації з інших репо йдуть у приватний міст `dreamcarua/memory-kit`.
 
 ## Supabase
 
@@ -138,20 +140,33 @@ gh secret set <NAME> -R dreamcarua/dreamcar-team --body "<значення>"
 | Виконати SQL на проді | файл у `hq/db/migrations/0NN_*.sql` → `gh workflow run apply-migration.yml -f file=<шлях> -f dry_run=true`, подивитись SQL, потім без `dry_run` | Supabase MCP `apply_migration` |
 | Видалити edge-функцію | `gh workflow run delete-edge-function.yml -f slug=<s> -f confirm=<s>` | Supabase Dashboard (незворотно) |
 | Змінити фронтенд | коміт у `hq/`, `tasks/`, `projects/`, `retention/` → GitHub Pages деплоїть з `main`, `auto-cache-bust.yml` бампає `?v=` і чистить кеш Cloudflare | якщо стара версія тримається у браузері — `gh workflow run auto-cache-bust.yml` |
-| Написати Вадиму з агента | коміт `cowork-notify/<ts>.json` | звіт у `reports/*.json` (структурований) |
-| Прозвітувати про виконану задачу | коміт `reports/YYYY-MM-DD-HHMM-<slug>.json` | див. Reporting нижче |
+| Написати Вадиму з агента | коміт `cowork-notify/<ts>.json` у `dreamcarua/memory-kit` (приватний міст) | — |
+| Прозвітувати про виконану задачу | коміт `cowork-notify/<YYYY-MM-DD-HHMM>-<slug>.json` у `dreamcarua/memory-kit` | див. Reporting нижче |
 | Додати або оновити секрет | `gh secret set <NAME> -R dreamcarua/dreamcar-team --body "<val>"`, далі відповідний sync-воркфлоу, якщо секрет потрібен і в Edge | Supabase Dashboard → Functions → Secrets |
 | Дізнатись chat id | у потрібному чаті `/start@dreamcar_team_bot`; якщо бот не відповідає id — `curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates"` | id бота ≠ id чату; id групи від'ємний |
 | Подивитись, чи щось зламалось | `gh run list -R dreamcarua/dreamcar-team --limit 20`; далі `onboarding/TROUBLESHOOTING.md` (15 розібраних інцидентів із SQL і curl) | Supabase logs, `cron.job_run_details` |
 
 ## Reporting
 
-Механізм: коміт JSON-файлу `reports/YYYY-MM-DD-HHMM-<slug>.json` у `main` → `.github/workflows/report-to-telegram.yml` шле його в Telegram через `@dreamcar_team_bot`. Секрети — `TG_BOT_TOKEN` і `TG_CHAT_ID` (обидва вже є в репо). Формат — `reports/README.md`, простий текст без розмітки (воркфлоу нічого не екранує).
-Коли: на Exit кожної задачі, що змінила стан проєкту. Не для питань, читання, оцінок.
-Перевірка доставки: `gh run list --workflow=report-to-telegram.yml --limit 1 -R dreamcarua/dreamcar-team` → `success`.
-Отримувач — чат, id якого лежить у `TG_CHAT_ID`. Щоб перенести звіти в групу: надіслати `/start@dreamcar_team_bot` у тій групі й перезаписати `TG_CHAT_ID` від'ємним id групи.
-Канал живий із 03.09.2026: перший звіт `reports/2026-09-03-2215-memory-installed.json` доставлено (ран 33802356745, `success`, 11 с).
-Увага: воркфлоу тригериться на `push` у гілку `main`. Доки гілка `memory-v8` не злита, новий звіт із гілки не піде — клади його в `main` після мержу.
+Канал один на всі проєкти: приватний міст у `dreamcarua/memory-kit`.
+
+Механізм: закомітити `cowork-notify/<YYYY-MM-DD-HHMM>-<slug>.json` у гілку `main` репозиторію
+`dreamcarua/memory-kit` з полями `{text, type, project, link}`. Воркфлоу `cowork-tg-notify.yml`
+вибирає бота за полем `project`, шле повідомлення в приватний чат Вадима і архівує файл.
+
+Для цього носія `project` = `dreamcar`.
+
+- `text` — суть зробленого, дозволений Telegram HTML (`<b>`, `<code>`, `\n`)
+- `type` — короткий ярлик: `deploy`, `fix`, `security`, `maintenance`, `report`
+- `link` — посилання на коміт, файл або запуск воркфлоу
+
+Коли: наприкінці кожної задачі, що змінила стан проєкту — закрита задача, пуш, деплой,
+виправлення в проді. Не для читання, проміжних комітів і правок одруківок.
+
+Старий міст у публічному `dreamcarua/dreamcar-team` не використовується з 05.09.2026:
+репозиторій публічний, і кожен звіт лишався в його історії назавжди.
+
+Воркфлоу `report-to-telegram.yml` у цьому репо мертвий — каналом звітів він більше не є (останній запуск 03.09.2026). Його треба або вимкнути, або переписати під міст у `memory-kit`; задача — у `docs/tasks.md`. Сам файл у `.github/workflows/` через GitHub API не правиться — тільки з Mac.
 
 ## Access limits — чого агент свідомо не робить
 
@@ -169,10 +184,10 @@ gh secret set <NAME> -R dreamcarua/dreamcar-team --body "<значення>"
 - **Запис у GitHub із контейнера неможливий** (токен read-only, проксі ріже write). Писати через Mac: gh авторизований, або через bridge `github__push_files`. Для байт-точності великих файлів — `gh api -X PUT .../contents/<path> --input payload.json` (base64) і звірка `content.sha` з `git hash-object`.
 - **Читати з GitHub контейнер може** (`https://oauth2:$GITHUB_TOKEN@github.com/...`).
 - **`.github/workflows/*` через GitHub MCP недоступні** (немає scope `workflow`) — тільки git/gh з Mac.
-- **Клон цього репо для звітності:** sparse (`--filter=blob:none --sparse`, checkout `onboarding cowork-notify`) — повний завеликий; `onboarding/CHANGELOG.md` ~100 KB через MCP не пролазить.
+- **Клон цього репо:** sparse (`--filter=blob:none --sparse`, checkout `onboarding`) — повний завеликий; `onboarding/CHANGELOG.md` ~100 KB через MCP не пролазить. Для звітності клон не потрібен: міст живе в `dreamcarua/memory-kit`.
 - **`apply-migration.yml`** — виконує довільний `.sql` через Supabase Management API; ним же можна читати (тіло відповіді друкується в лог). Резервний шлях, коли Supabase MCP віддає Unauthorized.
 - **Пауза pg_cron-джоби:** `SELECT cron.alter_job(job_id:=N, active:=false)` — `UPDATE cron.job` заборонений роллю.
 - **Ручний запуск Edge:** URL і заголовок із `cron.job.command` відповідної джоби → повторити `net.http_post`.
 - **Прод-верифікація:** `curl` з Mac із cache-bust; GitHub Pages білдить 35-90 с, перед сайтом Cloudflare (кеш + beacon 12-17 KB + блок бот-фетчерів, 403 ≠ реальний стан).
-- **Звіти:** `cowork-notify/<YYYY-MM-DD-HHMM>-<slug>.json`, поля `{text, type, link}`; текст БЕЗ `<`, `>`, `&` — інакше відправка валиться мовчки. Інша Action архівує файли (коміти «archive cowork-notify files [skip ci]»).
+- **Звіти:** `cowork-notify/<YYYY-MM-DD-HHMM>-<slug>.json` у `dreamcarua/memory-kit`, поля `{text, type, project, link}`, `project` = `dreamcar`; `text` — дозволений Telegram HTML. Воркфлоу `cowork-tg-notify.yml` у memory-kit сам архівує файл після відправки.
 - **Паралельні сесії:** інші чати Вадима теж комітять сюди — перед роботою дивитись свіжі коміти, чужі не чіпати.

@@ -20,6 +20,7 @@ Tracker: `team_tasks` у Supabase (сторінка `team.dreamcar.ua/tasks/`). 
 
 ## ⚪ Черга
 
+- **Мертвий воркфлоу `report-to-telegram.yml`** · з 05.09.2026 канал звітів один на всі проєкти — приватний міст `dreamcarua/memory-kit` (див. `docs/tooling.md` → Reporting). Цей воркфлоу більше не використовується (останній запуск 03.09.2026). Наступний крок: або вимкнути (`gh workflow disable report-to-telegram.yml -R dreamcarua/dreamcar-team`), або переписати під коміт у міст. Файли в `.github/workflows/` через GitHub API не правляться — тільки з Mac (`gh` / git). [09.09.2026, аудит каналу звітів]
 - **Ревізія `SECURITY DEFINER`** — `AUDIT_BACKLOG.md`, P1.2: «53 fn executable for anon, 63 для authenticated… Estimated effort: 4-6 годин ручної ревізії». `onboarding/BACKLOG_2026-08.md` уточнює: «199 функцій, борг зростає». Наступний крок: згенерувати `SELECT proname, prosecdef, proacl` і рознести на «треба anon / треба authenticated / нікому».
 - **2 `SECURITY DEFINER` views** — `AUDIT_BACKLOG.md`, P1.1: `public.projects` і `public.v_dashboard_webhook_health`. «Suggested fix: ALTER VIEW … SET (security_invoker = true)». Наступний крок: перед зміною перевірити RLS на `launches` і `dashboard_webhooks`, інакше дашборд покаже порожньо; потрібен smoke-тест.
 - **12 orphan JS у `hq/` (2512 рядків)** — `AUDIT_BACKLOG.md`, Phase 5: перелік із `app-projects.js` (481) до `app-hq-flatpickr.js` (84), «Перевірити кожен перед DROP (може бути beta-feature на pause)». Наступний крок: `git log` по кожному файлу, видаляти лише ті, що не вантажаться через `app-tg-login.js`.
