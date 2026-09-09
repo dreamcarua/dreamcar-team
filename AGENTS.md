@@ -40,6 +40,18 @@ Automatic. The user never asks for a checkpoint and is never reminded to.
 
 After each completed step of a multi-step task and before any long operation: rewrite `docs/handoff.md` (task verbatim, done, not done, next action, numbers with sources). Rewrite, do not append. Empty it when the task is handed over.
 
+## Rotation — the other half of writing
+
+Automatic, like Checkpoint and Exit. Nobody asks for it. Over budget, you rotate BEFORE adding the new entry, in the same commit.
+
+- `traps.md` ≤ 25 KB → one-off incidents older than 90 days move to `docs/traps/archive-<YYYY>-Q<n>.md`. A trap that names a permanent property of the system is evergreen and stays; when in doubt, keep it.
+- `tasks.md` ≤ 10 KB (this repo is a code repo: its tasks close when the code is written; a project hub gets 25 KB) → items whose author confirmed them done move to `docs/tasks/done-<YYYY>-MM.md`, verbatim, with the closing date.
+- `handoff.md` ≤ 2 KB → emptied on Exit; what survives becomes a line in `tasks.md`.
+
+An item waiting on a person, a partner or money is not a task: it belongs in `docs/open-questions.md`. `tasks.md` is for what someone can act on now.
+
+An archive is never read on entry, only when a question points back in time. What makes that possible is the index line left in the live file — write it as a searchable sentence, not as a file name.
+
 ## Pre-flight — before an irreversible action, money, or a shared resource
 
 Answer out loud in the reply. No answer to a line = no action.
