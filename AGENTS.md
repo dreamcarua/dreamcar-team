@@ -44,11 +44,13 @@ After each completed step of a multi-step task and before any long operation: re
 
 Automatic, like Checkpoint and Exit. Nobody asks for it. Over budget, you rotate BEFORE adding the new entry, in the same commit.
 
-- `traps.md` ≤ 25 KB → one-off incidents older than 90 days move to `docs/traps/archive-<YYYY>-Q<n>.md`. A trap that names a permanent property of the system is evergreen and stays; when in doubt, keep it.
+- `traps.md` ≤ 25 KB (this repo is a code repo: its traps are about one codebase; a project hub accumulates traps across a whole business and gets 50 KB) → one-off incidents older than 90 days move to `docs/traps/archive-<YYYY>-Q<n>.md`. A trap that names a permanent property of the system is evergreen and stays; when in doubt, keep it.
 - `tasks.md` ≤ 10 KB (this repo is a code repo: its tasks close when the code is written; a project hub gets 25 KB) → items whose author confirmed them done move to `docs/tasks/done-<YYYY>-MM.md`, verbatim, with the closing date.
 - `handoff.md` ≤ 2 KB → emptied on Exit; what survives becomes a line in `tasks.md`.
 
 An item waiting on a person, a partner or money is not a task: it belongs in `docs/open-questions.md`. `tasks.md` is for what someone can act on now.
+
+The budget is a signal, not a licence to break the eligibility rule above. Over budget with nothing eligible: archive nothing, write one line in `docs/open-questions.md` — file, size, budget, nothing eligible under the 90-day rule, needs a human decision — and carry on with the task.
 
 An archive is never read on entry, only when a question points back in time. What makes that possible is the index line left in the live file — write it as a searchable sentence, not as a file name.
 
