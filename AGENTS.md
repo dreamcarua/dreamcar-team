@@ -21,7 +21,7 @@ Chat without a folder? Nothing was loaded automatically: fetch this file and `do
 
 1. `docs/tasks.md` — what is open, what is handed over and waiting, where the next move is ours.
 2. `docs/handoff.md` — not empty means a previous session stopped mid-task. Continue, do not restart.
-3. `docs/traps.md` — before the first edit of code, workflow, SQL or config. Always.
+3. `docs/traps.md` — before the first edit of code, workflow, SQL or config. Always. A trap that then changes what you do earns `Memory-Used: traps.md#<slug>` in that commit's message — see Rotation.
 4. `docs/tooling.md` — before using any tool, MCP, workflow, bot, database or account of this project.
 5. Recent commits — `survey: auto-update` and `archive cowork-notify` are bots; a human or agent commit in the last hours means someone else is working here.
 6. Related carriers (below) — the task touches launches, marketing, participants, money or people beyond this codebase → fetch `AGENTS.md`, `docs/tasks.md`, `docs/decisions.md` from the project hub too, before deciding anything.
@@ -40,6 +40,14 @@ Automatic. The user never asks for a checkpoint and is never reminded to.
 
 After each completed step of a multi-step task and before any long operation: rewrite `docs/handoff.md` (task verbatim, done, not done, next action, numbers with sources). Rewrite, do not append. Empty it when the task is handed over.
 
+## Surprise — write the moment an expectation turns out wrong
+
+A trigger, not a phase: it fires mid-task, whenever a system behaves differently from how you were confident it would behave. Write it to `docs/traps.md` **now**, before you finish the thought. This is the one place where writing beats finishing: the symptom is still there at Exit, the reason is not, and the reason is the half worth having.
+
+The bar is the expectation, not the error. A command that fails is ordinary work and is not this: `npm ci` exits 1 on a missing peer dependency, you install it, nothing to write. An expectation that was wrong is this: the deploy reports success and the site still serves the old bundle, because the CDN keys its cache on a path you did not change — you were certain a green deploy meant a live change, and it does not.
+
+Same shape as any trap — symptom, cause, what to do, date — and the cause is the point: **why** it happened, not only what you saw. About a tool as well as the code, it goes in `docs/tooling.md` too.
+
 ## Rotation — the other half of writing
 
 Automatic, like Checkpoint and Exit. Nobody asks for it. Over budget, you rotate BEFORE adding the new entry, in the same commit.
@@ -53,6 +61,8 @@ An item waiting on a person, a partner or money is not a task: it belongs in `do
 The budget is a signal, not a licence to break the eligibility rule above. Over budget with nothing eligible: archive nothing, write one line in `docs/open-questions.md` — file, size, budget, nothing eligible under the 90-day rule, needs a human decision — and carry on with the task.
 
 An archive is never read on entry, only when a question points back in time. What makes that possible is the index line left in the live file — write it as a searchable sentence, not as a file name.
+
+**Usefulness ratchets over age.** An entry that ever changed what a session did is never archived, whatever its age. When a trap you read changes what you then do, put `Memory-Used: traps.md#<slug of its heading>` in that commit's message — in the message, never in the file, because a mark written into `traps.md` would be erased by the very rotation it governs, and would churn the file on every read. Before archiving an entry, ask git: `git log --format='%(trailers:key=Memory-Used,valueonly)' | grep -qx 'traps.md#<slug>'`, or `git log --grep='^Memory-Used: traps.md#<slug>$' -1`. A hit means keep. No mark is not evidence the entry is dead, only that nobody has said otherwise — so among unmarked entries the 90-day rule decides exactly as before.
 
 ## Pre-flight — before an irreversible action, money, or a shared resource
 

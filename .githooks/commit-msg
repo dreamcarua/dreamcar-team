@@ -1,0 +1,121 @@
+#!/bin/sh
+# memory-guard - refuses a commit that changes the project and records nothing.
+#
+# WHY IT IS commit-msg AND NOT pre-commit
+# This is the pre-commit guard by intent and the commit-msg hook by necessity. A pre-commit hook
+# runs BEFORE git has written the commit message: at that moment .git/COMMIT_EDITMSG still holds
+# the PREVIOUS commit's text, verified on git 2.50.1. The escape below lives in the commit
+# message, and an escape the hook cannot read is not an escape - it is --no-verify with extra
+# steps. commit-msg is the earliest hook that sees both the staged diff and the message, and it
+# aborts the commit exactly as pre-commit does. Same guard, the only hook that can run it.
+#
+# WHY IT EXISTS
+# .claude/hooks/memory-exit-reminder.sh reads the WORKING TREE, so a session that commits code
+# and memory-nothing in the same commit passes it unnoticed - and AGENTS.md -> Exit ("records go
+# in the same commit as the change") makes that the normal path, not a rare one. This hook reads
+# the STAGED set instead, which is the one thing the Stop hook can never see. It needs no CI and
+# no host: it works at tier 1 the moment there is a git repository.
+#
+# HOOKS ARE NOT VERSIONED - READ THIS BEFORE YOU TRUST IT
+# .git/hooks is not committed, so a hook that lives only there is absent on every other clone and
+# nobody finds out. This file is committed, at .githooks/commit-msg, and it runs only where
+# somebody has pointed git at that directory:
+#
+#     git config core.hooksPath .githooks
+#
+# That setting is PER CLONE. It lives in .git/config, it is not committed, and it does not
+# travel: a fresh clone, a second machine, a CI checkout and a colleague all start without it and
+# this guard is silently inactive there until the command is run again. Two things make that
+# absence visible rather than silent: scripts/verify-install.py reports an unset hooksPath as a
+# BLOCKING finding when it is run on a real clone (advisory under CI, where a runner can never
+# have it), and docs/tooling.md -> Entry patterns carries the command so a session can just run
+# it. If this project already keeps hooks in .git/hooks, note that core.hooksPath replaces that
+# directory wholesale - move them into .githooks/ first.
+#
+# WHAT IT DOES NOT DO
+#   - It does not judge whether the record is any good. It cannot. It checks that one exists.
+#   - It does not run on a merge commit (MERGE_HEAD), or on a commit that stages nothing but the
+#     memory folder.
+#   - It does not stop --no-verify. Nothing in git can. That is why the escape below exists.
+#
+# MEMORY_DIR is auto-detected the way the rest of the kit does it: memory/ when a repo publishes
+# docs/ as a site, docs/ otherwise. Set MEMORY_DIR here to pin it.
+
+MEMORY_DIR=""
+
+MSG_FILE="$1"
+[ -n "$MSG_FILE" ] && [ -f "$MSG_FILE" ] || exit 0
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+# A merge commit records the merge, not a change somebody learned something from.
+[ -f "$(git rev-parse --git-path MERGE_HEAD 2>/dev/null)" ] && exit 0
+
+# --- which folder is the memory ----------------------------------------------------------
+if [ -z "$MEMORY_DIR" ]; then
+  if [ -f "$ROOT/memory/traps.md" ] || [ -f "$ROOT/memory/tasks.md" ]; then
+    MEMORY_DIR="memory"
+  elif [ -f "$ROOT/docs/traps.md" ] || [ -f "$ROOT/docs/tasks.md" ]; then
+    MEMORY_DIR="docs"
+  elif [ -f "$ROOT/docs/CNAME" ] || [ -f "$ROOT/docs/index.html" ] || [ -f "$ROOT/docs/.nojekyll" ]; then
+    MEMORY_DIR="memory"
+  else
+    MEMORY_DIR="docs"
+  fi
+fi
+# No memory folder at all: this is not a carrier of this kit. Say nothing.
+[ -d "$ROOT/$MEMORY_DIR" ] || exit 0
+
+# --- what is staged ----------------------------------------------------------------------
+STAGED=$(git diff --cached --name-only --diff-filter=ACMRD 2>/dev/null)
+[ -z "$STAGED" ] && exit 0
+
+IN_MEM=$(printf '%s\n' "$STAGED" | grep -c "^$MEMORY_DIR/")
+OUT_MEM=$(printf '%s\n' "$STAGED" | grep -vc "^$MEMORY_DIR/")
+[ -z "$IN_MEM" ] && IN_MEM=0
+[ -z "$OUT_MEM" ] && OUT_MEM=0
+
+[ "$OUT_MEM" -eq 0 ] && exit 0     # nothing but memory: this commit IS the record
+[ "$IN_MEM" -gt 0 ] && exit 0      # something was written down
+
+# --- the one escape ----------------------------------------------------------------------
+# In the commit message, where git log shows it and `git log --grep` counts it.
+if grep -v '^[[:space:]]*#' "$MSG_FILE" \
+   | grep -qiE '^[[:space:]]*Memory-Skip:[[:space:]]*[^[:space:]]'; then
+  exit 0
+fi
+
+SAMPLE=$(printf '%s\n' "$STAGED" | grep -v "^$MEMORY_DIR/" | head -3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+[ "$OUT_MEM" -gt 3 ] && SAMPLE="$SAMPLE, +$((OUT_MEM - 3)) more"
+
+cat >&2 <<EOF
+
+  memory guard: this commit changes the project and records nothing.
+
+    staged outside $MEMORY_DIR/ : $OUT_MEM file(s) - $SAMPLE
+    staged inside  $MEMORY_DIR/ : 0 files
+
+  AGENTS.md -> Exit says the record goes in the same commit as the change. There is no record
+  in this one. Three ways on, and all three are real:
+
+  1. THE TASK IS FINISHED. Run Exit and stage what it writes with this change:
+     what you learned    -> $MEMORY_DIR/traps.md, $MEMORY_DIR/tooling.md
+     what you decided    -> $MEMORY_DIR/decisions.md
+     what is still open  -> $MEMORY_DIR/tasks.md
+
+  2. THIS GENUINELY NEEDS NO MEMORY - a typo, a dependency bump, a rename, a revert.
+     Put this line in the commit message and commit again:
+
+         Memory-Skip: <why, in a few words>
+
+     That is the only exit that leaves a trace: it stays in the message, git log shows it,
+     and 'git log --grep=^Memory-Skip:' says how often this project reaches for it.
+     --no-verify gets past this hook too and leaves nothing behind at all. Use the line.
+
+  3. YOU ARE MID-TASK AND THERE IS NOTHING TO CONCLUDE YET. Rewrite
+     $MEMORY_DIR/handoff.md - task verbatim, done, not done, next single action, numbers
+     with their sources - and stage it with this change.
+
+EOF
+exit 1
