@@ -9,6 +9,7 @@ on:
   push:
     branches: [main]
     paths: ["reports/*.json"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,22 +24,83 @@ jobs:
           fetch-depth: 0
 
       - name: Send new reports
+        id: send
         env:
           TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT: ${{ secrets.TG_CHAT_ID }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
         run: |
-          set -euo pipefail
+          # Deliberately not `set -e`: this loop must reach the end of the list whatever happens
+          # to one file. Every command below is checked explicitly instead.
+          set +e
           if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then
             echo "::error::TG_BOT_TOKEN or TG_CHAT_ID is not set"; exit 1; fi
+
+          # A service message about the delivery channel, sent on the channel itself. Plain text
+          # and no jq: it has to work in the situations where the report did not.
+          say() {
+            RESP_CODE=$(curl -s -o /tmp/tg-say.txt -w "%{http_code}" \
+              "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${CHAT}" \
+              --data-urlencode "text=$1" \
+              --data-urlencode "disable_web_page_preview=true")
+            if [ "$RESP_CODE" != "200" ]; then
+              echo "::error::could not send the service message (HTTP $RESP_CODE):"; cat /tmp/tg-say.txt
+              return 1
+            fi
+            return 0
+          }
+
           if git cat-file -e "$BEFORE" 2>/dev/null; then
             FILES=$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER" -- 'reports/*.json')
           else
             FILES=$(git show --name-only --pretty= --diff-filter=A "$AFTER" -- 'reports/*.json')
           fi
+          if [ -z "$FILES" ]; then
+            # On workflow_dispatch there is no push range, so the branch above already looked at
+            # the head commit. If that commit added no report either, re-send the newest report
+            # on disk: that is the retry path after a delivery failed and you fixed the cause.
+            FILES=$(ls -1 reports/*.json 2>/dev/null | sort | tail -1)
+          fi
           [ -z "$FILES" ] && { echo "no new reports"; exit 0; }
+
+          BAD=0
           for f in $FILES; do
+            [ -f "$f" ] || continue
+
+            # The guard that was missing. A report that cannot be parsed is skipped loudly,
+            # not fatally - and the file stays in reports/ so it can be read and re-sent.
+            JQ_ERR=$(jq -e . "$f" 2>&1 >/dev/null)
+            if [ $? -ne 0 ]; then
+              echo "::error::$f is not valid JSON, skipped: $JQ_ERR"
+              say "$(printf '%s\n' \
+                "Report not delivered: $f is not valid JSON." \
+                "" \
+                "$JQ_ERR" \
+                "" \
+                "The file is still in reports/ - nothing was lost. Re-commit it as plain UTF-8 JSON and it will go out." \
+                "Log: $RUN_URL")"
+              BAD=1
+              continue
+            fi
+
+            # A report whose summary is empty is not a report. Checked on the field itself,
+            # not on the assembled message: the header alone is never empty, so testing the
+            # message would let a hollow report through looking perfectly healthy.
+            SUMMARY=$(jq -r '.summary // ""' "$f")
+            if [ -z "$SUMMARY" ]; then
+              echo "::error::$f parsed but its summary is empty, skipped"
+              say "$(printf '%s\n' \
+                "Report not delivered: $f is valid JSON but has nothing to say (empty summary)." \
+                "" \
+                "The file is still in reports/. Log: $RUN_URL")"
+              BAD=1
+              continue
+            fi
+
             TEXT=$(jq -r '
               "📋 " + (.project // "project") + " · " + (.date // "") +
               "\n\n" + (.summary // "") +
@@ -46,11 +108,56 @@ jobs:
               (if (.open_tasks // 0) > 0 then "\n\nOpen tasks: " + (.open_tasks|tostring) + ((.on_us // 0) as $u | if $u > 0 then " (" + ($u|tostring) + " on us)" else "" end) else "" end) +
               (if .waiting_for then "\n\nWaiting for: " + .waiting_for else "" end) +
               (if .link then "\n" + .link else "" end)
-            ' "$f" | head -c 3900)
-            RESP=$(curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            ' "$f")
+            TEXT=$(printf '%s' "$TEXT" | head -c 3900)
+
+            CODE=$(curl -s -o /tmp/tg-resp.txt -w "%{http_code}" \
+              "https://api.telegram.org/bot${TOKEN}/sendMessage" \
               --data-urlencode "chat_id=${CHAT}" \
               --data-urlencode "text=${TEXT}" \
               --data-urlencode "disable_web_page_preview=true")
-            echo "$RESP" | jq -e '.ok' >/dev/null || { echo "::error::Telegram refused $f: $RESP"; exit 1; }
+            if [ "$CODE" != "200" ]; then
+              # Not fatal and nothing is moved or deleted: the report stays in reports/, so
+              # re-running this workflow after fixing the cause delivers it.
+              echo "::error::Telegram refused $f (HTTP $CODE):"; cat /tmp/tg-resp.txt
+              BAD=1
+              continue
+            fi
             echo "sent $f"
           done
+
+          echo "bad=$BAD" >> "$GITHUB_OUTPUT"
+          if [ "$BAD" -ne 0 ]; then
+            echo "::error::at least one report did not go out; see the errors above"
+            exit 1
+          fi
+
+
+      # A delivery channel that fails silently is the whole problem this file exists to avoid.
+      # If anything above went wrong - including the checkout, or a missing secret - say so on
+      # the channel directly. No file is read and jq is not involved, so this works even when
+      # the reports themselves are what broke.
+      - name: Say on the channel that the run failed
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          CHAT: ${{ secrets.TG_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -u
+          if [ -z "${TOKEN:-}" ] || [ -z "${CHAT:-}" ]; then
+            echo "::error::the report workflow failed and there is nowhere to say so: secrets are not set"
+            exit 1
+          fi
+          MSG="Report delivery failed in ${GITHUB_REPOSITORY}. At least one report did not reach this chat. The files are still in reports/. Log: $RUN_URL"
+          CODE=$(curl -s -o /tmp/tg-fail.txt -w "%{http_code}" \
+            "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=${MSG}" \
+            --data-urlencode "disable_web_page_preview=true")
+          cat /tmp/tg-fail.txt
+          if [ "$CODE" != "200" ]; then
+            echo "::error::could not report the failure either (HTTP $CODE)"
+            exit 1
+          fi
+          echo "failure reported on the channel"
