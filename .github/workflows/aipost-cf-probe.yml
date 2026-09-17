@@ -1,0 +1,32 @@
+name: aipost-cf-probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: probe
+        env:
+          T1: ${{ secrets.CF_API_TOKEN }}
+          T2: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +e
+          for NAME in T1 T2; do
+            TOK="${!NAME}"; [ -z "$TOK" ] && { echo "$NAME empty"; continue; }
+            H="Authorization: Bearer $TOK"
+            c(){ printf "%-40s " "$1"; curl -s -H "$H" "https://api.cloudflare.com/client/v4$2" | python3 -c "import json,sys;d=json.load(sys.stdin);r=d.get('result');print(d.get('success'), (len(r) if isinstance(r,list) else ('obj' if r else r)), [e.get('code') for e in d.get('errors',[])])"; }
+            echo "== $NAME"
+            c verify /user/tokens/verify
+            ZS=$(curl -s -H "$H" "https://api.cloudflare.com/client/v4/zones?per_page=50" | python3 -c "import json,sys;d=json.load(sys.stdin);print(' '.join(z['name'] for z in d.get('result') or []))")
+            echo "zones: $ZS"
+            for zn in dreamcar.ua sneco.ua; do
+              Z=$(curl -s -H "$H" "https://api.cloudflare.com/client/v4/zones?name=$zn" | python3 -c "import json,sys;d=json.load(sys.stdin);r=d.get('result') or [];print(r[0]['id']+' '+r[0]['account']['id'] if r else '')")
+              [ -z "$Z" ] && { echo "$zn not visible"; continue; }
+              set -- $Z
+              c "$zn dns_records" "/zones/$1/dns_records?per_page=1"
+              c "$zn custom_hostnames" "/zones/$1/custom_hostnames"
+              c "$zn workers routes" "/zones/$1/workers/routes"
+              c "$zn acct workers scripts" "/accounts/$2/workers/scripts"
+              c "$zn acct d1" "/accounts/$2/d1/database"
+              c "$zn acct kv" "/accounts/$2/storage/kv/namespaces"
+            done
+          done
