@@ -184,7 +184,7 @@
            .replace(new RegExp(`&lt;\\/${t}&gt;`, 'gi'), `</${t}>`);
     });
     s = s.replace(/&lt;a\s+href=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi,
-      (_, url, txt) => `<a href="${url.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:#3390ec;">${txt}</a>`);
+      (_, url, txt) => { const safeUrl = url.replace(/"/g,'&quot;'); if (!/^\s*(https?:|tg:)/i.test(safeUrl)) return txt; /* SEC: лише http/https/tg схеми */ return `<a href="${safeUrl}" target="_blank" rel="noopener" style="color:#3390ec;">${txt}</a>`; });
     s = s.replace(/&lt;&lt;&lt;([\s\S]+?)&gt;&gt;&gt;/g, '<tg-spoiler>$1</tg-spoiler>');
     return s.replace(/\n/g, '<br>');
   }
