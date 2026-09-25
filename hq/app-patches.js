@@ -165,7 +165,7 @@
       if (diff <= 3) return { txt: 'Через ' + diff + ' дні · ' + fmtDate(p.dateTime), cls: 'due-soon' };
       return { txt: fmtDate(p.dateTime) + ' · ' + fmtTime(p.dateTime), cls: '' };
     })();
-    var respNames = (p.responsibles || []).map(function (id) { return Store.user(id) && Store.user(id).name; }).filter(Boolean).join(', ');
+    var respNames = escapeHtml((p.responsibles || []).map(function (id) { return Store.user(id) && Store.user(id).name; }).filter(Boolean).join(', '));
     return '<div class="board-card ' + urgency + '" data-id="' + p.id + '">' +
       '<div class="bc-head"><div class="bc-thumb" style="position:relative;overflow:hidden;">' + thumb + '</div>' +
       '<div class="bc-body"><div class="bc-title">' + escapeHtml(p.title) + '</div>' +
@@ -222,7 +222,7 @@
           '<div style="display:grid;gap:8px;font-size:13px;">' +
             '<div>📁 <b style="color:#fff">' + escapeHtml(c.name) + '</b></div>' +
             '<div>📦 ' + c.size + ', ' + c.res + (c.duration ? ', ' + formatDur(c.duration) : '') + '</div>' +
-            '<div>👤 Завантажив: <b style="color:#fff">' + ((Store.user(c.uploadedBy) || {}).name || '—') + '</b></div>' +
+            '<div>👤 Завантажив: <b style="color:#fff">' + escapeHtml((Store.user(c.uploadedBy) || {}).name || '—') + '</b></div>' +
             '<div>📅 ' + fmtDateTime(c.uploadedAt) + '</div>' +
             '<div>🏷️ ' + ((c.tags || []).map(function (t) { return '#' + t; }).join(' ') || '—') + '</div></div></div>' +
           '<div><h4 style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--grey);margin-bottom:8px;font-weight:700;">Використовується в публікаціях</h4>' +
@@ -260,7 +260,9 @@
            .replace(new RegExp('&lt;\\/' + t + '&gt;', 'gi'), '</' + t + '>');
     });
     s = s.replace(/&lt;a\s+href=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi, function(_, url, txt){
-      return '<a href="' + url.replace(/"/g,'&quot;') + '" target="_blank" rel="noopener" style="color:#3390ec;">' + txt + '</a>';
+      var safeUrl = url.replace(/"/g,'&quot;');
+      if (!/^\s*(https?:|tg:)/i.test(safeUrl)) return txt; /* SEC: лише http/https/tg схеми */
+      return '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="color:#3390ec;">' + txt + '</a>';
     });
     s = s.replace(/&lt;&lt;&lt;([\s\S]+?)&gt;&gt;&gt;/g, '<tg-spoiler>$1</tg-spoiler>');
     return s;
