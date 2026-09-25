@@ -1,13 +1,7 @@
 name: CF apex redirect
-# rerun-marker: 2026-09-25T09:50 (перший push нового файлу дав "No jobs were run" — повторний тригер, файл уже в main)
-
-# 25.09.2026 (аудит, V15): apex dreamcar.ua / www віддає 522 (origin down) під час активного циклу.
-# Ставимо edge-редірект на Cloudflare (працює навіть коли origin недоступний):
-#   dreamcar.ua, www.dreamcar.ua  → 302 → https://audiq7.dreamcar.ua/  (query зберігаємо — UTM не втрачаємо)
-# 302 (тимчасовий) свідомо: ціль змінюється щоциклу; браузер не кешує назавжди.
-# Ідемпотентно: рулсет http_request_dynamic_redirect, правило з опис-міткою APEX_AUDIT_V15.
-# Запуск: push цього файлу (одноразово) або Actions → Run workflow. Rollback: див. крок "Rollback hint".
-
+# 25.09.2026 (аудит V15): apex dreamcar.ua/www = 522 (origin down) під час циклу.
+# Edge-редірект на Cloudflare: dreamcar.ua, www -> 302 -> audiq7 (query зберігаємо, UTM не втрачаємо).
+# 302 тимчасовий (ціль змінюється щоциклу). Ідемпотентно (правило з міткою APEX_AUDIT_V15).
 on:
   push:
     branches: [main]
@@ -19,20 +13,18 @@ on:
         required: false
         default: 'https://audiq7.dreamcar.ua/'
       remove:
-        description: 'true = видалити правило редіректу (rollback)'
-        type: boolean
-        default: false
-
+        description: 'true = видалити правило (rollback)'
+        required: false
+        default: 'false'
 concurrency:
   group: cf-apex-redirect
   cancel-in-progress: false
-
 jobs:
   redirect:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Apply / update / remove apex redirect via Cloudflare Rulesets API
+      - name: Apply apex redirect via Cloudflare Rulesets API
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
@@ -40,62 +32,35 @@ jobs:
           REMOVE: ${{ github.event.inputs.remove || 'false' }}
         run: |
           set -euo pipefail
-          test -n "$CF_API_TOKEN" || { echo "::error::CF_API_TOKEN не виставлено"; exit 1; }
-          test -n "$CF_ZONE_ID"  || { echo "::error::CF_ZONE_ID не виставлено"; exit 1; }
+          test -n "$CF_API_TOKEN" || { echo "::error::CF_API_TOKEN missing"; exit 1; }
+          test -n "$CF_ZONE_ID" || { echo "::error::CF_ZONE_ID missing"; exit 1; }
           API="https://api.cloudflare.com/client/v4"
-          AUTH="Authorization: Bearer $CF_API_TOKEN"
           DESC="APEX_AUDIT_V15 dreamcar.ua/www -> audiq7"
+          auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json")
 
-          EP=$(curl -sS -H "$AUTH" "$API/zones/$CF_ZONE_ID/rulesets/phases/http_request_dynamic_redirect/entrypoint")
-          if echo "$EP" | grep -q '"success":false'; then
-            EP=$(curl -sS -X PUT -H "$AUTH" -H "Content-Type: application/json" \
-              "$API/zones/$CF_ZONE_ID/rulesets/phases/http_request_dynamic_redirect/entrypoint" \
-              -d '{"rules":[]}')
+          EP=$(curl -sS "${auth[@]}" "$API/zones/$CF_ZONE_ID/rulesets/phases/http_request_dynamic_redirect/entrypoint")
+          if ! echo "$EP" | grep -q '"success":true'; then
+            EP=$(curl -sS -X PUT "${auth[@]}" "$API/zones/$CF_ZONE_ID/rulesets/phases/http_request_dynamic_redirect/entrypoint" -d '{"rules":[]}')
           fi
-          echo "$EP" | grep -q '"success":true' || { echo "::error::Не вдалось отримати dynamic_redirect ruleset (перевір scope токена: Zone → Dynamic Redirect: Edit)"; echo "$EP" | head -c 800; exit 1; }
-          RID=$(echo "$EP" | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['id'])")
-          echo "ruleset=$RID"
-
-          OLD_RULE_ID=$(echo "$EP" | python3 -c "import sys,json;r=json.load(sys.stdin)['result'].get('rules',[]) or [];print(next((x['id'] for x in r if x.get('description')=='$DESC'),''))")
-          if [ -n "$OLD_RULE_ID" ]; then
-            echo "removing old rule $OLD_RULE_ID"
-            curl -sS -X DELETE -H "$AUTH" "$API/zones/$CF_ZONE_ID/rulesets/$RID/rules/$OLD_RULE_ID" >/dev/null || true
+          echo "$EP" | grep -q '"success":true' || { echo "::error::dynamic_redirect ruleset unavailable (перевір scope токена: Zone Dynamic Redirect: Edit)"; echo "$EP" | head -c 800; exit 1; }
+          RID=$(echo "$EP" | jq -r '.result.id')
+          OLD=$(echo "$EP" | jq -r --arg d "$DESC" '(.result.rules // [])[] | select(.description==$d) | .id' | head -n1)
+          if [ -n "$OLD" ] && [ "$OLD" != "null" ]; then
+            curl -sS -X DELETE "${auth[@]}" "$API/zones/$CF_ZONE_ID/rulesets/$RID/rules/$OLD" >/dev/null || true
           fi
+          if [ "$REMOVE" = "true" ]; then echo "::notice::rule removed (rollback)"; exit 0; fi
 
-          if [ "$REMOVE" = "true" ]; then
-            echo "::notice::Правило видалено (rollback). apex знову йде на origin."
-            exit 0
-          fi
-
-          RESP=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/json" \
-            "$API/zones/$CF_ZONE_ID/rulesets/$RID/rules" \
-            -d "{
-              \"description\": \"$DESC\",
-              \"expression\": \"(http.host eq \\\"dreamcar.ua\\\" or http.host eq \\\"www.dreamcar.ua\\\")\",
-              \"action\": \"redirect\",
-              \"action_parameters\": {
-                \"from_value\": {
-                  \"status_code\": 302,
-                  \"target_url\": { \"value\": \"$TARGET\" },
-                  \"preserve_query_string\": true
-                }
-              }
-            }")
+          PAYLOAD=$(jq -n --arg d "$DESC" --arg t "$TARGET" '{description:$d, expression:"(http.host eq \"dreamcar.ua\" or http.host eq \"www.dreamcar.ua\")", action:"redirect", action_parameters:{from_value:{status_code:302, target_url:{value:$t}, preserve_query_string:true}}}')
+          RESP=$(curl -sS -X POST "${auth[@]}" "$API/zones/$CF_ZONE_ID/rulesets/$RID/rules" -d "$PAYLOAD")
           if echo "$RESP" | grep -q '"success":true'; then
-            echo "::notice::apex-редірект створено: dreamcar.ua/www -> $TARGET (302, query збережено)"
+            echo "::notice::apex redirect set: dreamcar.ua/www -> $TARGET (302)"
           else
-            echo "::error::Не вдалось створити правило:"; echo "$RESP" | head -c 1200; exit 1
+            echo "::error::rule create failed:"; echo "$RESP" | head -c 1200; exit 1
           fi
-
       - name: Verify
         run: |
-          set +e
           for h in dreamcar.ua www.dreamcar.ua; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -I "https://$h/")
-            loc=$(curl -s -o /dev/null -w '%{redirect_url}' -I "https://$h/")
-            echo "$h -> HTTP $code  Location: $loc"
+            code=$(curl -s -o /dev/null -w '%{http_code}' -I "https://$h/" || true)
+            loc=$(curl -s -o /dev/null -w '%{redirect_url}' -I "https://$h/" || true)
+            echo "$h -> HTTP $code Location: $loc"
           done
-
-      - name: Rollback hint
-        if: always()
-        run: echo "Rollback: Actions -> CF apex redirect -> Run workflow -> remove=true"
