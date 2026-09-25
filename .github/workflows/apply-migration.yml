@@ -2,11 +2,15 @@ name: Apply SQL Migration
 
 # 14.08.2026: у репо не було ЖОДНОГО способу застосувати міграцію автоматично —
 # SQL-файли лягали у hq/db/migrations/ і чекали, поки хтось виконає їх руками.
-# Цей воркфлоуганяє довільний .sql через Supabase Management API
+# Цей воркфлоу ганяє довільний .sql через Supabase Management API
 # (той самий ендпоінт, що використовує MCP), користуючись SUPABASE_ACCESS_TOKEN.
 #
 # Запуск: Actions → Apply SQL Migration → Run workflow → шлях до файлу.
 # dry_run=true лише друкує SQL, нічого не виконуючи.
+#
+# 25.09.2026 (аудит, V12): репо ПУБЛІЧНИЙ → логи Actions читає будь-хто.
+#   (1) Більше НЕ друкуємо тіло відповіді Management API (могло зливати дані SELECT / схему / PII).
+#   (2) inputs.file передається через env, а не інтерполюється у скрипт (усунення shell-injection).
 
 on:
   workflow_dispatch:
@@ -31,9 +35,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Перевірити файл
+        env:
+          FILE: ${{ inputs.file }}
         run: |
           set -euo pipefail
-          FILE="${{ inputs.file }}"
           case "$FILE" in
             *..*) echo "::error::Шлях не може містити '..'"; exit 1 ;;
             *.sql) ;;
@@ -48,12 +53,13 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          FILE: ${{ inputs.file }}
         run: |
           set -euo pipefail
           test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Немає SUPABASE_ACCESS_TOKEN"; exit 1; }
           test -n "$PROJECT_REF" || { echo "::error::Немає SUPABASE_PROJECT_REF"; exit 1; }
 
-          BODY=$(jq -Rs '{query: .}' < "${{ inputs.file }}")
+          BODY=$(jq -Rs '{query: .}' < "$FILE")
           HTTP=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
             -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
@@ -61,10 +67,9 @@ jobs:
             -d "$BODY")
 
           echo "HTTP $HTTP"
-          cat /tmp/resp.json
-          echo
-          # fail-closed: будь-що крім 2xx — падаємо, щоб міграція не вважалась застосованою
+          # 25.09.2026 (V12): НЕ друкуємо тіло відповіді у публічний лог.
+          # Деталі помилки дивитись у Supabase logs, не тут.
           case "$HTTP" in
             2*) echo "✅ Міграцію застосовано" ;;
-            *)  echo "::error::Міграція НЕ застосована (HTTP $HTTP)"; exit 1 ;;
+            *)  echo "::error::Міграція НЕ застосована (HTTP $HTTP). Деталі — у Supabase logs."; exit 1 ;;
           esac
