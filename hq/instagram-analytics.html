@@ -10,7 +10,7 @@
 <script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
 <script src="/hq/config.js" defer></script>
 <script src="/assets/auth-guard.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#0A0A0A;color:#fff;font-family:var(--dc-font-body);min-height:100vh}
@@ -203,6 +203,7 @@
 </div>
 
 <script>
+function escapeHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 const FMT={REELS:'Reels',FEED:'Стрічка/каруселі',STORY:'Stories'};
 const TARGET_MULT=1.5; // ціль = власний базлайн +50% (мотивація)
 const fmtNum=n=>n==null?'—':Math.round(n).toLocaleString('uk-UA');
@@ -237,7 +238,6 @@ window.addEventListener('dc-auth-ok',async()=>{
     render(acctR.data||[],mediaR.data||[],(aiR.data||[])[0],compR.data||[],projR.data||[],storiesR.data||[],salesR.data||[]);
   }catch(e){console.error(e);document.getElementById('loading').textContent='Помилка: '+e.message;}
 });
-
 function kwHook(c){c=(c||'').toLowerCase();
   if(/тільки сьогодні|до 23:59|встигни|залишил|останн|дедлайн|сьогодні до/.test(c))return 'urgency';
   if(/переможц|переможець|власник|забрав|відгук|реальн.{0,6}історі/.test(c))return 'proof';
@@ -326,7 +326,7 @@ function render(acct,media,ai,comp,projects,stories,sales){
       deals:sm.deals,revenue:sm.revenue});
   });
   cyc.sort((a,b)=>new Date(b.to)-new Date(a.to));
-  document.querySelector('#t-cycles tbody').innerHTML=cyc.length?cyc.map(c=>`<tr><td><strong>${c.name}</strong>${c.status==='active'?' <span class="badge cur">активний</span>':''}${c.car?`<br><span style="color:#888;font-size:11px">${c.car}</span>`:''}</td><td style="font-family:var(--dc-font-mono);font-size:11px;color:#aaa">${c.from.slice(5)}→${c.to.slice(5)}</td><td>${c.n}</td><td>${fmtNum(c.reach)}</td><td>${pct(c.er)}</td><td>${pct(c.sends)}</td><td>${c.deals!=null?fmtNum(c.deals):'—'}</td><td>${c.revenue!=null?fmtNum(c.revenue):'—'}</td></tr>`).join(''):'<tr><td colspan="8" style="color:#888">Пости не мапляться на цикли проєктів за цей період.</td></tr>';
+  document.querySelector('#t-cycles tbody').innerHTML=cyc.length?cyc.map(c=>`<tr><td><strong>${escapeHtml(c.name)}</strong>${c.status==='active'?' <span class="badge cur">активний</span>':''}${c.car?`<br><span style="color:#888;font-size:11px">${escapeHtml(c.car)}</span>`:''}</td><td style="font-family:var(--dc-font-mono);font-size:11px;color:#aaa">${c.from.slice(5)}→${c.to.slice(5)}</td><td>${c.n}</td><td>${fmtNum(c.reach)}</td><td>${pct(c.er)}</td><td>${pct(c.sends)}</td><td>${c.deals!=null?fmtNum(c.deals):'—'}</td><td>${c.revenue!=null?fmtNum(c.revenue):'—'}</td></tr>`).join(''):'<tr><td colspan="8" style="color:#888">Пости не мапляться на цикли проєктів за цей період.</td></tr>';
   (function(){const el=document.getElementById('c-cyc');if(!el)return;const pts=cyc.filter(c=>c.revenue!=null&&c.reach!=null).map(c=>({x:Math.round(c.reach),y:Math.round(c.revenue),r:Math.max(5,Math.min(20,Math.sqrt(c.n)*4)),name:c.name}));if(!pts.length)return;new Chart(el,{type:'bubble',data:{datasets:[{label:'Цикл',data:pts,backgroundColor:'rgba(227,6,19,.5)'}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.name}: reach ${c.raw.x.toLocaleString('uk-UA')} · ${(c.raw.y/1000000).toFixed(1)}М₴`}}},scales:{x:{title:{display:true,text:'сер. охоплення поста',color:'#aaa'},ticks:{color:'#aaa'},grid:{color:'#2A2A2A'}},y:{title:{display:true,text:'виручка циклу ₴',color:'#aaa'},ticks:{color:'#aaa',callback:v=>(v/1000000)+'М'},grid:{color:'#2A2A2A'}}}}});})();
 
   // recommendations
@@ -347,7 +347,7 @@ function render(acct,media,ai,comp,projects,stories,sales){
   if(ai){document.getElementById('ai-body').textContent=ai.summary||'—';document.getElementById('ai-meta').textContent=`${ai.model||'claude'} · ${ai.date||''}`;}
 
   const CAT={giveaway:['Розіграш','rgba(227,6,19,.18)','#ff5b66'],blogger:['Блогер','rgba(59,130,246,.18)','#7ab0ff'],dealer:['Дилер','rgba(136,136,136,.2)','#bbb'],instructor:['Інструктор','rgba(245,158,11,.18)','#F59E0B']};
-  document.querySelector('#t-comp tbody').innerHTML=comp.map(c=>{const ct=CAT[c.category]||['—','#2A2A2A','#aaa'];return `<tr style="${c.is_user_pick?'background:rgba(227,6,19,.04)':''}"><td>${c.is_user_pick?'<span style="color:#E30613">★</span> ':''}<a href="https://${c.source&&c.source.startsWith('instagram')?c.source:'instagram.com/'+c.username}" target="_blank" rel="noopener"><strong>@${c.username}</strong></a><br><span style="color:#888;font-size:11px">${c.display_name||''}</span></td><td><span class="badge" style="background:${ct[1]};color:${ct[2]}">${ct[0]}</span></td><td>${c.followers?fmtNum(c.followers):'n/a'}</td><td><span class="badge">${c.format_mix||'—'}</span></td><td style="font-size:12px;color:#bbb">${c.notes||''}${c.best_practice?`<br><span style="color:#10B981">💡 переймати: ${c.best_practice}</span>`:''}</td></tr>`;}).join('');
+  document.querySelector('#t-comp tbody').innerHTML=comp.map(c=>{const ct=CAT[c.category]||['—','#2A2A2A','#aaa'];return `<tr style="${c.is_user_pick?'background:rgba(227,6,19,.04)':''}"><td>${c.is_user_pick?'<span style="color:#E30613">★</span> ':''}<a href="https://${escapeHtml(c.source&&c.source.startsWith('instagram')?c.source:'instagram.com/'+c.username)}" target="_blank" rel="noopener"><strong>@${escapeHtml(c.username)}</strong></a><br><span style="color:#888;font-size:11px">${escapeHtml(c.display_name||'')}</span></td><td><span class="badge" style="background:${ct[1]};color:${ct[2]}">${ct[0]}</span></td><td>${c.followers?fmtNum(c.followers):'n/a'}</td><td><span class="badge">${escapeHtml(c.format_mix||'—')}</span></td><td style="font-size:12px;color:#bbb">${escapeHtml(c.notes||'')}${c.best_practice?`<br><span style="color:#10B981">💡 переймати: ${escapeHtml(c.best_practice)}</span>`:''}</td></tr>`;}).join('');
 
   const top=[...M].filter(m=>m.reach>=2000).sort((a,b)=>b.erReach-a.erReach).slice(0,10);
   document.querySelector('#t-top tbody').innerHTML=top.map(m=>`<tr><td><a href="${m.permalink}" target="_blank" rel="noopener" style="color:#7ab0ff">${m.dt?m.dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'}):''} ↗</a></td><td><span class="badge ${m.fmt==='REELS'?'reels':'feed'}">${FMT[m.fmt]||m.fmt}</span></td><td>${fmtNum(m.reach)}</td><td>${pct(m.erReach)}</td><td>${fmtNum(m.saved)}</td><td>${fmtNum(m.shares)}</td><td>${m.avg_watch_sec!=null?pct(m.avg_watch_sec,1)+'с':'—'}</td><td><a href="${m.permalink}" target="_blank" rel="noopener">↗</a></td></tr>`).join('');
