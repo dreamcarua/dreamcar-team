@@ -53,7 +53,7 @@ function boardCard(p) {
     if (diff <= 3) return { txt: 'Через ' + diff + ' дні · ' + fmtDate(p.dateTime), cls: 'due-soon' };
     return { txt: fmtDate(p.dateTime) + ' · ' + fmtTime(p.dateTime), cls: '' };
   })();
-  const respNames = (p.responsibles||[]).map(id => Store.user(id)?.name).filter(Boolean).join(', ');
+  const respNames = escapeHtml((p.responsibles||[]).map(id => Store.user(id)?.name).filter(Boolean).join(', '));
   // #547: border-left=рубрика-колір
   const rc = Store.rubricColor(p.rubric);
   return `<div class="board-card ${urgency}" data-id="${p.id}" style="border-left:4px solid ${rc};">
@@ -268,7 +268,7 @@ function openCreative(id) {
           <div style="display:grid;gap:8px;font-size:13px;">
             <div>📁 <b style="color:#fff">${escapeHtml(c.name)}</b></div>
             <div>📦 ${c.size}, ${c.res}${c.duration?', '+formatDur(c.duration):''}</div>
-            <div>👤 Завантажив: <b style="color:#fff">${Store.user(c.uploadedBy)?.name||'—'}</b></div>
+            <div>👤 Завантажив: <b style="color:#fff">${escapeHtml(Store.user(c.uploadedBy)?.name||'—')}</b></div>
             <div>📅 ${fmtDateTime(c.uploadedAt)}</div>
             <div>🏷️ ${(c.tags||[]).map(t=>'#'+t).join(' ') || '—'}</div>
           </div>
@@ -583,7 +583,7 @@ function renderCardBody(p) {
             <span class="ml-label">Рубрика <span class="req">*</span></span>
             <select id="f_rubric" class="ml-value" style="background:var(--bg);border:1px solid var(--border);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px;">
               <option value="">— Обрати —</option>
-              ${Store.rubrics().map(r => `<option value="${r.id}" ${p.rubric===r.id?'selected':''}>${r.name}</option>`).join('')}
+              ${Store.rubrics().map(r => `<option value="${r.id}" ${p.rubric===r.id?'selected':''}>${escapeHtml(r.name)}</option>`).join('')}
             </select>
           </div>
           <div class="meta-item">
@@ -734,6 +734,7 @@ function tgFormatToHtml(raw) {
   // 3. <a href="..."> — особлива обробка (з attribute escape)
   s = s.replace(/&lt;a\s+href=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi, (_, url, txt) => {
     const safeUrl = url.replace(/"/g, '&quot;');
+    if (!/^\s*(https?:|tg:)/i.test(safeUrl)) return txt; /* SEC: дозволяємо лише http/https/tg схеми */
     return `<a href="${safeUrl}" target="_blank" rel="noopener" style="color:#3390ec;text-decoration:none;">${txt}</a>`;
   });
   // 4. <<<spoiler>>> shorthand → <tg-spoiler>
@@ -855,7 +856,7 @@ function renderCommentsTab(p) {
   const list = (p.comments||[]).map(c => {
     const u = Store.user(c.author);
     return `<div class="comment">
-      <div class="c-head"><span class="c-author">${u?.name||'?'}</span><span class="c-time">${fmtDateTime(c.at)}</span></div>
+      <div class="c-head"><span class="c-author">${escapeHtml(u?.name||'?')}</span><span class="c-time">${fmtDateTime(c.at)}</span></div>
       <div class="c-body">${escapeHtml(c.body)}</div>
     </div>`;
   }).join('') || '<div style="color:var(--grey);font-size:12px;padding:8px 0;">Немає коментарів.</div>';
@@ -871,7 +872,7 @@ function renderHistoryTab(p) {
     const actionMap = { create:'створив(ла) публікацію', status:'змінив(ла) статус →', approve:'погодив(ла)', reject:'повернув(ла) на доопрацювання', move:'переніс(ла) дату', edit:'відредагував(ла)' };
     return `<div class="history-item">
       <span class="h-time">${fmtDateTime(h.at)}</span>
-      <span class="h-author">${u?.name||'?'}</span>
+      <span class="h-author">${escapeHtml(u?.name||'?')}</span>
       <span class="h-action">${actionMap[h.action]||h.action}</span>
       ${h.detail?'<span class="h-detail">'+escapeHtml(h.detail)+'</span>':''}
     </div>`;
