@@ -397,7 +397,6 @@ const Store = {
         .update({ is_approved: null, decided_at: null, comment: null })
         .eq('publication_id', pub.id);
     }
-
     // 4. решта relations (також dedupe + upsert де є composite pkey)
     const uniqResp = [...new Set((pub.responsibles || []).filter(Boolean))];
     await sb.from('publication_responsibles').delete().eq('publication_id', pub.id);
@@ -574,7 +573,7 @@ async function uploadCreativeFile(file, pub) {
     progressItem.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#7ab0ff;font-size:9px;text-align:center;padding:4px;gap:3px;">
       <span style="font-size:22px;animation:spin 1.5s linear infinite;">⏳</span>
       <div style="font-size:10px;font-weight:600;">${typeIcon} Завантажую</div>
-      <div style="opacity:0.8;font-size:8px;line-height:1.2;word-break:break-all;">${(file.name||'').slice(0,18)}</div>
+      <div style="opacity:0.8;font-size:8px;line-height:1.2;word-break:break-all;">${escapeHtml((file.name||'').slice(0,18))}</div>
       <div class="upl-progress" style="font-size:8px;color:#7ab0ff;">${sizeMb}МБ</div>
     </div>`;
     const addBtn = document.getElementById('addCreativeBtn');
@@ -1486,7 +1485,7 @@ function renderDay(date, pubs) {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
           <span class="status ${p.status}">${STATUS_BY_ID[p.status].label}</span>
-          <span style="font-size:11px;color:var(--grey);">Відп.: ${(p.responsibles||[]).map(id=>Store.user(id)?.name).filter(Boolean).join(', ')||'—'}</span>
+          <span style="font-size:11px;color:var(--grey);">Відп.: ${escapeHtml((p.responsibles||[]).map(id=>Store.user(id)?.name).filter(Boolean).join(', '))||'—'}</span>
         </div>
       </div>
     </div>
