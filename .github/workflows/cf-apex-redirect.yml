@@ -1,4 +1,5 @@
 name: CF apex redirect
+# rerun-marker: 2026-09-25T09:50 (перший push нового файлу дав "No jobs were run" — повторний тригер, файл уже в main)
 
 # 25.09.2026 (аудит, V15): apex dreamcar.ua / www віддає 522 (origin down) під час активного циклу.
 # Ставимо edge-редірект на Cloudflare (працює навіть коли origin недоступний):
@@ -14,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Куди редіректити apex (без слешу в кінці не обовʼязково)'
+        description: 'Куди редіректити apex'
         required: false
         default: 'https://audiq7.dreamcar.ua/'
       remove:
@@ -45,19 +46,16 @@ jobs:
           AUTH="Authorization: Bearer $CF_API_TOKEN"
           DESC="APEX_AUDIT_V15 dreamcar.ua/www -> audiq7"
 
-          # 1) Взяти (або створити) entrypoint-рулсет фази dynamic_redirect
           EP=$(curl -sS -H "$AUTH" "$API/zones/$CF_ZONE_ID/rulesets/phases/http_request_dynamic_redirect/entrypoint")
           if echo "$EP" | grep -q '"success":false'; then
-            # немає entrypoint → створюємо порожній
             EP=$(curl -sS -X PUT -H "$AUTH" -H "Content-Type: application/json" \
               "$API/zones/$CF_ZONE_ID/rulesets/phases/http_request_dynamic_redirect/entrypoint" \
               -d '{"rules":[]}')
           fi
-          echo "$EP" | grep -q '"success":true' || { echo "::error::Не вдалось отримати dynamic_redirect ruleset (перевір scope токена: потрібен Zone → Config Rules / Dynamic Redirect: Edit)"; echo "$EP" | head -c 800; exit 1; }
+          echo "$EP" | grep -q '"success":true' || { echo "::error::Не вдалось отримати dynamic_redirect ruleset (перевір scope токена: Zone → Dynamic Redirect: Edit)"; echo "$EP" | head -c 800; exit 1; }
           RID=$(echo "$EP" | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['id'])")
           echo "ruleset=$RID"
 
-          # 2) Видалити наше попереднє правило (щоб не дублювати), знайшовши за description
           OLD_RULE_ID=$(echo "$EP" | python3 -c "import sys,json;r=json.load(sys.stdin)['result'].get('rules',[]) or [];print(next((x['id'] for x in r if x.get('description')=='$DESC'),''))")
           if [ -n "$OLD_RULE_ID" ]; then
             echo "removing old rule $OLD_RULE_ID"
@@ -69,7 +67,6 @@ jobs:
             exit 0
           fi
 
-          # 3) Додати правило редіректу (302, зберегти query для UTM)
           RESP=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/json" \
             "$API/zones/$CF_ZONE_ID/rulesets/$RID/rules" \
             -d "{
@@ -85,7 +82,7 @@ jobs:
               }
             }")
           if echo "$RESP" | grep -q '"success":true'; then
-            echo "::notice::✅ apex-редірект створено: dreamcar.ua/www → $TARGET (302, query збережено)"
+            echo "::notice::apex-редірект створено: dreamcar.ua/www -> $TARGET (302, query збережено)"
           else
             echo "::error::Не вдалось створити правило:"; echo "$RESP" | head -c 1200; exit 1
           fi
@@ -101,4 +98,4 @@ jobs:
 
       - name: Rollback hint
         if: always()
-        run: echo "Rollback: Actions → CF apex redirect → Run workflow → remove=true"
+        run: echo "Rollback: Actions -> CF apex redirect -> Run workflow -> remove=true"
