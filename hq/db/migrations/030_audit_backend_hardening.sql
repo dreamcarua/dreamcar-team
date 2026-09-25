@@ -1,0 +1,13 @@
+-- 030_audit_backend_hardening.sql — аудит 25.09.2026 (застосовано через Supabase MCP apply_migration, звірено).
+-- V-NEW-01: process_autopost_queue більше не містить x-hq-cron-secret літералом — читає з app_secrets.hq_cron_secret.
+--           (anon-ключ лишається літералом — публічний, тотожний frontend anon key.)
+--           УВАГА: секрет hq_cron_secret був читабельний роллю authenticated через pg_get_functiondef до цього фіксу
+--           + у ~23 cron-джобах інлайном (SEC-DB-06) → рекомендована ротація hq_cron_secret (координовано: app_secrets + edge env + cron.job).
+-- V05: RLS USING(true) звужено до public.current_user_id() IS NOT NULL на creative_retention_messages (read+write) і
+--      users "read all (authenticated)" — безрядковий authenticated відсікається, команда працює.
+-- V03: register_approval — анти-спуф без зміни сигнатури: authenticated → approver=current_user_id() (by_user ігнорується);
+--      service_role/backend → coalesce(current_user_id(), by_user).
+-- Відкат: у git-історії лежать попередні визначення (pg_get_functiondef до 030); RLS повернути на USING(true)/auth.role()='authenticated'.
+--
+-- Повні тіла функцій — застосовані через MCP; тут лише маркер. Актуальні визначення: SELECT pg_get_functiondef(...) на проді.
+-- Див. deploy-нотатку в docs/audit-2026-09-25.md хабу dreamcar-memory.
