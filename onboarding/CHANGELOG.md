@@ -8,6 +8,11 @@
 
 ---
 
+## 26.09.2026 — 🚀 dashboard: version-check (авто-reload на новий деплой)
+
+### dashboard.dreamcar.ua
+- 🚀🔧 Inline **version-check** у `docs/index.html`: порівнює `document.lastModified` з origin `Last-Modified` (HEAD/no-store) → один cache-busting reload (`?v=<lm>`, зберігає hash) при новому деплої. Guard від циклу: per-version + кап 3/сесію + весь try/catch (fail-safe). Fix: Safari тримав стару `index.html` → «не відкривалось меню» на мобільному. Для вже-відкритих старих вкладок разово: `dashboard.dreamcar.ua/?r=1`. Коміт `2fb452c`.
+
 ## 26.08.2026 — 🗑 Систему тех-звернень з TG видалено повністю (рішення Вадима)
 
 Система працювала некоректно (хибні спрацювання regex, `need_info` скидався на будь-який reply боту, потреба у відкритому Mac для розбору черги) — знято з експлуатації.
