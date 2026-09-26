@@ -2351,6 +2351,7 @@ async function forwardToAI(
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+        "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "",
       },
       body: JSON.stringify(payload),
     });
