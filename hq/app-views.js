@@ -251,6 +251,39 @@ function formatDur(s) {
   const m = Math.floor(s/60), ss = s % 60;
   return `${m}:${String(ss).padStart(2,'0')}`;
 }
+// 27.09.2026 (Віра, #media-download): кнопка «Завантажити оригінал» не працювала —
+// (1) читала #__crModalUrl, якого в модалці немає; (2) a.download на КРОС-origin URL
+// (R2/Supabase) браузер ігнорує → просто відкривав відео з нативним «Зберегти як».
+// Фікс: fetch → blob → download з коректним ім'ям файлу (CORS на R2/Supabase = *),
+// fallback — відкрити у новій вкладці. Inline onclick + global window fn (HARD RULE).
+window.dcDownloadCreative = async function (id) {
+  const S = (typeof Store !== 'undefined' ? Store : window.Store);
+  const c = S && S.creative(id);
+  if (!c) { if (typeof toast === 'function') toast('Завантаження', 'warn', 'Креатив не знайдено'); return; }
+  const url = (c.type === 'video')
+    ? (c.compressed_url || c.compressed_url_hevc || c.poster_url)
+    : (c.compressed_url || c.thumbnail_url);
+  if (!url) { if (typeof toast === 'function') toast('Завантаження', 'warn', 'Файл недоступний'); return; }
+  const clean = String(url).split('?')[0];
+  let ext = (clean.split('.').pop() || '').toLowerCase(); if (ext.length > 5) ext = '';
+  const base = String(c.name || 'creative').replace(/[\/\\?%*:|"<>]/g, '_');
+  const fname = /\.[a-z0-9]{2,5}$/i.test(base) ? base : (base + (ext ? '.' + ext : ''));
+  try {
+    if (typeof toast === 'function') toast('Завантаження…', 'info', fname);
+    const resp = await fetch(url, { mode: 'cors' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const obj = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = obj; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(obj); a.remove(); }, 2000);
+  } catch (e) {
+    console.warn('[dcDownloadCreative]', e);
+    try { window.open(url, '_blank'); } catch (_) {}
+    if (typeof toast === 'function') toast('Завантаження', 'warn', 'Прямий download не вдався — відкрив у новій вкладці, збережи вручну');
+  }
+};
+
 function openCreative(id) {
   const c = Store.creative(id); if (!c) return;
   const usedIn = Store.pubs().filter(p => (p.creatives||[]).includes(id));
@@ -282,7 +315,7 @@ function openCreative(id) {
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn" onclick="(function(){ var url=document.querySelector('#__crModalUrl')?.value; if(url){ var a=document.createElement('a'); a.href=url; a.download=''; a.click(); } else { toast('Завантаження', 'warn', 'URL креативу недоступний'); } })()">⬇ Завантажити оригінал</button>
+      <button class="btn" onclick="dcDownloadCreative('${c.id}')">⬇ Завантажити оригінал</button>
       <button class="btn btn-danger" onclick="Modal.close()">Закрити</button>
     </div>
   `);
