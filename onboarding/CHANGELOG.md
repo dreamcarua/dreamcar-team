@@ -8,6 +8,11 @@
 
 ---
 
+## 27.09.2026 — 🔧 dashboard: мобільне меню (iOS Safari drawer fix)
+
+### dashboard.dreamcar.ua
+- 🔧📱 Бургер-меню не відкривалось на iOS Safari (блюр-бекдроп зʼявлявся, сайдбар лишався за екраном). WebKit не перемальовував `position:fixed` + `transform` сайдбар. Fix: drawer на `translate3d` + `will-change:transform` + `!important` на `.sidebar.open` (гарантований показ навіть без анімації). Chromium-регрес (відкриття/закриття) — ОК. Коміт `4b067c3`.
+
 ## 26.09.2026 — 🚀 dashboard: version-check (авто-reload на новий деплой)
 
 ### dashboard.dreamcar.ua
