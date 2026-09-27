@@ -1,38 +1,31 @@
 // =====================================================================
-// media-batch-notify (27.09.2026) — ОДНЕ сповіщення на ПАЧКУ завантажень
-// у Бібліотеку Медіа → окрема TG-група Медіа (не спам по кожному файлу).
-// Викликається з фронта (app-bulk-upload.js bulkUpload) після завершення
-// пачки через supabase.functions.invoke — з JWT користувача.
-// Auth: verify_jwt=false на gateway (CI --no-verify-jwt) → валідуємо JWT самі.
+// media-batch-notify (27.09.2026, v2) — ПОГОДИННИЙ ДАЙДЖЕСТ нових медіа
+// у Бібліотеці → TG-група Медіа. ОДНЕ повідомлення на годину, що покриває
+// і пачки (drag-drop), і одиничні додавання «+». Економно: 1 легка вибірка
+// на годину, максимум одне повідомлення. Stateless (вікно за часом).
+// Викликається pg_cron (x-hq-cron-secret) — НЕ з фронта.
 // =====================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const TG_BOT_TOKEN     = Deno.env.get("TG_BOT_TOKEN") ?? "";
-// chat_id групи Медіа (бот уже в ній). Дефолт можна перекрити env DCMEDIA_GROUP_CHAT_ID.
 const MEDIA_CHAT_ID    = Deno.env.get("DCMEDIA_GROUP_CHAT_ID") || "-1003912295530";
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL") ?? "";
-const ANON_KEY         = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const HQ_CRON_SECRET   = Deno.env.get("HQ_CRON_SECRET") ?? "";
 const HQ_BASE          = "https://dreamcarua.github.io/dreamcar-team/hq/";
 
-const ALLOWED_ORIGINS = [
-  "https://dreamcarua.github.io",
-  "http://localhost:3000",
-  "http://127.0.0.1:5500",
-];
-function cors(origin: string | null): HeadersInit {
-  const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+function cors(): HeadersInit {
   return {
-    "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, content-type",
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "authorization, content-type, x-hq-cron-secret, x-cron-secret",
   };
+}
+function json(obj: unknown, status: number): Response {
+  return new Response(JSON.stringify(obj, null, 2), { status, headers: { ...cors(), "content-type": "application/json" } });
 }
 function esc(s: string): string {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-function json(obj: unknown, status: number, origin: string | null): Response {
-  return new Response(JSON.stringify(obj), { status, headers: { ...cors(origin), "content-type": "application/json" } });
 }
 function plural(n: number): string {
   const m10 = n % 10, m100 = n % 100;
@@ -42,42 +35,58 @@ function plural(n: number): string {
 }
 
 Deno.serve(async (req: Request) => {
-  const origin = req.headers.get("origin");
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
-  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: cors(origin) });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors() });
+  if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
-  // ---- Auth: валідний Supabase JWT користувача HQ ----
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) return json({ error: "no token" }, 401, origin);
-  if (!SUPABASE_URL || !ANON_KEY) return json({ error: "missing config" }, 500, origin);
+  // ---- Auth: лише cron / service (x-hq-cron-secret або Bearer service role) ----
+  const got =
+    req.headers.get("x-hq-cron-secret") ||
+    req.headers.get("x-cron-secret") ||
+    (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!HQ_CRON_SECRET && !SERVICE_ROLE_KEY) return json({ error: "not configured" }, 500);
+  if (got !== HQ_CRON_SECRET && got !== SERVICE_ROLE_KEY) return json({ error: "unauthorized" }, 401);
 
-  let uname = "";
-  try {
-    const sb = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-    const { data, error } = await sb.auth.getUser(token);
-    if (error || !data?.user) return json({ error: "unauthorized" }, 401, origin);
-    // імʼя завантажувача (для тексту) — через service role, за auth_id
-    if (SERVICE_ROLE_KEY) {
-      const svc = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-      const { data: u } = await svc.from("users").select("name").eq("auth_id", data.user.id).maybeSingle();
-      uname = (u as { name?: string } | null)?.name || "";
-    }
-  } catch (_e) {
-    return json({ error: "auth failed" }, 401, origin);
-  }
-
-  let body: { count?: number; uploader?: string } = {};
+  let body: { window_minutes?: number } = {};
   try { body = await req.json(); } catch { /* ignore */ }
-  const count = Math.max(0, parseInt(String(body.count ?? 0), 10) || 0);
-  const uploader = String(body.uploader || uname || "").slice(0, 60);
-  if (count <= 0) return json({ ok: true, skipped: "count=0" }, 200, origin);
+  const win = Math.min(1440, Math.max(5, parseInt(String(body.window_minutes ?? 60), 10) || 60));
 
-  if (!TG_BOT_TOKEN) return json({ error: "no bot token" }, 500, origin);
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return json({ error: "missing config" }, 500);
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+  const sinceIso = new Date(Date.now() - win * 60000).toISOString();
+  const { data: cre, error } = await sb
+    .from("creatives")
+    .select("name, uploaded_by")
+    .is("deleted_at", null)
+    .gt("uploaded_at", sinceIso);
+  if (error) return json({ error: "query failed", detail: error.message }, 500);
+
+  const list = (cre || []) as Array<{ name: string; uploaded_by: string | null }>;
+  const count = list.length;
+  if (count === 0) return json({ ok: true, count: 0, sent: false }, 200);
+
+  // імена завантажувачів для розбивки «по людях»
+  const ids = [...new Set(list.map((c) => c.uploaded_by).filter(Boolean))] as string[];
+  const nameById: Record<string, string> = {};
+  if (ids.length) {
+    const { data: us } = await sb.from("users").select("id, name").in("id", ids);
+    (us || []).forEach((u: { id: string; name: string }) => { nameById[u.id] = u.name; });
+  }
+  const byUser: Record<string, number> = {};
+  for (const c of list) {
+    const n = (c.uploaded_by && nameById[c.uploaded_by]) || "—";
+    byUser[n] = (byUser[n] || 0) + 1;
+  }
+  const userLines = Object.entries(byUser)
+    .sort((a, b) => b[1] - a[1])
+    .map(([n, k]) => `• ${esc(n)}: ${k}`)
+    .join("\n");
+
+  if (!TG_BOT_TOKEN) return json({ ok: true, count, sent: false, reason: "no_token" }, 200);
 
   const text =
-    `📥 <b>Медіа: ${count} ${plural(count)}</b> у Бібліотеці` +
-    (uploader ? `\nЗавантажив: <b>${esc(uploader)}</b>` : "") +
+    `📥 <b>Медіа: +${count} ${plural(count)}</b> у Бібліотеці за годину` +
+    `\n${userLines}` +
     `\n🔗 <a href="${HQ_BASE}#library">Відкрити Бібліотеку</a>`;
 
   try {
@@ -87,9 +96,8 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({ chat_id: MEDIA_CHAT_ID, text, parse_mode: "HTML", disable_web_page_preview: true }),
     });
     const ok = r.ok;
-    const errText = ok ? undefined : await r.text();
-    return json({ ok, tg_status: r.status, tg_error: errText }, 200, origin);
+    return json({ ok, count, sent: ok, tg_status: r.status, tg_error: ok ? undefined : await r.text() }, 200);
   } catch (e) {
-    return json({ ok: false, error: String((e as Error).message || e) }, 200, origin);
+    return json({ ok: false, count, sent: false, error: String((e as Error).message || e) }, 200);
   }
 });

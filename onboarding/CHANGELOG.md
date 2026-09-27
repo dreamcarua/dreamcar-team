@@ -10,9 +10,10 @@
 
 ## 27.09.2026 — 🆕 hq: сповіщення про пачку нових медіа у TG-групу Медіа
 
-### team.dreamcar.ua/hq + Edge Function `media-batch-notify`
-- 🆕 Нова Edge Function `hq/supabase/functions/media-batch-notify` — при завантаженні ПАЧКИ файлів у Бібліотеку шле ОДНЕ повідомлення (не по кожному файлу) у TG-групу Медіа (`DCMEDIA_GROUP_CHAT_ID`, дефолт `-1003912295530`, бот уже в групі). Auth: валідація Supabase JWT користувача (gateway `--no-verify-jwt`).
-- 🔧 `app-bulk-upload.js`: після завершення drag-drop пачки (`okCount>0`) — `supabase.functions.invoke('media-batch-notify')` fire-and-forget з кількістю та імʼям завантажувача. Одиничні аплоади (`+`) не сповіщають — навмисно.
+### team.dreamcar.ua/hq + Edge Function `media-batch-notify` + pg_cron
+- 🆕 Нова Edge Function `hq/supabase/functions/media-batch-notify` — ПОГОДИННИЙ дайджест: раз на годину рахує нові креативи (`uploaded_at` за останні 60 хв, `deleted_at IS NULL`) і шле ОДНЕ повідомлення з розбивкою по людях у TG-групу Медіа (`DCMEDIA_GROUP_CHAT_ID`, дефолт `-1003912295530`, бот у групі). Покриває і пачки (drag-drop), і одиничні «+» одним повідомленням. Stateless (вікно за часом), економно: 1 легка вибірка/год, ≤1 повідомлення/год. Auth: `x-hq-cron-secret`/service role.
+- 🆕 pg_cron `media-uploads-hourly-digest` (`0 * * * *`) → `net.http_post` на функцію з `x-hq-cron-secret` з `app_secrets`.
+- 🔧 `app-bulk-upload.js`: сповіщення прибрано з фронта — тепер лише серверний дайджест (без дублю, без спаму по файлах).
 
 ## 27.09.2026 — 🔧 hq: «Завантажити оригінал» у Бібліотеці Медіа
 
