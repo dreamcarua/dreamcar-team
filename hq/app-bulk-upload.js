@@ -142,17 +142,9 @@
     panel.querySelector('.lib-bulk-title').textContent =
       `📤 Готово: ${okCount}/${files.length}${errCount ? ' (' + errCount + ' помилок)' : ''}`;
 
-    // 27.09.2026 (Вадим): ОДНЕ сповіщення на пачку у TG-групу Медіа (не по кожному файлу).
-    // Тільки якщо реально щось залилось. Fire-and-forget, JWT користувача чіпляє supabase-js.
-    if (okCount > 0 && window.supabase && window.supabase.functions) {
-      let _uname = '';
-      try { _uname = (typeof Store !== 'undefined' && Store.currentUser && Store.currentUser().name) || ''; } catch (_) {}
-      try {
-        window.supabase.functions
-          .invoke('media-batch-notify', { body: { count: okCount, uploader: _uname } })
-          .catch(function (e) { if (window.DEBUG) console.warn('[media-batch-notify]', e); });
-      } catch (e) { if (window.DEBUG) console.warn('[media-batch-notify] throw', e); }
-    }
+    // 27.09.2026 (Вадим): сповіщення про нові медіа — НЕ з фронта, а погодинним
+    // дайджестом (Edge Function media-batch-notify + pg_cron), щоб одним повідомленням
+    // покрити і пачки, і одиничні «+», без спаму й зайвого навантаження.
 
     // Оновити Library після завантаження
     if (typeof renderLibrary === 'function' && location.hash.startsWith('#library')) {
