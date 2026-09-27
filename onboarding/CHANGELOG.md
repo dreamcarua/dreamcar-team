@@ -8,6 +8,11 @@
 
 ---
 
+## 27.09.2026 — 🔧 hq: «Завантажити оригінал» у Бібліотеці Медіа
+
+### team.dreamcar.ua/hq
+- 🔧 Кнопка «⬇ Завантажити оригінал» у модалці креатива не працювала (Віра): читала неіснуючий `#__crModalUrl`, а `a.download` на крос-origin URL (R2/Supabase) браузер ігнорує → відкривало відео з нативним «Зберегти як». Fix: `window.dcDownloadCreative(id)` — fetch→blob→download з коректним імʼям файлу (CORS на R2/Supabase = *), fallback open-in-tab. Inline onclick + global fn.
+
 ## 27.09.2026 — 🔧 dashboard: мобільне меню (iOS Safari drawer fix)
 
 ### dashboard.dreamcar.ua
