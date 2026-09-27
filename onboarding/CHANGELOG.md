@@ -8,6 +8,12 @@
 
 ---
 
+## 27.09.2026 — 🆕 hq: сповіщення про пачку нових медіа у TG-групу Медіа
+
+### team.dreamcar.ua/hq + Edge Function `media-batch-notify`
+- 🆕 Нова Edge Function `hq/supabase/functions/media-batch-notify` — при завантаженні ПАЧКИ файлів у Бібліотеку шле ОДНЕ повідомлення (не по кожному файлу) у TG-групу Медіа (`DCMEDIA_GROUP_CHAT_ID`, дефолт `-1003912295530`, бот уже в групі). Auth: валідація Supabase JWT користувача (gateway `--no-verify-jwt`).
+- 🔧 `app-bulk-upload.js`: після завершення drag-drop пачки (`okCount>0`) — `supabase.functions.invoke('media-batch-notify')` fire-and-forget з кількістю та імʼям завантажувача. Одиничні аплоади (`+`) не сповіщають — навмисно.
+
 ## 27.09.2026 — 🔧 hq: «Завантажити оригінал» у Бібліотеці Медіа
 
 ### team.dreamcar.ua/hq
