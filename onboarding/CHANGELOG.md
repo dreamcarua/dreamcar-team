@@ -8,6 +8,11 @@
 
 ---
 
+## 30.09.2026 — 🔧 retention: календар за замовчуванням «Тиждень»
+
+### team.dreamcar.ua/retention
+- 🔧 Запит Віри: РЕТЕНШН-календар тепер відкривається у режимі **Тиждень** (`calView: 'week'`), а не Місяць. `calView` не персиститься → діє для всіх. `retention/app-retention.js` + bump версії у `retention/index.html`.
+
 ## 29.09.2026 — 🆕 hq: «Дублювати день» у Календарі (SMM-стіл)
 
 ### team.dreamcar.ua/hq — `app-duplicate-day.js`
