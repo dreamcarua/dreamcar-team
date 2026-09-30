@@ -39,7 +39,7 @@ const Store = window.retStore = {
   loading: false,
   selected: null,
   // 06.06.2026 — повна parity з SMM календарем
-  calView: 'month',           // month | week | day | list | board
+  calView: 'week',            // month | week | day | list | board — 30.09.2026 (Віра): дефолт Тиждень для РЕТЕНШН-календаря
   calDate: new Date(),        // anchor date для navigation
   search: '',
   channelFilter: new Set(),   // filter chips
