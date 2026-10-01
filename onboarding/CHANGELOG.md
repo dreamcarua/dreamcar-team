@@ -8,6 +8,13 @@
 
 ---
 
+## 01.10.2026 — 🛡 hq: мінімальна роль `media` (доступ ТІЛЬКИ до Бібліотеки)
+
+### team.dreamcar.ua/hq + Supabase
+- 🛡🆕 Нова роль `user_role='media'` — доступ ВИКЛЮЧНО до Бібліотеки креативів (read-only). Причина: доступ до `creatives` гейтиться членством у SMM-столі, але членство відкриває й `publications/comments/publication_history/retention_messages/rubrics`; а `role=member/designer` дають team-read `additional_income/project_costs/cost_categories/launches/tg_*` БЕЗ столу. Тож «тільки медіа» не виражалось жодною наявною роллю. Міграції `031_media_role_enum.sql` (`ADD VALUE 'media'`) + `032_media_role_grants.sql` (нова SELECT-політика `creatives: read by media role` через `current_user_has_role` + призначення), застосовано через Apply SQL Migration workflow.
+- 🆕 `stadnik@srvi.net` і `yakovenkogrisha@gmail.com` → `role=media`, активні, ВИЛУЧЕНІ з SMM-столу (`desk_members`). Перевірено симуляцією JWT обох: `creatives=914` видно, `publications/project_costs/additional_income/launches/dashboard_ads_data/retention_messages=0`, `anon=0`.
+- 📝 Опційний борг: фронт `app-media-only.js` — для `role=media` ховати всі пункти меню крім «Бібліотека» (зараз бекенд уже віддає порожньо, але пункти видно). `reference_dreamcar_hq_user_role`: enum тепер включає `media`.
+
 ## 01.10.2026 — 🔧⚡ dashboard: реклама — коректна сума витрат (обхід 1000-ліміту) + стабільна пагінація
 
 ### dashboard.dreamcar.ua
