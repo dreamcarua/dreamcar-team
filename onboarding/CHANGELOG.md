@@ -8,6 +8,12 @@
 
 ---
 
+## 04.10.2026 — 🔧 dashboard: Проєкти — справжній ROI (повний P&L), а не рекламний
+
+### dashboard.dreamcar.ua
+- 🔧 Колонка «ROI %» у таблиці Проєкти брала `mv_dashboard_projects_stats.roi_pct = (виручка−реклама−manual)/(реклама+manual)` — фактично рекламний ROAS, БЕЗ вартості авто-призу, фіксу, %-витрат і собівартості → завищувала ROI в рази (AUDI Q7: показувало +707%, реально +63%). Підключив повний P&L `dashboard_project_pnl()` (`true_roi_pct`, `true_net_profit`, `roas`, `total_cost`). Два реєстри проєктів мають різні коди → фронт-мапа `PNL_CODE_ALIAS` містить легасі-винятки (audi_e_tron→audi_etron, bmw_x6m→x6m, motorcycle_jun2026→moto, iphone_17_jun2026→iphone17, bmw_x5_hybrid→dc17_x5, mercedes_gle_coupe→mercedes_gle, iphone_17_jul2026→iphone2), нові коди підхопляться по ідентичності.
+- 🆕 Колонки: **ROAS** (виручка/реклама), **ROI % (P&L)**, **Чистий прибуток**. KPI «ROI lifetime» = Σ прибуток / Σ повні витрати (було +707% рекламне → +102% реальне). Перевірено на prod проти SQL: AUDI Q7 +63%/2.59M, X6M +97%/3.81M, iPhone PM +184%, Mustang +25% — сходиться. Коміт `d7add2f`. Борг: винести мапінг у БД (`dashboard_projects.launch_code`), щоб прибрати легасі-словник із фронта.
+
 ## 03.10.2026 — 🔧 dashboard: success rate >100% (ліди < оплати)
 
 ### dashboard.dreamcar.ua
