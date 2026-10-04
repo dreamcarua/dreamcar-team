@@ -1,0 +1,107 @@
+name: Cleanup dead kasa stubs (one-shot)
+
+# 04.10.2026 (тех-ревізія): 27 kasa-стабів (migrate/diag/rpc/anchor/recon/pnlfix/…)
+# створені під час міграції Каси у червні 2026, відтоді мертві (0 посилань: DB-рутини,
+# cron, фронтенд js/html, function-to-function — перевірено). Цей one-shot:
+#   1) видаляє задеплоєні функції через Supabase Management API (ідемпотентно: 404 = ок);
+#   2) прибирає їх git-джерело з hq/supabase/functions/ одним комітом [skip ci];
+#   3) «з'їдає» sentinel ops/cleanup-kasa-stubs.run, щоб не перезапускатись.
+# Оборотність: git-історія зберігає джерело; за потреби redeploy через deploy-edge-functions.
+# KEEP-гард не дасть видалити робочі kasa-sync-mono/privat, kasa-status, kasa-fop-threshold-alert.
+#
+# Запуск: коміт ops/cleanup-kasa-stubs.run з рядком GO (push-тригер), або вручну Actions.
+
+on:
+  push:
+    paths: ['ops/cleanup-kasa-stubs.run']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cleanup-kasa-stubs
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — sentinel must say GO (push mode)
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            test -f ops/cleanup-kasa-stubs.run || { echo "::error::no sentinel"; exit 1; }
+            grep -qx 'GO' ops/cleanup-kasa-stubs.run || { echo "::error::sentinel must contain exactly: GO"; exit 1; }
+          fi
+
+      - name: Delete deployed stub functions (Management API, idempotent)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -uo pipefail
+          PROJECT_REF="${PROJECT_REF:-wotghlaehnvxyeacznvv}"
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::no SUPABASE_ACCESS_TOKEN"; exit 1; }
+
+          STUBS="kasa-migrate kasa-migrate2 kasa-migrate3 kasa-migrate4 kasa-migrate5 kasa-migrate6 \
+kasa-addcred kasa-check kasa-monoinfo kasa-internal kasa-owner kasa-anchor kasa-diag kasa-rpc \
+kasa-diag2 kasa-monoqueue kasa-rpc2 kasa-rpc3 kasa-rpc4 kasa-reanchor kasa-autoanchor kasa-time \
+kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
+          KEEP="kasa-sync-mono kasa-sync-privat kasa-status kasa-fop-threshold-alert"
+
+          # Belt-and-suspenders: жоден STUB не має збігатися з KEEP
+          for FN in $STUBS; do
+            for K in $KEEP; do
+              [ "$FN" = "$K" ] && { echo "::error::$FN is in KEEP — abort"; exit 1; }
+            done
+          done
+
+          N=$(echo $STUBS | wc -w)
+          echo "Stubs to delete: $N"
+          test "$N" -eq 27 || { echo "::error::expected 27 stubs, got $N"; exit 1; }
+
+          FAIL=0
+          for FN in $STUBS; do
+            HTTP=$(curl -sS -o /tmp/r.json -w '%{http_code}' \
+              -X DELETE "https://api.supabase.com/v1/projects/$PROJECT_REF/functions/$FN" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+            case "$HTTP" in
+              2*)   echo "✅ $FN deleted" ;;
+              404)  echo "➖ $FN already gone (404)" ;;
+              *)    echo "::warning::$FN delete HTTP $HTTP"; cat /tmp/r.json; echo; FAIL=$((FAIL+1)) ;;
+            esac
+          done
+          echo "Delete failures: $FAIL"
+          echo "FAIL=$FAIL" >> "$GITHUB_ENV"
+
+      - name: Remove git source dirs + consume sentinel + commit
+        run: |
+          set -euo pipefail
+          STUBS="kasa-migrate kasa-migrate2 kasa-migrate3 kasa-migrate4 kasa-migrate5 kasa-migrate6 \
+kasa-addcred kasa-check kasa-monoinfo kasa-internal kasa-owner kasa-anchor kasa-diag kasa-rpc \
+kasa-diag2 kasa-monoqueue kasa-rpc2 kasa-rpc3 kasa-rpc4 kasa-reanchor kasa-autoanchor kasa-time \
+kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
+          for FN in $STUBS; do
+            if [ -d "hq/supabase/functions/$FN" ]; then
+              git rm -r -q "hq/supabase/functions/$FN"
+              echo "git-removed hq/supabase/functions/$FN"
+            fi
+          done
+          rm -f ops/cleanup-kasa-stubs.run
+          git config user.name "dreamcar-cowork-bot"
+          git config user.email "bot@dreamcar.local"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "chore(kasa): remove 27 dead kasa stub functions (tech revision 04.10.2026) [skip ci]"
+            git push
+          fi
+
+      - name: Fail if any delete errored
+        run: |
+          test "${FAIL:-0}" -eq 0 || { echo "::error::$FAIL deletions failed — check log"; exit 1; }
