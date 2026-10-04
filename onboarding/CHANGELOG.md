@@ -14,6 +14,7 @@
 - 🆕 Міграція `033_projects_launch_code.sql` — колонка `dashboard_projects.launch_code` (міст до P&L-реєстру launches) + backfill 13 проєктів. Фронт дашборду більше не тримає хардкод-словник мапінгу.
 - 🛡 Міграція `034_kpi_viewer_scope.sql` (= підготовлений 031) — guard у 3 кешованих KPI-SECDEF (`dashboard_kpi_summary_cached`/`dashboard_extended_kpi_cached`/`dashboard_kpi_with_delta_cached`): компанійські KPI бачать лише ceo/coo/lead (+service/cron); buyer/member/designer/anon → порожньо (RETURN, не RAISE). Смоук-тест JWT: member=0/0/0, ceo=дані. Оборотно.
 - 📋 Аудит advisors 04.10: 0 ERROR. Повний план і owner-gated backlog — у проєкті DreamCar `tech/revision-2026-10-04.md`.
+- 🛡 Міграція `035_secdef_revoke_core.sql` (частина 032) — REVOKE EXECUTE FROM authenticated на 49 DreamCar worker/trigger/cron SECDEF (least-privilege). **Виключено `publications_trash`** (фронт HQ кличе його rpc — виявлено гребом; підготовлений 032 мав баг). 117 `health_*`/`hi_*` (DayWeft) відкладено — інший проєкт, власний смоук. Смоук-тест прав: 5 revoked→denied, publications_trash/dashboard_kpi_summary/register_approval/resolve_user_by_auth→дозволено. Тригери не зачеплені. Відкат: GRANT.
 
 ## 04.10.2026 — 🔧 dashboard: Проєкти — справжній ROI (повний P&L), а не рекламний
 
