@@ -8,6 +8,13 @@
 
 ---
 
+## 04.10.2026 — 🛡 Техревізія: launch_code у БД + KPI viewer-scope (A–D, частина)
+
+### Supabase (dreamcar-hq)
+- 🆕 Міграція `033_projects_launch_code.sql` — колонка `dashboard_projects.launch_code` (міст до P&L-реєстру launches) + backfill 13 проєктів. Фронт дашборду більше не тримає хардкод-словник мапінгу.
+- 🛡 Міграція `034_kpi_viewer_scope.sql` (= підготовлений 031) — guard у 3 кешованих KPI-SECDEF (`dashboard_kpi_summary_cached`/`dashboard_extended_kpi_cached`/`dashboard_kpi_with_delta_cached`): компанійські KPI бачать лише ceo/coo/lead (+service/cron); buyer/member/designer/anon → порожньо (RETURN, не RAISE). Смоук-тест JWT: member=0/0/0, ceo=дані. Оборотно.
+- 📋 Аудит advisors 04.10: 0 ERROR. Повний план і owner-gated backlog — у проєкті DreamCar `tech/revision-2026-10-04.md`.
+
 ## 04.10.2026 — 🔧 dashboard: Проєкти — справжній ROI (повний P&L), а не рекламний
 
 ### dashboard.dreamcar.ua
