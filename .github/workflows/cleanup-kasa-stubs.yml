@@ -2,18 +2,21 @@ name: Cleanup dead kasa stubs (one-shot)
 
 # 04.10.2026 (тех-ревізія): 27 kasa-стабів (migrate/diag/rpc/anchor/recon/pnlfix/…)
 # створені під час міграції Каси у червні 2026, відтоді мертві (0 посилань: DB-рутини,
-# cron, фронтенд js/html, function-to-function — перевірено). Цей one-shot:
+# cron, фронтенд js/html, function-to-function — перевірено; тіла = Response("gone",410)).
+# Цей one-shot:
 #   1) видаляє задеплоєні функції через Supabase Management API (ідемпотентно: 404 = ок);
 #   2) прибирає їх git-джерело з hq/supabase/functions/ одним комітом [skip ci];
 #   3) «з'їдає» sentinel ops/cleanup-kasa-stubs.run, щоб не перезапускатись.
 # Оборотність: git-історія зберігає джерело; за потреби redeploy через deploy-edge-functions.
 # KEEP-гард не дасть видалити робочі kasa-sync-mono/privat, kasa-status, kasa-fop-threshold-alert.
 #
-# Запуск: коміт ops/cleanup-kasa-stubs.run з рядком GO (push-тригер), або вручну Actions.
+# Запуск: repository_dispatch type=cleanup-kasa-stubs (надійно), або коміт sentinel, або вручну.
 
 on:
   push:
     paths: ['ops/cleanup-kasa-stubs.run']
+  repository_dispatch:
+    types: [cleanup-kasa-stubs]
   workflow_dispatch: {}
 
 permissions:
@@ -30,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Guard — sentinel must say GO (push mode)
+      - name: Guard — sentinel must say GO (push mode only)
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "push" ]; then
@@ -53,7 +56,6 @@ kasa-diag2 kasa-monoqueue kasa-rpc2 kasa-rpc3 kasa-rpc4 kasa-reanchor kasa-autoa
 kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
           KEEP="kasa-sync-mono kasa-sync-privat kasa-status kasa-fop-threshold-alert"
 
-          # Belt-and-suspenders: жоден STUB не має збігатися з KEEP
           for FN in $STUBS; do
             for K in $KEEP; do
               [ "$FN" = "$K" ] && { echo "::error::$FN is in KEEP — abort"; exit 1; }
