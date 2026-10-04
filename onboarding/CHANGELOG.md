@@ -15,6 +15,9 @@
 - 🛡 Міграція `034_kpi_viewer_scope.sql` (= підготовлений 031) — guard у 3 кешованих KPI-SECDEF (`dashboard_kpi_summary_cached`/`dashboard_extended_kpi_cached`/`dashboard_kpi_with_delta_cached`): компанійські KPI бачать лише ceo/coo/lead (+service/cron); buyer/member/designer/anon → порожньо (RETURN, не RAISE). Смоук-тест JWT: member=0/0/0, ceo=дані. Оборотно.
 - 📋 Аудит advisors 04.10: 0 ERROR. Повний план і owner-gated backlog — у проєкті DreamCar `tech/revision-2026-10-04.md`.
 - 🛡 Міграція `035_secdef_revoke_core.sql` (частина 032) — REVOKE EXECUTE FROM authenticated на 49 DreamCar worker/trigger/cron SECDEF (least-privilege). **Виключено `publications_trash`** (фронт HQ кличе його rpc — виявлено гребом; підготовлений 032 мав баг). 117 `health_*`/`hi_*` (DayWeft) відкладено — інший проєкт, власний смоук. Смоук-тест прав: 5 revoked→denied, publications_trash/dashboard_kpi_summary/register_approval/resolve_user_by_auth→дозволено. Тригери не зачеплені. Відкат: GRANT.
+- 🛡 Міграція `036_function_search_path.sql` (C) — закріплено `search_path='public','extensions','pg_temp'` у 32 public-функцій (advisor function_search_path_mutable). Поведінка не змінюється, захист від search_path-ін'єкції. Advisor: 40→8 (8 — у схемі `health`/DayWeft, відкладено). Смоук: is_quiet_hours_kyiv ок. Відкат: RESET.
+- ⚡ Міграція `037_kasa_alert_rls_initplan.sql` (D) — `kasa_fop_alert_log.auth_read_ceo_coo_cfo`: `auth.uid()`→`(select auth.uid())` (оцінка раз, не на рядок). Атомарний ALTER POLICY. Стейдж (не чіпав): matview `mv_dashboard_filter_options` anon-revoke (грантів нема, дашборд має фолбек — ризик без користі) і консолідація 138 дубль-RLS-політик.
+- 🛡 Advisors після A/C/D: authenticated-SECDEF 237→188 (−49), search_path 40→8 (решта DayWeft). 0 ERROR тримається.
 
 ## 04.10.2026 — 🔧 dashboard: Проєкти — справжній ROI (повний P&L), а не рекламний
 
