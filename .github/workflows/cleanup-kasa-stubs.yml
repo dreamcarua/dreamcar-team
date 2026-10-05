@@ -1,16 +1,12 @@
 name: Cleanup dead kasa stubs (one-shot)
 
-# 04.10.2026 (тех-ревізія): 27 kasa-стабів (migrate/diag/rpc/anchor/recon/pnlfix/…)
-# створені під час міграції Каси у червні 2026, відтоді мертві (0 посилань: DB-рутини,
-# cron, фронтенд js/html, function-to-function — перевірено; тіла = Response("gone",410)).
-# Цей one-shot:
-#   1) видаляє задеплоєні функції через Supabase Management API (ідемпотентно: 404 = ок);
-#   2) прибирає їх git-джерело з hq/supabase/functions/ одним комітом [skip ci];
-#   3) «з'їдає» sentinel ops/cleanup-kasa-stubs.run, щоб не перезапускатись.
-# Оборотність: git-історія зберігає джерело; за потреби redeploy через deploy-edge-functions.
-# KEEP-гард не дасть видалити робочі kasa-sync-mono/privat, kasa-status, kasa-fop-threshold-alert.
-#
-# Запуск: repository_dispatch type=cleanup-kasa-stubs (надійно), або коміт sentinel, або вручну.
+# 04.10.2026 (тех-ревізія): 27 kasa-стабів — мертві 410-заглушки, 0 посилань
+# (DB-рутини, cron, фронтенд js/html, function-to-function — перевірено).
+# 1) DELETE задеплоєних функцій через Supabase Management API (ідемпотентно: 404=ок);
+# 2) прибирає git-джерело hq/supabase/functions/ одним комітом [skip ci];
+# 3) «з'їдає» sentinel ops/cleanup-kasa-stubs.run.
+# Оборотно: git-історія + redeploy через deploy-edge-functions. KEEP-гард береже робочі.
+# Запуск: repository_dispatch type=cleanup-kasa-stubs, або коміт sentinel, або вручну.
 
 on:
   push:
@@ -25,6 +21,10 @@ permissions:
 concurrency:
   group: cleanup-kasa-stubs
   cancel-in-progress: false
+
+env:
+  STUBS: "kasa-migrate kasa-migrate2 kasa-migrate3 kasa-migrate4 kasa-migrate5 kasa-migrate6 kasa-addcred kasa-check kasa-monoinfo kasa-internal kasa-owner kasa-anchor kasa-diag kasa-rpc kasa-diag2 kasa-monoqueue kasa-rpc2 kasa-rpc3 kasa-rpc4 kasa-reanchor kasa-autoanchor kasa-time kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
+  KEEP: "kasa-sync-mono kasa-sync-privat kasa-status kasa-fop-threshold-alert"
 
 jobs:
   cleanup:
@@ -50,12 +50,6 @@ jobs:
           PROJECT_REF="${PROJECT_REF:-wotghlaehnvxyeacznvv}"
           test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::no SUPABASE_ACCESS_TOKEN"; exit 1; }
 
-          STUBS="kasa-migrate kasa-migrate2 kasa-migrate3 kasa-migrate4 kasa-migrate5 kasa-migrate6 \
-kasa-addcred kasa-check kasa-monoinfo kasa-internal kasa-owner kasa-anchor kasa-diag kasa-rpc \
-kasa-diag2 kasa-monoqueue kasa-rpc2 kasa-rpc3 kasa-rpc4 kasa-reanchor kasa-autoanchor kasa-time \
-kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
-          KEEP="kasa-sync-mono kasa-sync-privat kasa-status kasa-fop-threshold-alert"
-
           for FN in $STUBS; do
             for K in $KEEP; do
               [ "$FN" = "$K" ] && { echo "::error::$FN is in KEEP — abort"; exit 1; }
@@ -72,8 +66,8 @@ kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
               -X DELETE "https://api.supabase.com/v1/projects/$PROJECT_REF/functions/$FN" \
               -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
             case "$HTTP" in
-              2*)   echo "✅ $FN deleted" ;;
-              404)  echo "➖ $FN already gone (404)" ;;
+              2*)   echo "OK $FN deleted" ;;
+              404)  echo "-- $FN already gone (404)" ;;
               *)    echo "::warning::$FN delete HTTP $HTTP"; cat /tmp/r.json; echo; FAIL=$((FAIL+1)) ;;
             esac
           done
@@ -83,10 +77,6 @@ kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
       - name: Remove git source dirs + consume sentinel + commit
         run: |
           set -euo pipefail
-          STUBS="kasa-migrate kasa-migrate2 kasa-migrate3 kasa-migrate4 kasa-migrate5 kasa-migrate6 \
-kasa-addcred kasa-check kasa-monoinfo kasa-internal kasa-owner kasa-anchor kasa-diag kasa-rpc \
-kasa-diag2 kasa-monoqueue kasa-rpc2 kasa-rpc3 kasa-rpc4 kasa-reanchor kasa-autoanchor kasa-time \
-kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
           for FN in $STUBS; do
             if [ -d "hq/supabase/functions/$FN" ]; then
               git rm -r -q "hq/supabase/functions/$FN"
@@ -100,7 +90,7 @@ kasa-chk3 kasa-reanchor2 kasa-div kasa-recon kasa-pnlfix"
           if git diff --cached --quiet; then
             echo "nothing to commit"
           else
-            git commit -m "chore(kasa): remove 27 dead kasa stub functions (tech revision 04.10.2026) [skip ci]"
+            git commit -m "chore(kasa): remove 27 dead kasa stub functions (tech revision) [skip ci]"
             git push
           fi
 
