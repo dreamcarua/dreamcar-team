@@ -8,6 +8,18 @@
 
 ---
 
+## 08.10.2026 — 🆕 GENERAL: план проєкту для всієї команди (team.dreamcar.ua/general/)
+
+### Supabase (dreamcar-hq)
+- 🆕 Міграція `038_general_plan.sql` (застосовано частинами 038a–g). Одне джерело правди для акцій: `public.ad_events` (його ж читає ad_watchdog) + нові колонки `launch_id`, `audience` (all/retention/fortunatos), `segment`, `conditions`, `client_text`, `limit_qty/limit_note`, `landing_id`, `channels`, `utm_slug` (унікальний, під UTM→CRM ROAS по акції), `plan_day` (Київ). `launches`: `cycle_no`, `kind`, `starts_at/stop_at/live_at` (timestamptz), `live_url`, `packages`.
+- 🆕 Таблиці `launch_landings` (реєстр лендингів, A/B, 🔒 internal_only), `launch_banners` (шапка сайту по періодах, статуси pending/approved/live, хто погодив), `launch_day_marks` (свідомо «без акцій» / «ще не обрано»), `general_change_log` (журнал було→стало, тригерами). RLS увімкнено, доступ лише через RPC `general_*` (SECURITY DEFINER).
+- 🛡 Права: читають ceo/coo/lead/member/designer/cfo/buyer (media — ні); редагують лише CEO і COO; журнал змін бачать лише CEO і COO. Фінансів (gift_cost_uah, бюджети, призи) у відповідях нема — перевірено. Видалення лише м'яке (`removed_at`), оборотне.
+- 🕐 Час: зберігається timestamptz, перетворення Київ⇄UTC лише в Postgres (перехід на зимовий час 25.10 враховано: ефір 26.10 20:00 Київ = 18:00 UTC).
+- 🚀 Засіяно план #22 BMW G20 330 за ТЗ Давида від 07.10: розклад (старт 09.10 08:00, STOP 25.10 23:59, ефір 26.10 20:00), пакети, 10 загальних акцій + 3 VIP-ретеншн + ефір, 8 лендингів, 5 періодів шапки, позначки днів. Смоук ролей: member/buyer/cfo читають, редагування й журнал — відмова; media — відмова; anon без EXECUTE.
+
+### team.dreamcar.ua
+- 🆕 Сторінка `/general/`: зверху «День N з M · до STOP · Зараз · Далі · Розсилки сьогодні · Шапка зараз»; розклад і пакети; список днів з фільтром аудиторій (порожній день = «Очікує план»); картка акції з копіюванням лендинга з UTM і тексту для клієнта; реєстр лендингів; шапки по періодах; для CEO/COO — форми редагування і журнал змін. Мобільна версія (bottom sheet), темна/світла тема, SSO-міст з HQ. Додано в auto-cache-bust і `_headers`.
+
 ## 04.10.2026 — 🛡 Техревізія: launch_code у БД + KPI viewer-scope (A–D, частина)
 
 ### Supabase (dreamcar-hq)
