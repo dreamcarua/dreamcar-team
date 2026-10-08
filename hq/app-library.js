@@ -52,7 +52,8 @@
   function initials(name) { return String(name || '?').split(/\s+/).map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase(); }
   function normName(n) { return String(n || '').toLowerCase().replace(/\s*\(\d+\)(?=\.[a-z0-9]+$|$)/, '').replace(/-corrected(?=\.)/, ''); }
   function isSb(u) { return u && u.indexOf('.supabase.co/storage/v1/object/public/') > 0; }
-  function thumbUrl(u, w) { return isSb(u) ? u.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + (u.indexOf('?') > 0 ? '&' : '?') + 'width=' + (w || 360) + '&quality=60' : u; }
+  // Supabase image transform: стискає і конвертує HEIC → JPEG; розмір + режим обов'язкові, інакше ламаються пропорції
+  function thumbUrl(u, w, mode) { w = w || 360; return isSb(u) ? u.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + (u.indexOf('?') > 0 ? '&' : '?') + 'width=' + w + '&height=' + w + '&resize=' + (mode || 'cover') + '&quality=' + (w > 600 ? 75 : 60) : u; }
   function isImgUrl(u) { return /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(u || ''); }
   function toastOk(t, m) { try { toast(t, 'success', m || ''); } catch (_) {} }
   function toastErr(t, m) { try { toast(t, 'error', m || ''); } catch (_) { alert(t + ': ' + m); } }
@@ -82,7 +83,7 @@
       ST.data = { items: items, byId: byId, L: L, E: E, launches: d.launches || [], events: d.events || [], users: users,
         me: d.me, can_edit: !!d.can_edit, can_delete: !!d.can_delete };
       ST.at = Date.now(); ST.dirty = false; ST.err = null;
-      var nav = $('navCntLibrary'); if (nav) nav.textContent = items.length;
+      var nav = $('navCntLibrary'); if (nav) { nav.textContent = items.length; nav.dataset.lbTotal = items.length; }
       // прибрати з вибору зниклі
       Object.keys(ST.sel).forEach(function (id) { if (!byId[id]) delete ST.sel[id]; });
       ST.selN = Object.keys(ST.sel).length;
@@ -299,8 +300,8 @@
     var d = ST.data, ev = it.e && d.E[it.e];
     var src = it.type === 'video' ? (it.poster || (isImgUrl(it.thumb) ? it.thumb : '')) : (it.thumb || it.comp || '');
     var heic = /\.hei[cf]$/i.test(src || '');
-    var img = src && !heic ? '<img src="' + esc(thumbUrl(src, 360)) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()">' : '';
-    var badge = it.type === 'video' ? '▶' : it.type === 'doc' ? 'DOC' : (heic ? 'HEIC' : '');
+    var img = src && (!heic || isSb(src)) ? '<img src="' + esc(thumbUrl(src, 360)) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()">' : '';
+    var badge = it.type === 'video' ? '▶' : it.type === 'doc' ? 'DOC' : '';
     var path = '';
     if (ST.scope === 'all' && ST.q.trim()) { var L = it.l && d.L[it.l]; path = (L ? L.name : 'Без проєкту') + (ev ? ' › ' + ev.title : ''); }
     var sel = !!ST.sel[it.id];
@@ -432,7 +433,7 @@
     var vsrc = it.comp || it.hevc;
     var media = it.type === 'video' && vsrc
       ? '<video src="' + esc(vsrc) + '" controls playsinline preload="metadata" poster="' + esc(it.poster || '') + '"></video>'
-      : (it.thumb || it.comp) && !/\.hei[cf]$/i.test(it.thumb || '') ? '<img src="' + esc(thumbUrl(it.thumb || it.comp, 1600)) + '" alt="">'
+      : (it.thumb || it.comp) && (!/\.hei[cf]$/i.test(it.thumb || '') || isSb(it.thumb)) ? '<img src="' + esc(thumbUrl(it.thumb || it.comp, 1600, 'contain')) + '" alt="">'
         : '<span style="font-size:64px">' + (it.type === 'video' ? '🎬' : '🖼️') + '</span>';
     var pubs = [];
     try { pubs = Store.pubs().filter(function (p) { return (p.creatives || []).indexOf(id) >= 0; }); } catch (_) {}
@@ -620,6 +621,8 @@
     document.head.appendChild(st);
   }
   css();
+  // core.js оновлює #navCntLibrary з Store (обрізаний лімітом 1000) — повертаємо справжню кількість
+  setInterval(function () { var n = $('navCntLibrary'); if (n && n.dataset.lbTotal && n.textContent !== n.dataset.lbTotal) n.textContent = n.dataset.lbTotal; }, 3000);
 
   // якщо бібліотека вже відкрита на момент завантаження модуля — перемалювати
   if (location.hash.indexOf('#library') === 0 && $('libGrid') && !$('lbSide')) {
