@@ -222,7 +222,7 @@
   });
 
   var nextPatches = [
-    'app-library-delete.js',
+    // 'app-library-delete.js', — 08.10.2026: замінено бібліотекою v2 (app-library.js)
     'app-pravky2b-fix.js',
     'app-pravky2c-fix.js',
     'app-pravky2d-fix.js',

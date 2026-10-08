@@ -1,0 +1,9 @@
+-- 045_library_v2.sql (08.10.2026, застосовано через Supabase MCP). Бібліотека креативів v2 (hq/app-library.js).
+-- library_data(): усі файли одним викликом (раніше Store тягнув через PostgREST і втрачав 106 найстаріших з 1106 через ліміт 1000),
+--   з кількістю публікацій і датою останнього використання; проєкти, акції (не для media), автори.
+-- library_bulk(ids, patch): масові зміни лише переданих ключів (launch_id / ad_event_id / format, '' = null),
+--   confirm=true → folder_source='manual', delete=true → м'яке видалення (ceo/coo/lead — будь-які, member/designer — свої).
+--   Видалення йде через SECURITY DEFINER, бо пряме update(deleted_at) ламалось на RLS: політика читання показує
+--   лише deleted_at is null, і Postgres відхиляв «невидимий» новий рядок (Вадим, 08.10: помилка на видаленні фото).
+-- library_on_creative_insert(): файл з уже вказаним проєктом (завантажено всередині проєкту) → folder_source='manual'.
+-- Повні тіла — у БД (pg_get_functiondef).
