@@ -89,7 +89,8 @@ async function loadAll(){
       // 08.06.2026 Vira fix: users.deleted_at НЕ ІСНУЄ → запит повертав null → dropdowns approvers/responsibles порожні.
       supabase.from('users').select('id,name,email,role').eq('is_active', true).order('name'),
       // 08.06.2026 Vira fix: launches не має deleted_at і starts_at (а тільки starts_on).
-      supabase.from('launches').select('id,name,status').order('starts_on', { ascending: false }).limit(100),
+      // 08.10.2026 (Віра): поточний проєкт першим і за замовчуванням; без дат (Iphone за 99) — вниз
+      supabase.from('launches').select('id,name,status,kind,starts_on,ends_on,is_active').order('starts_on', { ascending: false, nullsFirst: false }).limit(100),
       supabase.from('retention_message_approvers').select('*'),
       supabase.from('retention_message_responsibles').select('*'),
       supabase.rpc('ghost_calendar_events', { p_source: 'smm', p_from: ghostFrom.toISOString(), p_to: ghostTo.toISOString() }),
@@ -122,7 +123,18 @@ async function loadAll(){
     }));
     Store.byId = new Map(Store.messages.map(m => [m.id, m]));
     Store.users = users.data || [];
-    Store.projects = projects.data || [];
+    // 08.10.2026 (Віра): порядок — активні/майбутні розіграші, далі завершені за датою, далі без дат і не-розіграші
+    (function () {
+      const rank = p => {
+        if (p.kind && p.kind !== 'raffle') return 3;
+        if (!p.starts_on) return 4;
+        if (p.status === 'active' || p.status === 'planning') return 0;
+        if (p.status === 'idea') return 2;
+        return 1;
+      };
+      Store.projects = (projects.data || []).filter(p => p.is_active !== false).slice().sort((a, b) =>
+        rank(a) - rank(b) || String(b.starts_on || '').localeCompare(String(a.starts_on || '')));
+    })();
     renderAll();
   } catch (e) {
     console.error('[ret/load]', e);
@@ -130,6 +142,19 @@ async function loadAll(){
   } finally {
     Store.loading = false;
   }
+}
+
+// 08.10.2026 (Віра): проєкт за замовчуванням для нової розсилки — розіграш, у датах якого лежить дата відправки (Київ),
+// інакше активний, інакше найближчий майбутній
+function defaultProjectFor(when) {
+  const list = Store.projects || [];
+  let day = '';
+  try { day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(when || Date.now())); } catch (_) {}
+  const raf = list.filter(p => (!p.kind || p.kind === 'raffle') && p.starts_on);
+  const hit = raf.find(p => day && p.starts_on <= day && (!p.ends_on || day <= p.ends_on));
+  const act = raf.find(p => p.status === 'active');
+  const next = raf.filter(p => p.status === 'planning').sort((a, b) => String(a.starts_on).localeCompare(String(b.starts_on)))[0];
+  return (hit || act || next || {}).id || null;
 }
 
 function getRouteFilter(){
@@ -679,7 +704,7 @@ function openMessageDetail(id){
     publish_at: defaultPublish.toISOString(),
     audience_filter: {},
     audience_list_id: '',
-    project_id: null,
+    project_id: defaultProjectFor(defaultPublish),
     notes: '',
   };
 
@@ -751,7 +776,7 @@ function openMessageDetail(id){
 
           <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-bottom:12px; padding:8px 10px; background:rgba(227,6,19,.06); border:1px solid rgba(227,6,19,.25); border-radius:6px;">
             <input type="checkbox" name="dm_only" ${m.dm_only === false ? '' : 'checked'} style="width:16px;height:16px;margin-top:1px;accent-color:var(--red,#E30613);cursor:pointer;flex:none;">
-            <span style="font-size:12px;color:#ddd;line-height:1.4;"><b>🔒 Лише DM-підписникам бота</b><br><span style="color:var(--ash);font-size:11px;">Групи та канали виключені. Знімай лише якщо свідомо шлеш у конкретний чат/канал (ID списку/чату вище).</span></span>
+            <span style="font-size:12px;color:#ddd;line-height:1.4;"><b>🔒 Лише DM-підписникам бота</b><br><span style="color:var(--ash);font-size:11px;">Групи та канали виключені. Знімай лише якщо свідомо шлеш у конкретний чат/канал.</span></span>
           </label>
 
 
@@ -803,7 +828,9 @@ function openMessageDetail(id){
             </select>
           </label>` : ''}
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+        <!-- 08.10.2026 (Віра): рядок «ID списку / Фільтр тарифу / Фільтр статусу» прибрано з форми — не використовується.
+             Поля лишаються прихованими, щоб збереження не стирало вже записані значення. -->
+        <div style="display:none; grid-template-columns:1fr 1fr 1fr; gap:10px;" aria-hidden="true">
           <label>
             <span style="font-size:11px; color:var(--ash); display:block; margin-bottom:4px;">ID СПИСКУ / ЧАТУ <button type="button" id="loadSpBooks" style="padding:2px 6px; font-size:9px; background:var(--bg-2); border:1px solid var(--steel); color:#ccc; border-radius:3px; cursor:pointer; margin-left:6px;">↻ SP</button></span>
             <input name="audience_list_id" list="spBooksList" value="${escHtml(m.audience_list_id || '')}" placeholder="SendPulse book ID, TG chat_id, або обери" style="width:100%; padding:9px; background:var(--bg-3); border:1px solid var(--steel); color:#fff; border-radius:6px;">
