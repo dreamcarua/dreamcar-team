@@ -33,6 +33,14 @@
   Cache-Control: no-cache, no-store, must-revalidate, max-age=0
   CDN-Cache-Control: no-store
 
+/general/
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
+/general/index.html
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  CDN-Cache-Control: no-store
+
 /retention/
   Cache-Control: no-cache, no-store, must-revalidate, max-age=0
   CDN-Cache-Control: no-store

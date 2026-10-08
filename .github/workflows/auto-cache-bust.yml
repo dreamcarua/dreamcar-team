@@ -13,6 +13,7 @@ on:
       - 'hq/**'
       - 'tasks/**'
       - 'projects/**'
+      - 'general/**'
       - 'retention/**'
       - 'dashboard/**'
       - 'brand-book/**'
@@ -57,7 +58,7 @@ jobs:
           # Patterns:
           #   1) Наша TS+SHA конвенція: ?v=20YYYYMMDDHHMM[-hex-hex-...]
           #   2) Legacy short hash: ?v=20YYYYMMDD[a-z]?
-          for f in hq/index.html tasks/index.html projects/index.html retention/index.html dashboard/index.html brand-book/index.html; do
+          for f in hq/index.html tasks/index.html projects/index.html general/index.html retention/index.html dashboard/index.html brand-book/index.html; do
             if [ -f "$f" ]; then
               # 1) Жадібно поглинаємо весь tail [0-9a-f-] до " або & або #
               sed -i -E "s/\?v=20[0-9]{6,8}[a-z]?[-a-f0-9]*/?v=$VERSION/g" "$f"
@@ -72,7 +73,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # Stage всі змінені index.html по одному (skip якщо файл не існує)
-          for f in hq/index.html tasks/index.html projects/index.html retention/index.html dashboard/index.html brand-book/index.html; do
+          for f in hq/index.html tasks/index.html projects/index.html general/index.html retention/index.html dashboard/index.html brand-book/index.html; do
             if [ -f "$f" ]; then
               git add "$f" || true
             fi
@@ -120,6 +121,8 @@ jobs:
                 "https://team.dreamcar.ua/tasks/index.html",
                 "https://team.dreamcar.ua/projects/",
                 "https://team.dreamcar.ua/projects/index.html",
+                "https://team.dreamcar.ua/general/",
+                "https://team.dreamcar.ua/general/index.html",
                 "https://team.dreamcar.ua/retention/",
                 "https://team.dreamcar.ua/retention/index.html",
                 "https://team.dreamcar.ua/dashboard/",
