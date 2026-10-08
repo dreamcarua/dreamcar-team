@@ -1,0 +1,7 @@
+-- 043_promo_results.sql — результати акцій для CEO/COO/CFO (08.10.2026).
+-- promo_results(launch uuid): реальні оплати CRM (dashboard_deals.status='pay') по utm_campaign → акція плану.
+-- Угода належить акції з НАЙДОВШИМ utm_slug, що дорівнює utm_campaign або є його префіксом до «_»
+-- (bmw330_x2_final не рахується в bmw330_x2). Рекламна виручка — лише utm_medium facebook_*/instagram_*
+-- (правило реального ROAS). Спенд — dashboard_ads_data з тим самим зіставленням. ROAS = рекламна виручка / спенд.
+-- Вікно: старт−30 днів … кінець+10 днів; проєкт = dashboard_projects.deal_project_values або префікс коду.
+-- Повне тіло — у БД (pg_get_functiondef('public.promo_results(uuid)')). ~0.9 с на проєкт.

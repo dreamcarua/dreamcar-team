@@ -123,7 +123,7 @@
   }
 
   async function load(id) {
-    S.launchId = id; S.log = null;
+    S.launchId = id; S.log = null; S.results = null;
     try { localStorage.setItem(LS_KEY, id); } catch (_) {}
     var want = '#project/' + id;
     if (location.hash !== want) { S._selfHash = want; history.replaceState(null, '', location.pathname + location.search.replace(/([?&])p=[^&]*&?/, '$1').replace(/[?&]$/, '') + want); }
@@ -235,6 +235,9 @@
       }).join('') + '</div>' : '<div class="g-muted">Немає публікацій.</div>') + '</section>';
     if (L.notes) h += '<section class="g-card"><div class="g-sec-head"><h2>Нотатки</h2></div><div class="g-pre">' + esc(L.notes) + '</div></section>';
     if (canFinance()) {
+      h += '<section class="g-card"><div class="g-sec-head"><h2>Результати акцій</h2>' +
+        '<button class="g-btn ghost sm" onclick="G.loadResults()">' + (S.results ? 'Оновити' : 'Показати') + '</button></div>' +
+        '<div id="gRes">' + renderResults() + '</div></section>';
       h += '<section class="g-card"><div class="g-sec-head"><h2>Аналітика результатів</h2></div>' +
         '<p class="g-muted" style="margin-bottom:10px">Продажі, реклама, ROI і ROAS по акціях — у Dashboard (бачать CEO, COO, CFO).</p>' +
         '<span class="g-tb-act"><a class="g-btn sm" href="https://dashboard.dreamcar.ua/#projects" target="_blank">Dashboard ↗</a>' +
@@ -242,6 +245,38 @@
         '<a class="g-btn ghost sm" href="https://dashboard.dreamcar.ua/#sources" target="_blank">Джерела ↗</a></span></section>';
     }
     return h;
+  }
+
+  function money(n) { return n == null ? '—' : fmtNum(Math.round(n)) + ' ₴'; }
+  function renderResults() {
+    var r = S.results;
+    if (!r) return '<div class="g-muted">Реальні оплати з CRM по UTM кожної акції, рекламна виручка, спенд і ROAS. Бачать CEO, COO, CFO.</div>';
+    if (r.loading) return '<div class="g-muted">Рахую…</div>';
+    if (r.error) return '<div class="g-muted">' + esc(r.error) + '</div>';
+    var rows = r.promos || [];
+    var h = '';
+    if (!r.deal_values_known) h += '<div class="g-muted" style="color:var(--amber)">Проєкту немає в дашборді — загальна виручка не рахується. Збережи проєкт з кодом і датами.</div>';
+    h += '<div class="g-imp"><table><tr><th>Акція</th><th>День</th><th>Оплат</th><th>Виручка</th><th>З реклами</th><th>Спенд</th><th>ROAS</th><th>Канали</th></tr>' +
+      (rows.length ? rows.map(function (x) {
+        var src = x.by_source ? Object.keys(x.by_source).map(function (k) { return k + ' ' + fmtNum(x.by_source[k]); }).join(', ') : '';
+        return '<tr><td>' + esc(x.title) + '<br><span class="g-muted mono">' + esc(x.utm) + '</span></td><td>' + esc(dmy(x.day).slice(0, 5)) + '</td><td>' + x.pays +
+          '</td><td>' + money(x.revenue) + '</td><td>' + money(x.ad_revenue) + '</td><td>' + money(x.spend) + '</td><td>' + (x.roas != null ? x.roas : '—') +
+          '</td><td class="g-muted">' + esc(src) + '</td></tr>';
+      }).join('') : '<tr><td colspan="8" class="g-muted">У плані ще немає акцій з UTM.</td></tr>') + '</table></div>';
+    var share = r.project_revenue ? Math.round(100 * r.matched_revenue / r.project_revenue) : 0;
+    h += '<p class="g-muted" style="margin-top:8px">Виручка проєкту: <b>' + money(r.project_revenue) + '</b> (' + fmtNum(r.project_pays) + ' оплат); з них прив’язано до акцій: ' + money(r.matched_revenue) + ' (' + share + '%).</p>';
+    if ((r.unmatched_top || []).length) {
+      h += '<p class="g-muted" style="margin-top:4px">Найбільші UTM-кампанії без акції в плані: ' + r.unmatched_top.map(function (u) { return esc(u.utm) + ' — ' + money(u.revenue); }).join('; ') +
+        '. Якщо це акції — додай їх у план з таким самим UTM.</p>';
+    }
+    return h;
+  }
+  async function loadResults() {
+    S.results = { loading: true };
+    var box = $('gRes'); if (box) box.innerHTML = renderResults();
+    try { S.results = await rpc('promo_results', { p_launch: S.launchId }); }
+    catch (e) { S.results = { error: e.message }; }
+    box = $('gRes'); if (box) box.innerHTML = renderResults();
   }
 
   function cell(k, v, cls, raw) {
@@ -800,7 +835,7 @@
     editBanner: editBanner, saveBanner: saveBanner, removeBanner: removeBanner,
     editMark: editMark, saveMark: saveMark, toggleLog: toggleLog,
     copy: copy,
-    openImport: openImport, impPreview: impPreview, impRun: impRun,
+    openImport: openImport, loadResults: loadResults, impPreview: impPreview, impRun: impRun,
     impTemplate: function () { return IMP_COLS.join('\t'); },
     copyText: function (id) { var e = S.plan.events.find(function (x) { return x.id === id; }); if (e) copy(e.client_text || ''); },
     copyBanner: function (id) { var b = S.plan.banners.find(function (x) { return x.id === id; }); if (b) copy(b.text || ''); }
