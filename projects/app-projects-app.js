@@ -289,7 +289,18 @@
   // ============================================================
   function openProjectModal(p) {
     var isEdit = !!p;
-    var data = p || { name: '', code: '', status: 'active', description: '', color: '#E30613', starts_on: '', ends_on: '', budget_plan: '', notes: '', excl_from_finance: false };
+    var data = p || { name: '', code: '', status: 'active', description: '', color: '#E30613', starts_on: '', ends_on: '', budget_plan: '', notes: '', excl_from_finance: false, kind: 'raffle' };
+    // 08.10.2026 «шайтан-машина»: точний час старту/STOP/ефіру (Київ) + другий реєстр (дашборд) одним збереженням
+    function kyivLocal(ts) {
+      if (!ts) return '';
+      try {
+        var f = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Kyiv', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return f.format(new Date(ts)).replace(' ', 'T');
+      } catch (_) { return ''; }
+    }
+    var startsLocal = kyivLocal(data.starts_at) || (data.starts_on ? data.starts_on + 'T08:00' : '');
+    var stopLocal = kyivLocal(data.stop_at) || (data.ends_on ? data.ends_on + 'T23:59' : '');
+    var liveLocal = kyivLocal(data.live_at);
     var overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML =
@@ -300,8 +311,19 @@
           inp('Код (slug, MOTO)', 'code', data.code) +
           sel('Статус', 'status', data.status) +
           ta('Опис', 'description', data.description) +
-          inp('Старт', 'starts_on', data.starts_on, 'date') +
-          inp('Кінець', 'ends_on', data.ends_on, 'date') +
+          kindSel(data.kind || 'raffle') +
+          '<div class="dcp-raffle-only" style="display:flex;flex-direction:column;gap:12px;">' +
+            inp('№ розіграшу', 'cycle_no', data.cycle_no, 'number') +
+            inp('Старт (Київ)', 'starts_local', startsLocal, 'datetime-local') +
+            inp('STOP (Київ)', 'stop_local', stopLocal, 'datetime-local') +
+            inp('Ефір (Київ)', 'live_local', liveLocal, 'datetime-local') +
+            inp('Як проєкт пишеться в угодах CRM (через кому)', 'deal_values', '') +
+            '<div style="font-size:11px;color:#888;line-height:1.4;">Розіграш одразу з’явиться в дашборді й у плані GENERAL. Поле CRM можна лишити порожнім при редагуванні — тоді назви в дашборді не зміняться.</div>' +
+          '</div>' +
+          '<div class="dcp-nonraffle" style="display:flex;flex-direction:column;gap:12px;">' +
+            inp('Старт', 'starts_on', data.starts_on, 'date') +
+            inp('Кінець', 'ends_on', data.ends_on, 'date') +
+          '</div>' +
           inp('Бюджет (план, грн)', 'budget_plan', data.budget_plan, 'number') +
           inp('Колір', 'color', data.color, 'color') +
           ta('Нотатки', 'notes', data.notes) +
@@ -317,28 +339,41 @@
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);
+    function syncKind() {
+      var k = overlay.querySelector('[name="kind"]').value;
+      overlay.querySelector('.dcp-raffle-only').style.display = k === 'raffle' ? 'flex' : 'none';
+      overlay.querySelector('.dcp-nonraffle').style.display = k === 'raffle' ? 'none' : 'flex';
+    }
+    overlay.querySelector('[name="kind"]').onchange = syncKind;
+    syncKind();
     overlay.querySelector('#dcp-cancel').onclick = function () { overlay.remove(); };
     overlay.querySelector('#dcp-save').onclick = async function () {
+      var btn = this;
       var payload = {};
-      ['name', 'code', 'status', 'description', 'starts_on', 'ends_on', 'budget_plan', 'color', 'notes'].forEach(function (k) {
+      ['name', 'code', 'status', 'description', 'starts_on', 'ends_on', 'budget_plan', 'color', 'notes',
+       'kind', 'cycle_no', 'starts_local', 'stop_local', 'live_local', 'deal_values'].forEach(function (k) {
         var el = overlay.querySelector('[name="' + k + '"]');
-        if (el) payload[k] = el.value || null;
+        if (el) payload[k] = (el.value || '').trim();
       });
       // 17.06.2026: checkbox excl_from_finance (читається через .checked, не .value)
       var exclEl = overlay.querySelector('[name="excl_from_finance"]');
       payload.excl_from_finance = exclEl ? !!exclEl.checked : false;
       if (!payload.name) { alert('Введи назву'); return; }
-      var res;
-      if (isEdit) res = await window.supabase.from('launches').update(payload).eq('id', p.id);
-      else {
-        payload.desk_id = '11111111-1111-1111-1111-111111111111';
-        payload.is_active = true;
-        res = await window.supabase.from('launches').insert(payload);
-      }
+      if (payload.kind === 'raffle') { payload.starts_on = ''; payload.ends_on = ''; }
+      else { payload.starts_local = ''; payload.stop_local = ''; payload.live_local = ''; payload.cycle_no = ''; }
+      if (isEdit) payload.id = p.id;
+      btn.disabled = true;
+      var res = await window.supabase.rpc('projects_save_raffle', { p: payload });
+      btn.disabled = false;
       if (res.error) { alert('Помилка: ' + res.error.message); return; }
+      var r = res.data || {};
+      var msg = [];
+      if (r.dashboard === 'created') msg.push('Проєкт додано в дашборд.');
+      (r.warnings || []).forEach(function (w) { msg.push('⚠ ' + w); });
+      if (msg.length) alert(msg.join('\n\n'));
       overlay.remove();
-      if (location.hash === '#projects' || location.hash === '') renderListView();
-      else if (p) renderDetail(p.id);
+      if (location.hash === '#all') renderListView();
+      else if (window.dcPlan) window.dcPlan.refresh(r.id || (p && p.id));
     };
     function inp(label, name, val, type) {
       var t = type || 'text';
@@ -346,6 +381,11 @@
     }
     function ta(label, name, val) {
       return '<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#888;letter-spacing:.05em;text-transform:uppercase;">' + label + '<textarea name="' + name + '" rows="3" style="background:#0a0a0a;border:1px solid #2a2a2a;color:#fff;padding:9px 12px;border-radius:6px;font-size:13px;width:100%;font-family:inherit;resize:vertical;">' + esc(val || '') + '</textarea></label>';
+    }
+    function kindSel(val) {
+      var opts = [['raffle', 'Розіграш'], ['content', 'Контент'], ['other', 'Інше']];
+      return '<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#888;letter-spacing:.05em;text-transform:uppercase;">Тип проєкту<select name="kind" style="background:#0a0a0a;border:1px solid #2a2a2a;color:#fff;padding:9px 12px;border-radius:6px;font-size:13px;width:100%;font-family:inherit;">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === val ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
     }
     function sel(label, name, val) {
       var html = '<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#888;letter-spacing:.05em;text-transform:uppercase;">' + label + '<select name="' + name + '" style="background:#0a0a0a;border:1px solid #2a2a2a;color:#fff;padding:9px 12px;border-radius:6px;font-size:13px;width:100%;font-family:inherit;">';
@@ -374,13 +414,25 @@
       }
       return;
     }
-    if (h.indexOf('#project/') === 0) {
-      renderDetail(h.substring('#project/'.length));
-    } else {
-      // default = list view
+    // 08.10.2026: GENERAL злитий у ПРОЄКТИ. Сторінка проєкту = план (app-plan.js),
+    // список/канбан усіх проєктів — #all (старі #kanban/#list теж туди).
+    if (h === '#all' || h === '#kanban' || h === '#list') {
+      if (h === '#list') state.view = 'list';
+      if (h === '#kanban') state.view = 'kanban';
       renderListView();
+      return;
     }
+    var id = h.indexOf('#project/') === 0 ? h.substring('#project/'.length) : null;
+    if (window.dcPlan) window.dcPlan.mount(id);
+    else if (id) renderDetail(id);
+    else renderListView();
   }
+  window.dcpOpenProjectModal = function (p) { openProjectModal(p || null); };
+  window.dcpEditProject = async function (id) {
+    var r = await window.supabase.from('projects').select('*').eq('id', id).maybeSingle();
+    if (r.error || !r.data) { alert('Не вдалося відкрити проєкт: ' + ((r.error && r.error.message) || 'не знайдено')); return; }
+    openProjectModal(r.data);
+  };
   window.addEventListener('hashchange', maybeRoute);
 
   // ============================================================

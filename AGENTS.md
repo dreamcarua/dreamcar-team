@@ -9,7 +9,7 @@ Owner: Vadym (vg@abrisart.com). Tasks are closed by whoever set them; we hand ov
 
 - Talk to the user in Ukrainian (or the language they write in). Dates DD.MM.YYYY, time CET/CEST.
 - Wording in any DreamCar-facing text: never «розіграш», «лотерея», «квиток», «шанс» — legal risk, there is no licence. Write «учасники», «токени ШІ-сервісу», «автомобіль вручається серед учасників».
-- Do on your own: frontend and workflow edits, migration files under `hq/db/migrations/`, edge-function code under `hq/supabase/functions/`, commits to a branch.
+- Do on your own: frontend and workflow edits, migration files under `hq/db/migrations/`, edge-function code under `hq/supabase/functions/`, commits to a branch, opening the PR AND merging it yourself, then verifying prod. Vadym does not merge — all file and repo work is the agent's (08.10.2026).
 - Always ask first: money, ad budget, any broadcast that reaches the participant base (30–40k people), repository visibility, rotating any key, deleting an edge function or a pg_cron job.
 - Never: commit secret values, `.env`, chat ids, hosts, IPs or personal contacts — this repo is PUBLIC. Write "see GitHub secrets / Supabase Edge secrets" instead.
 - Secrets never go into this repo. `docs/tooling.md` says where they live, not what they are.
@@ -122,5 +122,5 @@ A task that spans two carriers: one line in each `tasks.md`, each pointing at th
 
 | Global rule | Here | Why | Since |
 |---|---|---|---|
-| "commit on your own to dreamcarua/*" | this repo takes a branch + owner merge, not direct pushes to `main` | public repo, bots commit here several times a day, and every root file is instantly live on team.dreamcar.ua | 03.09.2026 |
+| ~~"commit on your own to dreamcarua/*"~~ | ~~this repo takes a branch + owner merge~~ — SUPERSEDED 08.10.2026: Vadym: «не було такого правила — вся робота з файлами, з репо і тп — на тобі». Keep the branch + PR for a clean diff against bot commits, but the agent merges it itself | public repo, bots commit here several times a day | 03.09.2026 → 08.10.2026 |
 | "branch + owner merge here" | memory files under `docs/*.md` go straight to `main` | memory must be written in the same commit as the conclusion; markdown in `docs/` changes no site behaviour. Code, workflows and root files still take a branch | 04.09.2026 |

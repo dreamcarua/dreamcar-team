@@ -176,6 +176,143 @@ body {
     .btn { padding: 6px 10px; font-size: 11px; }
     .btn-primary { padding: 8px 12px; }
   }
+
+/* 08.10.2026: план проєкту (колишній GENERAL) */
+:root { --bg-3: #1b1b1b; --amber: #f59e0b; --green-soft: #34d399; --blue-soft: #60a5fa; --violet: #a78bfa; --a-all: #E30613; --a-ret: #3b82f6; --a-fort: #a855f7; }
+html[data-dc-theme="light"] { --bg-3: #f5f5f7; --violet: #6d28d9; }
+.g-root { font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 14px; }
+.g-root .mono, .g-root .g-time, .g-root .g-si span, .g-root .g-cell span { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.g-head { max-width: 980px; margin: 0 auto; padding: 14px 16px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+#gPicker { background: var(--bg-2); color: var(--white); border: 1px solid var(--steel); border-radius: 8px; padding: 9px 10px; font: inherit; font-size: 15px; font-weight: 700; max-width: 100%; }
+.g-head-act { display: flex; gap: 6px; flex-wrap: wrap; }
+a.g-btn { text-decoration: none; display: inline-block; }
+.g-pre { white-space: pre-wrap; color: var(--ash); line-height: 1.5; }
+.g-links { display: flex; flex-direction: column; }
+.g-links a { padding: 8px 0; border-top: 1px solid var(--line); text-decoration: none; color: var(--white); font-size: 13px; }
+.g-links a:first-child { border-top: 0; }
+.g-sheet, .g-sheet * , .g-toast { font-family: 'Manrope', system-ui, sans-serif; }
+#gMain { max-width: 980px; margin: 0 auto; padding: 12px 16px 80px; display: flex; flex-direction: column; gap: 14px; }
+.g-empty { padding: 40px 12px; text-align: center; color: var(--ash); }
+.g-empty.bad { color: var(--red-soft); }
+.g-muted { color: var(--ash); font-size: 13px; }
+
+.g-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.g-si { background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.g-si[role=button] { cursor: pointer; }
+.g-si span { display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ash); margin-bottom: 4px; }
+.g-si b { font-size: 13px; font-weight: 600; line-height: 1.35; word-break: break-word; }
+.g-si.stop b { color: var(--red-soft); }
+.g-si.warn b { color: var(--amber); }
+
+.g-tb-act { display: flex; gap: 6px; align-items: center; }
+.g-imp { overflow-x: auto; margin-top: 12px; }
+.g-imp table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.g-imp th, .g-imp td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.g-imp td:nth-child(4) { white-space: normal; min-width: 160px; }
+.g-imp tr.bad td { color: var(--red-soft); }
+.g-warn { border-color: rgba(245,158,11,.5) !important; color: var(--amber); font-size: 13px; line-height: 1.5; }
+.g-warn a { color: inherit; }
+.g-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.g-sched-row { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+.g-cell span { display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ash); }
+.g-cell b { font-size: 15px; }
+.g-cell.stop b { color: var(--red-soft); }
+.g-packs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.g-pack { font-size: 12px; padding: 4px 8px; border: 1px solid var(--steel); border-radius: 6px; color: var(--ash); }
+.g-pack b { color: var(--white); }
+
+.g-toolbar { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; position: sticky; top: var(--dc-header-h, 56px); z-index: 5; background: var(--bg); padding: 6px 0; }
+.g-chips { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.g-chip { white-space: nowrap; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--steel); background: var(--bg-2); color: var(--white); font: inherit; font-size: 12px; cursor: pointer; }
+.g-chip.on { background: var(--red); border-color: var(--red); color: #fff; }
+
+.g-btn { padding: 9px 14px; border-radius: 8px; border: 1px solid var(--red); background: var(--red); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.g-btn.ghost { background: transparent; color: var(--white); border-color: var(--steel); font-weight: 500; }
+.g-btn.ghost.danger { color: var(--red-soft); border-color: rgba(227,6,19,.4); }
+.g-btn.sm { padding: 6px 10px; font-size: 12px; }
+
+.g-days { display: flex; flex-direction: column; gap: 8px; }
+.g-day { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; scroll-margin-top: 120px; }
+.g-day.today { border-color: var(--red); box-shadow: 0 0 0 1px var(--red) inset; }
+.g-day.past { opacity: .62; }
+.g-day-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.g-day-head b { font-size: 15px; }
+.g-day-head > span { color: var(--ash); font-size: 12px; }
+.g-day-head em { font-style: normal; font-size: 11px; color: #fff; background: var(--red); padding: 2px 7px; border-radius: 999px; }
+.g-plus { margin-left: auto; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--steel); background: transparent; color: var(--white); font-size: 16px; cursor: pointer; }
+.g-ban-mini { font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--steel); color: var(--ash); }
+.g-ban-mini.pending { color: var(--amber); border-color: rgba(245,158,11,.4); }
+.g-ban-mini.approved, .g-ban-mini.live { color: var(--green-soft); border-color: rgba(52,211,153,.35); }
+.g-day-body { display: grid; gap: 6px; }
+
+.g-ev { text-align: left; display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); border-left: 4px solid var(--a-all); background: var(--bg-3); color: var(--white); font: inherit; cursor: pointer; }
+.g-ev.a-ret { border-left-color: var(--a-ret); }
+.g-ev.a-fort { border-left-color: var(--a-fort); }
+.g-ev-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 11px; }
+.g-tag { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--red-soft); }
+.a-ret .g-tag { color: var(--blue-soft); }
+.a-fort .g-tag { color: var(--violet); }
+.g-kind { color: var(--ash); }
+.g-time { margin-left: auto; color: var(--ash); }
+.g-ev-title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.g-ev-sub { font-size: 12px; color: var(--ash); }
+.g-ev-ch { font-size: 12px; color: var(--blue-soft); }
+.g-ev-note { font-size: 12px; color: var(--amber); }
+.g-mark { font-size: 13px; padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--steel); color: var(--ash); }
+.g-mark[role=button] { cursor: pointer; }
+.g-mark.tbd { color: var(--amber); border-color: rgba(245,158,11,.45); }
+.g-mark.wait { color: var(--amber); }
+.g-ret { font-size: 12px; color: var(--ash); padding: 2px 2px 0; }
+
+.g-sec-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+.g-sec-head h2 { font-family: 'Oswald', sans-serif; font-size: 16px; letter-spacing: .04em; text-transform: uppercase; }
+.g-list { display: flex; flex-direction: column; }
+.g-li { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.g-li:first-child { border-top: 0; }
+.g-role { font-size: 12px; color: var(--ash); }
+.g-li-main { min-width: 0; word-break: break-word; }
+.g-li-main small { display: block; color: var(--ash); font-size: 12px; margin-top: 2px; }
+.g-li-act { display: flex; gap: 6px; }
+.g-bst.pending { color: var(--amber); }
+.g-bst.approved, .g-bst.live { color: var(--green-soft); }
+.g-log { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow: auto; font-size: 13px; }
+.g-log-row { border-top: 1px solid var(--line); padding-top: 8px; }
+.g-log-row div { color: var(--ash); margin-top: 3px; word-break: break-word; }
+
+.g-sheet { position: fixed; inset: 0; z-index: 10050; display: none; }
+.g-sheet.show { display: block; }
+.g-sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.g-sheet-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(620px, 94vw); max-height: 88vh; overflow: auto; background: var(--bg-2); border: 1px solid var(--steel); border-radius: 14px; padding: 18px; }
+.g-sheet-x { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--steel); background: transparent; color: var(--white); cursor: pointer; font-size: 16px; }
+.g-sheet h3 { font-size: 18px; margin: 0 40px 12px 0; line-height: 1.3; }
+.g-dl { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; font-size: 14px; }
+.g-dl dt { color: var(--ash); }
+.g-client { margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--bg-3); border: 1px solid var(--line); }
+.g-client span { display: block; font-size: 11px; color: var(--ash); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.g-client p { margin-bottom: 10px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.g-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.g-form { display: flex; flex-direction: column; gap: 10px; }
+.g-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.g-f span { display: block; font-size: 12px; color: var(--ash); margin-bottom: 4px; }
+.g-f input, .g-f select, .g-f textarea { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--steel); background: var(--bg); color: var(--white); font: inherit; font-size: 14px; }
+.g-check { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+
+.g-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: .2s; background: #10B981; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 10100; pointer-events: none; max-width: 90vw; }
+.g-toast.show { opacity: 1; transform: translateX(-50%); }
+.g-toast.bad { background: var(--red); }
+
+@media (max-width: 640px) {
+  .topbar { padding: 10px 12px; }
+  #gMain { padding: 12px 12px 80px; }
+  .g-strip { grid-template-columns: 1fr 1fr; }
+  .g-li { grid-template-columns: 1fr; gap: 4px; }
+  .g-dl { grid-template-columns: 1fr; gap: 2px; }
+  .g-dl dd { margin-bottom: 8px; }
+  .g-sheet-panel { left: 0; right: 0; bottom: 0; top: auto; transform: none; width: 100%; max-height: 90vh; border-radius: 16px 16px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+  .g-ev-title { font-size: 14px; }
+  .g-toolbar { top: var(--dc-header-h-mobile, 54px); }
+}
+
 </style>
 
 <script src="dc-shared-storage.js?v=202610081054-d8b626ae"></script>
@@ -187,12 +324,11 @@ body {
 <header class="topbar">
   <a href="#" class="brand-mark">
     DREAM<span class="red">CAR</span> · ПРОЄКТИ
-    <span class="meta">Кампанії DreamCar</span>
+    <span class="meta">План · задачі · публікації</span>
   </a>
   <div class="topbar-actions">
-    <button class="filter-btn"  id="btnNewProjectTop" aria-label="Створити" title="Новий проєкт">+ НОВИЙ</button>
-    <a href="#kanban" class="filter-btn" title="Канбан">📋 KANBAN</a>
-    <a href="#list" class="filter-btn" title="Список">📃 СПИСОК</a>
+    <a href="#" class="filter-btn" title="План проєкту" onclick="location.hash='';return false;">🗓 ПЛАН</a>
+    <a href="#all" class="filter-btn" title="Усі проєкти">📋 УСІ ПРОЄКТИ</a>
     <a href="#calendar" class="filter-btn" title="Зведений календар SMM+Retention" style="background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(168,85,247,0.15));border-color:#a855f7;">📅 ЗВЕДЕНИЙ</a>
     <span id="authChip"></span>
     <a href="#" id="signOutBtn" class="filter-btn" style="display:none;">EXIT</a>
@@ -318,6 +454,8 @@ document.getElementById('signOutBtn').onclick = async (e) => {
 };
 </script>
 
+<!-- 08.10.2026: план проєкту (колишній GENERAL) — до app-projects-app.js -->
+<script src="app-plan.js?v=202610081054-d8b626ae" defer></script>
 <!-- Projects app — підключається після auth -->
 <script src="app-projects-app.js?v=202610081054-d8b626ae" defer></script>
 <!-- #360 (12.06.2026): Зведений календар SMM+Retention -->
