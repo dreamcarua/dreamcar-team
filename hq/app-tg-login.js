@@ -88,7 +88,7 @@
     'app-reapprove-on-edit.js',
     'app-ui-extras.js',
     'app-launches-crud.js',
-    'app-library-delete.js',
+    // 'app-library-delete.js', — 08.10.2026: замінено бібліотекою v2 (app-library.js)
     'app-pravky2-fix.js',
     'app-pravky2b-fix.js',
     'app-pravky2c-fix.js',
