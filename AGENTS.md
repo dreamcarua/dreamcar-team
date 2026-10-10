@@ -1,7 +1,7 @@
 # DreamCar Team Hub
 
 Internal platform for the DreamCar team: SMM (`/hq/`), retention broadcasts, tasks, projects, onboarding, orgchart, survey, marketing research, regulations, health. Vanilla-JS static site on GitHub Pages served from the repo ROOT (`team.dreamcar.ua`) + Supabase HQ (`wotghlaehnvxyeacznvv`: Postgres 17, ~65 edge functions, 30+ pg_cron jobs) + 20 GitHub Actions + `@dreamcar_team_bot`. Public repository — see Rules.
-Memory carrier: `github.com/dreamcarua/dreamcar-team` (this repo), folder `docs/`.
+Memory carrier: `github.com/dreamcarua/dreamcar-memory` (PRIVATE), folder `code/dreamcar-team/docs/`. Moved there 10.10.2026 because THIS repo is public (GitHub Pages serves every file). Every `docs/...` path below means `dreamcar-memory/code/dreamcar-team/docs/...`. Never write memory, P&L, strategy, names or chat dumps into this repo.
 Project hub: `github.com/dreamcarua/dreamcar-memory` — project-level memory (launches, marketing, strategy, team, decisions). This repo's `docs/` is about this codebase only.
 Owner: Vadym (vg@abrisart.com). Tasks are closed by whoever set them; we hand over.
 
