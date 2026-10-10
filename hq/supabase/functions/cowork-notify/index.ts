@@ -86,6 +86,20 @@ async function resolveChatId(supabase: ReturnType<typeof createClient>): Promise
   return { chatId: null, source: "none" };
 }
 
+// Порівняння в сталий час: SHA-256 обох рядків і XOR по всіх байтах.
+async function safeEqual(a: string, b: string): Promise<boolean> {
+  if (!a || !b) return false;
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const ua = new Uint8Array(x), ub = new Uint8Array(y);
+  let d = 0;
+  for (let i = 0; i < ua.length; i++) d |= ua[i] ^ ub[i];
+  return d === 0;
+}
+
 Deno.serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
@@ -103,14 +117,16 @@ Deno.serve(async (req: Request) => {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
-  // Auth via secret token
-  if (COWORK_TOKEN) {
-    const got = req.headers.get("x-cowork-token");
-    if (got !== COWORK_TOKEN) {
-      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
-        status: 401, headers: { "Content-Type": "application/json" },
-      });
-    }
+  // Auth via secret token. 10.10.2026 аудит B9: fail-closed — без COWORK_NOTIFY_TOKEN в env ендпоінт вимкнений (500).
+  if (!COWORK_TOKEN) {
+    return new Response(JSON.stringify({ ok: false, error: "misconfigured: COWORK_NOTIFY_TOKEN not set" }), {
+      status: 500, headers: { "Content-Type": "application/json" },
+    });
+  }
+  if (!(await safeEqual(req.headers.get("x-cowork-token") ?? "", COWORK_TOKEN))) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
   }
 
   let body: { text?: string; link?: string; type?: string };

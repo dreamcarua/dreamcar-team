@@ -2130,6 +2130,7 @@ async function handleTaskTrigger(
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+        "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "", // 10.10.2026: tg-task-extract тепер fail-closed
       },
       body: JSON.stringify({
         source: "emoji",
@@ -2360,13 +2361,31 @@ async function forwardToAI(
   }
 }
 
+// Порівняння в сталий час: SHA-256 обох рядків і XOR по всіх байтах.
+async function safeEqual(a: string, b: string): Promise<boolean> {
+  if (!a || !b) return false;
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const ua = new Uint8Array(x), ub = new Uint8Array(y);
+  let d = 0;
+  for (let i = 0; i < ua.length; i++) d |= ua[i] ^ ub[i];
+  return d === 0;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
 
-  if (TG_WEBHOOK_SECRET) {
-    const got = req.headers.get("x-telegram-bot-api-secret-token");
-    if (got !== TG_WEBHOOK_SECRET) return new Response("Unauthorized", { status: 401 });
+  // 10.10.2026 аудит B9: fail-closed. Telegram шле X-Telegram-Bot-Api-Secret-Token
+  // (setWebhook з secret_token робить воркфлоу fix-tg-webhook.yml).
+  if (!TG_WEBHOOK_SECRET) {
+    return new Response(JSON.stringify({ ok: false, error: "misconfigured: TG_WEBHOOK_SECRET not set" }), { status: 500, headers: { "Content-Type": "application/json" } });
+  }
+  if (!(await safeEqual(req.headers.get("x-telegram-bot-api-secret-token") ?? "", TG_WEBHOOK_SECRET))) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
   }
 
   let update: TgUpdate;
