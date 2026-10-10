@@ -16,7 +16,8 @@ const BOARD_CHAT_ID = -1003883456849;
 // 30.07.2026: додано 100 — раніше максимум був 99, тож САМ ФАКТ перевищення ліміту
 // не давав жодного алерту (Спірін перетнув 100% і ніхто не дізнався).
 const THRESHOLDS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 96, 97, 98, 99, 100];
-const YEAR = 2026;
+// 10.10.2026: рік за Києвом замість захардкодженого 2026 (ліміт року без затвердження RPC позначає limit_known=false).
+const YEAR = Number(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kyiv", year: "numeric" }).format(new Date()));
 
 const sb = createClient(SB_URL, SB_KEY);
 
