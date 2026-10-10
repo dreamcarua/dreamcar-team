@@ -21,6 +21,22 @@ jobs:
         with:
           version: latest
 
+      - name: Verify SendPulse auth (oauth token)
+        env:
+          SP_ID: ${{ secrets.SENDPULSE_API_ID }}
+          SP_SECRET: ${{ secrets.SENDPULSE_API_SECRET }}
+        run: |
+          RESP=$(curl -sS -X POST https://api.sendpulse.com/oauth/access_token \
+            -H 'Content-Type: application/json' \
+            -d "{\"grant_type\":\"client_credentials\",\"client_id\":\"$SP_ID\",\"client_secret\":\"$SP_SECRET\"}")
+          echo "$RESP" | grep -q 'access_token' && echo "✓ SendPulse auth OK" || { echo "::error::SendPulse auth failed: $RESP"; exit 1; }
+          # READ-only: скільки TG-ботів бачить цей API-користувач (0 = ключі не з того акаунта)
+          TOK=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+          echo "::add-mask::$TOK"
+          BOTS=$(curl -sS https://api.sendpulse.com/telegram/bots -H "Authorization: Bearer $TOK" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(len(d.get("data",d) if isinstance(d,dict) else d))')
+          echo "TG bots visible: $BOTS"
+          [ "$BOTS" -gt 0 ] || { echo "::error::Ключі валідні, але бачать 0 TG-ботів: Edge НЕ оновлено"; exit 1; }
+
       - name: Set SendPulse creds in Edge env
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -40,13 +56,3 @@ jobs:
           supabase secrets set --env-file /tmp/sp.env --project-ref "$PROJECT_REF"
           rm -f /tmp/sp.env
           echo "✓ SendPulse creds синхронізовано в Edge env"
-
-      - name: Verify SendPulse auth (oauth token)
-        env:
-          SP_ID: ${{ secrets.SENDPULSE_API_ID }}
-          SP_SECRET: ${{ secrets.SENDPULSE_API_SECRET }}
-        run: |
-          RESP=$(curl -sS -X POST https://api.sendpulse.com/oauth/access_token \
-            -H 'Content-Type: application/json' \
-            -d "{\"grant_type\":\"client_credentials\",\"client_id\":\"$SP_ID\",\"client_secret\":\"$SP_SECRET\"}")
-          echo "$RESP" | grep -q 'access_token' && echo "✓ SendPulse auth OK" || { echo "::error::SendPulse auth failed: $RESP"; exit 1; }
