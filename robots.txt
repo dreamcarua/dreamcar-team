@@ -1,15 +1,5 @@
-# team.dreamcar.ua — Internal Team Hub
-# Закрита система команди DreamCar. Не індексувати публічно.
+# team.dreamcar.ua: закрита система команди DreamCar. Не індексувати.
+# 10.10.2026 аудит: прибрано Allow для survey.html та onboarding.html (внутрішні дані).
 
 User-agent: *
-Disallow: /hq/
-Disallow: /tasks/
-Disallow: /onboarding/
-Disallow: /supabase/
-Disallow: /api/
-
-# Загальнодоступні сторінки (можна показувати у пошуку)
-Allow: /survey.html
-Allow: /onboarding.html
-
-Sitemap: https://team.dreamcar.ua/sitemap.xml
+Disallow: /
