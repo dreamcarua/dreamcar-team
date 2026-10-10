@@ -14,6 +14,7 @@
 - 🗑 Усі токени health вимкнено (Apple Health Auto Export, боти, перегляд дашборду /health/). Дані не видалено.
 - 🗑 Health-бот у Telegram від'єднано від сервера (webhook вимкнено), бот не відповідає.
 - 🔧 Workflow `sync-sendpulse-creds`: спершу перевіряє ключі й кількість видимих TG-ботів, і лише потім пише їх у Edge (раніше невалідні ключі потрапляли в Edge до перевірки).
+- 🔧 SendPulse: підтримка нового типу ключа `sp_apikey_…` (GH secret `SENDPULSE_API_KEY` → Edge, Bearer без oauth, має пріоритет над ID/Secret). `sendpulse-subscribers-sync` знову бачить бота DreamCar_ua_bot.
 
 ## 10.10.2026 (вечір) — 🔧 Подарунки в рекламі з 00:00 і ротація health-токена (погоджено Вадимом)
 
