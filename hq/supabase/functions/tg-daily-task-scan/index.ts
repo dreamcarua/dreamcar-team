@@ -369,9 +369,90 @@ async function scanChat(
 // ---------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------
+// ---- 10.10.2026 аудит B9: fail-closed авторизація серверних викликів ----
+// Пропускає лише запит із заголовком x-cron-secret / x-hq-cron-secret, що ТОЧНО збігається
+// з env HQ_CRON_SECRET / DC_CRON_SECRET або з public.app_secrets.hq_cron_secret.
+// Немає жодного еталону — 500; немає збігу — 401. Порівняння в сталий час.
+async function safeEqual(a: string, b: string): Promise<boolean> {
+  if (!a || !b) return false;
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const ua = new Uint8Array(x), ub = new Uint8Array(y);
+  let d = 0;
+  for (let i = 0; i < ua.length; i++) d |= ua[i] ^ ub[i];
+  return d === 0;
+}
+
+// Усі варіанти service-ключа цього проєкту, які різні функції читають з env.
+function authServiceKeys(): string[] {
+  const out: string[] = [];
+  for (const k of ["SUPABASE_SERVICE_ROLE_KEY", "SB_SERVICE_ROLE_KEY", "HQ_DB_SERVICE_KEY", "SERVICE_ROLE_KEY"]) {
+    const v = Deno.env.get(k) || "";
+    if (v.length >= 32 && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
+async function expectedCronSecrets(): Promise<string[]> {
+  const out: string[] = [];
+  for (const k of ["HQ_CRON_SECRET", "DC_CRON_SECRET"]) {
+    const v = Deno.env.get(k) || "";
+    if (v.length >= 32 && !out.includes(v)) out.push(v);
+  }
+  const url = Deno.env.get("SUPABASE_URL") || Deno.env.get("SB_URL") || "";
+  const key = authServiceKeys()[0] || "";
+  if (url && key) {
+    try {
+      const r = await fetch(`${url}/rest/v1/app_secrets?key=eq.hq_cron_secret&select=value`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      });
+      if (r.ok) {
+        const rows = await r.json();
+        const v = String(rows?.[0]?.value || "");
+        if (v.length >= 32 && !out.includes(v)) out.push(v);
+      }
+    } catch (e) { console.error("[auth] app_secrets lookup failed", (e as Error)?.message); }
+  }
+  return out;
+}
+
+// Повертає null, якщо дозволено, інакше готову відповідь 401/500.
+// allowServiceBearer: також пускати Authorization: Bearer <service_role_key> (серверні виклики з інших edge).
+// allowQuerySecret: також приймати ?secret= (сумісність зі старими ручними викликами).
+async function requireCronAuth(
+  req: Request,
+  opts: { allowServiceBearer?: boolean; allowQuerySecret?: boolean; headers?: Record<string, string> } = {},
+): Promise<Response | null> {
+  const h = { ...(opts.headers || {}), "Content-Type": "application/json" };
+  const deny = (error: string, status: number) => new Response(JSON.stringify({ ok: false, error }), { status, headers: h });
+  const got: string[] = [];
+  for (const n of ["x-cron-secret", "x-hq-cron-secret"]) { const v = req.headers.get(n); if (v) got.push(v); }
+  if (opts.allowQuerySecret) { const q = new URL(req.url).searchParams.get("secret"); if (q) got.push(q); }
+  const wants = await expectedCronSecrets();
+  const svc = opts.allowServiceBearer ? authServiceKeys() : [];
+  if (!wants.length && !svc.length) return deny("misconfigured: no cron secret", 500);
+  let ok = false;
+  for (const g of got) for (const w of wants) if (await safeEqual(g, w)) ok = true;
+  if (!ok && svc.length) {
+    const auth = req.headers.get("authorization") || "";
+    const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+    for (const k of svc) if (await safeEqual(bearer, k)) ok = true;
+  }
+  return ok ? null : deny("unauthorized", 401);
+}
+// ---- /auth ----
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+
+  // 10.10.2026 аудит B9: раніше без перевірки (будь-хто запускав скан чатів через Anthropic).
+  // Легітимний викликач — daily-morning-runner (x-cron-secret + Bearer service_role).
+  const denied = await requireCronAuth(req, { allowServiceBearer: true });
+  if (denied) return denied;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 

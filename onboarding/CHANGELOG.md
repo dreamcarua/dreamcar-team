@@ -17,6 +17,11 @@
 - 🔧 Алерт «SendPulse-вебхуки мовчать» не доходив (старий секрет). Тепер SQL-перевірка кожні 10 хв у DreamCar TECH, з повідомленням про відновлення.
 - 🔧 Прибрано 34 разові cron `verify_pub_*`, які спрацювали б знову у 2027.
 
+### Edge (пакет «Безпека», погоджено 10.10)
+- 🛡 Fail-closed авторизація: `daily-finance-report`, `daily-finance-board-report`, `tg-daily-task-scan`, `tg-task-extract`, `daily-health-audit`, `notify-tg`, `verify-publication-ig`, `cron-reminders`, `cowork-notify`, `sendpulse-subscribers-sync` (`?probe=1` теж), `daily-morning-runner`, `tg-notify-queue-flush` (прибрано захардкоджений резервний секрет і порівняння за префіксом). Секрет `x-cron-secret` з `app_secrets`, порівняння в сталий час.
+- 🛡 `r2-sign-upload`, `dispatch-workflow` приймають лише JWT активного користувача HQ (раніше будь-який Bearer). Тригер стиснення відео шле секрет (міграція 058).
+- 📖 Код 4 функцій, що жили лише в деплої, тепер у репо.
+
 ### Edge
 - 🗑 `webhook-dashboard-sendpulse` вимкнено (410): приймав оплати без автентифікації, викликів не було. Оплати пише ETL.
 
