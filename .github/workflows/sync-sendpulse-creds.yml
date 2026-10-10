@@ -2,12 +2,11 @@ name: Sync SendPulse creds → Supabase Edge
 
 # Заносить SendPulse API-креди в Supabase Edge env, щоб серверний воркер
 # sendpulse-subscribers-sync міг тягнути підписників TG-бота (READ) у bot_subscribers.
-# Креди НЕ в git — з GH repo secrets SENDPULSE_API_ID / SENDPULSE_API_SECRET.
+# Креди НЕ в git — з GH repo secrets.
 #
-# Разова дія Вадима (SendPulse → Account → API → ID + Secret):
-#   printf '%s' '<SP_API_ID>'     | gh secret set SENDPULSE_API_ID     --repo dreamcarua/dreamcar-team
-#   printf '%s' '<SP_API_SECRET>' | gh secret set SENDPULSE_API_SECRET --repo dreamcarua/dreamcar-team
-#   gh workflow run sync-sendpulse-creds.yml --repo dreamcarua/dreamcar-team
+# Пріоритет (10.10.2026): SENDPULSE_API_KEY (новий тип ключа sp_apikey_..., іде як Bearer).
+# Запасний шлях: пара SENDPULSE_API_ID / SENDPULSE_API_SECRET (oauth).
+# Ключ у Edge пишеться ЛИШЕ після перевірки, що він бачить хоча б одного TG-бота.
 
 on:
   workflow_dispatch:
@@ -21,37 +20,42 @@ jobs:
         with:
           version: latest
 
-      - name: Verify SendPulse auth (oauth token)
+      - name: Verify SendPulse auth + TG bots visible (READ-only)
         env:
+          SP_KEY: ${{ secrets.SENDPULSE_API_KEY }}
           SP_ID: ${{ secrets.SENDPULSE_API_ID }}
           SP_SECRET: ${{ secrets.SENDPULSE_API_SECRET }}
         run: |
-          RESP=$(curl -sS -X POST https://api.sendpulse.com/oauth/access_token \
-            -H 'Content-Type: application/json' \
-            -d "{\"grant_type\":\"client_credentials\",\"client_id\":\"$SP_ID\",\"client_secret\":\"$SP_SECRET\"}")
-          echo "$RESP" | grep -q 'access_token' && echo "✓ SendPulse auth OK" || { echo "::error::SendPulse auth failed: $RESP"; exit 1; }
-          # READ-only: скільки TG-ботів бачить цей API-користувач (0 = ключі не з того акаунта)
-          TOK=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+          if [ -n "${SP_KEY:-}" ]; then
+            TOK="$SP_KEY"; echo "Режим: API key"
+          else
+            RESP=$(curl -sS -X POST https://api.sendpulse.com/oauth/access_token \
+              -H 'Content-Type: application/json' \
+              -d "{\"grant_type\":\"client_credentials\",\"client_id\":\"$SP_ID\",\"client_secret\":\"$SP_SECRET\"}")
+            echo "$RESP" | grep -q 'access_token' || { echo "::error::SendPulse auth failed: $RESP"; exit 1; }
+            TOK=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+            echo "Режим: ID/Secret"
+          fi
           echo "::add-mask::$TOK"
-          BOTS=$(curl -sS https://api.sendpulse.com/telegram/bots -H "Authorization: Bearer $TOK" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(len(d.get("data",d) if isinstance(d,dict) else d))')
+          BOTS=$(curl -sS https://api.sendpulse.com/telegram/bots -H "Authorization: Bearer $TOK" | python3 -c 'import sys,json;d=json.load(sys.stdin);b=d.get("data",d) if isinstance(d,dict) else d;print(len(b) if isinstance(b,list) else 0)')
           echo "TG bots visible: $BOTS"
-          [ "$BOTS" -gt 0 ] || { echo "::error::Ключі валідні, але бачать 0 TG-ботів: Edge НЕ оновлено"; exit 1; }
+          [ "$BOTS" -gt 0 ] || { echo "::error::Ключ не бачить жодного TG-бота: Edge НЕ оновлено"; exit 1; }
 
       - name: Set SendPulse creds in Edge env
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SP_KEY: ${{ secrets.SENDPULSE_API_KEY }}
           SP_ID: ${{ secrets.SENDPULSE_API_ID }}
           SP_SECRET: ${{ secrets.SENDPULSE_API_SECRET }}
           REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
           PROJECT_REF="${REF:-wotghlaehnvxyeacznvv}"
-          if [ -z "${SP_ID:-}" ] || [ -z "${SP_SECRET:-}" ]; then
-            echo "::error::SENDPULSE_API_ID / SENDPULSE_API_SECRET порожні — спершу gh secret set"
-            exit 1
-          fi
           {
-            printf 'SENDPULSE_API_ID=%s\n' "$SP_ID"
-            printf 'SENDPULSE_API_SECRET=%s\n' "$SP_SECRET"
+            if [ -n "${SP_KEY:-}" ]; then printf 'SENDPULSE_API_KEY=%s\n' "$SP_KEY"; fi
+            if [ -n "${SP_ID:-}" ] && [ -n "${SP_SECRET:-}" ]; then
+              printf 'SENDPULSE_API_ID=%s\n' "$SP_ID"
+              printf 'SENDPULSE_API_SECRET=%s\n' "$SP_SECRET"
+            fi
           } > /tmp/sp.env
           supabase secrets set --env-file /tmp/sp.env --project-ref "$PROJECT_REF"
           rm -f /tmp/sp.env

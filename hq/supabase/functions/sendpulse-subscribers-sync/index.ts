@@ -15,12 +15,15 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SP_ID = Deno.env.get("SENDPULSE_API_ID") || "";
 const SP_SECRET = Deno.env.get("SENDPULSE_API_SECRET") || "";
+// 10.10.2026: новий тип ключа SendPulse (sp_apikey_...) іде прямо як Bearer, без oauth. Має пріоритет.
+const SP_KEY = Deno.env.get("SENDPULSE_API_KEY") || "";
 const CRON = Deno.env.get("DC_CRON_SECRET") ?? Deno.env.get("HQ_CRON_SECRET") ?? "";
 const SP = "https://api.sendpulse.com";
 
 const sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 
 async function spToken(): Promise<string> {
+  if (SP_KEY) return SP_KEY;
   const r = await fetch(`${SP}/oauth/access_token`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ grant_type: "client_credentials", client_id: SP_ID, client_secret: SP_SECRET }),
@@ -152,7 +155,7 @@ Deno.serve(async (req) => {
   if (denied) return denied;
   const authed = true;
 
-  if (!SP_ID || !SP_SECRET) return new Response(JSON.stringify({ ok: false, error: "SENDPULSE_API_ID/SECRET не задані в Edge env" }), { status: 400 });
+  if (!SP_KEY && (!SP_ID || !SP_SECRET)) return new Response(JSON.stringify({ ok: false, error: "SENDPULSE_API_KEY або SENDPULSE_API_ID/SECRET не задані в Edge env" }), { status: 400 });
 
   try {
     const token = await spToken();
