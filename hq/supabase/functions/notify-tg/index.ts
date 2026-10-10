@@ -560,15 +560,35 @@ function corsHeaders(origin: string|null) {
   };
 }
 
+// Порівняння в сталий час: SHA-256 обох рядків і XOR по всіх байтах.
+async function safeEqual(a: string, b: string): Promise<boolean> {
+  if (!a || !b) return false;
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const ua = new Uint8Array(x), ub = new Uint8Array(y);
+  let d = 0;
+  for (let i = 0; i < ua.length; i++) d |= ua[i] ^ ub[i];
+  return d === 0;
+}
+
+function jsonErr(error: string, status: number, origin: string | null): Response {
+  return new Response(JSON.stringify({ ok: false, error }), {
+    status, headers: { ...corsHeaders(origin), "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders(origin) });
 
-  if (HQ_WEBHOOK_SECRET) {
-    const got = req.headers.get("x-hq-secret");
-    if (got !== HQ_WEBHOOK_SECRET) return new Response("Unauthorized", { status: 401, headers: corsHeaders(origin) });
-  }
+  // 10.10.2026 аудит B9: fail-closed. Без заданого HQ_WEBHOOK_SECRET (або HQ_SECRET) — 500, без збігу — 401.
+  const want = HQ_WEBHOOK_SECRET || (Deno.env.get("HQ_SECRET") ?? "");
+  if (!want) return jsonErr("misconfigured: HQ_WEBHOOK_SECRET not set", 500, origin);
+  if (!(await safeEqual(req.headers.get("x-hq-secret") ?? "", want))) return jsonErr("unauthorized", 401, origin);
 
   let payload: any;
   try { payload = await req.json(); }

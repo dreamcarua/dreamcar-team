@@ -1,7 +1,7 @@
 // Supabase Edge Function: r2-sign-upload
 // Endpoint: POST /functions/v1/r2-sign-upload
 // Body: { name: string, size: number, mime: string, type: 'photo'|'video'|'doc'|'audio' }
-// Auth: Bearer <JWT> (any valid Supabase token — anon or user)
+// Auth: Bearer <JWT активного користувача HQ> (з 10.10.2026; anon не приймається)
 // Returns: { uploadUrl, publicUrl, objectKey, expiresIn }
 
 // deno-lint-ignore-file no-explicit-any
@@ -119,6 +119,48 @@ function safeExt(name: string): string {
   return m ? m[1].toLowerCase() : "bin";
 }
 
+// ---- 10.10.2026 аудит B9: авторизація ----
+// Усі варіанти service-ключа цього проєкту, які різні функції читають з env.
+function authServiceKeys(): string[] {
+  const out: string[] = [];
+  for (const k of ["SUPABASE_SERVICE_ROLE_KEY", "SB_SERVICE_ROLE_KEY", "HQ_DB_SERVICE_KEY", "SERVICE_ROLE_KEY"]) {
+    const v = Deno.env.get(k) || "";
+    if (v.length >= 32 && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
+// Перевірка JWT користувача HQ: токен валідний у Supabase Auth (GET /auth/v1/user)
+// і користувач активний у public.users (auth_id, user_auth_aliases через resolve_user_by_auth,
+// а також users.auth_id_aliases). anon-ключ і прострочені токени не проходять.
+async function isActiveHqUser(req: Request): Promise<boolean> {
+  const auth = req.headers.get("authorization") || "";
+  const jwt = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  const url = Deno.env.get("SUPABASE_URL") || Deno.env.get("SB_URL") || "";
+  const key = authServiceKeys()[0] || "";
+  if (!jwt || !url || !key) return false;
+  try {
+    const ur = await fetch(`${url}/auth/v1/user`, { headers: { apikey: key, Authorization: `Bearer ${jwt}` } });
+    if (!ur.ok) return false;
+    const uid = String((await ur.json())?.id || "");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) return false;
+    const h = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+    const rr = await fetch(`${url}/rest/v1/rpc/resolve_user_by_auth`, { method: "POST", headers: h, body: JSON.stringify({ p_auth_id: uid }) });
+    if (rr.ok) {
+      const rows = await rr.json();
+      if (Array.isArray(rows) && rows.some((r: any) => r?.is_active === true)) return true;
+    }
+    const ar = await fetch(`${url}/rest/v1/users?select=id&is_active=eq.true&auth_id_aliases=cs.%7B${uid}%7D&limit=1`, { headers: h });
+    if (ar.ok) {
+      const rows = await ar.json();
+      if (Array.isArray(rows) && rows.length > 0) return true;
+    }
+  } catch (e) { console.error("[auth] user check failed", (e as Error)?.message); }
+  return false;
+}
+
+// ---- /auth ----
+
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -130,12 +172,10 @@ Deno.serve(async (req) => {
   // #audit Phase 4: top-level try/catch — раніше signR2PutUrl() throw → unhandled crash
   try {
 
-  // Soft auth: just require Authorization header presence.
-  // Real signature verification is delegated to Supabase Gateway (Verify JWT toggle).
-  // Prototype phase — R2 quota is 10GB Free, object keys are random UUIDs.
-  const authHeader = req.headers.get("authorization") || "";
-  if (!authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "missing bearer" }), {
+  // 10.10.2026 аудит B9: раніше пропускав будь-який "Bearer x" (Verify JWT на шлюзі вимкнено,
+  // деплой іде з --no-verify-jwt). Тепер лише валідний JWT активного користувача HQ.
+  if (!(await isActiveHqUser(req))) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401, headers: { "content-type": "application/json", ...corsHeaders(origin) },
     });
   }
