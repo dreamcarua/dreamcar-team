@@ -140,6 +140,23 @@ async function enqueue(sb: any, m: any, text: string, o: { parent?: any; sources
 }
 
 // ----------------------------- воркер -----------------------------
+// Факти проєкту для сесії на Mac Studio: щоб не питати в людей те, що є в базі.
+async function projectContext(sb: any, r: any) {
+  const kyiv = (iso: string | null) => iso ? new Date(iso).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+  const { data: ls } = await sb.from("launches").select("id,name,code,cycle_no,kind,status,starts_at,stop_at,live_at,packages")
+    .eq("is_active", true).order("starts_at", { ascending: false, nullsFirst: false }).limit(12);
+  const cur = (ls || []).find((l: any) => l.id === r.launch_id) || null;
+  const lastPk = (ls || []).find((l: any) => Array.isArray(l.packages) && l.packages.length);
+  const pk = cur && Array.isArray(cur.packages) && cur.packages.length ? cur.packages : (lastPk?.packages || []);
+  const view = (l: any) => l && ({ name: l.name, number: l.cycle_no, code: l.code, kind: l.kind,
+    start_kyiv: kyiv(l.starts_at), sales_stop_kyiv: kyiv(l.stop_at), live_final_kyiv: kyiv(l.live_at) });
+  return {
+    current_project: view(cur),
+    packages: pk, packages_source: cur && cur.packages?.length ? "current project" : (lastPk ? `previous project #${lastPk.cycle_no} (the current one has none yet)` : null),
+    other_active_projects: (ls || []).filter((l: any) => l.id !== r.launch_id && l.kind === "raffle").slice(0, 3).map(view),
+  };
+}
+
 async function sources(sb: any, r: any) {
   const msgIds = [r.message_id, r.reply_to_message_id].filter(Boolean);
   let q = sb.from("tg_media_intake").select("message_id,media_group_id,kind,status,file_name,mime,creative_id")
@@ -189,7 +206,7 @@ async function workerAction(sb: any, b: any) {
       if (error) throw new Error(error.message);
       const r = data && data.id ? data : null;
       if (r && r.attempts === 1) await say(r.message_id, `⚙️ Запит №${r.id} у роботі.`);
-      return { request: r, ...(r ? await sources(sb, r) : {}) };
+      return { request: r, ...(r ? { ...(await sources(sb, r)), project: await projectContext(sb, r) } : {}) };
     }
     case "sources": { const r = await get(); if (!r) return { error: "not found" }; return await sources(sb, r); }
     case "ask": {
@@ -214,6 +231,14 @@ async function workerAction(sb: any, b: any) {
       if (!ids.length) return { error: "creative_ids required" };
       const msgIds = await deliver(sb, r, ids, String(b.note || ""));
       await sb.from("creative_requests").update({ status: "done", result_creative_ids: ids, result_msg_ids: msgIds, result_note: String(b.note || "").slice(0, 4000),
+        finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
+      return { ok: true };
+    }
+    case "answer": {
+      const r = await get(); if (!r) return { error: "not found" };
+      const t = String(b.text || "").slice(0, 3800); if (!t) return { error: "text required" };
+      const res = await say(r.message_id, esc(t));
+      await sb.from("creative_requests").update({ status: "done", result_note: t, result_msg_ids: res?.result?.message_id ? [res.result.message_id] : [],
         finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
       return { ok: true };
     }
