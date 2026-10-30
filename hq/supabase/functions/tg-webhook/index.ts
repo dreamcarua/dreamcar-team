@@ -839,24 +839,19 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
 
   if (!fileId) return;
 
-  const progress = await tgSend(chatId, "📥 Завантажую файл...");
+  // 30.10.2026 (Вадим): без повідомлення на кожен файл. Мовчки кладемо в медіатеку;
+  // раз на годину media-batch-notify шле суму завантаженого. Пишемо лише про помилки
+  // і, якщо в людини є активні чернетки, пропонуємо прикріпити файл до публікації.
   const dl = await downloadTgFile(fileId, filename, mime);
-  if (!dl) {
-    if (progress) await tgEditMessage(chatId, progress.message_id, "⚠️ Не вдалось завантажити файл з TG.");
-    return;
-  }
+  if (!dl) { await tgSend(chatId, `⚠️ Не вдалось завантажити файл з TG: ${escHtml(filename || "файл")}`); return; }
 
   const ext = dl.filename.includes(".") ? dl.filename.slice(dl.filename.lastIndexOf(".")) : "";
   const storagePath = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-  if (progress) await tgEditMessage(chatId, progress.message_id, `📤 Завантажую у бібліотеку (${(dl.size/1024/1024).toFixed(1)} MB)...`);
 
   const { error: upErr } = await supabase.storage.from(STORAGE_BUCKET).upload(storagePath, dl.buf, {
     contentType: dl.mime, upsert: false,
   });
-  if (upErr) {
-    if (progress) await tgEditMessage(chatId, progress.message_id, `⚠️ Storage upload fail: ${escHtml(upErr.message)}`);
-    return;
-  }
+  if (upErr) { await tgSend(chatId, `⚠️ ${escHtml(dl.filename)}: не вдалося зберегти (${escHtml(upErr.message)})`); return; }
   const { data: pub2 } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
   const url = pub2?.publicUrl || "";
 
@@ -872,10 +867,7 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
     tags: [],
     uploaded_by: me.id,
   });
-  if (cErr) {
-    if (progress) await tgEditMessage(chatId, progress.message_id, `⚠️ DB insert fail: ${escHtml(cErr.message)}`);
-    return;
-  }
+  if (cErr) { await tgSend(chatId, `⚠️ ${escHtml(dl.filename)}: не вдалося зберегти (${escHtml(cErr.message)})`); return; }
 
   const { data: drafts } = await supabase
     .from("publication_responsibles")
@@ -898,12 +890,11 @@ async function handleFileMessage(supabase: ReturnType<typeof createClient>, msg:
     };
   }
 
+  if (draftList.length === 0) return; // мовчки: сума — у погодинному дайджесті
   const sizeMb = (dl.size / 1024 / 1024).toFixed(1);
-  const text = `✅ <b>Креатив додано</b>\n` +
-    `📁 ${escHtml(dl.filename)} · ${sizeMb} MB\n\n` +
-    (draftList.length > 0 ? `Прикріпити до публікації?` : `<i>У тебе нема активних чернеток — креатив додано до бібліотеки.</i>`) +
-    `\n\n🔗 <a href="${url}">Переглянути файл</a>`;
-  if (progress) await tgEditMessage(chatId, progress.message_id, text, kb);
+  const text = `📁 ${escHtml(dl.filename)} · ${sizeMb} MB у бібліотеці.\nПрикріпити до публікації?` +
+    `\n🔗 <a href="${url}">Переглянути файл</a>`;
+  await tgSend(chatId, text, { reply_markup: kb, silent: true });
 }
 
 async function handleAttachCallback(supabase: ReturnType<typeof createClient>, cb: TgCallbackQuery, creativeId: string, pubIdOrSkip: string): Promise<void> {
