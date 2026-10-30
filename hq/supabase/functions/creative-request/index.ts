@@ -113,7 +113,7 @@ async function onMessage(sb: any, m: any) {
     .in("status", ["queued", "working"]).lt("id", row.id);
   const ahead = count || 0;
   const res = await say(m.message_id,
-    `🎨 Запит №${row.id} прийнято.${hasFiles ? " Вихідні файли кладу в медіатеку проєкту." : " Файлів не бачу: працюватиму з матеріалами проєкту в медіатеці."}\n` +
+    `🎨 Запит №${row.id} прийнято: зроблю і поверну результат сюди, у тред.${hasFiles ? "" : " Файлів не бачу: працюватиму з матеріалами проєкту в медіатеці."}\n` +
     (ahead ? `У черзі перед ним: ${ahead}.` : `Беру першим.`) +
     `\n<i>Скасувати: відповідай на це повідомлення «❌»</i>`);
   await sb.from("creative_requests").update({ ack_msg_id: res?.result?.message_id ?? null }).eq("id", row.id);
