@@ -62,8 +62,10 @@ async function onMessage(sb: any, m: any) {
   // 1) reply на повідомлення бота: відповідь на питання або «❌»
   if (replyTo?.from?.is_bot) {
     const rid = replyTo.message_id;
-    const { data: q } = await sb.from("creative_requests").select("*")
-      .eq("chat_id", MEDIA_CHAT_ID).or(`question_msg_id.eq.${rid},ack_msg_id.eq.${rid}`).maybeSingle();
+    const { data: qs } = await sb.from("creative_requests").select("*")
+      .eq("chat_id", MEDIA_CHAT_ID).or(`question_msg_id.eq.${rid},ack_msg_id.eq.${rid},result_msg_ids.cs.{${rid}}`)
+      .order("id", { ascending: false }).limit(1);
+    const q = qs?.[0];
     if (q) {
       const txt = cleanText(m);
       if (CANCEL_RE.test(txt.toLowerCase())) {
@@ -74,6 +76,10 @@ async function onMessage(sb: any, m: any) {
           await say(m.message_id, `⏳ Запит №${q.id} уже в роботі, скасувати не можу. Результат можна просто не використовувати.`);
         }
         return { cancelled: q.id };
+      }
+      // reply з текстом на результат (або на «прийнято» вже виконаного запиту) = доопрацювання, без @згадки
+      if (txt && q.status === "done" && !mentionsBot(m)) {
+        return await enqueue(sb, m, txt, { parent: q, sources: q.result_creative_ids || [] });
       }
       if (q.status === "need_info" && q.question_msg_id === rid && txt) {
         const answers = [...(q.answers || []), { at: new Date().toISOString(), from: m.from?.id, text: txt.slice(0, 4000), message_id: m.message_id }];
@@ -95,15 +101,29 @@ async function onMessage(sb: any, m: any) {
     await say(m.message_id, `🎨 Напиши, що зробити, і додай файли (або відповідай на повідомлення з файлами). Наприклад: «${BOT_MENTION} зроби 3 рекламні креативи з цих фото, акцент на старт проєкту».`);
     return { skipped: "empty" };
   }
+  // reply-згадка на повідомлення, яке вже є запитом: не дублюємо
+  if (replyTo?.message_id) {
+    const { data: ex } = await sb.from("creative_requests").select("id,status").eq("chat_id", MEDIA_CHAT_ID).eq("message_id", replyTo.message_id).maybeSingle();
+    if (ex) { await say(m.message_id, `👌 Це вже запит №${ex.id} (${ex.status === "done" ? "виконано" : "у черзі або в роботі"}).`); return { exists: ex.id }; }
+  }
+  const ctx = String(replyTo?.text || replyTo?.caption || "").replace(new RegExp(BOT_MENTION, "ig"), "").trim();
+  const full = ctx && !replyTo?.from?.is_bot ? `${text}\n\nКонтекст (повідомлення, на яке відповідь): ${ctx}` : text;
+  return await enqueue(sb, m, full, { hasFiles });
+}
+
+async function enqueue(sb: any, m: any, text: string, o: { parent?: any; sources?: string[]; hasFiles?: boolean }) {
+  const replyTo = m.reply_to_message;
   const fromName = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || m.from?.username || "?";
   const { data: u } = await sb.from("users").select("id").eq("tg_chat_id", m.from?.id ?? 0).maybeSingle();
-  const { data: launch } = await sb.rpc("library_guess_launch", { p_at: new Date().toISOString() });
+  const launch = o.parent?.launch_id || (await sb.rpc("library_guess_launch", { p_at: new Date().toISOString() })).data;
+  const reqText = o.parent ? `Доопрацювання результату запиту №${o.parent.id} (його фінали додано як вихідні файли): ${text}` : text;
 
   const { data: row, error } = await sb.from("creative_requests").insert({
     chat_id: MEDIA_CHAT_ID, message_id: m.message_id, reply_to_message_id: replyTo?.message_id || null,
-    media_group_id: m.media_group_id || replyTo?.media_group_id || null,
+    media_group_id: m.media_group_id || (o.parent ? null : replyTo?.media_group_id) || null,
     from_tg_id: m.from?.id || null, from_name: fromName, user_id: u?.id || null,
-    request_text: text.slice(0, 8000), launch_id: launch || null,
+    request_text: reqText.slice(0, 8000), launch_id: launch || null,
+    parent_request_id: o.parent?.id || null, source_creative_ids: o.sources || [],
   }).select("id").single();
   if (error) {
     if (/duplicate/i.test(error.message)) return { skipped: "dup" };
@@ -112,8 +132,10 @@ async function onMessage(sb: any, m: any) {
   const { count } = await sb.from("creative_requests").select("id", { count: "exact", head: true })
     .in("status", ["queued", "working"]).lt("id", row.id);
   const ahead = count || 0;
+  const hasFiles = o.hasFiles || !!(o.sources && o.sources.length) || !!(m.photo || m.video || m.document);
   const res = await say(m.message_id,
-    `🎨 Запит №${row.id} прийнято: зроблю і поверну результат сюди, у тред.${hasFiles ? "" : " Файлів не бачу: працюватиму з матеріалами проєкту в медіатеці."}\n` +
+    `🎨 Запит №${row.id} прийнято${o.parent ? ` (доопрацювання №${o.parent.id})` : ""}: зроблю і поверну результат сюди, у тред.` +
+    `${hasFiles ? "" : " Файлів не бачу: працюватиму з матеріалами проєкту в медіатеці."}\n` +
     (ahead ? `У черзі перед ним: ${ahead}.` : `Беру першим.`) +
     `\n<i>Скасувати: відповідай на це повідомлення «❌»</i>`);
   await sb.from("creative_requests").update({ ack_msg_id: res?.result?.message_id ?? null }).eq("id", row.id);
@@ -127,19 +149,21 @@ async function sources(sb: any, r: any) {
     .eq("chat_id", r.chat_id);
   q = r.media_group_id ? q.or(`message_id.in.(${msgIds.join(",")}),media_group_id.eq.${r.media_group_id}`) : q.in("message_id", msgIds);
   const { data: rows } = await q;
-  const ids = (rows || []).map((x: any) => x.creative_id).filter(Boolean);
+  const ids = [...new Set([...(rows || []).map((x: any) => x.creative_id).filter(Boolean), ...(r.source_creative_ids || [])])];
   const { data: cr } = ids.length ? await sb.from("creatives").select("id,name,type,drive_file_id,width_px,height_px").in("id", ids) : { data: [] };
   const files = (cr || []).map((c: any) => ({ ...c, url: `${SUPABASE_URL}/storage/v1/object/public/creatives/${c.drive_file_id}` }));
   const missing = (rows || []).filter((x: any) => x.status !== "saved" && x.status !== "duplicate").map((x: any) => ({ message_id: x.message_id, status: x.status }));
   return { files, missing };
 }
 
-async function deliver(sb: any, r: any, creativeIds: string[], note: string) {
+async function deliver(sb: any, r: any, creativeIds: string[], note: string): Promise<number[]> {
+  const msgIds: number[] = [];
   const { data: cr } = await sb.from("creatives").select("id,name,drive_file_id,size_bytes").in("id", creativeIds);
   const urls = (cr || []).map((c: any) => ({ ...c, url: `${SUPABASE_URL}/storage/v1/object/public/creatives/${c.drive_file_id}` }));
   const head = `✅ Запит №${r.id} готовий, <a href="tg://user?id=${r.from_tg_id}">${esc(r.from_name || "")}</a>.` +
     (note ? `\n${esc(note).slice(0, 3000)}` : "") + `\nФайли також у медіатеці проєкту.`;
-  await say(r.message_id, head);
+  const h = await say(r.message_id, head);
+  if (h?.result?.message_id) msgIds.push(h.result.message_id);
   // документами, щоб Telegram не пережимав; ≤20 МБ по URL, по 10 в альбомі
   const small = urls.filter((u: any) => (u.size_bytes || 0) <= 20 * 1024 * 1024);
   const big = urls.filter((u: any) => (u.size_bytes || 0) > 20 * 1024 * 1024);
@@ -149,9 +173,14 @@ async function deliver(sb: any, r: any, creativeIds: string[], note: string) {
       ? await tg("sendDocument", { chat_id: MEDIA_CHAT_ID, document: chunk[0].url, reply_to_message_id: r.message_id, allow_sending_without_reply: true })
       : await tg("sendMediaGroup", { chat_id: MEDIA_CHAT_ID, reply_to_message_id: r.message_id, allow_sending_without_reply: true,
           media: chunk.map((c: any) => ({ type: "document", media: c.url })) });
-    if (!res?.ok) big.push(...chunk);
+    if (!res?.ok) { big.push(...chunk); continue; }
+    for (const mm of (Array.isArray(res.result) ? res.result : [res.result])) if (mm?.message_id) msgIds.push(mm.message_id);
   }
-  if (big.length) await say(r.message_id, big.map((c: any) => `📎 <a href="${c.url}">${esc(c.name || "файл")}</a>`).join("\n"));
+  if (big.length) {
+    const b = await say(r.message_id, big.map((c: any) => `📎 <a href="${c.url}">${esc(c.name || "файл")}</a>`).join("\n"));
+    if (b?.result?.message_id) msgIds.push(b.result.message_id);
+  }
+  return msgIds;
 }
 
 async function workerAction(sb: any, b: any) {
@@ -186,8 +215,8 @@ async function workerAction(sb: any, b: any) {
       const r = await get(); if (!r) return { error: "not found" };
       const ids: string[] = Array.isArray(b.creative_ids) ? b.creative_ids.map(String).slice(0, 50) : [];
       if (!ids.length) return { error: "creative_ids required" };
-      await deliver(sb, r, ids, String(b.note || ""));
-      await sb.from("creative_requests").update({ status: "done", result_creative_ids: ids, result_note: String(b.note || "").slice(0, 4000),
+      const msgIds = await deliver(sb, r, ids, String(b.note || ""));
+      await sb.from("creative_requests").update({ status: "done", result_creative_ids: ids, result_msg_ids: msgIds, result_note: String(b.note || "").slice(0, 4000),
         finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
       return { ok: true };
     }
