@@ -1,0 +1,28 @@
+name: TG bot Media diag (read-only)
+
+# 30.10.2026: перевірка, чи @dreamcar_team_bot бачить усі повідомлення в чаті DreamCar Media
+# (privacy mode / права адміна) і які типи апдейтів приходять у вебхук. Лише читання, без секретів у лозі.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/tg-bot-media-diag.yml']
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: getMe / getChatMember / getWebhookInfo
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          CHAT: "-1003912295530"
+        run: |
+          set -e
+          ME=$(curl -sS "https://api.telegram.org/bot$TG_BOT_TOKEN/getMe")
+          echo "$ME" | jq '{ok, username: .result.username, can_join_groups: .result.can_join_groups, can_read_all_group_messages: .result.can_read_all_group_messages}'
+          BOT_ID=$(echo "$ME" | jq -r '.result.id')
+          curl -sS "https://api.telegram.org/bot$TG_BOT_TOKEN/getChatMember?chat_id=$CHAT&user_id=$BOT_ID" \
+            | jq '{ok, status: .result.status, can_delete_messages: .result.can_delete_messages, can_pin_messages: .result.can_pin_messages, description}'
+          curl -sS "https://api.telegram.org/bot$TG_BOT_TOKEN/getWebhookInfo" \
+            | jq '{ok, pending: .result.pending_update_count, allowed_updates: .result.allowed_updates, last_error_message: .result.last_error_message, last_error_date: .result.last_error_date}'
