@@ -6,7 +6,8 @@ const SB_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CRON_SECRET = Deno.env.get("HQ_CRON_SECRET") ?? "";
 const AI_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-5";
+const MODEL_DEFAULT = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-5";
+let MODEL = MODEL_DEFAULT; // перекривається threads_config.model на кожен виклик
 const VADYM_CHAT = Deno.env.get("COWORK_NOTIFY_CHAT_ID") ?? "";
 const TH = "https://graph.threads.net/v1.0";
 const JH = { "Content-Type": "application/json" };
@@ -486,13 +487,26 @@ async function notify(text: string) {
   if (!chat) return;
   await sb("tg_notify_queue", { method: "POST", body: JSON.stringify({ chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, source: "threads-engine" }) }).catch(() => {});
 }
-async function modeReport(cfg: Record<string, any>) {
+// склеює блоки в повідомлення до ~3800 символів (ліміт Telegram 4096)
+function chunk(title: string, blocks: string[]): string[] {
+  const out: string[] = [];
+  let cur = title;
+  for (const b of blocks) {
+    if ((cur + "\n\n" + b).length > 3800) { out.push(cur); cur = b; }
+    else cur += "\n\n" + b;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+async function modeReport(cfg: Record<string, any>, token: string, uid: string) {
+  if (token) { try { await modeMetrics(token, uid); } catch (e) { console.error("report metrics:", e); } }
   const day = kyivDay();
   const today = (await sb(`threads_account_daily?day=eq.${day}&select=*`))?.[0] || {};
   const prevDay = kyivDay(new Date(Date.now() - 864e5));
   const prev = (await sb(`threads_account_daily?day=eq.${prevDay}&select=followers`))?.[0];
   const from = kyivDayStartUtc(day).toISOString();
-  const pubs = (await sb(`threads_queue?status=eq.published&published_at=gte.${encodeURIComponent(from)}&select=kind,text,permalink,metrics`)) || [];
+  const pubs = (await sb(`threads_queue?status=eq.published&published_at=gte.${encodeURIComponent(from)}&select=kind,text,permalink,metrics,source&order=published_at.asc`)) || [];
   if (!pubs.length && today.followers == null) return { skipped: "nothing to report" };
   const failed = (await sb(`threads_queue?status=eq.failed&created_at=gte.${encodeURIComponent(from)}&select=kind,error`)) || [];
   const flags = (await sb(`threads_queue?source->>flag=eq.true&created_at=gte.${encodeURIComponent(from)}&select=source,permalink`)) || [];
@@ -500,21 +514,52 @@ async function modeReport(cfg: Record<string, any>) {
   const dealsAll = (await sb(`dashboard_deals?utm_source=eq.threads_org&status=eq.pay&select=amount`).catch(() => [])) || [];
   const sum = (a: any[]) => a.reduce((s, d) => s + (Number(d.amount) || 0), 0);
   const posts = pubs.filter((p: any) => p.kind === "post");
-  const best = posts.slice().sort((a: any, b: any) => ((b.metrics?.views || 0) + 20 * (b.metrics?.replies || 0)) - ((a.metrics?.views || 0) + 20 * (a.metrics?.replies || 0)))[0];
+  const own = pubs.filter((p: any) => p.kind === "reply_own" || p.kind === "reply_mention");
+  const ext = pubs.filter((p: any) => p.kind === "reply_external");
+  const score = (m: any) => (m?.views || 0) + 20 * (m?.replies || 0) + 8 * (m?.likes || 0) + 30 * (m?.reposts || 0);
   const fDelta = today.followers != null && prev?.followers != null ? today.followers - prev.followers : null;
-  const lines = [
-    `<b>Threads @dreamcar.ua · ${esc(day)}</b>`,
-    `Підписники: ${today.followers ?? "—"}${fDelta != null ? ` (${fDelta >= 0 ? "+" : ""}${fDelta})` : ""}`,
-    `Перегляди: ${today.views ?? "—"} · лайки ${today.likes ?? "—"} · відповіді ${today.replies ?? "—"} · репости ${today.reposts ?? "—"}`,
-    `Наше: пости ${posts.length} · відповіді у своїх гілках ${pubs.filter((p: any) => p.kind === "reply_own" || p.kind === "reply_mention").length} · коментарі в чужих ${pubs.filter((p: any) => p.kind === "reply_external").length}`,
-    `Оплати з органіки Threads (utm_source=threads_org): сьогодні ${deals.length} / ${sum(deals)} ₴ · всього ${dealsAll.length} / ${sum(dealsAll)} ₴`,
+  const skippedT = (await sb(`threads_targets?status=eq.skipped&found_at=gte.${encodeURIComponent(from)}&select=thread_id`).catch(() => [])) || [];
+  const n = (v: any) => (v == null ? "—" : Number(v).toLocaleString("uk-UA"));
+
+  // 1) підсумок
+  const head = [
+    `<b>📊 Threads @dreamcar.ua · ${esc(day.split("-").reverse().join("."))}</b>`,
+    `Модель: ${esc(MODEL)}`,
+    ``,
+    `<b>Акаунт за день</b>`,
+    `Підписники: ${n(today.followers)}${fDelta != null ? ` (${fDelta >= 0 ? "+" : ""}${fDelta})` : ""}`,
+    `Перегляди ${n(today.views)} · лайки ${n(today.likes)} · відповіді ${n(today.replies)} · репости ${n(today.reposts)} · цитати ${n(today.quotes)}`,
+    ``,
+    `<b>Наша активність</b>`,
+    `Пости: ${posts.length} · відповіді у своїх гілках і на згадки: ${own.length} · коментарі в чужих гілках: ${ext.length} (відсіяно цілей: ${skippedT.length})`,
+    ``,
+    `<b>Гроші (CRM, utm_source=threads_org, status=pay)</b>`,
+    `Сьогодні ${deals.length} оплат / ${n(sum(deals))} ₴ · від старту ${dealsAll.length} / ${n(sum(dealsAll))} ₴`,
   ];
-  if (best?.permalink) lines.push(`Найкращий пост: <a href="${esc(best.permalink)}">${esc(String(best.text).slice(0, 70))}…</a>`);
-  if (flags.length) lines.push(``, `<b>Потрібна людина (${flags.length}):</b>`, ...flags.slice(0, 5).map((f: any) => `• @${esc(f.source?.username || "?")}: ${esc(String(f.source?.their_text || "").slice(0, 90))}`));
-  if (failed.length) lines.push(``, `Збоїв: ${failed.length} (${esc(String(failed[0].error || "").slice(0, 90))})`);
-  if (cfg.engage_paused_until && Date.parse(cfg.engage_paused_until) > Date.now()) lines.push(`⚠️ Коментування на паузі до ${esc(fmtKyiv(new Date(cfg.engage_paused_until)))}`);
-  await notify(lines.join("\n"));
-  return { sent: true };
+  if (flags.length) head.push(``, `<b>⚠️ Потрібна людина (${flags.length})</b>`, ...flags.slice(0, 5).map((f: any) => `• @${esc(f.source?.username || "?")}: ${esc(String(f.source?.their_text || "").slice(0, 120))}`));
+  if (failed.length) head.push(``, `Збоїв: ${failed.length} (${esc(String(failed[0].error || "").slice(0, 120))})`);
+  if (cfg.engage_paused_until && Date.parse(cfg.engage_paused_until) > Date.now()) head.push(`⚠️ Коментування на паузі до ${esc(fmtKyiv(new Date(cfg.engage_paused_until)))}`);
+  const msgs = [head.join("\n")];
+
+  // 2) що написано: усі пости з текстом і статою, від найсильнішого
+  if (posts.length) {
+    const blocks = posts.slice().sort((a: any, b: any) => score(b.metrics) - score(a.metrics)).map((p: any, i: number) => {
+      const m = p.metrics || {};
+      return `${i === 0 ? "🏆 " : ""}<b>${i + 1}.</b> ${esc(String(p.text))}\n👁 ${n(m.views)} · ❤️ ${n(m.likes)} · 💬 ${n(m.replies)} · 🔁 ${n(m.reposts)}${p.permalink ? ` · <a href="${esc(p.permalink)}">відкрити</a>` : ""}`;
+    });
+    msgs.push(...chunk(`<b>✍️ Пости дня</b>`, blocks));
+  }
+  // 3) приклади коментарів у чужих гілках і відповідей у своїх
+  const sample = (arr: any[], k: number) => arr.slice().sort(() => Math.random() - 0.5).slice(0, k);
+  if (ext.length || own.length) {
+    const blocks = [
+      ...sample(ext, 6).map((p: any) => `↪️ <b>@${esc(p.source?.username || "?")}</b>: «${esc(String(p.source?.their_text || "").slice(0, 90))}»\n   Ми: ${esc(String(p.text))}${p.permalink ? ` · <a href="${esc(p.permalink)}">гілка</a>` : ""}`),
+      ...sample(own, 4).map((p: any) => `💬 <b>@${esc(p.source?.username || "?")}</b> у нас: «${esc(String(p.source?.their_text || "").slice(0, 90))}»\n   Ми: ${esc(String(p.text))}`),
+    ];
+    msgs.push(...chunk(`<b>🗣 Приклади коментарів (${ext.length} у чужих, ${own.length} у своїх)</b>`, blocks));
+  }
+  for (const m of msgs) await notify(m);
+  return { sent: msgs.length };
 }
 
 // =====================================================================
@@ -527,6 +572,7 @@ Deno.serve(async (req) => {
   const dry = body.dry_run === true;
   try {
     const cfg = await cfgAll();
+    MODEL = typeof cfg.model === "string" && cfg.model.startsWith("claude-") ? cfg.model : MODEL_DEFAULT;
     const token = await secret("threads_access_token");
     const uid = (await secret("threads_user_id")) || "me";
     if (mode === "status") {
@@ -538,7 +584,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ enabled: cfg.enabled, token: !!token, uid: uid !== "me" ? uid : null, queue: by, limits, paused_until: cfg.engage_paused_until, engage_started_on: cfg.engage_started_on }), { status: 200, headers: JH });
     }
     if (cfg.enabled === false) return new Response(JSON.stringify({ skipped: "disabled" }), { status: 200, headers: JH });
-    if (mode === "report") return new Response(JSON.stringify(await modeReport(cfg)), { status: 200, headers: JH });
+    if (mode === "report") return new Response(JSON.stringify(await modeReport(cfg, token, uid)), { status: 200, headers: JH });
     if (!token && !dry) return new Response(JSON.stringify({ skipped: "no threads token yet" }), { status: 200, headers: JH });
     if (mode === "plan") {
       if (!AI_KEY) throw new Error("ANTHROPIC_API_KEY missing");
