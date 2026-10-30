@@ -1,0 +1,37 @@
+name: Media chat backfill (MTProto)
+
+# 30.10.2026: файли, що вже є в чаті «DreamCar Media» → медіатека HQ.
+# Бот (Bot API) не бачить історію і не качає файли >20 МБ; MTProto-сесія може обидва.
+on:
+  workflow_dispatch:
+    inputs:
+      since:   { description: 'З дати (YYYY-MM-DD, Київ), порожньо = сьогодні', default: '' }
+      from_id: { description: 'TG id відправника, порожньо = усі', default: '' }
+      only_too_big: { description: '1 = лише файли >20 МБ, які бот не зміг взяти', default: '0' }
+  push:
+    branches: [main]
+    paths: ['.github/workflows/media-backfill.yml', 'etl/media_backfill.py']
+
+concurrency: { group: media-backfill, cancel-in-progress: false }
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r etl/requirements_tg_stats.txt
+      - name: Backfill
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
+          SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
+          SINCE: ${{ github.event.inputs.since || '' }}
+          # за замовчуванням (push) — файли Вадима за сьогодні
+          FROM_ID: ${{ github.event_name == 'push' && '1138351072' || github.event.inputs.from_id }}
+          ONLY_TOO_BIG: ${{ github.event.inputs.only_too_big || '0' }}
+        run: python etl/media_backfill.py
