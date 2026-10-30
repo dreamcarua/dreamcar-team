@@ -28,6 +28,7 @@ const HQ_LIBRARY     = "https://dreamcarua.github.io/dreamcar-team/hq/#library";
 const ACK_DELAY_SEC  = 20;   // чекаємо, поки долетить увесь альбом
 // \b не працює з кирилицею: межа слова = пробіл/кінець/розділовий знак
 const CANCEL_RE = /^(❌|✖️|скасувати|скасуй|отмена|отменить|cancel|видали|видалити)(?=$|[\s!.,])/u;
+const SAVE_RE = /^((в|у|до)\s+)?(медіа|медиа|медіатеку|медиатеку|media)(?=$|[\s!.,])|^(збережи|сохрани|save)(?=$|[\s!.,])/u;
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -121,8 +122,15 @@ async function handleMessage(sb: any, m: any) {
     return { cancel: rows.length };
   }
 
-  const items = extractItems(m);
+  // reply «@dreamcar_team_bot в медіа» (або «збережи») на старе повідомлення з файлом → зберегти той файл
+  let src = m;
+  let items = extractItems(m);
+  if (!items.length && m.reply_to_message && SAVE_RE.test(txt.replace(/@dreamcar_team_bot/g, "").trim())) {
+    src = m.reply_to_message;
+    items = extractItems(src);
+  }
   if (!items.length) return { skipped: "no media" };
+  m = { ...src, chat: m.chat, from: src.from?.is_bot ? m.from : (src.from || m.from) };
 
   const caption = String(m.caption || "");
   const fromName = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || m.from?.username || "?";

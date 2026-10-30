@@ -88,6 +88,8 @@ async function onMessage(sb: any, m: any) {
   // 2) новий запит: згадка бота
   if (!mentionsBot(m)) return { skipped: "no mention" };
   const text = cleanText(m);
+  // «@бот в медіа» / «збережи» — це збереження файлу (media-intake), не запит на креатив
+  if (/^((в|у|до)\s+)?(медіа|медиа|медіатеку|медиатеку|media)(?=$|[\s!.,])|^(збережи|сохрани|save)(?=$|[\s!.,])/u.test(text.toLowerCase())) return { skipped: "save-command" };
   const hasFiles = !!(m.photo || m.video || m.document || m.animation || replyTo?.photo || replyTo?.video || replyTo?.document);
   if (!text) {
     await say(m.message_id, `🎨 Напиши, що зробити, і додай файли (або відповідай на повідомлення з файлами). Наприклад: «${BOT_MENTION} зроби 3 рекламні креативи з цих фото, акцент на старт проєкту».`);
