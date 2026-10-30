@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamCar · Threads: конфіденційність і видалення даних</title>
+<meta name="description" content="Як застосунок DreamCar для Threads обробляє дані та як подати запит на їх видалення.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#0f0f1a; --panel:#141424; --line:#22223a; --text:#e9e9f2; --muted:#9a9ab0; --red:#cc0000; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Manrope',sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+.wrap { max-width:820px; margin:0 auto; padding:40px 16px 72px; }
+.kicker { color:var(--red); font-weight:800; letter-spacing:.14em; font-size:12px; text-transform:uppercase; }
+h1 { font-size:clamp(26px,5vw,38px); font-weight:800; line-height:1.15; margin:10px 0 8px; }
+.meta { color:var(--muted); font-size:14px; margin-bottom:28px; }
+nav.toc { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:32px; }
+nav.toc a { color:var(--text); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:13px; }
+nav.toc a:hover { border-color:var(--red); }
+section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; margin-bottom:18px; }
+h2 { font-size:20px; font-weight:800; margin-bottom:12px; }
+h3 { font-size:15px; font-weight:800; margin:16px 0 6px; }
+p, li { font-size:15px; color:var(--text); }
+p + p { margin-top:10px; }
+ul { padding-left:20px; margin-top:6px; }
+li + li { margin-top:4px; }
+a { color:#ff5a5a; }
+.en { color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="kicker">DreamCar · Threads</div>
+  <h1>Конфіденційність і видалення даних</h1>
+  <p class="meta">Застосунок «DC treads» для керування акаунтом <a href="https://www.threads.com/@dreamcar.ua">@dreamcar.ua</a> у Threads. Чинна з 30.10.2026.</p>
+
+  <nav class="toc">
+    <a href="#privacy">Політика конфіденційності</a>
+    <a href="#deletion">Видалення даних</a>
+    <a href="#en">English summary</a>
+  </nav>
+
+  <section id="privacy">
+    <h2>Політика конфіденційності</h2>
+    <h3>Хто ми</h3>
+    <p>Володілець даних: DREAM CAR, LTD LLC (DreamCar), Україна. Контакт з питань персональних даних: <a href="mailto:dreamcarua@gmail.com">dreamcarua@gmail.com</a>. Загальна політика конфіденційності DreamCar діє в частині, не врегульованій цією сторінкою.</p>
+
+    <h3>Для чого застосунок</h3>
+    <p>Застосунок працює лише з одним акаунтом, нашим власним @dreamcar.ua, через офіційний Threads API від Meta. Він публікує наші дописи, відповідає людям у наших гілках і на згадки нашого акаунта, знаходить публічні дописи за ключовими словами та публічні профілі на авто-тематику, щоб ми могли долучатися до розмов, і показує нам статистику нашого акаунта.</p>
+
+    <h3>Які дані ми обробляємо</h3>
+    <ul>
+      <li>Публічні дописи і відповіді в Threads: текст, ідентифікатор допису, посилання, ім'я користувача автора, час публікації.</li>
+      <li>Відповіді та згадки, адресовані акаунту @dreamcar.ua.</li>
+      <li>Агрегована статистика нашого акаунта: перегляди, вподобання, відповіді, репости, кількість підписників.</li>
+    </ul>
+    <p>Ми не отримуємо паролів, особистих повідомлень, контактів, геолокації чи платіжних даних користувачів Threads. Ми не продаємо дані і не передаємо їх для реклами третім особам.</p>
+
+    <h3>Як ми використовуємо дані</h3>
+    <p>Лише щоб вести наш акаунт: обирати розмови, до яких долучитися, відповідати людям і оцінювати, які наші дописи цікаві аудиторії. Тексти відповідей готує система штучного інтелекту під нашим контролем.</p>
+
+    <h3>Де і скільки зберігаються</h3>
+    <p>Дані зберігаються в захищеній базі даних нашого хмарного постачальника. Знайдені чужі публічні дописи зберігаються не довше 30 днів і видаляються автоматично. Наші власні дописи і відповіді зберігаються, доки існує акаунт або до запиту на видалення. Доступ мають лише уповноважені особи команди DreamCar.</p>
+
+    <h3>Ваші права</h3>
+    <p>Ви можете попросити показати, виправити або видалити дані, пов'язані з вами, а також відкликати згоду там, де вона є підставою обробки. Порядок нижче.</p>
+  </section>
+
+  <section id="deletion">
+    <h2>Як видалити свої дані</h2>
+    <ul>
+      <li>Напишіть на <a href="mailto:dreamcarua@gmail.com">dreamcarua@gmail.com</a> з темою «Threads: видалення даних» і вкажіть своє ім'я користувача в Threads.</li>
+      <li>Протягом 30 днів ми видалимо всі збережені в нас записи, пов'язані з цим іменем користувача, і підтвердимо видалення листом.</li>
+      <li>Свої дописи і відповіді в самому Threads ви видаляєте у застосунку Threads; ми не маємо доступу до вашого акаунта.</li>
+    </ul>
+  </section>
+
+  <section id="en">
+    <h2>English summary</h2>
+    <p class="en">“DC treads” is DreamCar's internal tool for managing its own Threads account @dreamcar.ua through the official Threads API. It publishes our posts, replies in our threads and to mentions, finds public posts and public profiles by keyword so we can join relevant conversations, and reads our account insights. We process only public post content, post IDs, usernames and timestamps, plus aggregated insights of our own account. We do not access private messages, passwords, contacts, location or payment data, and we never sell data. Third-party public posts are stored for at most 30 days. Data controller: DREAM CAR, LTD LLC (DreamCar), Ukraine. To request deletion, email <a href="mailto:dreamcarua@gmail.com">dreamcarua@gmail.com</a> with your Threads username; we delete related records within 30 days and confirm by email.</p>
+  </section>
+</main>
+<script src="https://brand.dreamcar.ua/assets/global-header.js" defer></script>
+</body>
+</html>
