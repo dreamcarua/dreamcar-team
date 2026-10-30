@@ -227,17 +227,18 @@ async function sendAcks(sb: any) {
       await sb.from("tg_media_intake").update({ acked_at: new Date().toISOString() }).in("id", g.map((r) => r.id));
       continue;
     }
-    const saved = g.filter((r) => r.status === "saved").length;
-    const dup = g.filter((r) => r.status === "duplicate").length;
+    // 30.10.2026 (Вадим): без підтвердження на кожен файл — суму раз на годину шле media-batch-notify.
+    // У тред пишемо лише про те, що НЕ збереглося.
     const big = g.filter((r) => r.status === "too_big").length;
     const err = g.filter((r) => r.status === "error").length;
+    if (!big && !err) {
+      await sb.from("tg_media_intake").update({ acked_at: new Date().toISOString() }).in("id", g.map((r) => r.id));
+      continue;
+    }
     const parts: string[] = [];
-    if (saved) parts.push(`✅ ${saved} → ${esc(lname(g.find((r) => r.status === "saved").launch_id))}`);
-    if (dup) parts.push(`↔️ ${dup} вже є в медіатеці`);
     if (big) parts.push(`⚠️ ${big} більше 20 МБ: Telegram не віддає боту такі файли, завантаж у <a href="${HQ_LIBRARY}">Бібліотеку</a>`);
-    if (err) parts.push(`❗ ${err} не вдалося зберегти, подивлюсь`);
-    let text = parts.join("\n");
-    if (saved) text += `\n<i>Скасувати: відповідай на це повідомлення «❌»</i>`;
+    if (err) parts.push(`❗ ${err} не вдалося зберегти`);
+    const text = parts.join("\n");
     const anchor = Math.min(...g.map((r) => r.message_id));
     const res = await tg("sendMessage", { chat_id: MEDIA_CHAT_ID, reply_to_message_id: anchor, allow_sending_without_reply: true,
       text, parse_mode: "HTML", disable_web_page_preview: true, disable_notification: true });
