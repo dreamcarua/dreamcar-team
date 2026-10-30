@@ -122,6 +122,9 @@ async function handleMessage(sb: any, m: any) {
     return { cancel: rows.length };
   }
 
+  // 30.10.2026 (Вадим): зберігаємо лише повідомлення, де бота тегнули (запит до відділу креативів або «в медіа»)
+  const tagged = `${m.text || ""} ${m.caption || ""}`.toLowerCase().includes("@dreamcar_team_bot");
+  if (!tagged) return { skipped: "not tagged" };
   // reply «@dreamcar_team_bot в медіа» (або «збережи») на старе повідомлення з файлом → зберегти той файл
   let src = m;
   let items = extractItems(m);
