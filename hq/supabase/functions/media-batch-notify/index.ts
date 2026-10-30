@@ -58,7 +58,9 @@ Deno.serve(async (req: Request) => {
     .from("creatives")
     .select("name, uploaded_by")
     .is("deleted_at", null)
-    .gt("uploaded_at", sinceIso);
+    .gt("uploaded_at", sinceIso)
+    // 30.10.2026: файли з самого чату Media бот уже підтвердив у треді, у дайджест не дублюємо
+    .or("folder_source.is.null,folder_source.neq.tg_media");
   if (error) return json({ error: "query failed", detail: error.message }, 500);
 
   const list = (cre || []) as Array<{ name: string; uploaded_by: string | null }>;

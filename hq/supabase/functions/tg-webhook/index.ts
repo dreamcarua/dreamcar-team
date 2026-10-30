@@ -2437,6 +2437,29 @@ Deno.serve(async (req: Request) => {
     tryAutoDiscoverUsername(supabase, msg).catch((e) => console.warn("[tg-discover]", e));
     pushToBuffer(supabase, msg).catch((e) => console.warn("[tg-buffer]", e));
 
+    // ===== 30.10.2026: чат «DreamCar Media» → медіатека (media-intake) і відділ креативів (creative-request) =====
+    // Лише переадресація у фоні; решта обробки (📌-задачі тощо) іде як раніше.
+    if (chatId === Number(Deno.env.get("DCMEDIA_GROUP_CHAT_ID") || "-1003912295530") && !(tgUser as any).is_bot) {
+      const mAny = msg as any;
+      const hasMedia = !!(mAny.photo || mAny.video || mAny.animation || mAny.document);
+      const toBot = !!mAny.reply_to_message?.from?.is_bot;
+      const said = `${mAny.text || ""} ${mAny.caption || ""}`.toLowerCase();
+      const mhdr = { "Content-Type": "application/json", "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "" };
+      const jobs: Promise<unknown>[] = [];
+      if (hasMedia || toBot) {
+        jobs.push(fetch(`${SUPABASE_URL}/functions/v1/media-intake`, { method: "POST", headers: mhdr, body: JSON.stringify({ message: msg }) })
+          .then((r) => r.text()).catch((e) => console.error("[media-intake fwd]", e)));
+      }
+      if (said.includes("@dreamcar_team_bot") || toBot) {
+        jobs.push(fetch(`${SUPABASE_URL}/functions/v1/creative-request`, { method: "POST", headers: mhdr, body: JSON.stringify({ message: msg }) })
+          .then((r) => r.text()).catch((e) => console.error("[creative-request fwd]", e)));
+      }
+      if (jobs.length) {
+        const all = Promise.all(jobs);
+        try { (globalThis as any).EdgeRuntime?.waitUntil?.(all); } catch (_e) { /* ok */ }
+      }
+    }
+
     // 07.06.2026: підтримка caption у photo/video — раніше тут пропускали
     if (msg.text || (msg as any).caption) {
       const trigger = detectTaskTrigger(msg);
