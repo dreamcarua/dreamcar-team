@@ -101,11 +101,8 @@ async function onMessage(sb: any, m: any) {
     await say(m.message_id, `🎨 Напиши, що зробити, і додай файли (або відповідай на повідомлення з файлами). Наприклад: «${BOT_MENTION} зроби 3 рекламні креативи з цих фото, акцент на старт проєкту».`);
     return { skipped: "empty" };
   }
-  // reply-згадка на повідомлення, яке вже є запитом: не дублюємо
-  if (replyTo?.message_id) {
-    const { data: ex } = await sb.from("creative_requests").select("id,status").eq("chat_id", MEDIA_CHAT_ID).eq("message_id", replyTo.message_id).maybeSingle();
-    if (ex) { await say(m.message_id, `👌 Це вже запит №${ex.id} (${ex.status === "done" ? "виконано" : "у черзі або в роботі"}).`); return { exists: ex.id }; }
-  }
+  // reply-згадка на чуже повідомлення з файлами = НОВИЙ запит на тих самих файлах (30.10.2026: колега
+  // відповіла на запит №1 своїм завданням, а бот відписав «це вже запит №1» — так не можна).
   const ctx = String(replyTo?.text || replyTo?.caption || "").replace(new RegExp(BOT_MENTION, "ig"), "").trim();
   const full = ctx && !replyTo?.from?.is_bot ? `${text}\n\nКонтекст (повідомлення, на яке відповідь): ${ctx}` : text;
   return await enqueue(sb, m, full, { hasFiles });
