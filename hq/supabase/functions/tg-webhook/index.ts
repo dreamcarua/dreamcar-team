@@ -2446,7 +2446,8 @@ Deno.serve(async (req: Request) => {
       const said = `${mAny.text || ""} ${mAny.caption || ""}`.toLowerCase();
       const mhdr = { "Content-Type": "application/json", "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "" };
       const jobs: Promise<unknown>[] = [];
-      if (hasMedia || toBot) {
+      const replyHasMedia = !!(mAny.reply_to_message && (mAny.reply_to_message.photo || mAny.reply_to_message.video || mAny.reply_to_message.document || mAny.reply_to_message.animation));
+      if (hasMedia || toBot || (replyHasMedia && said.includes("@dreamcar_team_bot"))) {
         jobs.push(fetch(`${SUPABASE_URL}/functions/v1/media-intake`, { method: "POST", headers: mhdr, body: JSON.stringify({ message: msg }) })
           .then((r) => r.text()).catch((e) => console.error("[media-intake fwd]", e)));
       }
