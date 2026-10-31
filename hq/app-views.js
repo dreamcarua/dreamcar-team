@@ -791,7 +791,7 @@ function renderPreviewSection(p) {
 
   // #255: Build title+text as TG sees it (HTML parsed)
   const titleHtml = p.title ? `<b>${tgFormatToHtml(p.title).replace(/<\/?b>/g,'')}</b>` : '';
-  const bodyHtml = p.text ? tgFormatToHtml(p.text) : (p.title ? '' : '<i style="color:var(--grey)">(пусто)</i>');
+  const bodyHtml = p.text ? tgFormatToHtml(p.text) : '<i style="color:var(--grey)">(пусто)</i>';
 
   // #255: Media rendering — REAL <img>/<video> with PRESERVED aspect ratio
   function renderMediaForPlatform(plat) {
@@ -873,7 +873,7 @@ function renderPreviewSection(p) {
       </div>
       ${renderMediaForPlatform('tg')}
       <div class="pv-text" style="padding:12px;color:#fff;background:#17212b;">
-        ${titleHtml ? `${titleHtml}<br><br>` : ''}${bodyHtml}${hashHtml}
+        ${/* 31.10.2026 (Вадим): назва в Telegram не йде, лише текст публікації */''}${bodyHtml}${hashHtml}
       </div>
       ${renderTgButtons()}
     </div>`;
@@ -908,7 +908,7 @@ function applyPreview(p) {
   const top = scroller ? scroller.scrollTop : 0;
   const active = document.activeElement;
   wrap.style.minHeight = wrap.offsetHeight + 'px';
-  if (wrap.__html && mediaSig(wrap) === mediaSig(tmp)) {
+  if (mediaSig(wrap) === mediaSig(tmp)) {
     // Медіа ті самі: переносимо наявні вузли <img>/<video> у нову розмітку, щоб вони не перезавантажувались
     const oldMedia = [...wrap.querySelectorAll('img,video')];
     const newMedia = [...tmp.querySelectorAll('img,video')];
@@ -920,11 +920,12 @@ function applyPreview(p) {
   if (active && active !== document.activeElement && document.contains(active)) {
     try { active.focus({ preventScroll: true }); } catch (_) {}
   }
-  const pending = [...wrap.querySelectorAll('img')].filter(i => !i.complete);
+  // відео без метаданих теж має нульову висоту: чекаємо loadedmetadata
+  const pending = [...wrap.querySelectorAll('img,video')].filter(m => m.tagName === 'VIDEO' ? m.readyState < 1 : !m.complete);
   const release = () => { wrap.style.minHeight = ''; };
   if (!pending.length) requestAnimationFrame(release);
   else { let left = pending.length; const done = () => { if (--left <= 0) release(); };
-    pending.forEach(i => { i.addEventListener('load', done, { once: true }); i.addEventListener('error', done, { once: true }); });
+    pending.forEach(m => { m.addEventListener(m.tagName === 'VIDEO' ? 'loadedmetadata' : 'load', done, { once: true }); m.addEventListener('error', done, { once: true }); });
     setTimeout(release, 3000); }
 }
 

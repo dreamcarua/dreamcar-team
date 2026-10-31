@@ -101,9 +101,8 @@ function buildButtonLinks(buttons: any[], pubId: string, campaign?: string): str
 }
 function buildCaption(pub: any, buttonsInCaption?: any[]): string {
   const lines: string[] = [];
-  if (pub.title) lines.push(`<b>${escHtml(pub.title)}</b>`);
+  // 31.10.2026 (Вадим): поле «Назва» — службове, у пост Telegram іде лише «Текст публікації»
   if (pub.text_body) {
-    lines.push('');
     let body = pub.text_body;
     body = renderCountdown(body, pub.tg_countdown_until);
     body = body.replace(/<<<(.+?)>>>/gs, '<tg-spoiler>$1</tg-spoiler>');
@@ -114,7 +113,7 @@ function buildCaption(pub: any, buttonsInCaption?: any[]): string {
     const btnLines = buildButtonLinks(buttonsInCaption, pub.id, pub.tg_utm_campaign);
     if (btnLines.length) { lines.push(''); btnLines.forEach(l => lines.push(l)); }
   }
-  return lines.join('\n');
+  return lines.join('\n').replace(/^\n+/, '');
 }
 async function loadCreatives(sb: any, pubId: string): Promise<any[]> {
   const { data } = await sb.from('creative_publications').select('creative_id, sort_order, creatives:creative_id (id, type, thumbnail_url, compressed_url, compressed_url_hevc, poster_url, width_px, height_px, duration_sec, drive_file_id, name, compressed_at, compressed_status)').eq('publication_id', pubId).order('sort_order', { ascending: true });
@@ -291,7 +290,7 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
   let result: any;
 
   if (mediaItems.length === 0) {
-    const text = captionWithButtons || (pub.title ? `<b>${escHtml(pub.title)}</b>` : '(порожній пост)');
+    const text = captionWithButtons || '(порожній пост)';
     const body: any = { chat_id: channelId, text, parse_mode: 'HTML', disable_notification: silent, disable_web_page_preview: !!pub.tg_disable_preview };
     const rm = buildInlineKeyboard(buttons, pub.id, pub.tg_utm_campaign);
     if (rm) body.reply_markup = rm;

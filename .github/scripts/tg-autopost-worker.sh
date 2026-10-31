@@ -89,7 +89,8 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
   TEXT=$(echo "$PUB" | jq -r '.text_body // ""')
   HASHTAGS=$(echo "$PUB" | jq -r '.hashtags | if . then map(if startswith("#") then . else "#" + . end) | join(" ") else "" end')
 
-  CAPTION="${TITLE}${NL}${NL}${TEXT}"
+  # 31.10.2026 (Вадим): назва в пост не йде, лише текст публікації
+  CAPTION="${TEXT}"
   if [ -n "$HASHTAGS" ]; then
     CAPTION="${CAPTION}${NL}${NL}${HASHTAGS}"
   fi
