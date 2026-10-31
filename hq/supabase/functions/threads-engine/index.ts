@@ -192,6 +192,8 @@ async function modePlan(cfg: Record<string, any>, force: boolean, dry: boolean, 
   const existing = await sb(`threads_queue?kind=eq.post&source->>plan_day=eq.${day}&select=id`);
   if (existing?.length && !force && !extra) return { skipped: "already planned", day, count: existing.length };
   const n = extra ? Math.min(extra, 3) : Math.min(Math.max(parseInt(String(cfg.posts_per_day ?? 4), 10) || 4, 1), 8);
+  // картинки — лише в ранньому плані дня: генерації на Mac Studio потрібен час до слоту
+  const imgN = extra ? 0 : Math.min(Math.max(parseInt(String(cfg.image_posts_per_day ?? 0), 10) || 0, 0), 2, n);
   const { l, phase, mix, events } = await launchCtx();
   const recent = (await sb("threads_queue?kind=eq.post&status=in.(published,queued)&select=text&order=created_at.desc&limit=25")) || [];
   const top = ((await sb("threads_queue?kind=eq.post&status=eq.published&metrics=not.is.null&select=text,metrics&order=published_at.desc&limit=60")) || [])
@@ -222,17 +224,28 @@ ${top.length ? "НАЙКРАЩІ НАШІ ПОСТИ ЗА РЕАКЦІЯМИ (в
 
 Напиши ${n} постів. Кожен до 450 символів; перший рядок — гачок, що зупиняє скрол; фінал — питання або вибір, на який хочеться відповісти одним словом чи думкою. 0-2 емодзі. Без посилань і без хештегів.
 Для cycle, offer, social_proof дай link_reply: відповідь під власним постом до 160 символів, що кличе на сайт проєкту (посилання я додам сам). Для інших рубрик link_reply = null.
-Поверни СТРОГО JSON: {"posts":[{"rubric":"...","text":"...","link_reply":null}]}`;
+${imgN ? `КАРТИНКИ: рівно ${imgN} пост(и) з найсильнішим гачком (бажано offer, cycle, social_proof або найгостріший hot_take/trend) отримують провокаційну картинку 4:5, решта image = null. Для картинки дай image: {"concept":"що на кадрі і в чому провокація, 1-2 речення; у кадрі лише наш призовий авто проєкту з реальних фото, без людей-знаменитостей, логотипів чужих брендів і стоку","overlay":"текст на картинці до 6 слів, той самий гачок, що й у пості, без цін і дат, яких нема у ФАКТАХ","mood":"ніч/місто/гори/студія тощо"}. Картинка підсилює суперечку поста, а не дублює рекламний банер.` : "КАРТИНКИ: сьогодні без картинок, image = null."}
+Поверни СТРОГО JSON: {"posts":[{"rubric":"...","text":"...","link_reply":null,"image":null}]}`;
 
   const out = parseJson(await claude(prompt, 5000));
   let posts = (out?.posts || []).filter((p: any) => p?.text && String(p.text).length <= 500 && !lexBad(p.text).length && (!p.link_reply || !lexBad(p.link_reply).length)
     && (p.rubric !== "offer" || offers.length)).slice(0, n);
+  // бриф картинки: лексикон на всі рядки, не більше imgN
+  let imgLeft = imgN;
+  for (const p of posts) {
+    const im = p.image;
+    const ok = im && im.concept && im.overlay && String(im.overlay).split(/\s+/).length <= 8 && !lexBad(`${im.concept} ${im.overlay} ${im.mood || ""}`).length;
+    p.image = ok && imgLeft > 0 ? { concept: String(im.concept).slice(0, 400), overlay: String(im.overlay).slice(0, 60), mood: String(im.mood || "").slice(0, 60) } : null;
+    if (p.image) imgLeft--;
+  }
   if (!posts.length) return { error: "no valid posts", raw: JSON.stringify(out).slice(0, 300) };
   const checked = await factCheck(posts.map((p: any) => `${p.text}${p.link_reply ? "\n[відповідь під постом] " + p.link_reply : ""}`), String(cfg.canon), evText + "\n" + trendsText(cfg), phase);
   const rejected = posts.map((p: any, i: number) => ({ text: p.text, why: checked[i]?.why || "" })).filter((_r: any, i: number) => !checked[i]?.ok);
   posts = posts.filter((_p: any, i: number) => checked[i]?.ok);
   if (!posts.length) return { error: "all posts failed fact-check", rejected };
   if (dry) return { day, phase, posts, rejected };
+  // пости з картинкою — у пізніші слоти (час на генерацію), решта порядок зберігає
+  posts = [...posts.filter((p: any) => !p.image), ...posts.filter((p: any) => p.image)];
 
   const slots: string[] = (Array.isArray(cfg.post_slots_kyiv) ? cfg.post_slots_kyiv : ["09:20", "12:45", "16:15", "19:35", "21:40"]).slice().sort();
   const pick: Date[] = [];
@@ -249,7 +262,7 @@ ${top.length ? "НАЙКРАЩІ НАШІ ПОСТИ ЗА РЕАКЦІЯМИ (в
     let at = pick[i].getTime();
     if (extra || at < nowMs + 5 * 60000) { if (lateBase > endOfDay + (extra ? 90 * 60000 : 0)) break; at = lateBase; lateBase += 75 * 60000; }
     const p = posts[i];
-    const ins = (await sb("threads_queue", { method: "POST", body: JSON.stringify({ kind: "post", rubric: p.rubric || null, text: String(p.text).trim(), scheduled_at: new Date(at).toISOString(), source: { plan_day: day, phase, model: MODEL, trend: !!extra } }) }))?.[0];
+    const ins = (await sb("threads_queue", { method: "POST", body: JSON.stringify({ kind: "post", rubric: p.rubric || null, text: String(p.text).trim(), scheduled_at: new Date(at).toISOString(), source: { plan_day: day, phase, model: MODEL, trend: !!extra }, image_brief: p.image || null, image_status: p.image ? "wanted" : null }) }))?.[0];
     made.push(ins.id);
     if (p.link_reply && ins?.id) {
       const short = String(ins.id).slice(0, 8);
@@ -264,16 +277,36 @@ ${top.length ? "НАЙКРАЩІ НАШІ ПОСТИ ЗА РЕАКЦІЯМИ (в
 // MODE publish — відправити все, чому настав час
 // =====================================================================
 async function publishOne(item: any, token: string, uid: string) {
-  const params: Record<string, string> = { media_type: "TEXT", text: item.text };
+  const params: Record<string, string> = item.image_url
+    ? { media_type: "IMAGE", image_url: item.image_url, text: item.text }
+    : { media_type: "TEXT", text: item.text };
   if (item.reply_to_id) params.reply_to_id = item.reply_to_id;
   const c = await th(`/${uid}/threads`, params, "POST", token);
-  await sleep(1500);
+  if (item.image_url) {
+    // контейнер з медіа Meta обробляє асинхронно: чекаємо FINISHED (до ~40 с)
+    for (let i = 0; i < 8; i++) {
+      await sleep(5000);
+      const st = await th(`/${c.id}`, { fields: "status,error_message" }, "GET", token).catch(() => null);
+      if (st?.status === "FINISHED") break;
+      if (st?.status === "ERROR" || st?.status === "EXPIRED") throw new Error("image container " + st.status + ": " + (st.error_message || ""));
+    }
+  } else await sleep(1500);
   let pub: any;
   try { pub = await th(`/${uid}/threads_publish`, { creation_id: c.id }, "POST", token); }
   catch (_e) { await sleep(6000); pub = await th(`/${uid}/threads_publish`, { creation_id: c.id }, "POST", token); }
   let permalink = "";
   try { permalink = (await th(`/${pub.id}`, { fields: "permalink" }, "GET", token))?.permalink || ""; } catch { /* ok */ }
   return { id: String(pub.id), permalink };
+}
+
+// запасна картинка: готові схвалені фінали проєкту з медіабази, лише до продажних рубрик; найдовше не вживана
+async function libraryImage(cfg: Record<string, any>, rubric: string | null): Promise<string | null> {
+  const lib: string[] = Array.isArray(cfg.image_library) ? cfg.image_library : [];
+  if (!lib.length || !["offer", "cycle", "social_proof"].includes(String(rubric))) return null;
+  const used = ((await sb("threads_queue?image_url=not.is.null&select=image_url&order=created_at.desc&limit=40")) || []).map((r: any) => r.image_url);
+  const fresh = lib.filter((u) => !used.includes(u));
+  const pool = fresh.length ? fresh : lib.filter((u) => used.lastIndexOf(u) === Math.max(...lib.map((x) => used.lastIndexOf(x))));
+  return pool[Math.floor(Math.random() * pool.length)] || lib[0];
 }
 
 async function modePublish(cfg: Record<string, any>, token: string, uid: string) {
@@ -302,6 +335,16 @@ async function modePublish(cfg: Record<string, any>, token: string, uid: string)
         if (!parent || parent.status === "failed" || parent.status === "skipped") { await sb(`threads_queue?id=eq.${it.id}`, { method: "PATCH", body: JSON.stringify({ status: "skipped", error: "parent not published" }) }); continue; }
         if (parent.status !== "published") { await sb(`threads_queue?id=eq.${it.id}`, { method: "PATCH", body: JSON.stringify({ scheduled_at: new Date(Date.now() + 5 * 60000).toISOString() }) }); continue; }
         it.reply_to_id = parent.threads_media_id;
+      }
+      if (it.kind === "post" && (it.image_status === "wanted" || it.image_status === "generating" || it.image_status === "failed") && !it.image_url) {
+        const waitMs = (parseInt(String(cfg.image_wait_min ?? 25), 10) || 25) * 60000;
+        if (it.image_status === "generating" && Date.now() - Date.parse(it.scheduled_at) < waitMs) {
+          await sb(`threads_queue?id=eq.${it.id}`, { method: "PATCH", body: JSON.stringify({ scheduled_at: new Date(Date.now() + 5 * 60000).toISOString() }) });
+          continue;
+        }
+        const fb = await libraryImage(cfg, it.rubric);
+        it.image_url = fb; it.image_status = fb ? "library" : "text_only";
+        await sb(`threads_queue?id=eq.${it.id}`, { method: "PATCH", body: JSON.stringify({ image_url: fb, image_status: it.image_status }) });
       }
       const bad = lexBad(it.text);
       if (bad.length) { await sb(`threads_queue?id=eq.${it.id}`, { method: "PATCH", body: JSON.stringify({ status: "skipped", error: "lexicon: " + bad.join(",") }) }); continue; }
@@ -544,7 +587,7 @@ async function modeReport(cfg: Record<string, any>, token: string, uid: string) 
   const prevDay = kyivDay(new Date(Date.now() - 864e5));
   const prev = (await sb(`threads_account_daily?day=eq.${prevDay}&select=followers`))?.[0];
   const from = kyivDayStartUtc(day).toISOString();
-  const pubs = (await sb(`threads_queue?status=eq.published&published_at=gte.${encodeURIComponent(from)}&select=kind,text,permalink,metrics,source&order=published_at.asc`)) || [];
+  const pubs = (await sb(`threads_queue?status=eq.published&published_at=gte.${encodeURIComponent(from)}&select=kind,text,permalink,metrics,source,image_url,image_status&order=published_at.asc`)) || [];
   if (!pubs.length && today.followers == null) return { skipped: "nothing to report" };
   const failed = (await sb(`threads_queue?status=eq.failed&created_at=gte.${encodeURIComponent(from)}&select=kind,error`)) || [];
   const flags = (await sb(`threads_queue?source->>flag=eq.true&created_at=gte.${encodeURIComponent(from)}&select=source,permalink`)) || [];
@@ -584,7 +627,7 @@ async function modeReport(cfg: Record<string, any>, token: string, uid: string) 
   if (posts.length) {
     const blocks = posts.slice().sort((a: any, b: any) => score(b.metrics) - score(a.metrics)).map((p: any, i: number) => {
       const m = p.metrics || {};
-      return `${i === 0 ? "🏆 " : ""}<b>${i + 1}.</b> ${esc(String(p.text))}\n👁 ${n(m.views)} · ❤️ ${n(m.likes)} · 💬 ${n(m.replies)} · 🔁 ${n(m.reposts)}${p.permalink ? ` · <a href="${esc(p.permalink)}">відкрити</a>` : ""}`;
+      return `${i === 0 ? "🏆 " : ""}<b>${i + 1}.</b> ${esc(String(p.text))}\n👁 ${n(m.views)} · ❤️ ${n(m.likes)} · 💬 ${n(m.replies)} · 🔁 ${n(m.reposts)}${p.permalink ? ` · <a href="${esc(p.permalink)}">відкрити</a>` : ""}${p.image_url ? ` · <a href="${esc(p.image_url)}">🖼 ${p.image_status === "library" ? "з медіабази" : "нова"}</a>` : ""}`;
     });
     msgs.push(...chunk(`<b>✍️ Пости дня</b>`, blocks));
   }
