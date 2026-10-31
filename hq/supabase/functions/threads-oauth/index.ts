@@ -63,7 +63,10 @@ Deno.serve(async (req) => {
     const longTok = j2.access_token || j1.access_token;
 
     await putSecret("threads_access_token", longTok);
-    await putSecret("threads_user_id", String(j1.user_id || ""));
+    // user_id з JSON — число > 2^53 і JS його округлює; беремо id рядком через /me
+    const me = await fetch(`https://graph.threads.net/v1.0/me?fields=id&access_token=${encodeURIComponent(longTok)}`).then((r) => r.text()).catch(() => "");
+    const uid = (me.match(/"id"\s*:\s*"(\d+)"/) || [])[1] || "";
+    if (uid) await putSecret("threads_user_id", uid);
     await putSecret("threads_token_updated_at", new Date().toISOString());
     await putSecret("threads_oauth_state", ""); // одноразовий
     return html("✅ Threads підключено", `Токен збережено (${j2.access_token ? "60 днів, авто-оновлення кроном" : "короткий — Клод перевірить"}). Вкладку можна закривати.`);
