@@ -173,14 +173,17 @@ ${rows.slice(0, 120).map((p) => `<p_${mark} id="${p.id}" user="${p.username}">${
 Поверни СТРОГО JSON: {"topics":[{"topic":"...","why_hot":"...","angle":"...","safe":true,"thread_ids":["..."]}]}`;
   const out = parseJson(await claude(prompt, 3000));
   const topics = (out?.topics || []).filter((t: any) => t?.topic && t.safe !== false).slice(0, 5);
-  await setCfg("trends", { at: new Date().toISOString(), q_idx: start + pick.length, topics: topics.map(({ thread_ids: _x, ...t }: any) => t) });
+  // свіжі теми від веб-сканера (задача «тренди»: heat, facts, peak_until) не затираємо — лише зсуваємо q_idx
+  const webFresh = cfg.trends?.source === "web" && Date.now() - Date.parse(cfg.trends.at) < 8 * 36e5;
+  if (webFresh) await setCfg("trends", { ...cfg.trends, q_idx: start + pick.length });
+  else await setCfg("trends", { at: new Date().toISOString(), q_idx: start + pick.length, topics: topics.map(({ thread_ids: _x, ...t }: any) => t) });
   // гарячі дискусії — пріоритетні цілі для коментарів
   const hot = new Set(topics.flatMap((t: any) => (t.thread_ids || []).map(String)));
   const targets = rows.filter((p) => hot.has(String(p.id)) && p.username !== cfg.self?.username);
   if (targets.length) {
     await sb("threads_targets?on_conflict=thread_id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify(targets.map((p: any) => ({ thread_id: String(p.id), username: p.username, text: String(p.text).slice(0, 800), permalink: p.permalink || null, keyword: "trend:" + p.q, posted_at: p.timestamp }))) });
   }
-  return { trends: topics.length, hot_targets: targets.length, scanned: rows.length };
+  return { trends: topics.length, kept_web: webFresh, hot_targets: targets.length, scanned: rows.length };
 }
 // теми за спаданням «жару» (heat 1-10 від сканера трендів); без heat — у кінець
 const trendTopics = (cfg: Record<string, any>): any[] => {
@@ -206,8 +209,8 @@ async function modePlan(cfg: Record<string, any>, force: boolean, dry: boolean, 
   const existing = await sb(`threads_queue?kind=eq.post&source->>plan_day=eq.${day}&select=id`);
   if (existing?.length && !force && !extra) return { skipped: "already planned", day, count: existing.length };
   let n = extra ? Math.min(extra, 3) : Math.min(Math.max(parseInt(String(cfg.posts_per_day ?? 4), 10) || 4, 1), 8);
-  // картинки — лише в ранньому плані дня: генерації на Mac Studio потрібен час до слоту
-  const imgN = extra ? 0 : Math.min(Math.max(parseInt(String(cfg.image_posts_per_day ?? 0), 10) || 0, 0), 2, n);
+  // картинки: ранній план — image_posts_per_day; trend-пост — 1, якщо trend_images=true (генерація на Mac Studio одразу після слоту, пост іде пізніше)
+  const imgN = extra ? (cfg.trend_images === true ? 1 : 0) : Math.min(Math.max(parseInt(String(cfg.image_posts_per_day ?? 0), 10) || 0, 0), 2, n);
   const { l, phase, mix, events } = await launchCtx();
   // trend-пости (extra): теми призначаємо самі — найгарячіші, на які ще не писали
   const used = await usedTrendTopics();
@@ -243,7 +246,7 @@ ${top.length ? "НАЙКРАЩІ НАШІ ПОСТИ ЗА РЕАКЦІЯМИ (в
 
 Напиши ${n} постів. Кожен до 450 символів; перший рядок — гачок, що зупиняє скрол; фінал — питання або вибір, на який хочеться відповісти одним словом чи думкою. 0-2 емодзі. Без посилань і без хештегів.
 Для cycle, offer, social_proof дай link_reply: відповідь під власним постом до 160 символів, що кличе на сайт проєкту (посилання я додам сам). Для інших рубрик link_reply = null.
-${imgN ? `КАРТИНКИ: рівно ${imgN} пост(и) з найсильнішим гачком (бажано offer, cycle, social_proof або найгостріший hot_take/trend) отримують провокаційну картинку 4:5, решта image = null. Для картинки дай image: {"concept":"що на кадрі і в чому провокація, 1-2 речення; у кадрі лише наш призовий авто проєкту з реальних фото, без людей-знаменитостей, логотипів чужих брендів і стоку","overlay":"текст на картинці до 6 слів, той самий гачок, що й у пості, без цін і дат, яких нема у ФАКТАХ","mood":"ніч/місто/гори/студія тощо"}. Картинка підсилює суперечку поста, а не дублює рекламний банер.` : "КАРТИНКИ: сьогодні без картинок, image = null."}
+${imgN && extra ? `КАРТИНКА: перший trend-пост отримує провокаційну картинку 4:5, решта image = null. image: {"concept":"наш призовий авто проєкту з реальних фото в сцені, що одразу відсилає до теми через символи події (троянди й вечірній дрес-код для романтичного шоу, червоні графіки для обвалу крипти, гарбузи для Гелловіну тощо), 1-2 речення, в чому провокація; БЕЗ реальних людей і облич, без впізнаваних героїв шоу, політиків і зірок, без логотипів шоу, каналів, бірж і чужих брендів, без війни","overlay":"гачок поста до 6 слів, без імен реальних людей, цін і дат","mood":"ніч/студія/місто тощо"}. Картинка — дотеп про тему з нашим авто в центрі, а не новинна ілюстрація.` : imgN ? `КАРТИНКИ: рівно ${imgN} пост(и) з найсильнішим гачком (бажано offer, cycle, social_proof або найгостріший hot_take/trend) отримують провокаційну картинку 4:5, решта image = null. Для картинки дай image: {"concept":"що на кадрі і в чому провокація, 1-2 речення; у кадрі лише наш призовий авто проєкту з реальних фото, без людей-знаменитостей, логотипів чужих брендів і стоку","overlay":"текст на картинці до 6 слів, той самий гачок, що й у пості, без цін і дат, яких нема у ФАКТАХ","mood":"ніч/місто/гори/студія тощо"}. Картинка підсилює суперечку поста, а не дублює рекламний банер.` : "КАРТИНКИ: сьогодні без картинок, image = null."}
 Для рубрики trend у полі topic повтори назву теми з переліку дослівно, інакше topic = null.
 Поверни СТРОГО JSON: {"posts":[{"rubric":"...","topic":null,"text":"...","link_reply":null,"image":null}]}`;
 
@@ -281,6 +284,8 @@ ${imgN ? `КАРТИНКИ: рівно ${imgN} пост(и) з найсильн�
   for (let i = 0; i < posts.length; i++) {
     let at = pick[i].getTime();
     if (extra || at < nowMs + 5 * 60000) { if (lateBase > endOfDay + (extra ? 90 * 60000 : 0)) break; at = lateBase; lateBase += 75 * 60000; }
+    // trend-пост з картинкою — пізніше, щоб Mac Studio встиг згенерувати (далі publish ще чекає image_wait_min)
+    if (extra && posts[i].image) at = Math.max(at, nowMs + (parseInt(String(cfg.trend_image_lead_min ?? 40), 10) || 40) * 60000);
     const p = posts[i];
     const ins = (await sb("threads_queue", { method: "POST", body: JSON.stringify({ kind: "post", rubric: p.rubric || null, text: String(p.text).trim(), scheduled_at: new Date(at).toISOString(), source: { plan_day: day, phase, model: MODEL, trend: !!extra, trend_topic: p.rubric === "trend" ? String(p.topic || assigned[i]?.topic || "").slice(0, 160) || null : null }, image_brief: p.image || null, image_status: p.image ? "wanted" : null }) }))?.[0];
     made.push(ins.id);
