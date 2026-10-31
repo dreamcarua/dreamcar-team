@@ -880,9 +880,52 @@ function renderPreviewSection(p) {
 
   return `<div class="preview-row">${igCard}${tgCard}</div>`;
 }
+// 31.10.2026: превʼю перебудовувалось на КОЖЕН символ (поля кнопок, текст) — нові <img>/<video>
+// мали нульову висоту до декодування, модалка «стрибала», скрол зсувався. Тепер:
+// 1) debounce 250 мс; 2) не чіпаємо DOM, якщо HTML не змінився; 3) медіа не перестворюємо,
+// якщо змінився лише текст/кнопки; 4) під час заміни тримаємо висоту блоку і scrollTop модалки.
+let _previewTimer = null;
 function refreshPreview(p) {
+  if (_previewTimer) clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(() => { _previewTimer = null; applyPreview(p); }, 250);
+}
+function _previewScroller(el) {
+  for (let n = el && el.parentElement; n; n = n.parentElement) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+  }
+  return document.scrollingElement;
+}
+function applyPreview(p) {
   const wrap = document.getElementById('previewSection');
-  if (wrap) wrap.innerHTML = renderPreviewSection(p);
+  if (!wrap) return;
+  const html = renderPreviewSection(p);
+  if (wrap.__html === html) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const mediaSig = (root) => [...root.querySelectorAll('img,video')].map(m => m.getAttribute('src')).join('|');
+  const scroller = _previewScroller(wrap);
+  const top = scroller ? scroller.scrollTop : 0;
+  const active = document.activeElement;
+  wrap.style.minHeight = wrap.offsetHeight + 'px';
+  if (wrap.__html && mediaSig(wrap) === mediaSig(tmp)) {
+    // Медіа ті самі: переносимо наявні вузли <img>/<video> у нову розмітку, щоб вони не перезавантажувались
+    const oldMedia = [...wrap.querySelectorAll('img,video')];
+    const newMedia = [...tmp.querySelectorAll('img,video')];
+    newMedia.forEach((n, i) => { if (oldMedia[i]) n.replaceWith(oldMedia[i]); });
+  }
+  wrap.replaceChildren(...tmp.childNodes);
+  wrap.__html = html;
+  if (scroller) scroller.scrollTop = top;
+  if (active && active !== document.activeElement && document.contains(active)) {
+    try { active.focus({ preventScroll: true }); } catch (_) {}
+  }
+  const pending = [...wrap.querySelectorAll('img')].filter(i => !i.complete);
+  const release = () => { wrap.style.minHeight = ''; };
+  if (!pending.length) requestAnimationFrame(release);
+  else { let left = pending.length; const done = () => { if (--left <= 0) release(); };
+    pending.forEach(i => { i.addEventListener('load', done, { once: true }); i.addEventListener('error', done, { once: true }); });
+    setTimeout(release, 3000); }
 }
 
 function renderCommentsTab(p) {
@@ -986,8 +1029,7 @@ function attachCardHandlers(p) {
         }
       }
       // Preview теж залежить від platforms — оновити
-      const prev = document.getElementById('previewSection');
-      if (prev) prev.innerHTML = renderPreviewSection(p);
+      applyPreview(p);
     };
   });
   document.querySelectorAll('#f_resp .chip').forEach(c => {
