@@ -899,6 +899,32 @@ function _previewScroller(el) {
 function applyPreview(p) {
   const wrap = document.getElementById('previewSection');
   if (!wrap) return;
+  // 31.10.2026: насправді превʼю малюють app-preview-tabs.js (вкладки + час) і app-preview-platforms.js
+  // (картка платформи), а app-uxr.js дописує сітку стрічки IG. Якщо підмінити весь блок «старим» превʼю,
+  // вкладки зникають → app-preview-tabs за 30 мс перемальовує все, а сітка IG зʼявляється ще за 80 мс:
+  // блок змінює висоту двічі на кожну літеру (стрибки й моргання). Тому, коли вкладки на місці,
+  // оновлюємо ЛИШЕ картку активної платформи (.dcpv), решту блоку не чіпаємо.
+  const v2 = window.__hqRenderPlatformV2;
+  const plat = wrap.dataset.activePlat;
+  const card = wrap.querySelector('.dcpv');
+  if (typeof v2 === 'function' && plat && card && wrap.querySelector('.hq-prev-tabs')) {
+    const cardHtml = v2(p, plat);
+    if (!cardHtml || card.__html === cardHtml) return;
+    const t = document.createElement('div');
+    t.innerHTML = cardHtml;
+    const next = t.firstElementChild;
+    if (!next) return;
+    const sc = _previewScroller(wrap);
+    const top0 = sc ? sc.scrollTop : 0;
+    const act = document.activeElement;
+    next.style.minHeight = card.offsetHeight + 'px';
+    card.replaceWith(next);
+    next.__html = cardHtml;
+    if (sc) sc.scrollTop = top0;
+    if (act && act !== document.activeElement && document.contains(act)) { try { act.focus({ preventScroll: true }); } catch (_) {} }
+    requestAnimationFrame(() => { next.style.minHeight = ''; if (sc) sc.scrollTop = top0; });
+    return;
+  }
   const html = renderPreviewSection(p);
   if (wrap.__html === html) return;
   const tmp = document.createElement('div');
@@ -1217,7 +1243,14 @@ function attachCardHandlers(p) {
           toast('Виправ кнопки:\n' + errs.join('\n'), 'error');
           return;
         }
-        await Store.upsertPub(p);
+        // 31.10.2026: тест — не правка. Раніше тут завжди був upsertPub, а збереження погодженої
+        // публікації скидає її на погодження (#RE-APPROVAL) і будить погоджувачів. Зберігаємо лише
+        // незбережені правки (якщо autosave ще в черзі), щоб tg-post-send узяв актуальну версію.
+        if (cardAutosaveTimer) {
+          clearTimeout(cardAutosaveTimer); cardAutosaveTimer = null;
+          p.updatedAt = new Date().toISOString();
+          await Store.upsertPub(p);
+        }
         // #322 (10.06.2026): auto-refresh JWT якщо expired + детальна помилка 401
         async function getToken() {
           const sess = window.supabase ? await window.supabase.auth.getSession() : null;
@@ -1441,6 +1474,7 @@ function autosave(p) {
   refreshPreview(p);
   if (cardAutosaveTimer) clearTimeout(cardAutosaveTimer);
   cardAutosaveTimer = setTimeout(() => {
+    cardAutosaveTimer = null;
     p.updatedAt = new Date().toISOString();
     if (p._isNew) { delete p._isNew; }
     Store.upsertPub(p);
