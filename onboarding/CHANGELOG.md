@@ -8,6 +8,19 @@
 
 ---
 
+## 31.10.2026 — 🆕 Threads: провокаційні картинки до постів
+
+### threads-engine
+- 🆕 План дня дає до `image_posts_per_day` (2) брифів картинки (concept, overlay ≤ 6 слів, mood); лексикон на всі рядки; такі пости йдуть у пізніші слоти.
+- 🆕 Публікація `media_type=IMAGE` з очікуванням статусу контейнера FINISHED.
+- 🆕 Картинку генерує creative-director на Mac Studio (scheduled task «DreamCar Threads: картинки»), авто 1:1 з наших фото, PASS критика, далі `cd-publish` у медіабазу і `threads_queue.image_url`.
+- 🆕 Не встигла (`image_wait_min` 25 хв) або впала: offer/cycle/social_proof беруть найдовше не вживаний фінал проєкту з медіабази (`image_library`), решта виходить текстом.
+- 🆕 Щоденний звіт: посилання на картинку кожного поста.
+- 🛡 Постійне «так» Вадима 31.10.2026 на ці картинки записане в creative-director `projects/dreamcar/profile.yaml`.
+
+### База
+- 🆕 `threads_queue`: image_url, image_brief, image_status, image_creative_id (`hq/db/migrations/2026-10-31_threads_images.sql`).
+
 ## 30.10.2026 — 🆕 Бот у чаті «DreamCar Media»: файли в медіатеку і відділ креативів
 
 ### База (`hq/db/migrations/066_tg_media_intake_creative_requests.sql`)
