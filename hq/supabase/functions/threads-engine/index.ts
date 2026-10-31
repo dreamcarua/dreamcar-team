@@ -52,8 +52,9 @@ const kyivDayStartUtc = (day: string) => kyivToUtc(day, "00:00");
 const fmtKyiv = (d: Date) => new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(d);
 
 // ---------- лексика ----------
-const BLOCK = ["розігра", "лотере", "квиток", "квитк", "білет", "вигра", "джекпот", "азартн", "казино", "переможц", "ставк", "шанс"];
-const lexBad = (t: string) => { const s = (t || "").toLowerCase(); return BLOCK.filter((w) => s.includes(w)); };
+const BLOCK = ["розігра", "лотере", "квиток", "квитк", "білет", "вигра", "джекпот", "азартн", "казино", "переможц", "переможни", "ставк", "шанс"];
+// стем на початку слова: «ставк» ловить «ставка», але не «доставка» / «виставка»
+const lexBad = (t: string) => { const s = (t || "").toLowerCase(); return BLOCK.filter((w) => new RegExp(`(^|[^\\p{L}])${w}`, "u").test(s)); };
 
 // ---------- Threads API ----------
 class ThErr extends Error { constructor(public code: number, public sub: number, msg: string) { super(msg); } }
@@ -181,20 +182,38 @@ ${rows.slice(0, 120).map((p) => `<p_${mark} id="${p.id}" user="${p.username}">${
   }
   return { trends: topics.length, hot_targets: targets.length, scanned: rows.length };
 }
-const trendsText = (cfg: Record<string, any>) => {
+// теми за спаданням «жару» (heat 1-10 від сканера трендів); без heat — у кінець
+const trendTopics = (cfg: Record<string, any>): any[] => {
   const t = cfg.trends;
-  if (!t?.topics?.length || Date.now() - Date.parse(t.at) > 30 * 36e5) return "ГАРЯЧИХ ТЕМ НЕМАЄ (дані застарілі) — trend не використовуй.";
-  return "ГАРЯЧІ ТЕМИ В THREADS ЗАРАЗ (тільки як привід; фактів про подію не вигадуй, говори думкою і питанням):\n" + t.topics.map((x: any, i: number) => `${i + 1}. ${x.topic} — ${x.why_hot}. Кут для нас: ${x.angle}`).join("\n");
+  if (!t?.topics?.length || Date.now() - Date.parse(t.at) > 30 * 36e5) return [];
+  return t.topics.filter((x: any) => x?.topic && (!x.peak_until || Date.parse(x.peak_until) > Date.now()))
+    .slice().sort((a: any, b: any) => (Number(b.heat) || 0) - (Number(a.heat) || 0));
 };
+const trendsText = (cfg: Record<string, any>) => {
+  const list = trendTopics(cfg);
+  if (!list.length) return "ГАРЯЧИХ ТЕМ НЕМАЄ (дані застарілі) — trend не використовуй.";
+  return "ГАРЯЧІ ТЕМИ ЗАРАЗ, від найгарячішої (тільки як привід; фактів про подію не вигадуй, говори думкою і питанням):\n" + list.map((x: any, i: number) => `${i + 1}. [жар ${x.heat ?? "?"}/10] ${x.topic} — ${x.why_hot}${x.facts ? ". Перевірені факти: " + x.facts : ""}. Кут для нас: ${x.angle}`).join("\n");
+};
+// теми, на які ми вже писали за 48 год (щоб trend-пост брав найгарячішу НЕВИКОРИСТАНУ)
+async function usedTrendTopics(): Promise<Set<string>> {
+  const since = new Date(Date.now() - 48 * 36e5).toISOString();
+  const rows = (await sb(`threads_queue?kind=eq.post&source->>trend_topic=not.is.null&created_at=gte.${encodeURIComponent(since)}&select=source`)) || [];
+  return new Set(rows.map((r: any) => String(r.source?.trend_topic || "").toLowerCase()));
+}
 
 async function modePlan(cfg: Record<string, any>, force: boolean, dry: boolean, extra = 0) {
   const day = kyivDay();
   const existing = await sb(`threads_queue?kind=eq.post&source->>plan_day=eq.${day}&select=id`);
   if (existing?.length && !force && !extra) return { skipped: "already planned", day, count: existing.length };
-  const n = extra ? Math.min(extra, 3) : Math.min(Math.max(parseInt(String(cfg.posts_per_day ?? 4), 10) || 4, 1), 8);
+  let n = extra ? Math.min(extra, 3) : Math.min(Math.max(parseInt(String(cfg.posts_per_day ?? 4), 10) || 4, 1), 8);
   // картинки — лише в ранньому плані дня: генерації на Mac Studio потрібен час до слоту
   const imgN = extra ? 0 : Math.min(Math.max(parseInt(String(cfg.image_posts_per_day ?? 0), 10) || 0, 0), 2, n);
   const { l, phase, mix, events } = await launchCtx();
+  // trend-пости (extra): теми призначаємо самі — найгарячіші, на які ще не писали
+  const used = await usedTrendTopics();
+  const assigned = extra ? trendTopics(cfg).filter((t: any) => !used.has(String(t.topic).toLowerCase())).slice(0, n) : [];
+  if (extra && !assigned.length) return { skipped: "no unused hot topics", used: [...used] };
+  if (extra) n = assigned.length;
   const recent = (await sb("threads_queue?kind=eq.post&status=in.(published,queued)&select=text&order=created_at.desc&limit=25")) || [];
   const top = ((await sb("threads_queue?kind=eq.post&status=eq.published&metrics=not.is.null&select=text,metrics&order=published_at.desc&limit=60")) || [])
     .map((p: any) => ({ t: p.text, s: (p.metrics?.views || 0) + 20 * (p.metrics?.replies || 0) + 8 * (p.metrics?.likes || 0) + 30 * (p.metrics?.reposts || 0) }))
@@ -217,7 +236,7 @@ ${trendsText(cfg)}
 ГОЛОС: зухвалий друг-автомобіліст, іронія, коротко, жива розмовна українська. Провокація = гостра думка або вибір, що ділить людей на два табори, а не образа.
 ${RULES}
 РУБРИКИ: hot_take (непопулярна думка про авто, з якою хочеться посперечатись), versus (два конкретні варіанти, «що обереш»), confession («зізнавайся…», особистий авто-досвід), dream (машина мрії, конкретний сценарій), cycle (проєкт №${l?.cycle_no ?? "—"}: авто, факти, ефір, прозорість), offer (лише якщо є ОФЕРИ ДНЯ), social_proof (вручені авто, живі ефіри), trend (будь-яка хайпова тема з переліку вище — авто, техніка, крипта, політика, меми — плюс наша гостра думка чи питання, що змушує відповісти; там, де можна, — несподіваний місток до машини мрії, грошей чи проєкту, але без натяжок).
-ПРОПОРЦІЯ НА СЬОГОДНІ: ${extra ? `УСІ ${n} пости — рубрика trend, на різні гарячі теми, яких ще не було в НЕДАВНІХ ПОСТАХ` : `${mix}; щонайменше 1 пост — trend, якщо є гарячі теми`}.
+ПРОПОРЦІЯ НА СЬОГОДНІ: ${extra ? `рівно ${assigned.length} пост(и), рубрика trend, кожен СТРОГО на свою тему: ${assigned.map((t: any, i: number) => `пост ${i + 1} — «${t.topic}»`).join("; ")}. Тема задана, не заміняй її іншою і не зводь до авто силоміць: спершу гостра думка про саму тему, місток до DreamCar лише якщо він природний` : `${mix}; щонайменше 1 пост — trend на найгарячішу тему з переліку, якщо є гарячі теми`}.
 НЕДАВНІ ПОСТИ (не повторюй теми, структури і перші слова):
 ${recent.map((r: any) => "- " + String(r.text).slice(0, 120).replace(/\n/g, " ")).join("\n") || "—"}
 ${top.length ? "НАЙКРАЩІ НАШІ ПОСТИ ЗА РЕАКЦІЯМИ (вчись енергії, не копіюй):\n" + top.map((t: any) => "- " + String(t.t).slice(0, 200).replace(/\n/g, " ")).join("\n") : ""}
@@ -225,7 +244,8 @@ ${top.length ? "НАЙКРАЩІ НАШІ ПОСТИ ЗА РЕАКЦІЯМИ (в
 Напиши ${n} постів. Кожен до 450 символів; перший рядок — гачок, що зупиняє скрол; фінал — питання або вибір, на який хочеться відповісти одним словом чи думкою. 0-2 емодзі. Без посилань і без хештегів.
 Для cycle, offer, social_proof дай link_reply: відповідь під власним постом до 160 символів, що кличе на сайт проєкту (посилання я додам сам). Для інших рубрик link_reply = null.
 ${imgN ? `КАРТИНКИ: рівно ${imgN} пост(и) з найсильнішим гачком (бажано offer, cycle, social_proof або найгостріший hot_take/trend) отримують провокаційну картинку 4:5, решта image = null. Для картинки дай image: {"concept":"що на кадрі і в чому провокація, 1-2 речення; у кадрі лише наш призовий авто проєкту з реальних фото, без людей-знаменитостей, логотипів чужих брендів і стоку","overlay":"текст на картинці до 6 слів, той самий гачок, що й у пості, без цін і дат, яких нема у ФАКТАХ","mood":"ніч/місто/гори/студія тощо"}. Картинка підсилює суперечку поста, а не дублює рекламний банер.` : "КАРТИНКИ: сьогодні без картинок, image = null."}
-Поверни СТРОГО JSON: {"posts":[{"rubric":"...","text":"...","link_reply":null,"image":null}]}`;
+Для рубрики trend у полі topic повтори назву теми з переліку дослівно, інакше topic = null.
+Поверни СТРОГО JSON: {"posts":[{"rubric":"...","topic":null,"text":"...","link_reply":null,"image":null}]}`;
 
   const out = parseJson(await claude(prompt, 5000));
   let posts = (out?.posts || []).filter((p: any) => p?.text && String(p.text).length <= 500 && !lexBad(p.text).length && (!p.link_reply || !lexBad(p.link_reply).length)
@@ -262,7 +282,7 @@ ${imgN ? `КАРТИНКИ: рівно ${imgN} пост(и) з найсильн�
     let at = pick[i].getTime();
     if (extra || at < nowMs + 5 * 60000) { if (lateBase > endOfDay + (extra ? 90 * 60000 : 0)) break; at = lateBase; lateBase += 75 * 60000; }
     const p = posts[i];
-    const ins = (await sb("threads_queue", { method: "POST", body: JSON.stringify({ kind: "post", rubric: p.rubric || null, text: String(p.text).trim(), scheduled_at: new Date(at).toISOString(), source: { plan_day: day, phase, model: MODEL, trend: !!extra }, image_brief: p.image || null, image_status: p.image ? "wanted" : null }) }))?.[0];
+    const ins = (await sb("threads_queue", { method: "POST", body: JSON.stringify({ kind: "post", rubric: p.rubric || null, text: String(p.text).trim(), scheduled_at: new Date(at).toISOString(), source: { plan_day: day, phase, model: MODEL, trend: !!extra, trend_topic: p.rubric === "trend" ? String(p.topic || assigned[i]?.topic || "").slice(0, 160) || null : null }, image_brief: p.image || null, image_status: p.image ? "wanted" : null }) }))?.[0];
     made.push(ins.id);
     if (p.link_reply && ins?.id) {
       const short = String(ins.id).slice(0, 8);
