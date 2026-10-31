@@ -8,6 +8,12 @@
 
 ---
 
+## 31.10.2026 — 🗑 Threads перейшли на threads-director (Mac Studio), threads-engine видалено
+
+- 🗑 Edge-функція `threads-engine` і 10 pg_cron `threads-*` (engage, metrics, plan, publish, report, token-refresh, trend-post-1/2/3, trends) видалені за «так» Вадима 31.10.2026 («та давай одразу на новий! окреме так - теж є»). Бекап cron — у приватній пам'яті dreamcar-memory (`code/dreamcar-team/docs/backup/threads-engine-cron-2026-10-31.sql`); код — в історії git до цього коміту.
+- 🚀 Threads @dreamcar.ua тепер веде приватний `dreamcarua/threads-director` на Mac Studio: публікація, ліміти, метрики, оновлення токена — launchd; тренди, план, trend-пости, картинки (creative-director), коментарі, звіт — Claude-задачі `TD dreamcar: …`.
+- Лишаються: `threads-oauth` (повторна авторизація токена), pg_cron `threads-purge-30d` (обіцянка політики конфіденційності: чужі дописи до 30 днів), таблиці `threads_*` як архів, сторінка `legal/threads.html`.
+
 ## 31.10.2026 — 🔧 Threads: суворіші факти в trend-постах, простіші брифи картинок
 
 - 🔧 Фактчек: кожне число, дата, ім'я і подія зовнішньої теми має бути дослівно у «Перевірених фактах» теми, інакше пост відхиляється.
