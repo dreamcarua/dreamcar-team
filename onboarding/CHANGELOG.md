@@ -8,6 +8,10 @@
 
 ---
 
+## 31.10.2026 — 🆕 Сторож пульсу threads-director
+
+- 🆕 pg_cron `td-heartbeat-check` (*/10, 08–24 Київ) → `public.td_heartbeat_check('dreamcar')`: читає пульс Mac Studio з `threads_config.td_heartbeat_dreamcar` (launchd `td heartbeat`, 10 хв) і пише в TECH-чат через `tg_notify_queue`: Mac мовчить >40 хв · tick стоїть >15 хв · 5 год без постів (13–24). Повтор раз на 3 год, «відновилось» одним повідомленням, стан у `ops_alert_state` (`td_dreamcar_*`). Чат — `threads_config.td_alert_chat` (у БД). Міграція `hq/db/migrations/2026-10-31_td_heartbeat_check.sql`.
+
 ## 31.10.2026 — 🗑 Threads перейшли на threads-director (Mac Studio), threads-engine видалено
 
 - 🗑 Edge-функція `threads-engine` і 10 pg_cron `threads-*` (engage, metrics, plan, publish, report, token-refresh, trend-post-1/2/3, trends) видалені за «так» Вадима 31.10.2026 («та давай одразу на новий! окреме так - теж є»). Бекап cron — у приватній пам'яті dreamcar-memory (`code/dreamcar-team/docs/backup/threads-engine-cron-2026-10-31.sql`); код — в історії git до цього коміту.
