@@ -8,6 +8,11 @@
 
 ---
 
+## 31.10.2026 — 🔧 Картка публікації: екран більше не стрибає при вводі
+
+- 🔧 `hq/app-views.js` `refreshPreview`: превʼю перебудовувалось на кожен символ (поля кнопок Telegram, текст), нові `<img>`/`<video>` мали нульову висоту до декодування, тож модалка стрибала, а фокус у полі «Посилання» прокручував екран угору. Тепер: debounce 250 мс, без змін DOM, якщо превʼю не змінилось, наявні медіа-вузли не перестворюються, висота блоку і скрол модалки зберігаються під час заміни.
+
+
 ## 31.10.2026 — 🆕 Сторож пульсу threads-director
 
 - 🆕 pg_cron `td-heartbeat-check` (*/10, 08–24 Київ) → `public.td_heartbeat_check('dreamcar')`: читає пульс Mac Studio з `threads_config.td_heartbeat_dreamcar` (launchd `td heartbeat`, 10 хв) і пише в TECH-чат через `tg_notify_queue`: Mac мовчить >40 хв · tick стоїть >15 хв · 5 год без постів (13–24). Повтор раз на 3 год, «відновилось» одним повідомленням, стан у `ops_alert_state` (`td_dreamcar_*`). Чат — `threads_config.td_alert_chat` (у БД). Міграція `hq/db/migrations/2026-10-31_td_heartbeat_check.sql`.
