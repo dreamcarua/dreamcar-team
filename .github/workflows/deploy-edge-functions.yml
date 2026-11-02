@@ -126,7 +126,7 @@ jobs:
             cd "$STAGE"
             if supabase functions deploy "$FN" \
               --project-ref "$PROJECT_REF" \
-              --no-verify-jwt; then
+              --no-verify-jwt --yes; then
               DEPLOY_OK=$((DEPLOY_OK+1))
               echo "✅ $FN deployed"
             else
