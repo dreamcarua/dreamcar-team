@@ -11,6 +11,9 @@
 //   POST { action: "progress", id, text }             → коротке повідомлення про хід роботи
 //   POST { action: "complete", id, creative_ids, note }→ результати автору в тред, статус done
 //   POST { action: "fail", id, error }                → статус failed, повідомлення автору
+//   POST { action: "quote", id, quote }               → платна задача: ціна з кнопками погодження, статус need_price_ok
+// Канал 1, кнопки — tg-webhook пересилає callback_query з даними cdq:<id>:y|n (x-hq-cron-secret):
+//   POST { callback } → приймається лише від app_secrets.cd_price_approver_tg_ids; y → queued + price_ok, n → cancelled
 // Генерація і всі перевірки — на Mac Studio через creative-director; тут лише черга і Telegram.
 // =====================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -69,7 +72,7 @@ async function onMessage(sb: any, m: any) {
     if (q) {
       const txt = cleanText(m);
       if (CANCEL_RE.test(txt.toLowerCase())) {
-        if (["queued", "need_info"].includes(q.status)) {
+        if (["queued", "need_info", "need_price_ok"].includes(q.status)) {
           await sb.from("creative_requests").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", q.id);
           await say(m.message_id, `↩️ Запит №${q.id} скасовано.`);
         } else if (q.status === "working") {
@@ -137,6 +140,66 @@ async function enqueue(sb: any, m: any, text: string, o: { parent?: any; sources
     `\n<i>Скасувати: відповідай на це повідомлення «❌»</i>`);
   await sb.from("creative_requests").update({ ack_msg_id: res?.result?.message_id ?? null }).eq("id", row.id);
   return { queued: row.id };
+}
+
+// ----------------------------- ціна платних задач -----------------------------
+async function approvers(sb: any): Promise<number[]> {
+  const { data } = await sb.from("app_secrets").select("value").eq("key", "cd_price_approver_tg_ids").maybeSingle();
+  return String(data?.value || "").split(/[,\s]+/).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+}
+function quoteText(r: any, q: any): string {
+  const items = Array.isArray(q.items) ? q.items.slice(0, 12).map((i: any) => `• ${esc(String(i)).slice(0, 200)}`).join("\n") : "";
+  return `💰 Запит №${r.id} (${esc(r.from_name || "")}): потрібна платна генерація.\n` +
+    (q.details ? `${esc(String(q.details)).slice(0, 1200)}\n` : "") + (items ? `${items}\n` : "") +
+    `<b>Ціна: ${esc(String(q.price_text || "?")).slice(0, 200)}</b>` + (q.engine ? ` · ${esc(String(q.engine)).slice(0, 80)}` : "") +
+    `\n<i>Підтверджує лише власник. Без підтвердження нічого не списується.</i>`;
+}
+const quoteKb = (id: number) => ({ inline_keyboard: [[
+  { text: "✅ Підтвердити", callback_data: `cdq:${id}:y` }, { text: "✖ Відхилити", callback_data: `cdq:${id}:n` }]] });
+
+async function postQuote(sb: any, r: any, q: any) {
+  const text = quoteText(r, q);
+  const msgs: { chat: number; msg: number }[] = [];
+  const t = await tg("sendMessage", { chat_id: MEDIA_CHAT_ID, reply_to_message_id: r.message_id, allow_sending_without_reply: true,
+    text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: quoteKb(r.id) });
+  if (t?.result?.message_id) msgs.push({ chat: MEDIA_CHAT_ID, msg: t.result.message_id });
+  // власнику ще й у DM: у загальному чаті кнопку легко пропустити
+  const req = esc(String(r.request_text || "")).slice(0, 600);
+  for (const a of await approvers(sb)) {
+    const d = await tg("sendMessage", { chat_id: a, text: `${text}\n\nЗапит: ${req}`, parse_mode: "HTML",
+      disable_web_page_preview: true, reply_markup: quoteKb(r.id) });
+    if (d?.result?.message_id) msgs.push({ chat: a, msg: d.result.message_id });
+  }
+  return msgs;
+}
+
+async function onCallback(sb: any, cb: any) {
+  const answer = (text: string, alert = false) => tg("answerCallbackQuery", { callback_query_id: cb.id, text, show_alert: alert });
+  const data = String(cb.data || "").replace(/\uFE0F/g, "").trim();  // traps: U+FE0F у callback_data
+  const m = data.match(/^cdq:(\d+):([yn])$/);
+  if (!m) { await answer("Невідома кнопка"); return { ignored: "callback" }; }
+  const id = Number(m[1]); const yes = m[2] === "y";
+  if (!(await approvers(sb)).includes(Number(cb.from?.id))) {
+    await answer("Ціну підтверджує лише власник.", true); return { denied: id };
+  }
+  const { data: r } = await sb.from("creative_requests").select("*").eq("id", id).maybeSingle();
+  if (!r) { await answer("Запит не знайдено", true); return { error: "not found" }; }
+  if (r.status !== "need_price_ok") { await answer(`Уже вирішено: ${r.status}`, true); return { stale: id }; }
+  const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || cb.from?.username || "власник";
+  const now = new Date().toISOString();
+  // атомарно: лише якщо все ще чекає (дві кнопки, два чати)
+  const upd = yes
+    ? { status: "queued", price_ok: { by_tg_id: cb.from?.id, by_name: who, at: now, quote: r.quote }, updated_at: now }
+    : { status: "cancelled", error: `ціну відхилив ${who}`, finished_at: now, updated_at: now };
+  const { data: done } = await sb.from("creative_requests").update(upd).eq("id", id).eq("status", "need_price_ok").select("id");
+  if (!done?.length) { await answer("Уже вирішено", true); return { stale: id }; }
+  const verdict = yes ? `✅ Ціну підтвердив ${esc(who)}. Запускаю.` : `✖ Ціну відхилив ${esc(who)}. Запит скасовано.`;
+  for (const x of (r.quote_msgs || [])) {
+    await tg("editMessageText", { chat_id: x.chat, message_id: x.msg, text: `${quoteText(r, r.quote || {})}\n\n${verdict}`,
+      parse_mode: "HTML", disable_web_page_preview: true });
+  }
+  await answer(yes ? "Підтверджено" : "Відхилено");
+  return { decided: id, yes };
 }
 
 // ----------------------------- воркер -----------------------------
@@ -218,6 +281,19 @@ async function workerAction(sb: any, b: any) {
         claimed_by: null, claimed_at: null, updated_at: new Date().toISOString() }).eq("id", id);
       return { ok: true, question_msg_id: res?.result?.message_id ?? null };
     }
+    case "quote": {
+      const r = await get(); if (!r) return { error: "not found" };
+      const q = b.quote && typeof b.quote === "object" ? b.quote : null;
+      if (!q?.price_text) return { error: "quote.price_text required" };
+      if (r.price_ok) return { error: "price already approved for this request; a new price needs a new request" };
+      const quote = { price_text: String(q.price_text).slice(0, 200), items: Array.isArray(q.items) ? q.items.slice(0, 12) : [],
+        total_usd: Number(q.total_usd) || null, credits: q.credits ?? null, engine: q.engine ? String(q.engine).slice(0, 80) : null,
+        details: q.details ? String(q.details).slice(0, 1500) : null, at: new Date().toISOString() };
+      const msgs = await postQuote(sb, r, quote);
+      await sb.from("creative_requests").update({ status: "need_price_ok", quote, quote_msgs: msgs,
+        claimed_by: null, claimed_at: null, updated_at: new Date().toISOString() }).eq("id", id);
+      return { ok: true, messages: msgs.length };
+    }
     case "progress": {
       const r = await get(); if (!r) return { error: "not found" };
       const t = String(b.text || "").slice(0, 1000); if (!t) return { error: "text required" };
@@ -264,6 +340,7 @@ Deno.serve(async (req) => {
     const cron = req.headers.get("x-hq-cron-secret") ?? "";
     const worker = req.headers.get("x-cd-worker") ?? "";
     if (cron && HQ_CRON_SECRET && await safeEqual(cron, HQ_CRON_SECRET)) {
+      if (body.callback) return json(200, { ok: true, ...(await onCallback(sb, body.callback)) });
       if (!body.message) return json(400, { error: "message required" });
       return json(200, { ok: true, ...(await onMessage(sb, body.message)) });
     }
