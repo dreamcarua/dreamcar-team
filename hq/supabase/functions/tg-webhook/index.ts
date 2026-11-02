@@ -1386,6 +1386,14 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
   const action = parts[0];
 
   if (action === "av") { await handleAutosvitCb(supabase, cb); return; }
+  // 02.11.2026: ціна платної задачі відділу креативів → creative-request (там перевірка погоджувача)
+  if (action.replace(/\uFE0F/g, "") === "cdq") {
+    await fetch(`${SUPABASE_URL}/functions/v1/creative-request`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "" },
+      body: JSON.stringify({ callback: { id: cb.id, data: cb.data, from: cb.from } }),
+    }).then((r) => r.text()).catch((e) => console.error("[cdq fwd]", e));
+    return;
+  }
 
   if (action === "rwkN" || action === "rwkQ") {
     const via = action === "rwkQ" ? "Q" : "N";
