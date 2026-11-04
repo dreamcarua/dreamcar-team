@@ -494,6 +494,32 @@ function renderCreativeStripItems(creativeIds) {
   }).join('');
 }
 
+function repaintCreativeStrip(p) {
+  const stripEl = document.getElementById('f_creatives');
+  if (!stripEl) return; // modal закрилась
+  const addBtn = document.getElementById('addCreativeBtn');
+  // Видаляємо всі .cs-item, залишаючи кнопки .cs-add
+  stripEl.querySelectorAll('.cs-item').forEach(el => el.remove());
+  // Re-render через innerHTML — DocumentFragment overkill для 1-10 елементів
+  const html = renderCreativeStripItems(p.creatives);
+  if (addBtn) {
+    addBtn.insertAdjacentHTML('beforebegin', html);
+  } else {
+    stripEl.insertAdjacentHTML('afterbegin', html);
+  }
+  // Re-bind cs-remove handlers після re-render (інакше клік на × не спрацює)
+  stripEl.querySelectorAll('.cs-remove').forEach(rb => {
+    rb.onclick = (e) => {
+      e.stopPropagation();
+      const cid = rb.getAttribute('data-remove');
+      if (!cid) return;
+      p.creatives = (p.creatives || []).filter(x => x !== cid);
+      rb.closest('.cs-item')?.remove();
+      if (typeof autosave === 'function') autosave(p);
+    };
+  });
+}
+
 // #297: Forced refresh + re-render для creative-strip у відкритій publication modal.
 // Викликається з openCard() щоб обійти guard у Store._refreshAfterChange (skip while modal open).
 async function refreshCreativeStrip(p) {
@@ -502,29 +528,7 @@ async function refreshCreativeStrip(p) {
   try {
     const changed = await Store.refreshCreatives(p.creatives);
     if (!changed) return;
-    const stripEl = document.getElementById('f_creatives');
-    if (!stripEl) return; // modal закрилась
-    const addBtn = document.getElementById('addCreativeBtn');
-    // Видаляємо всі .cs-item, залишаючи .cs-add (addCreativeBtn)
-    stripEl.querySelectorAll('.cs-item').forEach(el => el.remove());
-    // Re-render через innerHTML — DocumentFragment overkill для 1-10 елементів
-    const html = renderCreativeStripItems(p.creatives);
-    if (addBtn) {
-      addBtn.insertAdjacentHTML('beforebegin', html);
-    } else {
-      stripEl.insertAdjacentHTML('afterbegin', html);
-    }
-    // Re-bind cs-remove handlers після re-render (інакше клік на × не спрацює)
-    stripEl.querySelectorAll('.cs-remove').forEach(rb => {
-      rb.onclick = (e) => {
-        e.stopPropagation();
-        const cid = rb.getAttribute('data-remove');
-        if (!cid) return;
-        p.creatives = (p.creatives || []).filter(x => x !== cid);
-        rb.closest('.cs-item')?.remove();
-        if (typeof autosave === 'function') autosave(p);
-      };
-    });
+    repaintCreativeStrip(p);
   } catch (e) { console.warn('[refreshCreativeStrip]', e); }
 }
 
@@ -592,6 +596,7 @@ function renderCardBody(p) {
           <div class="creative-strip" id="f_creatives">
             ${renderCreativeStripItems(p.creatives || [])}
             <div class="cs-add" id="addCreativeBtn">+</div>
+            <div class="cs-add cs-lib" id="pickLibraryBtn">Вибрати з бібліотеки</div>
           </div>
         </div>
 
@@ -1378,6 +1383,7 @@ function attachCardHandlers(p) {
     openCreativePicker(p);
   });
   document.getElementById('addCreativeBtn').title = 'Клік — завантажити файли · ПКМ — обрати з бібліотеки · drag-drop теж працює';
+  document.getElementById('pickLibraryBtn').onclick = () => openCreativePicker(p);
 
   document.querySelectorAll('#cardTabs .tab').forEach(t => {
     t.onclick = () => {
@@ -1423,44 +1429,132 @@ function bindComments(p) {
   btn.onclick = submit;
   inp.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
 }
+// 04.11.2026 (SMM): одне відео на Instagram і Telegram вантажили двічі. Вибір із Бібліотеки
+// не створює новий файл, лише звʼязок у creative_publications. Відкривається поверх картки, а не
+// замість неї, тож форма лишається живою. Дані з rpc library_data, як у Бібліотеці: у Store лише
+// перші 1000 креативів (ліміт PostgREST).
+async function loadPickerItems() {
+  if (BACKEND_MODE) {
+    const { data, error } = await window.supabase.rpc('library_data');
+    if (error) throw error;
+    return (data?.items || []).map(a => ({
+      id: a[0], name: a[1] || '', type: a[2],
+      size: humanSize(a[3]), duration: a[4],
+      res: a[5] && a[6] ? `${a[5]}×${a[6]}` : '—',
+      tags: a[19] || [], uploadedBy: a[8], uploadedAt: a[7],
+      preview: previewFor(a[2]), color: previewColor(a[2]),
+      poster_url: a[15], thumbnail_url: a[16], compressed_url: a[17], compressed_url_hevc: a[18],
+    }));
+  }
+  return Store.creatives();
+}
+function pickerThumb(c) {
+  const isImg = (u) => /\.(jpe?g|png|webp|gif|avif|hei[cf])(\?|$)/i.test(u || '');
+  const src = c.type === 'video'
+    ? (c.poster_url || (isImg(c.thumbnail_url) ? c.thumbnail_url : ''))
+    : (c.poster_url || c.thumbnail_url || c.compressed_url || c.url || '');
+  if (!src) return '';
+  // Той самий image transform, що у плитках Бібліотеки: повнорозмірні файли в сітці не вантажимо
+  const marker = '/storage/v1/object/public/';
+  const url = src.includes('.supabase.co' + marker)
+    ? src.replace(marker, '/storage/v1/render/image/public/') + (src.includes('?') ? '&' : '?') + 'width=300&height=300&resize=cover&quality=60'
+    : src;
+  return `<img src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`;
+}
+let closeCreativePicker = null;
 function openCreativePicker(p) {
-  const used = new Set(p.creatives||[]);
-  Modal.open(`
-    <div class="modal-head">
-      <h2>Обрати креатив</h2>
-      <button class="close" onclick="reopenCard('${p.id}')">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="library-grid">
-        ${Store.creatives().map(c => `
-          <div class="lib-tile" data-pick="${c.id}" style="${used.has(c.id)?'opacity:0.5;outline:2px solid var(--green);':''}">
-            <div class="lt-preview" style="background:linear-gradient(135deg, ${c.color}33, transparent)">${c.preview}<div class="lt-type-badge">${c.type}</div></div>
-            <div class="lt-info">
-              <div class="lt-name">${escapeHtml(c.name)}</div>
-              <div class="lt-meta">${c.size}${c.duration?' · '+formatDur(c.duration):''}</div>
-            </div>
-          </div>
-        `).join('')}
+  closeCreativePicker?.();
+  const PAGE = 60;
+  let items = [], type = 'all', q = '', limit = PAGE;
+  const ov = document.createElement('div');
+  ov.id = 'crPicker';
+  ov.className = 'cr-picker';
+  ov.innerHTML = `
+    <div class="cr-picker-box">
+      <div class="modal-head">
+        <h2>Вибрати з бібліотеки</h2>
+        <button class="close" data-close>×</button>
       </div>
-    </div>
-    <div class="modal-foot"><button class="btn" onclick="reopenCard('${p.id}')">Готово</button></div>
-  `, 'modal-md');
-  document.querySelectorAll('.lib-tile[data-pick]').forEach(el => {
-    el.onclick = () => {
-      const id = el.dataset.pick;
-      if (used.has(id)) {
-        p.creatives = (p.creatives||[]).filter(x => x !== id);
-        used.delete(id);
-        el.style.opacity = '1';
-        el.style.outline = '';
-      } else {
-        p.creatives = [...(p.creatives||[]), id];
-        used.add(id);
-        el.style.outline = '2px solid var(--green)';
-        el.style.opacity = '0.7';
-      }
-      autosave(p);
-    };
+      <div class="cr-picker-tools">
+        <input type="search" id="crPickerSearch" placeholder="Пошук за назвою файлу"/>
+        <div class="cr-picker-types">
+          <button class="btn active" data-type="all">Усі</button>
+          <button class="btn" data-type="video">Відео</button>
+          <button class="btn" data-type="photo">Фото</button>
+        </div>
+      </div>
+      <div class="cr-picker-grid" id="crPickerGrid"><div class="cr-picker-note">Завантажую бібліотеку…</div></div>
+      <div class="modal-foot">
+        <span class="cr-picker-hint">Файл не копіюється: у публікації зʼявляється той самий файл</span>
+        <button class="btn btn-primary" data-close>Готово</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const onKey = (e) => {
+    e.stopPropagation(); // інакше Modal._esc закриє картку, а глобальні гарячі клавіші відкриють іншу
+    if (e.key === 'Escape') close();
+  };
+  const close = () => {
+    window.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('hashchange', close);
+    ov.remove();
+    closeCreativePicker = null;
+  };
+  closeCreativePicker = close;
+  window.addEventListener('keydown', onKey, true);
+  window.addEventListener('hashchange', close);
+
+  const grid = ov.querySelector('#crPickerGrid');
+  const paint = () => {
+    const needle = q.trim().toLowerCase();
+    const list = items.filter(c => (type === 'all' || c.type === type) && (!needle || c.name.toLowerCase().includes(needle)));
+    if (!list.length) { grid.innerHTML = '<div class="cr-picker-note">Нічого не знайдено</div>'; return; }
+    const picked = new Set(p.creatives || []);
+    grid.innerHTML = list.slice(0, limit).map(c => `
+      <div class="cr-picker-tile${picked.has(c.id) ? ' sel' : ''}" data-id="${escapeHtml(c.id)}" title="${escapeHtml(c.name)}">
+        <div class="cr-picker-prev"><span>${c.type === 'video' ? '🎬' : '🖼️'}</span>${pickerThumb(c)}${c.type === 'video' ? '<b>▶</b>' : ''}</div>
+        <div class="cr-picker-name">${escapeHtml(c.name)}</div>
+        <div class="cr-picker-meta">${escapeHtml(c.size || '')}${c.duration ? ' · ' + formatDur(c.duration) : ''}</div>
+      </div>`).join('') +
+      (list.length > limit ? `<button class="btn cr-picker-more" data-more>Показати ще (${list.length - limit})</button>` : '');
+  };
+  const toggle = (id) => {
+    const c = items.find(x => x.id === id);
+    if (!c) return;
+    const had = (p.creatives || []).includes(id);
+    p.creatives = had ? p.creatives.filter(x => x !== id) : [...(p.creatives || []), id];
+    if (!had && !Store.creative(id)) {
+      // Старіший за перші 1000: кладемо в кеш і добираємо поля, яких немає в library_data
+      Store._data.creatives.push({ ...c });
+      Store.refreshCreatives([id]).then(changed => { if (changed && ov.isConnected) repaintCreativeStrip(p); });
+    }
+    repaintCreativeStrip(p);
+    autosave(p);
+    paint();
+  };
+  ov.addEventListener('click', (e) => {
+    if (e.target === ov || e.target.closest('[data-close]')) { close(); return; }
+    if (e.target.closest('[data-more]')) { limit += PAGE; paint(); return; }
+    const typeBtn = e.target.closest('[data-type]');
+    if (typeBtn) {
+      type = typeBtn.dataset.type;
+      limit = PAGE;
+      ov.querySelectorAll('[data-type]').forEach(b => b.classList.toggle('active', b === typeBtn));
+      paint();
+      return;
+    }
+    const tile = e.target.closest('.cr-picker-tile');
+    if (tile) toggle(tile.dataset.id);
+  });
+  ov.querySelector('#crPickerSearch').oninput = (e) => { q = e.target.value; limit = PAGE; paint(); };
+
+  loadPickerItems().then(all => {
+    items = all.filter(c => c.type === 'video' || c.type === 'photo');
+    paint();
+  }).catch(e => {
+    console.error('[creativePicker]', e);
+    grid.innerHTML = `<div class="cr-picker-note">Не вдалося завантажити бібліотеку: ${escapeHtml(e.message || '')}</div>`;
   });
   // #250: forceSave handler тепер живе у window.__hqForceSave (defined нагорі attachCardHandlers).
   // Це bulletproof — inline onclick на кнопці викликає його напряму, не залежить від attach order.
