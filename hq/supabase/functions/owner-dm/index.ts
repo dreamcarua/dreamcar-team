@@ -14,7 +14,11 @@
 //   { action: "send_file", id, name, b64, caption } → файл власнику
 //   { action: "fail", id, error }          → статус failed + повідомлення
 //   { action: "state", id }                → { status, cancel_requested }
-// Власник: app_secrets.owner_dm_tg_ids (через кому). Усе інше ігнорується.
+//   { action: "team_find", id, kind, search }          → читання для колег (RPC team_bot_find)
+//   { action: "team_update", id, kind, row_id, fields } → дрібна правка від імені автора (RPC team_bot_update)
+// Власник: app_secrets.owner_dm_tg_ids (через кому).
+// Робочі чати (04.11.2026): tg_listening_chats (крім чату Media), автор — користувач HQ, бота тегнули або відповіли
+// на повідомлення цієї системи → задача mode=team. Для колег на ✅ іде план власнику в особисті.
 // =====================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -93,8 +97,51 @@ async function workerAlive(sb: any): Promise<boolean> {
   return Date.now() - t < 3 * 60 * 1000;
 }
 
+// ---------- Канал 1: робочі чати (колеги) ----------
+const BOT_MENTION = "@dreamcar_team_bot";
+async function onGroupMessage(sb: any, m: any) {
+  const chatId = Number(m.chat.id);
+  const { data: ex } = await sb.from("app_secrets").select("value").eq("key", "team_bot_excluded_chats").maybeSingle();
+  if (String(ex?.value || "").split(",").map((x: string) => Number(x.trim())).includes(chatId)) return { ignored: "excluded chat" };
+  const { data: lc } = await sb.from("tg_listening_chats").select("chat_id,chat_title").eq("chat_id", chatId).maybeSingle();
+  if (!lc) return { ignored: "not a work chat" };
+  const text = String(m.text || m.caption || "").trim();
+  const rt = m.reply_to_message;
+  let parent: any = null;
+  if (rt?.message_id && rt?.from?.is_bot) {
+    const rid = rt.message_id;
+    const { data } = await sb.from("owner_dm_jobs").select("*").eq("chat_id", chatId)
+      .or(`ack_msg_id.eq.${rid},bot_msg_ids.cs.{${rid}}`).order("id", { ascending: false }).limit(1);
+    parent = data?.[0] || null;
+  }
+  const mentioned = text.toLowerCase().includes(BOT_MENTION);
+  if (!mentioned && !parent) return { ignored: "not addressed" };
+  const { data: u } = await sb.from("users").select("id,name").eq("tg_chat_id", Number(m.from?.id)).maybeSingle();
+  if (!u) return { ignored: "author is not an HQ user" };
+
+  // контекст: останні повідомлення чату з буфера
+  const { data: buf } = await sb.from("tg_chat_buffer").select("message_id,user_name,text,caption,ts")
+    .eq("chat_id", chatId).lt("message_id", m.message_id).order("message_id", { ascending: false }).limit(15);
+  const recent = (buf || []).reverse().map((x: any) => `${x.user_name || "?"}: ${String(x.text || x.caption || "").slice(0, 400)}`).join("\n");
+  const quoted = rt ? `${rt.from?.first_name || "?"}: ${String(rt.text || rt.caption || "").slice(0, 3000)}` : "";
+  const ctx = [quoted && `Процитоване повідомлення:\n${quoted}`, recent && `Останні повідомлення чату:\n${recent}`].filter(Boolean).join("\n\n");
+
+  const files = filesOf(m);
+  if (rt) for (const f of filesOf(rt)) files.push({ ...f, from_reply: true });
+  const { data: job, error } = await sb.from("owner_dm_jobs").insert({
+    chat_id: chatId, message_id: m.message_id, text: text.replace(new RegExp(BOT_MENTION, "ig"), "").trim() || null,
+    reply_to_msg_id: rt?.message_id ?? null, reply_context: ctx.slice(0, 8000) || null, files,
+    parent_job_id: parent?.id ?? null, mode: "team", from_tg_id: Number(m.from.id), from_name: u.name, chat_title: lc.chat_title,
+  }).select("*").single();
+  if (error) { if (String(error.code) === "23505") return { duplicate: true }; throw error; }
+  const ids = await sendLong(chatId, "⏳ Дивлюсь…", m.message_id);
+  if (ids[0]) await sb.from("owner_dm_jobs").update({ ack_msg_id: ids[0] }).eq("id", job.id);
+  return { queued_team: job.id };
+}
+
 // ---------- Канал 1: повідомлення власника ----------
 async function onMessage(sb: any, m: any) {
+  if (m?.chat?.type === "group" || m?.chat?.type === "supergroup") return await onGroupMessage(sb, m);
   const owners = await ownerIds(sb);
   if (m?.chat?.type !== "private" || !owners.has(Number(m?.from?.id))) return { ignored: "not owner" };
   const chatId = Number(m.chat.id);
@@ -170,10 +217,15 @@ async function onCallback(sb: any, cb: any) {
   await sb.from("owner_dm_jobs").update(yes
     ? { status: "queued", approval: "approved", approved_at: now, updated_at: now }
     : { status: "cancelled", approval: "declined", finished_at: now, updated_at: now }).eq("id", id).eq("status", "need_ok");
+  const dm = Number(cb.from.id);   // особистий чат власника = його tg id
+  const confirmChat = j.mode === "team" ? dm : j.chat_id;
   if (j.confirm_msg_id) {
-    await tg("editMessageReplyMarkup", { chat_id: j.chat_id, message_id: j.confirm_msg_id, reply_markup: { inline_keyboard: [] } });
+    await tg("editMessageReplyMarkup", { chat_id: confirmChat, message_id: j.confirm_msg_id, reply_markup: { inline_keyboard: [] } });
   }
-  await sendLong(j.chat_id, yes ? "✅ Погоджено, виконую." : "❌ Скасовано, нічого не змінюю.", j.confirm_msg_id || j.message_id);
+  await sendLong(confirmChat, yes ? "✅ Погоджено, виконую." : "❌ Скасовано, нічого не змінюю.", j.confirm_msg_id || j.message_id);
+  if (j.mode === "team") {
+    await sendLong(j.chat_id, yes ? "✅ Вадим погодив, виконую." : "❌ Вадим не погодив, нічого не змінюю.", j.message_id);
+  }
   await answer(yes ? "Виконую" : "Скасовано");
   return { id, approved: yes };
 }
@@ -228,15 +280,38 @@ async function workerAction(sb: any, b: any): Promise<Response> {
 
   if (act === "confirm") {
     const text = String(b.text || "").slice(0, 3500);
-    const ids = await sendLong(j.chat_id, `🟡 <b>Потрібне твоє ✅</b>\n\n${b.html ? text : esc(text)}`, j.message_id, {
-      reply_markup: { inline_keyboard: [[{ text: "✅ Виконати", callback_data: `od:${id}:y` }, { text: "❌ Скасувати", callback_data: `od:${id}:n` }]] },
-    });
+    const kb = { reply_markup: { inline_keyboard: [[{ text: "✅ Виконати", callback_data: `od:${id}:y` }, { text: "❌ Скасувати", callback_data: `od:${id}:n` }]] } };
+    let ids: number[] = [], groupIds: number[] = [];
+    if (j.mode === "team") {
+      const owner = [...(await ownerIds(sb))][0];
+      if (!owner) return json(500, { error: "owner_dm_tg_ids not set" });
+      const head = `🟡 <b>Запит від ${esc(j.from_name || "колеги")}</b> у «${esc(j.chat_title || "чат")}»:\n<i>${esc((j.text || "").slice(0, 600))}</i>\n\n<b>План:</b>\n`;
+      ids = await sendLong(owner, head + esc(text), undefined, kb);
+      groupIds = await sendLong(j.chat_id, "🟡 Це потребує погодження Вадима. Передав йому план, напишу тут, щойно він вирішить.", j.message_id);
+    } else {
+      ids = await sendLong(j.chat_id, `🟡 <b>Потрібне твоє ✅</b>\n\n${b.html ? text : esc(text)}`, j.message_id, kb);
+    }
     const mid = ids[ids.length - 1] ?? null;
     await sb.from("owner_dm_jobs").update({
       status: "need_ok", confirm_text: text, confirm_msg_id: mid, approval: null, approved_at: null,
-      bot_msg_ids: [...(j.bot_msg_ids || []), ...ids], updated_at: now,
+      bot_msg_ids: [...(j.bot_msg_ids || []), ...(j.mode === "team" ? groupIds : ids)], updated_at: now,
     }).eq("id", id);
+    if (j.ack_msg_id) await tg("deleteMessage", { chat_id: j.chat_id, message_id: j.ack_msg_id });
     return json(200, { ok: true, confirm_msg_id: mid });
+  }
+
+  if (act === "team_find") {
+    const { data, error } = await sb.rpc("team_bot_find", { p_kind: String(b.kind || ""), p_search: b.search ?? null, p_limit: Number(b.limit || 20) });
+    if (error) return json(400, { error: error.message });
+    return json(200, data);
+  }
+
+  if (act === "team_update") {
+    if (!j.from_tg_id && j.mode === "team") return json(400, { error: "no author" });
+    const actor = j.mode === "team" ? j.from_tg_id : [...(await ownerIds(sb))][0];
+    const { data, error } = await sb.rpc("team_bot_update", { p_kind: String(b.kind || ""), p_id: String(b.row_id || ""), p_fields: b.fields || {}, p_actor_tg: actor });
+    if (error) return json(400, { error: error.message });
+    return json(200, data);
   }
 
   if (act === "reply") {

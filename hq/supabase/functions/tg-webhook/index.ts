@@ -2527,6 +2527,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // 04.11.2026: робочі чати — колегу, який тегнув бота або відповів йому, обслуговує owner-dm (режим колег).
+    // owner-dm сам відсіює чат Media, чужі чати, не-користувачів HQ і reply на інші повідомлення бота.
+    if (isGroup && !(tgUser as any).is_bot) {   // виключені чати (Media) — app_secrets.team_bot_excluded_chats, перевіряє owner-dm
+      const mg = msg as any;
+      const saidG = `${mg.text || ""} ${mg.caption || ""}`.toLowerCase();
+      const isCmdG = typeof mg.text === "string" && mg.text.trim().startsWith("/");
+      if (!isCmdG && (saidG.includes("@dreamcar_team_bot") || mg.reply_to_message?.from?.is_bot)) {
+        await forwardToOwnerDM(msg);
+      }
+    }
+
     if (!isGroup && (msg.photo || msg.video || msg.document)) {
       await handleFileMessage(supabase, msg, isGroup);
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
