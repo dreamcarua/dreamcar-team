@@ -83,6 +83,15 @@ const Store = {
       sb.from('publication_history').select('*').order('at'),
       sb.rpc('ghost_calendar_events', { p_source: 'retention', p_from: ghostFrom.toISOString(), p_to: ghostTo.toISOString() }),
     ]);
+    // 04.11.2026: creatives обрізаються лімітом PostgREST на 1000 найновіших, а з Бібліотеки можна
+    // привʼязати і старіший файл. Такий файл, уже привʼязаний до публікації, добираємо окремо,
+    // інакше після перезавантаження він зникав би зі стрічки картки.
+    const knownCreatives = new Set((creatives.data || []).map(c => c.id));
+    const missingCreatives = [...new Set((crePubs.data || []).map(x => x.creative_id))].filter(id => !knownCreatives.has(id));
+    for (let i = 0; i < missingCreatives.length; i += 100) {
+      const { data: extra } = await sb.from('creatives').select('*').is('deleted_at', null).in('id', missingCreatives.slice(i, i + 100));
+      if (extra) creatives.data = (creatives.data || []).concat(extra);
+    }
     if (typeof App !== 'undefined') {
       App.retentionGhost = (ghostRet && !ghostRet.error) ? (ghostRet.data || []) : [];
     } else {
