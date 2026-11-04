@@ -4,9 +4,9 @@
 // Знаходить approved публікації з platform=tg, publish_at у межах ±10хв
 // → додає у tg_autopost_queue для обробки GitHub Action worker-ом.
 //
-// Target chat (тестовий!): -1003933841573 (DreamCar SMM)
-// Production канал: -1002496656144 — НЕ використовуємо допоки не
-// відпрацюємо нюанси. Перемикати тільки після ручного схвалення Вадима.
+// Target chat: app_secrets.tg_publish_channel (04.11.2026 Вадим: тести завершено,
+// постимо в production-канал). ID каналу не в коді (репо публічне); без ключа — fail-closed.
+// Тестова група DreamCar SMM — лише для кнопки «Тест» у tg-post-send.
 //
 // Authentication:
 //   ?secret=<HQ_CRON_SECRET> у URL АБО header x-hq-cron-secret.
@@ -22,7 +22,14 @@ const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get(
 // SECURITY: НЕ використовуємо hardcoded fallback. Edge падає 500 якщо secret порожній.
 const CRON_SECRET   = Deno.env.get("HQ_CRON_SECRET") ?? "";
 
-const TARGET_TG_CHAT_ID = Deno.env.get("DCSMM_TG_CHANNEL") || "-1003933841573";
+async function resolvePublishChannel(supabase: any): Promise<string> {
+  try {
+    const { data } = await supabase.from("app_secrets").select("value").eq("key", "tg_publish_channel").maybeSingle();
+    const v = String(data?.value || "").trim();
+    if (!/^-?\d+$/.test(v)) throw new Error("app_secrets.tg_publish_channel не задано або некоректне");
+    return v;
+  } catch (e) { throw e; }
+}
 
 // #direct-post (28.07.2026): постимо ПРЯМО через tg-post-send (Edge→Edge), без GH-worker.
 // Причина: GH Actions scheduled cron давав до 80хв затримки у пікові години (09/12/00:00).
@@ -37,6 +44,7 @@ const STUCK_MS = 20 * 60 * 1000;
 
 async function run(supabase: ReturnType<typeof createClient>) {
   const now = Date.now();
+  const TARGET_TG_CHAT_ID = await resolvePublishChannel(supabase);
   const fromIso = new Date(now - LOOKBACK_MS).toISOString();
   const toIso = new Date(now).toISOString();
 
@@ -123,7 +131,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const result = await run(supabase);
-    return new Response(JSON.stringify({ ...result, version: "v1.2-#274-fixed" }), {
+    return new Response(JSON.stringify({ ...result, version: "v1.3-prod-channel" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

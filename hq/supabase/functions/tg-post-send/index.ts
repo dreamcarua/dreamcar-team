@@ -1,4 +1,8 @@
-// tg-post-send v16 — #aspect fix (18.07.2026): відео тепер шлеться з width/height/duration
+// tg-post-send v17 — #prod-channel (04.11.2026, Vadym): тести завершено, автопост іде в канал.
+//   Канал публікацій береться з app_secrets.tg_publish_channel (міняється без редеплою),
+//   fallback = production-канал. Тестовий режим (test=true) як і раніше йде у групу DreamCar SMM.
+//   + службовий режим probe_channel (лише cron-secret): getChat + права бота в каналі.
+// v16 — #aspect fix (18.07.2026): відео тепер шлеться з width/height/duration
 //   + thumbnail (постер-кадр). Без цього TG desktop показував відео сплющеним у квадрат.
 //   Розміри: creatives.width_px/height_px, fallback — з розмірів постера (JPG того ж кадру).
 // v15 — #SMM utm off (Vadym 02.07.2026): appendUtm не додає utm-мітки до кнопок.
@@ -9,7 +13,16 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("HQ_DB_URL") ?
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("HQ_DB_SERVICE_KEY") ?? "";
 const TG_BOT_TOKEN = Deno.env.get("TG_BOT_TOKEN") ?? "";
 const CRON_SECRET = Deno.env.get("DC_CRON_SECRET") ?? Deno.env.get("HQ_CRON_SECRET") ?? "";
-const DEFAULT_CHANNEL = Deno.env.get("DCSMM_TG_CHANNEL") || "-1003933841573";
+// Канал публікацій: app_secrets.tg_publish_channel (fail-closed: без нього автопост не йде). ID не в коді — репо публічне.
+let DEFAULT_CHANNEL = "";
+async function resolvePublishChannel(sb: any): Promise<string> {
+  try {
+    const { data } = await sb.from('app_secrets').select('value').eq('key', 'tg_publish_channel').maybeSingle();
+    const v = String(data?.value || '').trim();
+    if (!/^-?\d+$/.test(v)) throw new Error('app_secrets.tg_publish_channel не задано або некоректне');
+    return v;
+  } catch (e) { throw e; }
+}
 const TEST_CHANNEL = "-1003933841573";
 
 const MAX_CAPTION = 1024;
@@ -239,8 +252,10 @@ async function sendAlbumUrl(items: MediaItem[], channelId: string, caption: stri
 }
 
 async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_channel?: string }) {
-  console.log('[sendPub v16] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
-  const channelId = opts.force_channel || (opts.test ? TEST_CHANNEL : (pub.tg_channel_id || DEFAULT_CHANNEL));
+  console.log('[sendPub v17] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
+  // 04.11.2026: тест ЗАВЖДИ йде лише в тестову групу, force_channel для тесту ігнорується.
+  const channelId = opts.test ? TEST_CHANNEL : (opts.force_channel || pub.tg_channel_id || DEFAULT_CHANNEL);
+  if (!channelId) throw new Error('канал публікацій не задано (app_secrets.tg_publish_channel)');
   const buttons = Array.isArray(pub.tg_buttons) ? pub.tg_buttons : [];
   const silent = !!pub.tg_silent;
   const creatives = await loadCreatives(sb, pub.id);
@@ -319,7 +334,7 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
   }
 
   const messageId = result?.message_id;
-  console.log('[sendPub v16] sent', { messageId, channelId });
+  console.log('[sendPub v17] sent', { messageId, channelId });
   if (pub.tg_pin && messageId && !opts.test) {
     try { await tgFetchJson('pinChatMessage', { chat_id: channelId, message_id: messageId, disable_notification: silent }); }
     catch (e: any) { console.warn('[pin]', pub.id, e.message); }
@@ -341,6 +356,16 @@ async function processOnce(sb: any, pub: any, opts: any) {
   return { ok: true, attempts: 1, ...r };
 }
 async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
+  // 04.11.2026 (Вадим): у публічний канал — ЛИШЕ погоджені публікації SMM-столу.
+  // Перевірка в БД: tg_publish_allowed() → NULL = можна, інакше причина. Без ретраїв.
+  const { data: denyReason, error: gateErr } = await sb.rpc('tg_publish_allowed', { p_pub: pub.id });
+  if (gateErr || denyReason) {
+    const reason = gateErr ? ('gate error: ' + String(gateErr.message || gateErr)) : String(denyReason);
+    console.warn('[gate] blocked', pub.id, reason);
+    await sb.from('publications').update({ autopost_status: 'blocked', autopost_error: ('Не погоджено для каналу: ' + reason).slice(0, 500) }).eq('id', pub.id);
+    if (jobId) await sb.rpc('fail_autopost_job', { job_id: jobId, pub_id: pub.id, err_msg: ('blocked: ' + reason).slice(0, 500) }).catch(() => {});
+    return { ok: false, blocked: true, reason };
+  }
   if (!opts.test && pub.tg_message_id) {
     const existingMap = typeof pub.tg_message_id === 'object' ? pub.tg_message_id : null;
     const channel = opts.force_channel || pub.tg_channel_id || DEFAULT_CHANNEL;
@@ -416,13 +441,33 @@ Deno.serve(async (req: Request) => {
     console.warn('[tg-post-send v16] 401', { jwtReason, jwtRole, hasCron: !!cronHeader });
     return new Response(JSON.stringify({ error: 'unauthorized', reason: jwtReason || (cronHeader ? 'cron_mismatch' : 'no_auth'), role: jwtRole }), { status: 401, headers: cors });
   }
+  try { DEFAULT_CHANNEL = await resolvePublishChannel(sb); }
+  catch (e: any) {
+    DEFAULT_CHANNEL = '';
+    // fail-closed: без каналу не публікуємо (тест і probe працюють і без нього)
+    if (!test && !forceChannel && !body.probe_channel) return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: cors });
+  }
+  // Службова перевірка каналу (read-only): що це за чат і чи може бот туди постити.
+  if (body.probe_channel) {
+    if (cronHeader !== CRON_SECRET) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: cors });
+    const out: any = { probe_channel: String(body.probe_channel), publish_channel: DEFAULT_CHANNEL };
+    try {
+      const me = await tgFetchJson('getMe', {});
+      out.bot = me.username;
+      const chat = await tgFetchJson('getChat', { chat_id: String(body.probe_channel) });
+      out.chat = { id: chat.id, type: chat.type, title: chat.title, username: chat.username || null };
+      const m = await tgFetchJson('getChatMember', { chat_id: String(body.probe_channel), user_id: me.id });
+      out.bot_member = { status: m.status, can_post_messages: m.can_post_messages ?? null, can_edit_messages: m.can_edit_messages ?? null, can_pin_messages: m.can_pin_messages ?? null };
+    } catch (e: any) { out.error = String(e?.message || e).slice(0, 300); }
+    return new Response(JSON.stringify(out), { status: 200, headers: cors });
+  }
   if (!pubId) return new Response(JSON.stringify({ error: 'publication_id required' }), { status: 400, headers: cors });
   try {
     const { data: pub, error } = await sb.from('publications').select('*').eq('id', pubId).maybeSingle();
     if (error) throw error;
     if (!pub) return new Response(JSON.stringify({ error: 'publication not found' }), { status: 404, headers: cors });
     const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
-    return new Response(JSON.stringify({ ok: true, version: 'v16-aspect-fix', ...result }), { status: 200, headers: cors });
+    return new Response(JSON.stringify({ ok: true, version: 'v17-prod-channel', ...result }), { status: 200, headers: cors });
   } catch (e: any) {
     const msg = String(e?.message || e);
     const stack = String(e?.stack || '').slice(0, 1000);
