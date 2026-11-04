@@ -90,6 +90,19 @@ async function onMessage(sb: any, m: any) {
       if (txt && q.status === "done" && !mentionsBot(m)) {
         return await enqueue(sb, m, txt, { parent: q, sources: q.result_creative_ids || [] });
       }
+      // 04.11.2026: питання під час роботи («довго ще?») — відповісти статусом, а не мовчати
+      if (txt && ["queued", "working"].includes(q.status) && !mentionsBot(m)) {
+        const mins = q.claimed_at ? Math.max(1, Math.round((Date.now() - new Date(q.claimed_at).getTime()) / 60000)) : 0;
+        let ahead = 0;
+        if (q.status === "queued") {
+          const { count } = await sb.from("creative_requests").select("id", { count: "exact", head: true }).in("status", ["queued", "working"]).lt("id", q.id);
+          ahead = count || 0;
+        }
+        await say(m.message_id, q.status === "working"
+          ? `⏳ Запит №${q.id} у роботі вже ${mins} хв: генерація і перевірка критиком. Зазвичай це 5–30 хв, складні обробки довше. Результат надішлю сюди, щойно буде готовий.`
+          : `🕐 Запит №${q.id} у черзі${ahead ? `, перед ним: ${ahead}` : ", наступний"}. Візьму, щойно звільниться відділ.`, chat);
+        return { status_reply: q.id };
+      }
       if (q.status === "need_info" && q.question_msg_id === rid && txt) {
         const answers = [...(q.answers || []), { at: new Date().toISOString(), from: m.from?.id, text: txt.slice(0, 4000), message_id: m.message_id }];
         await sb.from("creative_requests").update({ answers, status: "queued", updated_at: new Date().toISOString() }).eq("id", q.id);
