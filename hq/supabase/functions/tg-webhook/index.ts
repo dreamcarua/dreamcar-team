@@ -1386,6 +1386,14 @@ async function handleCallback(supabase: ReturnType<typeof createClient>, cb: TgC
   const action = parts[0];
 
   if (action === "av") { await handleAutosvitCb(supabase, cb); return; }
+  // 04.11.2026: ✅/❌ власника на дію Claude з Mac Studio → owner-dm (там перевірка власника)
+  if (action === "od") {
+    await fetch(`${SUPABASE_URL}/functions/v1/owner-dm`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "" },
+      body: JSON.stringify({ callback: { id: cb.id, data: cb.data, from: cb.from } }),
+    }).then((r) => r.text()).catch((e) => console.error("[od fwd]", e));
+    return;
+  }
   // 02.11.2026: ціна платної задачі відділу креативів → creative-request (там перевірка погоджувача)
   if (action.replace(/\uFE0F/g, "") === "cdq") {
     await fetch(`${SUPABASE_URL}/functions/v1/creative-request`, {
@@ -2318,6 +2326,32 @@ async function pushToBuffer(
 }
 
 // =====================================================================
+// 04.11.2026: особисті повідомлення ВЛАСНИКА → owner-dm → Claude Code (Opus) на Mac Studio.
+// Власник = app_secrets.owner_dm_tg_ids. Решта користувачів, як і раніше, → tg-ai-router.
+// =====================================================================
+let ownerIdsCache: Set<number> | null = null;
+async function isOwnerDM(supabase: ReturnType<typeof createClient>, msg: any): Promise<boolean> {
+  if ((msg?.chat?.type || "private") !== "private") return false;
+  if (!ownerIdsCache) {
+    const { data } = await supabase.from("app_secrets").select("value").eq("key", "owner_dm_tg_ids").maybeSingle();
+    ownerIdsCache = new Set(String(data?.value || "").split(",").map((x: string) => Number(x.trim())).filter((n: number) => n));
+  }
+  return ownerIdsCache.has(Number(msg?.from?.id));
+}
+async function forwardToOwnerDM(msg: any): Promise<void> {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/owner-dm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "" },
+      body: JSON.stringify({ message: msg }),
+    });
+    if (!r.ok) console.error("[owner-dm fwd]", r.status, (await r.text()).slice(0, 300));
+  } catch (e) {
+    console.error("[owner-dm fwd]", e);
+  }
+}
+
+// =====================================================================
 // v26: AI Assistant + Voice forwarding to tg-ai-router
 // =====================================================================
 async function forwardToAI(
@@ -2477,6 +2511,19 @@ Deno.serve(async (req: Request) => {
       const handled = await handleReworkCommentReply(supabase, msg);
       if (handled) {
         return new Response(JSON.stringify({ ok: true, kind: "rework-comment" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+    }
+
+    // 04.11.2026: власник у DM — текст, голос, кружки, аудіо, файли з підписом або reply → Claude на Mac Studio.
+    // Файл без підпису і без reply, як і раніше, іде в медіатеку (handleFileMessage). Команди /... працюють як раніше.
+    if (!isGroup && await isOwnerDM(supabase, msg)) {
+      const mo = msg as any;
+      const isCmd = typeof mo.text === "string" && mo.text.trim().startsWith("/");
+      const hasFile = !!(mo.photo || mo.video || mo.document);
+      const plainUpload = hasFile && !mo.caption && !mo.reply_to_message;
+      if (!isCmd && !plainUpload && (mo.text || mo.caption || mo.voice || mo.audio || mo.video_note || hasFile)) {
+        await forwardToOwnerDM(msg);
+        return new Response(JSON.stringify({ ok: true, kind: "owner-dm" }), { status: 200, headers: { "Content-Type": "application/json" } });
       }
     }
 
