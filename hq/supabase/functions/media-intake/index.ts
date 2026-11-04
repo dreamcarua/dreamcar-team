@@ -103,8 +103,9 @@ async function resolveLaunch(sb: any, caption: string): Promise<string | null> {
   return (g as string) || null;
 }
 
-async function handleMessage(sb: any, m: any) {
-  if (Number(m?.chat?.id) !== MEDIA_CHAT_ID) return { skipped: "not media chat" };
+async function handleMessage(sb: any, m: any, force = false) {
+  // force (04.11.2026): файли запиту на креатив з іншого робочого чату (через owner-dm) — зберегти без підтверджень у чаті
+  if (Number(m?.chat?.id) !== MEDIA_CHAT_ID && !force) return { skipped: "not media chat" };
   if (m.from?.is_bot) return { skipped: "bot" };
 
   // Скасування: reply «❌»/«скасувати»/«отмена» на підтвердження бота
@@ -145,7 +146,7 @@ async function handleMessage(sb: any, m: any) {
   const results: any[] = [];
   for (const it of items) {
     const base = {
-      chat_id: MEDIA_CHAT_ID, message_id: m.message_id, media_group_id: m.media_group_id || null,
+      chat_id: Number(m.chat.id), message_id: m.message_id, media_group_id: m.media_group_id || null,
       file_unique_id: it.file_unique_id, file_id: it.file_id, kind: it.kind, mime: it.mime || null,
       file_name: it.name || null, size_bytes: it.size || null, from_tg_id: m.from?.id || null,
       from_name: fromName, caption: caption || null, launch_id: launch,
@@ -263,7 +264,7 @@ Deno.serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     if (body.ack) return json(200, { ok: true, ...(await sendAcks(sb)) });
-    if (body.message) return json(200, { ok: true, ...(await handleMessage(sb, body.message)) });
+    if (body.message) return json(200, { ok: true, ...(await handleMessage(sb, body.message, body.force === true)) });
     return json(400, { error: "message or ack required" });
   } catch (e) {
     console.error("[media-intake] fatal", String(e));
