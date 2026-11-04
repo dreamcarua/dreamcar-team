@@ -45,8 +45,11 @@ async function tg(method: string, body: Record<string, unknown>): Promise<any> {
   });
   return await r.json().catch(() => ({ ok: false }));
 }
-const say = (reply_to: number, text: string) =>
-  tg("sendMessage", { chat_id: MEDIA_CHAT_ID, reply_to_message_id: reply_to, allow_sending_without_reply: true,
+// 04.11.2026: запит може прийти з будь-якого робочого чату (через owner-dm) — відповідаємо туди, звідки він.
+const chatOf = (r: any) => Number(r?.chat_id) || MEDIA_CHAT_ID;
+const sayR = (r: any, text: string) => say(r.message_id, text, chatOf(r));
+const say = (reply_to: number, text: string, chat: number = MEDIA_CHAT_ID) =>
+  tg("sendMessage", { chat_id: chat, reply_to_message_id: reply_to, allow_sending_without_reply: true,
     text, parse_mode: "HTML", disable_web_page_preview: true });
 
 function mentionsBot(m: any): boolean {
@@ -59,14 +62,17 @@ function cleanText(m: any): string {
 
 // ----------------------------- з Telegram -----------------------------
 async function onMessage(sb: any, m: any) {
-  if (Number(m?.chat?.id) !== MEDIA_CHAT_ID || m.from?.is_bot) return { skipped: true };
+  if (m.from?.is_bot) return { skipped: true };
+  const chat = Number(m?.chat?.id);
+  const inMedia = chat === MEDIA_CHAT_ID;
   const replyTo = m.reply_to_message;
+  if (!inMedia && !replyTo?.from?.is_bot) return { skipped: "not media chat" };
 
   // 1) reply на повідомлення бота: відповідь на питання або «❌»
   if (replyTo?.from?.is_bot) {
     const rid = replyTo.message_id;
     const { data: qs } = await sb.from("creative_requests").select("*")
-      .eq("chat_id", MEDIA_CHAT_ID).or(`question_msg_id.eq.${rid},ack_msg_id.eq.${rid},result_msg_ids.cs.{${rid}}`)
+      .eq("chat_id", chat).or(`question_msg_id.eq.${rid},ack_msg_id.eq.${rid},result_msg_ids.cs.{${rid}}`)
       .order("id", { ascending: false }).limit(1);
     const q = qs?.[0];
     if (q) {
@@ -74,9 +80,9 @@ async function onMessage(sb: any, m: any) {
       if (CANCEL_RE.test(txt.toLowerCase())) {
         if (["queued", "need_info", "need_price_ok"].includes(q.status)) {
           await sb.from("creative_requests").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", q.id);
-          await say(m.message_id, `↩️ Запит №${q.id} скасовано.`);
+          await say(m.message_id, `↩️ Запит №${q.id} скасовано.`, chat);
         } else if (q.status === "working") {
-          await say(m.message_id, `⏳ Запит №${q.id} уже в роботі, скасувати не можу. Результат можна просто не використовувати.`);
+          await say(m.message_id, `⏳ Запит №${q.id} уже в роботі, скасувати не можу. Результат можна просто не використовувати.`, chat);
         }
         return { cancelled: q.id };
       }
@@ -87,14 +93,15 @@ async function onMessage(sb: any, m: any) {
       if (q.status === "need_info" && q.question_msg_id === rid && txt) {
         const answers = [...(q.answers || []), { at: new Date().toISOString(), from: m.from?.id, text: txt.slice(0, 4000), message_id: m.message_id }];
         await sb.from("creative_requests").update({ answers, status: "queued", updated_at: new Date().toISOString() }).eq("id", q.id);
-        await say(m.message_id, `👌 Дякую, продовжую запит №${q.id}.`);
+        await say(m.message_id, `👌 Дякую, продовжую запит №${q.id}.`, chat);
         return { answered: q.id };
       }
       return { ignored: "reply" };
     }
   }
 
-  // 2) новий запит: згадка бота
+  // 2) новий запит: згадка бота (лише в чаті Media; з інших чатів нові запити приходять через owner-dm → enqueue)
+  if (!inMedia) return { skipped: "not media chat" };
   if (!mentionsBot(m)) return { skipped: "no mention" };
   const text = cleanText(m);
   // «@бот в медіа» / «збережи» — це збереження файлу (media-intake), не запит на креатив
@@ -119,7 +126,7 @@ async function enqueue(sb: any, m: any, text: string, o: { parent?: any; sources
   const reqText = o.parent ? `Доопрацювання результату запиту №${o.parent.id} (його фінали додано як вихідні файли): ${text}` : text;
 
   const { data: row, error } = await sb.from("creative_requests").insert({
-    chat_id: MEDIA_CHAT_ID, message_id: m.message_id, reply_to_message_id: replyTo?.message_id || null,
+    chat_id: Number(m.chat.id), message_id: m.message_id, reply_to_message_id: replyTo?.message_id || null,
     media_group_id: m.media_group_id || (o.parent ? null : replyTo?.media_group_id) || null,
     from_tg_id: m.from?.id || null, from_name: fromName, user_id: u?.id || null,
     request_text: reqText.slice(0, 8000), launch_id: launch || null,
@@ -137,7 +144,7 @@ async function enqueue(sb: any, m: any, text: string, o: { parent?: any; sources
     `🎨 Запит №${row.id} прийнято${o.parent ? ` (доопрацювання №${o.parent.id})` : ""}: зроблю і поверну результат сюди, у тред.` +
     `${hasFiles ? "" : " Файлів не бачу: працюватиму з матеріалами проєкту в медіатеці."}\n` +
     (ahead ? `У черзі перед ним: ${ahead}.` : `Беру першим.`) +
-    `\n<i>Скасувати: відповідай на це повідомлення «❌»</i>`);
+    `\n<i>Скасувати: відповідай на це повідомлення «❌»</i>`, Number(m.chat.id));
   await sb.from("creative_requests").update({ ack_msg_id: res?.result?.message_id ?? null }).eq("id", row.id);
   return { queued: row.id };
 }
@@ -160,9 +167,9 @@ const quoteKb = (id: number) => ({ inline_keyboard: [[
 async function postQuote(sb: any, r: any, q: any) {
   const text = quoteText(r, q);
   const msgs: { chat: number; msg: number }[] = [];
-  const t = await tg("sendMessage", { chat_id: MEDIA_CHAT_ID, reply_to_message_id: r.message_id, allow_sending_without_reply: true,
+  const t = await tg("sendMessage", { chat_id: chatOf(r), reply_to_message_id: r.message_id, allow_sending_without_reply: true,
     text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: quoteKb(r.id) });
-  if (t?.result?.message_id) msgs.push({ chat: MEDIA_CHAT_ID, msg: t.result.message_id });
+  if (t?.result?.message_id) msgs.push({ chat: chatOf(r), msg: t.result.message_id });
   // власнику ще й у DM: у загальному чаті кнопку легко пропустити
   const req = esc(String(r.request_text || "")).slice(0, 600);
   for (const a of await approvers(sb)) {
@@ -239,7 +246,7 @@ async function deliver(sb: any, r: any, creativeIds: string[], note: string): Pr
   const urls = (cr || []).map((c: any) => ({ ...c, url: `${SUPABASE_URL}/storage/v1/object/public/creatives/${c.drive_file_id}` }));
   const head = `✅ Запит №${r.id} готовий, <a href="tg://user?id=${r.from_tg_id}">${esc(r.from_name || "")}</a>.` +
     (note ? `\n${esc(note).slice(0, 3000)}` : "") + `\nФайли також у медіатеці проєкту.`;
-  const h = await say(r.message_id, head);
+  const h = await sayR(r, head);
   if (h?.result?.message_id) msgIds.push(h.result.message_id);
   // документами, щоб Telegram не пережимав; ≤20 МБ по URL, по 10 в альбомі
   const small = urls.filter((u: any) => (u.size_bytes || 0) <= 20 * 1024 * 1024);
@@ -247,14 +254,14 @@ async function deliver(sb: any, r: any, creativeIds: string[], note: string): Pr
   for (let i = 0; i < small.length; i += 10) {
     const chunk = small.slice(i, i + 10);
     const res = chunk.length === 1
-      ? await tg("sendDocument", { chat_id: MEDIA_CHAT_ID, document: chunk[0].url, reply_to_message_id: r.message_id, allow_sending_without_reply: true })
-      : await tg("sendMediaGroup", { chat_id: MEDIA_CHAT_ID, reply_to_message_id: r.message_id, allow_sending_without_reply: true,
+      ? await tg("sendDocument", { chat_id: chatOf(r), document: chunk[0].url, reply_to_message_id: r.message_id, allow_sending_without_reply: true })
+      : await tg("sendMediaGroup", { chat_id: chatOf(r), reply_to_message_id: r.message_id, allow_sending_without_reply: true,
           media: chunk.map((c: any) => ({ type: "document", media: c.url })) });
     if (!res?.ok) { big.push(...chunk); continue; }
     for (const mm of (Array.isArray(res.result) ? res.result : [res.result])) if (mm?.message_id) msgIds.push(mm.message_id);
   }
   if (big.length) {
-    const b = await say(r.message_id, big.map((c: any) => `📎 <a href="${c.url}">${esc(c.name || "файл")}</a>`).join("\n"));
+    const b = await sayR(r, big.map((c: any) => `📎 <a href="${c.url}">${esc(c.name || "файл")}</a>`).join("\n"));
     if (b?.result?.message_id) msgIds.push(b.result.message_id);
   }
   return msgIds;
@@ -268,7 +275,7 @@ async function workerAction(sb: any, b: any) {
       const { data, error } = await sb.rpc("creative_request_claim", { p_worker: String(b.worker || "mac-studio").slice(0, 60) });
       if (error) throw new Error(error.message);
       const r = data && data.id ? data : null;
-      if (r && r.attempts === 1) await say(r.message_id, `⚙️ Запит №${r.id} у роботі.`);
+      if (r && r.attempts === 1) await sayR(r, `⚙️ Запит №${r.id} у роботі.`);
       return { request: r, ...(r ? { ...(await sources(sb, r)), project: await projectContext(sb, r) } : {}) };
     }
     case "sources": { const r = await get(); if (!r) return { error: "not found" }; return await sources(sb, r); }
@@ -276,7 +283,7 @@ async function workerAction(sb: any, b: any) {
       const r = await get(); if (!r) return { error: "not found" };
       const qtext = String(b.question || "").slice(0, 3500);
       if (!qtext) return { error: "question required" };
-      const res = await say(r.message_id, `❓ Запит №${r.id}: ${esc(qtext)}\n<i>Відповідай reply на це повідомлення.</i>`);
+      const res = await sayR(r, `❓ Запит №${r.id}: ${esc(qtext)}\n<i>Відповідай reply на це повідомлення.</i>`);
       await sb.from("creative_requests").update({ status: "need_info", question: qtext, question_msg_id: res?.result?.message_id ?? null,
         claimed_by: null, claimed_at: null, updated_at: new Date().toISOString() }).eq("id", id);
       return { ok: true, question_msg_id: res?.result?.message_id ?? null };
@@ -297,7 +304,7 @@ async function workerAction(sb: any, b: any) {
     case "progress": {
       const r = await get(); if (!r) return { error: "not found" };
       const t = String(b.text || "").slice(0, 1000); if (!t) return { error: "text required" };
-      await tg("sendMessage", { chat_id: MEDIA_CHAT_ID, reply_to_message_id: r.message_id, allow_sending_without_reply: true,
+      await tg("sendMessage", { chat_id: chatOf(r), reply_to_message_id: r.message_id, allow_sending_without_reply: true,
         text: `⏳ №${r.id}: ${esc(t)}`, parse_mode: "HTML", disable_notification: true });
       return { ok: true };
     }
@@ -313,7 +320,7 @@ async function workerAction(sb: any, b: any) {
     case "answer": {
       const r = await get(); if (!r) return { error: "not found" };
       const t = String(b.text || "").slice(0, 3800); if (!t) return { error: "text required" };
-      const res = await say(r.message_id, esc(t));
+      const res = await sayR(r, esc(t));
       await sb.from("creative_requests").update({ status: "done", result_note: t, result_msg_ids: res?.result?.message_id ? [res.result.message_id] : [],
         finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
       return { ok: true };
@@ -321,7 +328,7 @@ async function workerAction(sb: any, b: any) {
     case "fail": {
       const r = await get(); if (!r) return { error: "not found" };
       const err = String(b.error || "невідома помилка").slice(0, 1000);
-      await say(r.message_id, `❗ Запит №${r.id} не вдалося виконати: ${esc(err)}`);
+      await sayR(r, `❗ Запит №${r.id} не вдалося виконати: ${esc(err)}`);
       await sb.from("creative_requests").update({ status: "failed", error: err, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
       return { ok: true };
     }
@@ -341,6 +348,10 @@ Deno.serve(async (req) => {
     const worker = req.headers.get("x-cd-worker") ?? "";
     if (cron && HQ_CRON_SECRET && await safeEqual(cron, HQ_CRON_SECRET)) {
       if (body.callback) return json(200, { ok: true, ...(await onCallback(sb, body.callback)) });
+      // 04.11.2026: запит з іншого робочого чату чи з особистих власника (owner-dm вже перевірив автора і чат)
+      if (body.enqueue?.message && body.enqueue?.text) {
+        return json(200, { ok: true, ...(await enqueue(sb, body.enqueue.message, String(body.enqueue.text), { hasFiles: !!body.enqueue.has_files })) });
+      }
       if (!body.message) return json(400, { error: "message required" });
       return json(200, { ok: true, ...(await onMessage(sb, body.message)) });
     }

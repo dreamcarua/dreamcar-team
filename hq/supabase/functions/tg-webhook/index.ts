@@ -2472,7 +2472,8 @@ Deno.serve(async (req: Request) => {
 
     // ===== 30.10.2026: чат «DreamCar Media» → медіатека (media-intake) і відділ креативів (creative-request) =====
     // Лише переадресація у фоні; решта обробки (📌-задачі тощо) іде як раніше.
-    if (chatId === Number(Deno.env.get("DCMEDIA_GROUP_CHAT_ID") || "-1003912295530") && !(tgUser as any).is_bot) {
+    const isMediaChat = chatId === Number(Deno.env.get("DCMEDIA_GROUP_CHAT_ID") || "-1003912295530");
+    if (isMediaChat && !(tgUser as any).is_bot) {
       const mAny = msg as any;
       const hasMedia = !!(mAny.photo || mAny.video || mAny.animation || mAny.document);
       const toBot = !!mAny.reply_to_message?.from?.is_bot;
@@ -2535,6 +2536,14 @@ Deno.serve(async (req: Request) => {
       const isCmdG = typeof mg.text === "string" && mg.text.trim().startsWith("/");
       if (!isCmdG && (saidG.includes("@dreamcar_team_bot") || mg.reply_to_message?.from?.is_bot)) {
         await forwardToOwnerDM(msg);
+      }
+      // reply на повідомлення відділу креативів у робочому чаті (питання, «❌», доопрацювання) → creative-request;
+      // він сам знайде запит за id повідомлення в цьому чаті або проігнорує
+      if (!isCmdG && !isMediaChat && mg.reply_to_message?.from?.is_bot) {   // у Media це вже робить блок вище
+        await fetch(`${SUPABASE_URL}/functions/v1/creative-request`, {
+          method: "POST", headers: { "Content-Type": "application/json", "x-hq-cron-secret": Deno.env.get("HQ_CRON_SECRET") ?? "" },
+          body: JSON.stringify({ message: msg }),
+        }).then((r) => r.text()).catch((e) => console.error("[creative-request group fwd]", e));
       }
     }
 

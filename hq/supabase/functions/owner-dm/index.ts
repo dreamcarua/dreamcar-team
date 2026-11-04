@@ -16,6 +16,8 @@
 //   { action: "state", id }                → { status, cancel_requested }
 //   { action: "team_find", id, kind, search }          → читання для колег (RPC team_bot_find)
 //   { action: "team_update", id, kind, row_id, fields } → дрібна правка від імені автора (RPC team_bot_update)
+//   { action: "creative", id, brief }                → задача у відділ креативів (creative_requests); файли запиту
+//                                                        → медіатека (media-intake force), результат прийде файлами в цей же чат
 // Власник: app_secrets.owner_dm_tg_ids (через кому).
 // Робочі чати (04.11.2026): tg_listening_chats (крім чату Media), автор — користувач HQ, бота тегнули або відповіли
 // на повідомлення цієї системи → задача mode=team. Для колег на ✅ іде план власнику в особисті.
@@ -132,6 +134,7 @@ async function onGroupMessage(sb: any, m: any) {
     chat_id: chatId, message_id: m.message_id, text: text.replace(new RegExp(BOT_MENTION, "ig"), "").trim() || null,
     reply_to_msg_id: rt?.message_id ?? null, reply_context: ctx.slice(0, 8000) || null, files,
     parent_job_id: parent?.id ?? null, mode: "team", from_tg_id: Number(m.from.id), from_name: u.name, chat_title: lc.chat_title,
+    raw_message: m,
   }).select("*").single();
   if (error) { if (String(error.code) === "23505") return { duplicate: true }; throw error; }
   const ids = await sendLong(chatId, "⏳ Дивлюсь…", m.message_id);
@@ -186,7 +189,7 @@ async function onMessage(sb: any, m: any) {
   const { data: job, error } = await sb.from("owner_dm_jobs").insert({
     chat_id: chatId, message_id: m.message_id, text: text || null,
     reply_to_msg_id: rt?.message_id ?? null, reply_context: replyContext,
-    files, parent_job_id: parent?.id ?? null,
+    files, parent_job_id: parent?.id ?? null, raw_message: m,
   }).select("*").single();
   if (error) {
     if (String(error.code) === "23505") return { duplicate: true };
@@ -298,6 +301,30 @@ async function workerAction(sb: any, b: any): Promise<Response> {
     }).eq("id", id);
     if (j.ack_msg_id) await tg("deleteMessage", { chat_id: j.chat_id, message_id: j.ack_msg_id });
     return json(200, { ok: true, confirm_msg_id: mid });
+  }
+
+  if (act === "creative") {
+    const brief = String(b.brief || "").trim().slice(0, 6000);
+    if (!brief) return json(400, { error: "brief required" });
+    if (j.creative_request_id) return json(200, { ok: true, already: j.creative_request_id });
+    const raw = j.raw_message;
+    if (!raw?.chat?.id) return json(400, { error: "no source message stored for this job" });
+    const hdr = { "content-type": "application/json", "x-hq-cron-secret": HQ_CRON_SECRET };
+    const hasFiles = !!(raw.photo || raw.video || raw.document || raw.animation || raw.reply_to_message?.photo || raw.reply_to_message?.video || raw.reply_to_message?.document);
+    // 1) файли запиту (і повідомлення, на яке відповіли) → медіатека, щоб воркер креативів їх бачив
+    for (const msg of [raw, raw.reply_to_message].filter((x: any) => x && (x.photo || x.video || x.document || x.animation))) {
+      const mm = { ...msg, chat: msg.chat || raw.chat };
+      await fetch(`${SUPABASE_URL}/functions/v1/media-intake`, { method: "POST", headers: hdr, body: JSON.stringify({ message: mm, force: true }) })
+        .then((r) => r.text()).catch((e) => console.error("[creative intake]", e));
+    }
+    // 2) запит у чергу відділу креативів; відповіді й результати — у цей же чат, reply на повідомлення автора
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/creative-request`, {
+      method: "POST", headers: hdr, body: JSON.stringify({ enqueue: { message: raw, text: brief, has_files: hasFiles } }),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok || !res.queued) return json(502, { error: `creative-request: ${JSON.stringify(res).slice(0, 300)}` });
+    await sb.from("owner_dm_jobs").update({ creative_request_id: res.queued, updated_at: now }).eq("id", id);
+    return json(200, { ok: true, creative_request_id: res.queued });
   }
 
   if (act === "team_find") {
