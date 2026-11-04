@@ -220,7 +220,7 @@ async function matchAndReadTg(pub: Row, stage: Stage, channel: string | undefine
     if (chat) {
       username = await tgUsername(chat);
       msgId = String(ids[chat]); method = "tg_message_id";
-      if (!username) return { status: "failed", unavailable: ["статистика: пост у приватному чаті, публічної сторінки немає"] };
+      if (!username) return { status: "failed", unavailable: ["пост у приватному чаті, публічної сторінки немає"] };
     } else if (channel) {
       username = await tgUsername(channel);
       if (username) {
@@ -324,7 +324,7 @@ function buildReport(pub: Row, stage: Stage, snaps: Row[], ctx: Row): string {
   const label = FORMAT_LABEL[pub.content_type] ?? pub.content_type;
   const ageBase = snaps.find((s) => s.posted_at)?.posted_at ?? pub.published_at ?? pub.publish_at;
   const age = Math.round((Date.now() - new Date(ageBase).getTime()) / HOUR * 10) / 10;
-  const lines = [`📊 <b>Звіт ${stage === "6h" ? "6 год" : pub.content_type === "stories" ? "23 год" : "24 год"}</b> · ${esc(label)}`, `«${esc((pub.title ?? "").slice(0, 120))}»`, `Вийшло ${kyiv(ageBase)} Київ, зараз ${age} год у стрічці`];
+  const lines = [`📊 <b>Звіт ${stage === "6h" ? "6 год" : pub.content_type === "stories" ? "23 год" : "24 год"}</b> · ${esc(label)}`, `«${esc((pub.title ?? "").slice(0, 120))}»`, `Вийшло ${kyiv(ageBase)} Київ, минуло ${age} год`];
   for (const s of snaps) {
     const name = s.platform === "ig" ? "Instagram" : "Telegram";
     if (s.status === "no_match") { lines.push("", `<b>${name}:</b> не знайшов пост у межах ±45 хв від часу картки цього формату, статистики немає.`); continue; }
