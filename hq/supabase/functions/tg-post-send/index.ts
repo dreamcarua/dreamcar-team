@@ -252,8 +252,10 @@ async function sendAlbumUrl(items: MediaItem[], channelId: string, caption: stri
 }
 
 async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_channel?: string }) {
-  console.log('[sendPub v16] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
-  const channelId = opts.force_channel || (opts.test ? TEST_CHANNEL : (pub.tg_channel_id || DEFAULT_CHANNEL));
+  console.log('[sendPub v17] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
+  // 04.11.2026: тест ЗАВЖДИ йде лише в тестову групу, force_channel для тесту ігнорується.
+  const channelId = opts.test ? TEST_CHANNEL : (opts.force_channel || pub.tg_channel_id || DEFAULT_CHANNEL);
+  if (!channelId) throw new Error('канал публікацій не задано (app_secrets.tg_publish_channel)');
   const buttons = Array.isArray(pub.tg_buttons) ? pub.tg_buttons : [];
   const silent = !!pub.tg_silent;
   const creatives = await loadCreatives(sb, pub.id);
@@ -332,7 +334,7 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
   }
 
   const messageId = result?.message_id;
-  console.log('[sendPub v16] sent', { messageId, channelId });
+  console.log('[sendPub v17] sent', { messageId, channelId });
   if (pub.tg_pin && messageId && !opts.test) {
     try { await tgFetchJson('pinChatMessage', { chat_id: channelId, message_id: messageId, disable_notification: silent }); }
     catch (e: any) { console.warn('[pin]', pub.id, e.message); }
@@ -354,6 +356,16 @@ async function processOnce(sb: any, pub: any, opts: any) {
   return { ok: true, attempts: 1, ...r };
 }
 async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
+  // 04.11.2026 (Вадим): у публічний канал — ЛИШЕ погоджені публікації SMM-столу.
+  // Перевірка в БД: tg_publish_allowed() → NULL = можна, інакше причина. Без ретраїв.
+  const { data: denyReason, error: gateErr } = await sb.rpc('tg_publish_allowed', { p_pub: pub.id });
+  if (gateErr || denyReason) {
+    const reason = gateErr ? ('gate error: ' + String(gateErr.message || gateErr)) : String(denyReason);
+    console.warn('[gate] blocked', pub.id, reason);
+    await sb.from('publications').update({ autopost_status: 'blocked', autopost_error: ('Не погоджено для каналу: ' + reason).slice(0, 500) }).eq('id', pub.id);
+    if (jobId) await sb.rpc('fail_autopost_job', { job_id: jobId, pub_id: pub.id, err_msg: ('blocked: ' + reason).slice(0, 500) }).catch(() => {});
+    return { ok: false, blocked: true, reason };
+  }
   if (!opts.test && pub.tg_message_id) {
     const existingMap = typeof pub.tg_message_id === 'object' ? pub.tg_message_id : null;
     const channel = opts.force_channel || pub.tg_channel_id || DEFAULT_CHANNEL;
