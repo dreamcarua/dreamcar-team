@@ -1,4 +1,5 @@
-// tg-post-send v17 — #prod-channel (04.11.2026, Vadym): тести завершено, автопост іде в канал.
+// tg-post-send v18 — 05.11.2026: успішна відповідь Telegram без message_id більше не призводить до повторної публікації.
+// v17 — #prod-channel (04.11.2026, Vadym): тести завершено, автопост іде в канал.
 //   Канал публікацій береться з app_secrets.tg_publish_channel (міняється без редеплою),
 //   fallback = production-канал. Тестовий режим (test=true) як і раніше йде у групу DreamCar SMM.
 //   + службовий режим probe_channel (лише cron-secret): getChat + права бота в каналі.
@@ -252,7 +253,7 @@ async function sendAlbumUrl(items: MediaItem[], channelId: string, caption: stri
 }
 
 async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_channel?: string }) {
-  console.log('[sendPub v17] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
+  console.log('[sendPub v18] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
   // 04.11.2026: тест ЗАВЖДИ йде лише в тестову групу, force_channel для тесту ігнорується.
   const channelId = opts.test ? TEST_CHANNEL : (opts.force_channel || pub.tg_channel_id || DEFAULT_CHANNEL);
   if (!channelId) throw new Error('канал публікацій не задано (app_secrets.tg_publish_channel)');
@@ -334,7 +335,9 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
   }
 
   const messageId = result?.message_id;
-  console.log('[sendPub v17] sent', { messageId, channelId });
+  console.log('[sendPub v18] sent', { messageId, channelId });
+  // 05.11.2026: Telegram інколи повертає ok без message_id (0) для відео в каналі — логуємо сирий результат
+  if (!messageId) console.warn('[sendPub v18] ok without message_id', JSON.stringify(result ?? null).slice(0, 600));
   if (pub.tg_pin && messageId && !opts.test) {
     try { await tgFetchJson('pinChatMessage', { chat_id: channelId, message_id: messageId, disable_notification: silent }); }
     catch (e: any) { console.warn('[pin]', pub.id, e.message); }
@@ -375,16 +378,19 @@ async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
     try {
       const r = await sendPublication(sb, pub, opts);
-      if (r.messageId) {
+      // 05.11.2026 ДУБЛІ: якщо Telegram прийняв пост, але не дав message_id (0), раніше статус не мінявся,
+      // за 20 хв watchdog у autopost-tg-enqueue скидав 'processing' і пост ішов у канал удруге.
+      // Тепер будь-яка успішна відповідь Telegram = опубліковано, повторної відправки немає.
+      {
         const newMap = (typeof pub.tg_message_id === 'object' && pub.tg_message_id) ? { ...pub.tg_message_id } : {};
-        newMap[r.channelId] = r.messageId;
+        newMap[r.channelId] = r.messageId || -1;   // -1 = надіслано, але Telegram не повернув id
         // 01.08.2026 (Sasha #4): після успішного автопосту статус ставимо 'published'.
         // Раніше лишався 'approved' → SMM думав, що пост не вийшов, і публікував/позначав вручну.
         await sb.from('publications').update({
           tg_message_id: newMap, tg_published_channel_id: r.channelId, autopost_status: 'sent',
           status: 'published', published_at: new Date().toISOString(),
         }).eq('id', pub.id);
-        await recordAnalytics(sb, pub.id, r.channelId, r.messageId);
+        if (r.messageId) await recordAnalytics(sb, pub.id, r.channelId, r.messageId);
       }
       if (jobId) await sb.rpc('complete_autopost_job', { job_id: jobId, pub_id: pub.id }).catch(() => {});
       return { ok: true, attempts: attempt + 1, ...r };
@@ -467,7 +473,7 @@ Deno.serve(async (req: Request) => {
     if (error) throw error;
     if (!pub) return new Response(JSON.stringify({ error: 'publication not found' }), { status: 404, headers: cors });
     const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
-    return new Response(JSON.stringify({ ok: true, version: 'v17-prod-channel', ...result }), { status: 200, headers: cors });
+    return new Response(JSON.stringify({ ok: true, version: 'v18-no-double-post', ...result }), { status: 200, headers: cors });
   } catch (e: any) {
     const msg = String(e?.message || e);
     const stack = String(e?.stack || '').slice(0, 1000);
