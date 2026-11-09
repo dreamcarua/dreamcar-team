@@ -803,6 +803,23 @@ Object.assign(state, {
   }catch(e){setStatus('❌ '+e.message,'error');}
 })();
 
+// 09.11.2026 security F30: bucket tg-attachments is private, links are signed for the signed-in user
+async function signTgAttachments(){
+  if(!supabase) return;
+  const els=[...document.querySelectorAll('a[href*="/tg-attachments/"]:not([data-tg-signed]),img[src*="/tg-attachments/"]:not([data-tg-signed])')];
+  for(const el of els){
+    el.setAttribute('data-tg-signed','1');
+    const attr=el.tagName==='A'?'href':'src';
+    const raw=el.getAttribute(attr)||'';
+    const key=decodeURIComponent(raw.split('/tg-attachments/')[1].split('?')[0]);
+    try{
+      const {data,error}=await supabase.storage.from('tg-attachments').createSignedUrl(key,3600);
+      if(!error&&data?.signedUrl) el.setAttribute(attr,data.signedUrl);
+    }catch(e){console.warn('[tg-attachments]',e);}
+  }
+}
+new MutationObserver(()=>{signTgAttachments();}).observe(document.documentElement,{childList:true,subtree:true});
+
 async function checkAuth(){
   try{
     const {data:{session},error}=await supabase.auth.getSession();
