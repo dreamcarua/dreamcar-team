@@ -910,6 +910,8 @@ function openMessageDetail(id){
           <button type="button" class="btn" id="btnAudiencePreview" style="padding:4px 10px; font-size:10px;">↻ ОЦІНИТИ</button>
         </div>
 
+        ${!isNew && m.channel === 'tg' && m.send_mode === 'dm_broadcast' ? '<div id="tgSentBox"></div>' : ''}
+
         ${!isNew ? renderHistorySection(m) : ''}
 
         ${!isNew && isCeoCoo() ? `
@@ -1274,6 +1276,7 @@ function openMessageDetail(id){
     if (p) p.textContent = c == null ? 'не вдалось оцінити' : `${c} активних DM-підписників бота`;
   };
   if (!isNew) loadHistory(m.id);
+  if (!isNew && document.getElementById('tgSentBox')) tgSentRefresh(m.id);
   const spBtn = document.getElementById('loadSpBooks');
   if (spBtn) spBtn.onclick = () => loadSendPulseBooks(spBtn);
 
@@ -1495,6 +1498,106 @@ function renderApproverSection(m){
     </div>
   `;
 }
+
+// ============================================================
+// 11.11.2026 (Віра): правка / видалення ВЖЕ надісланої бот-розсилки.
+// Сервер: rpc retention_sent_info / retention_sent_op_request / retention_sent_op_cancel,
+// виконує retention-bot-broadcast?op=<id> порціями з прогресом.
+// Обмеження Telegram: видалити бот може лише повідомлення, молодші за 48 год; правка — без ліміту часу.
+// ============================================================
+const TG_OP_LABEL = { edit: '✏️ Оновлення', delete: '🗑 Видалення', preview: '👁 Тест на собі' };
+const TG_OP_ST = { queued: 'у черзі', running: 'виконується', done: 'готово', failed: 'помилка', cancelled: 'скасовано' };
+let _tgSentTimer = null;
+
+async function tgSentRefresh(msgId){
+  const box = document.getElementById('tgSentBox');
+  if (!box) { if (_tgSentTimer) { clearTimeout(_tgSentTimer); _tgSentTimer = null; } return; }
+  const supabase = window.supabase;
+  const { data: info, error } = await supabase.rpc('retention_sent_info', { p_message_id: msgId });
+  if (error || !info) { box.innerHTML = ''; return; }
+  if (!info.enabled || !info.recipients) { box.innerHTML = ''; return; }
+  const ops = info.ops || [];
+  const active = ops.find(o => (o.status === 'queued' || o.status === 'running') && o.action !== 'preview');
+  const busyPreview = ops.find(o => (o.status === 'queued' || o.status === 'running') && o.action === 'preview');
+  const deadline = info.last_sent_at ? new Date(new Date(info.first_sent_at).getTime() + 48 * 3600 * 1000) : null;
+  const canDelete = info.deletable > 0;
+  const btn = (id, label, onclick, disabled, title, color) =>
+    `<button type="button" class="btn" id="${id}" onclick="${onclick}" ${disabled ? 'disabled' : ''} title="${escHtml(title || '')}"
+      style="padding:6px 12px; font-size:11px; ${color ? `border-color:${color}; color:${color};` : ''} ${disabled ? 'opacity:.45; cursor:not-allowed;' : ''}">${label}</button>`;
+  let progress = '';
+  if (active) {
+    const done = (active.done_ok || 0) + (active.failed || 0) + (active.too_old || 0);
+    const pct = active.total ? Math.min(100, Math.round(done * 100 / active.total)) : 0;
+    progress = `
+      <div style="margin-top:10px;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#ccc; margin-bottom:4px;">
+          <span>${TG_OP_LABEL[active.action]} · ${TG_OP_ST[active.status]} · ${done} з ${active.total || '?'}${active.failed ? ` · помилок ${active.failed}` : ''}</span>
+          ${info.can_manage ? `<a href="javascript:void(0)" onclick="window.dcTgSent.cancel(${active.id}, '${msgId}')" style="color:var(--red-soft); font-size:11px;">скасувати</a>` : ''}
+        </div>
+        <div style="height:6px; background:var(--bg-2); border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:var(--gold); transition:width .4s;"></div>
+        </div>
+      </div>`;
+  }
+  const hist = ops.filter(o => o !== active).slice(0, 5).map(o => {
+    const errs = Object.entries(o.errors || {}).slice(0, 2).map(([k, v]) => `${escHtml(k)} ×${v}`).join('; ');
+    return `<div style="border-top:1px solid var(--line); padding:5px 0; font-size:11px; color:#bbb;">
+      ${TG_OP_LABEL[o.action] || o.action} · <b style="color:${o.status === 'done' ? 'var(--green)' : o.status === 'failed' ? 'var(--red-soft)' : 'var(--ash)'};">${TG_OP_ST[o.status] || o.status}</b>
+      ${o.action !== 'preview' ? ` · успішно ${o.done_ok || 0}${o.failed ? `, помилок ${o.failed}` : ''}${o.too_old ? `, старші 48 год ${o.too_old}` : ''}` : ''}
+      ${o.note ? `<div style="color:var(--amber, #f59e0b);">⚠ ${escHtml(o.note)}</div>` : ''}
+      ${errs ? `<div style="color:var(--ash);">${errs}</div>` : ''}
+      <span style="float:right; color:var(--ash); font-size:10px;">${fmtDate(o.requested_at)} · ${escHtml(o.by || '—')}</span>
+    </div>`;
+  }).join('');
+  box.innerHTML = `
+    <div style="background:var(--bg-3); padding:12px; border-radius:6px; border:1px solid var(--steel);">
+      <div style="font-size:11px; color:var(--ash); letter-spacing:0.1em; margin-bottom:8px;">📤 НАДІСЛАНО В TELEGRAM</div>
+      <div style="font-size:12px; color:#ddd; line-height:1.6;">
+        Отримувачів: <b>${info.recipients}</b>${info.active !== info.recipients ? ` · лишилось у чатах: <b>${info.active}</b>` : ''}${info.edited ? ` · оновлено: <b>${info.edited}</b>` : ''}<br>
+        ${info.active === 0 ? 'Повідомлення видалено в усіх отримувачів.' :
+          canDelete ? `Видалити можна до <b>${fmtDate(deadline)}</b> (Telegram дозволяє боту лише 48 год).` :
+          'Вікно видалення минуло: Telegram дозволяє боту видаляти лише повідомлення, молодші за 48 год. Оновлювати текст можна без обмежень.'}
+      </div>
+      ${info.can_manage && info.active > 0 ? `
+      <div style="font-size:11px; color:var(--ash); margin:10px 0 8px;">Щоб виправити: зміни заголовок, текст, кнопки чи креативи вище → «Перевірити на собі» → «Оновити в усіх».</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        ${btn('btnTgPreview', busyPreview ? '⏳ Надсилаю…' : '👁 ПЕРЕВІРИТИ НА СОБІ', `window.dcTgSent.preview('${msgId}')`, !!busyPreview || !info.has_tg_chat, info.has_tg_chat ? 'Надіслати поточну версію картки лише собі в Telegram' : 'У твоєму профілі немає Telegram')}
+        ${btn('btnTgEdit', '✏️ ОНОВИТИ В УСІХ', `window.dcTgSent.edit('${msgId}', ${info.active})`, !!active, active ? 'Дочекайся завершення поточної операції' : 'Замінити текст, підпис, кнопки (і медіа, якщо змінилось) у всіх отримувачів', 'var(--blue)')}
+        ${btn('btnTgDelete', '🗑 ВИДАЛИТИ В УСІХ', `window.dcTgSent.del('${msgId}', ${info.deletable})`, !!active || !canDelete, !canDelete ? 'Минуло 48 год після відправки — Telegram не дозволяє' : 'Видалити повідомлення в отримувачів', 'var(--red-soft)')}
+      </div>` : ''}
+      ${progress}
+      ${hist ? `<div style="margin-top:10px;">${hist}</div>` : ''}
+    </div>`;
+  if (_tgSentTimer) clearTimeout(_tgSentTimer);
+  if (active || busyPreview) _tgSentTimer = setTimeout(() => tgSentRefresh(msgId), 3000);
+}
+
+async function _tgSentRequest(msgId, action){
+  const ov = document.getElementById('detailOverlay');
+  try { if (ov && ov._flushSave) await ov._flushSave(); } catch (e) { console.warn('[tg-sent flush]', e); }
+  const { data, error } = await window.supabase.rpc('retention_sent_op_request', { p_message_id: msgId, p_action: action });
+  if (error) { window.toast ? window.toast(error.message, 'error') : alert(error.message); return; }
+  window.toast && window.toast(action === 'preview' ? '👁 Надсилаю тобі в Telegram…' : `${TG_OP_LABEL[action]}: запущено для ${data.total}`, 'success');
+  tgSentRefresh(msgId);
+  loadHistory(msgId);
+}
+window.dcTgSent = {
+  preview: (id) => _tgSentRequest(id, 'preview'),
+  edit: (id, n) => {
+    if (!confirm(`Оновити повідомлення у ${n} отримувачів?\n\nЗміняться заголовок, текст, кнопки, а якщо змінено креативи — і медіа (кількість медіа змінити не можна).\nОтримувачі не отримають нового сповіщення.\n\nСпершу перевір на собі.`)) return;
+    _tgSentRequest(id, 'edit');
+  },
+  del: (id, n) => {
+    if (!confirm(`Видалити повідомлення у ${n} отримувачів?\n\nЦе незворотно: Telegram прибере повідомлення з їхніх чатів з ботом.`)) return;
+    _tgSentRequest(id, 'delete');
+  },
+  cancel: async (opId, msgId) => {
+    if (!confirm('Зупинити операцію? Уже оброблені отримувачі лишаться як є.')) return;
+    const { error } = await window.supabase.rpc('retention_sent_op_cancel', { p_op_id: opId });
+    if (error) { alert(error.message); return; }
+    tgSentRefresh(msgId);
+  },
+};
 
 function renderHistorySection(m){
   return `
