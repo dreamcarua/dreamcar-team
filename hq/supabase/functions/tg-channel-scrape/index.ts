@@ -39,7 +39,9 @@ function num(s: string | undefined | null): number | null {
 }
 function strip(html: string): string {
   return html.replace(/<br\s*\/?>/g, " ").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/\s+/g, " ").trim();
 }
 async function page(url: string): Promise<string> {
   const r = await fetch(url, { headers: { "user-agent": UA, "accept-language": "uk,en" }, signal: AbortSignal.timeout(20000) });
