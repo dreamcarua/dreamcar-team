@@ -291,6 +291,7 @@
         // Don't set Content-Type header - presigned URL doesn't include it in canonical (we used UNSIGNED-PAYLOAD)
         xhr.upload.onprogress = function (e) {
           if (e.lengthComputable) {
+            try { if (window.__hqUpProg) window.__hqUpProg(e.loaded, e.total); } catch (_) {}
             var pct = 2 + (e.loaded / e.total) * 93;
             prog.update(pct, 'Завантажую ' + humanSize(e.loaded) + ' / ' + humanSize(e.total));
           }

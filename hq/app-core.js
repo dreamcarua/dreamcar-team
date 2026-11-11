@@ -543,6 +543,29 @@ async function storageUpload(file, pub) {
   const sb = window.supabase;
   const ext = (file.name.split('.').pop() || '').toLowerCase().slice(0, 8) || 'bin';
   const key = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  // 11.11.2026: завантаження з Бібліотеки — XHR з прогресом (смуга %, швидкість, час до кінця).
+  // Лише коли Бібліотека слухає прогрес (window.__hqUpProg); інші шляхи — як раніше через SDK.
+  if (window.__hqUpProg && window.HQ_CONFIG && window.HQ_CONFIG.SUPABASE_URL) {
+    const { data: sess } = await sb.auth.getSession();
+    const jwt = sess && sess.session && sess.session.access_token;
+    if (jwt) {
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', window.HQ_CONFIG.SUPABASE_URL.replace(/\/$/, '') + '/storage/v1/object/' + STORAGE_BUCKET + '/' + key, true);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + jwt);
+        xhr.setRequestHeader('apikey', window.HQ_CONFIG.SUPABASE_ANON_KEY || '');
+        xhr.setRequestHeader('x-upsert', 'false');
+        xhr.setRequestHeader('cache-control', 'max-age=3600');
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) { try { window.__hqUpProg && window.__hqUpProg(e.loaded, e.total); } catch (_) {} } };
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Storage ' + xhr.status + ': ' + String(xhr.responseText || '').slice(0, 200)));
+        xhr.onerror = () => reject(new Error('Мережа: зʼєднання перервано'));
+        xhr.send(file);
+      });
+      const { data: pubX } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(key);
+      return { url: pubX?.publicUrl || '', path: key };
+    }
+  }
   const { error } = await sb.storage.from(STORAGE_BUCKET).upload(key, file, {
     cacheControl: '3600',
     upsert: false,
@@ -602,7 +625,7 @@ async function uploadCreativeFile(file, pub) {
       url: up.url,
       storage_path: up.path,
     });
-    if (!creative) { removeProgressItem(); return; }
+    if (!creative) { try { if (window.__hqUpFail) window.__hqUpFail(new Error('Не зберіг у БД')); } catch (_) {} removeProgressItem(); return; }
     // #516 FIX: pub може бути null при upload з Бібліотеки (без контексту публікації).
     // У цьому випадку креатив просто потрапляє у БД-таблицю creatives, без UI strip.
     if (!pub) {
@@ -702,6 +725,7 @@ async function uploadCreativeFile(file, pub) {
     toast('Готово', 'success', file.name);
   } catch (e) {
     console.error('upload failed:', e);
+    try { if (window.__hqUpFail) window.__hqUpFail(e); } catch (_) {}
     removeProgressItem();
     toast('Помилка завантаження', 'error', e.message || file.name);
   }

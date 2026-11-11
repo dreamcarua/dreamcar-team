@@ -73,7 +73,8 @@
         return {
           id: a[0], name: a[1] || '', type: a[2], size: a[3], dur: a[4], w: a[5], h: a[6], at: a[7], by: a[8],
           l: a[9], e: a[10] != null ? Number(a[10]) : null, f: a[11], src: a[12], used: a[13] || 0, lastUsed: a[14],
-          poster: a[15], thumb: a[16], comp: a[17], hevc: a[18], tags: a[19] || [], day: kyivDay(a[7]), norm: normName(a[1])
+          poster: a[15], thumb: a[16], comp: a[17], hevc: a[18], tags: a[19] || [], day: kyivDay(a[7]), norm: normName(a[1]),
+          cs: a[20] || null, cerr: a[21] || null, cstart: a[22] || null
         };
       });
       // можливі дублі: однакова нормалізована назва + розмір
@@ -155,6 +156,7 @@
       '<input id="libSearch" placeholder="Пошук: назва, тег, акція…" oninput="dcLib2.search(this.value)"/>' +
       '</div>' +
       '<div class="lb-chips lb-more" id="lbMore"></div>' +
+      '<div id="lbUploads" class="lb-ups"></div>' +
       '<div id="libGrid" class="lb-grid-wrap"></div>' +
       '</section></div>' +
       '<div class="lb-bulk" id="lbBulk"></div>';
@@ -181,7 +183,7 @@
 
   function paint() {
     var s = $('libSearch'); if (s && s.value !== ST.q) s.value = ST.q;
-    paintSide(); paintHead(); paintTools(); paintGrid(); paintBulk();
+    paintSide(); paintHead(); paintTools(); paintGrid(); paintBulk(); paintUploads();
   }
 
   // ───────── ліва панель ─────────
@@ -313,6 +315,7 @@
       (it.used ? '<span class="lb-used" title="Використано в публікаціях: ' + it.used + '">✓' + it.used + '</span>' : '') +
       (it.src === 'upload_window' ? '<span class="lb-guess" title="Проєкт визначено за датою завантаження">≈</span>' : '') +
       (it.dup ? '<span class="lb-dupb" title="Можливий дубль">×' + it.dup + '</span>' : '') +
+      tileStatus(it) +
       '<label class="lb-check" onclick="event.stopPropagation()"><input type="checkbox"' + (sel ? ' checked' : '') + ' onclick="dcLib2.check(event, \'' + it.id + '\')"></label>' +
       '</div>' +
       '<div class="lb-info"><div class="lb-name" title="' + esc(it.name) + '">' + esc(it.name) + '</div>' +
@@ -426,23 +429,28 @@
   }
 
   // ───────── модалка файлу ─────────
+  function mediaHtml(it) {
+    var vsrc = it.comp || it.hevc;
+    return it.type === 'video' && stOf(it) !== 'ready' ? statusPlate(it)
+      : it.type === 'video' && vsrc
+      ? '<video src="' + esc(vsrc) + '" controls playsinline preload="metadata" poster="' + esc(it.poster || '') + '"></video>'
+      : (it.thumb || it.comp) && (!/\.hei[cf]$/i.test(it.thumb || '') || isSb(it.thumb)) ? '<img src="' + esc(thumbUrl(it.thumb || it.comp, 1600, 'contain')) + '" alt="">'
+        : '<span style="font-size:64px">' + (it.type === 'video' ? '🎬' : '🖼️') + '</span>';
+  }
   window.openCreative = function (id) {
     var d = ST.data, it = d && d.byId[id];
     if (!it) { load(true).then(function () { if (ST.data && ST.data.byId[id]) window.openCreative(id); }); return; }
     var L = it.l && d.L[it.l], ev = it.e && d.E[it.e];
-    var vsrc = it.comp || it.hevc;
-    var media = it.type === 'video' && vsrc
-      ? '<video src="' + esc(vsrc) + '" controls playsinline preload="metadata" poster="' + esc(it.poster || '') + '"></video>'
-      : (it.thumb || it.comp) && (!/\.hei[cf]$/i.test(it.thumb || '') || isSb(it.thumb)) ? '<img src="' + esc(thumbUrl(it.thumb || it.comp, 1600, 'contain')) + '" alt="">'
-        : '<span style="font-size:64px">' + (it.type === 'video' ? '🎬' : '🖼️') + '</span>';
+    var media = mediaHtml(it);
     var pubs = [];
     try { pubs = Store.pubs().filter(function (p) { return (p.creatives || []).indexOf(id) >= 0; }); } catch (_) {}
     var srcTxt = it.src === 'upload_window' ? '≈ визначено за датою завантаження' : it.src === 'publication' ? 'з публікації' : it.src === 'manual' ? 'підтверджено вручну' : '';
     var raf = d.launches.slice().sort(function (a, b) { return String(b.starts_on || '').localeCompare(String(a.starts_on || '')); });
     var h = '<div class="modal-head"><h2>' + esc(it.name) + '</h2><span class="modal-meta">' + esc(it.type) + ' · ' + esc(hsize(it.size)) +
       (it.w ? ' · ' + it.w + '×' + it.h : '') + (it.dur ? ' · ' + hdur(it.dur) : '') + '</span><button class="close" onclick="Modal.close()">×</button></div>' +
-      '<div class="modal-body"><div class="lb-mprev">' + media + '</div>' +
+      '<div class="modal-body"><div class="lb-mprev" data-id="' + id + '">' + media + '</div>' +
       '<div class="lb-mgrid"><div><h4>Інформація</h4>' +
+      (it.type === 'video' || it.type === 'photo' ? '<div class="lb-mst">Статус: ' + statusText(it) + '</div>' : '') +
       '<div>👤 ' + esc(d.users[it.by] || '—') + ' · 📅 ' + esc(it.at ? new Date(it.at).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—') + '</div>' +
       ((it.tags || []).length ? '<div>🏷️ ' + esc(it.tags.map(function (t) { return '#' + t; }).join(' ')) + '</div>' : '') +
       '<div>📁 ' + esc(L ? L.name : 'Без проєкту') + (ev ? ' › ' + esc(ev.title) : '') + (it.f ? ' › ' + FMT[it.f] : '') + (srcTxt ? ' <i class="lb-src">(' + srcTxt + ')</i>' : '') + '</div>' +
@@ -465,23 +473,185 @@
     if (d.can_edit) { window.dcLib2.modalEv(); var se = $('lbAsE'); if (se && it.e) se.value = String(it.e); }
   };
 
-  // ───────── завантаження у поточний проєкт ─────────
+  // ───────── статус обробки (стиснення відео) ─────────
+  // compressed_status: pending → processing → ready | failed; старі записи 'n/a' = готово.
+  function stOf(it) { var s = it.cs || 'ready'; return (s === 'pending' || s === 'processing' || s === 'failed') ? s : 'ready'; }
+  function isBusy(it) { var s = stOf(it); return s === 'pending' || s === 'processing'; }
+  function ago(ts) {
+    if (!ts) return '';
+    var m = Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 60000));
+    return m < 1 ? 'менше хвилини' : m < 60 ? m + ' хв' : Math.floor(m / 60) + ' год ' + (m % 60) + ' хв';
+  }
+  function statusText(it) {
+    var s = stOf(it);
+    if (s === 'pending') return '⏳ У черзі на стиснення <span class="lb-src">(завантажено ' + ago(it.at) + ' тому)</span>';
+    if (s === 'processing') return '⚙ Стискається <span class="lb-src">(триває ' + ago(it.cstart || it.at) + ')</span>';
+    if (s === 'failed') return '⚠ Помилка обробки';
+    return '✓ Готово';
+  }
+  function tileStatus(it) {
+    var s = stOf(it);
+    if (s === 'pending') return '<span class="lb-st q">⏳ У черзі</span>';
+    if (s === 'processing') return '<span class="lb-st p">⚙ Стискається…</span>';
+    if (s === 'failed') return '<span class="lb-st f">⚠ Помилка</span>';
+    if (ST.justReady && ST.justReady[it.id] && Date.now() - ST.justReady[it.id] < 120000) return '<span class="lb-st ok">✓ Готово</span>';
+    return '';
+  }
+  function statusPlate(it) {
+    var s = stOf(it);
+    var big = s === 'failed'
+      ? '<div class="lb-pl-i">⚠</div><b>Не вдалося обробити відео</b>' +
+        (it.cerr ? '<div class="lb-src">' + esc(it.cerr) + '</div>' : '') +
+        '<button class="btn btn-sm" onclick="dcLib2.retryProc(\'' + it.id + '\')">↻ Повторити обробку</button>'
+      : '<div class="lb-pl-i spin">' + (s === 'pending' ? '⏳' : '⚙') + '</div><b>' + (s === 'pending' ? 'Відео в черзі на стиснення' : 'Відео стискається') + '</b>' +
+        '<div class="lb-src">' + (s === 'pending' ? 'Завантажено ' + ago(it.at) + ' тому' : 'Триває ' + ago(it.cstart || it.at)) +
+        '. Великі файли обробляються кілька хвилин. Картка оновиться сама, коли буде «Готово».</div>';
+    return '<div class="lb-plate">' + big + '</div>';
+  }
+
+  // Опитування: поки є файли «в черзі / стискається», кожні 5 с питаємо БД лише про них.
+  function busyIds() {
+    if (!ST.data) return [];
+    return ST.data.items.filter(isBusy).map(function (it) { return it.id; });
+  }
+  async function pollStatus() {
+    if (!$('libGrid') || !ST.data || document.hidden) return;
+    var ids = busyIds(); if (!ids.length) return;
+    var rows = [];
+    for (var i = 0; i < ids.length; i += 100) {
+      var r = await window.supabase.from('creatives').select('id, compressed_status').in('id', ids.slice(i, i + 100));
+      if (r.error || !r.data) return;
+      rows = rows.concat(r.data);
+    }
+    var moved = rows.some(function (x) { var it = ST.data.byId[x.id]; return it && (x.compressed_status || null) !== (it.cs || null); });
+    if (!moved) { refreshOpenModal([]); return; }
+    // знімок до перезавантаження: оновлюємо всі фактичні зміни, не лише знайдені опитуванням
+    var prev = {}; ST.data.items.forEach(function (it) { prev[it.id] = it.cs || null; });
+    await load(true);
+    var changed = ST.data.items.filter(function (it) { return it.id in prev && prev[it.id] !== (it.cs || null); }).map(function (it) { return it.id; });
+    changed.forEach(function (id) {
+      var it = ST.data.byId[id];
+      if (stOf(it) === 'ready') { ST.justReady = ST.justReady || {}; ST.justReady[id] = Date.now(); }
+      var el = document.querySelector('.lb-tile[data-id="' + id + '"]');
+      if (el) { var tmp = document.createElement('div'); tmp.innerHTML = tileHtml(it); el.replaceWith(tmp.firstChild); }
+    });
+    refreshOpenModal(changed);
+  }
+  // відкрита картка файлу: оновлюємо лише превʼю і рядок статусу, форма (проєкт, акція, формат) не скидається
+  function refreshOpenModal(changedIds) {
+    var bd = $('modalBackdrop'), pv = document.querySelector('#modal .lb-mprev[data-id]');
+    if (!pv || !bd || !bd.classList.contains('open')) return;
+    var id = pv.dataset.id, it = ST.data && ST.data.byId[id]; if (!it) return;
+    if (changedIds.indexOf(id) < 0 && !(isBusy(it) && it.type === 'video')) return;
+    pv.innerHTML = mediaHtml(it);
+    var m = document.querySelector('#modal .lb-mst'); if (m) m.innerHTML = 'Статус: ' + statusText(it);
+  }
+  setInterval(function () { pollStatus().catch(function (e) { console.warn('[lib status]', e); }); }, 5000);
+
+  async function retryProc(id) {
+    var r = await window.supabase.rpc('retry_compress', { p_creative_id: id });
+    var ok = !r.error && r.data && r.data.ok;
+    if (!ok) { toastErr('Не вдалося перезапустити', (r.data && r.data.error === 'forbidden') ? 'Перезапуск доступний керівнику — напиши йому' : ((r.error && r.error.message) || '')); return; }
+    toastOk('Обробку перезапущено', 'Файл знову в черзі');
+    await load(true); if ($('libGrid')) paint(); refreshOpenModal([id]);
+  }
+
+  // ───────── завантаження у поточний проєкт (з прогресом) ─────────
+  // Кожен файл — картка над сіткою: % · МБ · швидкість · орієнтовний час; помилка — «Повторити».
+  var UP = [], UPQ = Promise.resolve();
+  // одна черга на всі завантаження з Бібліотеки: хуки прогресу глобальні, тож файли йдуть по одному
+  function enqueue(u) { var p = UPQ.then(function () { return runUp(u); }); UPQ = p.catch(function () {}); return p; }
+  function hleft(sec) {
+    if (!isFinite(sec) || sec <= 0) return '';
+    sec = Math.round(sec);
+    if (sec < 60) return '~' + sec + ' с';
+    var m = Math.floor(sec / 60), s2 = sec % 60;
+    return m < 60 ? '~' + m + ' хв ' + (s2 ? s2 + ' с' : '') : '~' + Math.floor(m / 60) + ' год ' + (m % 60) + ' хв';
+  }
+  function upHtml(u) {
+    var pct = u.total ? Math.min(100, Math.floor(u.loaded / u.total * 100)) : 0;
+    var line, cls = '';
+    if (u.phase === 'wait') line = 'У черзі на завантаження';
+    else if (u.phase === 'prep') line = 'Готую файл…';
+    else if (u.phase === 'up') line = 'Завантажується ' + pct + '% · ' + hsize(u.loaded) + ' з ' + hsize(u.total) +
+      (u.speed ? ' · ' + hsize(u.speed * 1000) + '/с' : '') + (u.speed ? ' · лишилось ' + hleft((u.total - u.loaded) / u.speed / 1000) : '');
+    else if (u.phase === 'reg') line = 'Зберігаю в бібліотеку…';
+    else if (u.phase === 'err') { line = '⚠ Помилка: ' + esc(u.err || 'не вдалося завантажити'); cls = ' err'; }
+    else line = '✓ Завантажено';
+    return '<div class="lb-up' + cls + '"><div class="lb-up-n" title="' + esc(u.name) + '">' + (u.type === 'video' ? '🎬 ' : '🖼️ ') + esc(u.name) +
+      ' <span class="lb-src">' + esc(hsize(u.size)) + '</span></div>' +
+      '<div class="lb-up-bar"><i style="width:' + (u.phase === 'up' || u.phase === 'reg' ? (u.phase === 'reg' ? 100 : pct) : 0) + '%"></i></div>' +
+      '<div class="lb-up-t">' + line + (u.phase === 'err' ? ' <button class="btn btn-sm" onclick="dcLib2.retryUp(' + u.k + ')">↻ Повторити</button>' : '') + '</div></div>';
+  }
+  function paintUploads() {
+    var box = $('lbUploads'); if (!box) return;
+    var list = UP.filter(function (u) { return u.phase !== 'done'; });
+    box.innerHTML = list.length ? list.map(upHtml).join('') : '';
+  }
+  var _upT = 0;
+  function paintUploadsSoon() { var n = Date.now(); if (n - _upT > 250) { _upT = n; paintUploads(); } }
+
+  async function runUp(u) {
+    u.t0 = new Date(Date.now() - 5000).toISOString();
+    u.phase = 'prep'; u.loaded = 0; u.total = u.size; u.speed = 0; u.err = null; u.failed = null;
+    paintUploads();
+    window.__hqUpProg = function (loaded, total) {
+      var now = Date.now();
+      if (u.phase !== 'up') { u.phase = 'up'; u.lastT = now; u.lastL = loaded; }
+      u.loaded = loaded; u.total = total || u.total;
+      var dt = now - u.lastT;
+      if (dt >= 700) {
+        var inst = (loaded - u.lastL) / dt;           // байт/мс
+        u.speed = u.speed ? u.speed * 0.7 + inst * 0.3 : inst;
+        u.lastT = now; u.lastL = loaded;
+      }
+      if (loaded >= u.total) u.phase = 'reg';
+      paintUploadsSoon();
+    };
+    window.__hqUpFail = function (e) { u.failed = e || new Error('upload failed'); };
+    try {
+      await uploadCreativeFile(u.file, null);
+      if (u.failed) throw u.failed;
+      u.phase = 'done';
+    } catch (e) {
+      u.phase = 'err'; u.err = String((e && e.message) || e || '').slice(0, 160);
+      console.warn('[lib upload]', u.name, e);
+    } finally {
+      window.__hqUpProg = null; window.__hqUpFail = null;
+    }
+    paintUploads();
+    if (u.phase === 'done') await afterUp(u);
+    return u.phase === 'done';
+  }
+  // новий файл — одразу в сітку і в поточний проєкт
+  async function afterUp(u) {
+    await load(true);
+    if (u.target && ST.data) {
+      var fresh = ST.data.items.filter(function (it) { return it.by === ST.data.me && it.at >= u.t0 && it.l !== u.target; }).map(function (it) { return it.id; });
+      if (fresh.length) { await window.supabase.rpc('library_bulk', { p_ids: fresh, p: { launch_id: u.target } }); await load(true); }
+    }
+    if ($('libGrid')) paint();
+  }
+  async function retryUp(k) {
+    var u = UP.filter(function (x) { return x.k === k; })[0]; if (!u || u.phase !== 'err') return;
+    u.phase = 'wait'; paintUploads();
+    if (await enqueue(u)) toastOk('Завантажено', u.name);
+  }
   async function upload() {
     if (typeof uploadCreativeFile !== 'function') { toastErr('Завантаження не готове', 'Онови сторінку'); return; }
     var target = (ST.project && ST.project.indexOf('__') !== 0) ? ST.project : null;
     var fi = document.createElement('input'); fi.type = 'file'; fi.multiple = true; fi.accept = 'image/*,video/*,application/pdf,.heic,.heif';
     fi.onchange = async function () {
       var files = [].slice.call(fi.files || []); if (!files.length) return;
-      var t0 = new Date(Date.now() - 5000).toISOString();
-      for (var i = 0; i < files.length; i++) { try { await uploadCreativeFile(files[i], null); } catch (e) { console.warn('[lib upload]', files[i].name, e); } }
-      await load(true);
-      if (target && ST.data) {
-        var fresh = ST.data.items.filter(function (it) { return it.by === ST.data.me && it.at >= t0 && it.l !== target; }).map(function (it) { return it.id; });
-        if (fresh.length) await window.supabase.rpc('library_bulk', { p_ids: fresh, p: { launch_id: target } });
-        await load(true);
-      }
-      toastOk('Завантажено', files.length + ' файл(ів)');
-      if ($('libGrid')) paint();
+      UP = UP.filter(function (u) { return u.phase !== 'done'; });
+      var batch = files.map(function (f) {
+        var u = { k: Date.now() + Math.floor(Math.random() * 1e6), file: f, name: f.name, size: f.size, type: (f.type || '').indexOf('video/') === 0 ? 'video' : 'photo', phase: 'wait', target: target };
+        UP.push(u); return u;
+      });
+      paintUploads();
+      var ok = 0;
+      for (var i = 0; i < batch.length; i++) { if (await enqueue(batch[i])) ok++; }
+      if (ok) toastOk('Завантажено', ok + ' з ' + batch.length + ' файл(ів)');
     };
     fi.click();
   }
@@ -532,6 +702,8 @@
     },
     dl: function (id) { var it = ST.data && ST.data.byId[id]; if (it) download(it); },
     upload: upload,
+    retryUp: retryUp,
+    retryProc: retryProc,
     modalEv: function () {
       var l = ($('lbAsL') || {}).value, sel = $('lbAsE'); if (!sel) return;
       var evs = ST.data.events.filter(function (e) { return e.launch_id === l; });
@@ -616,6 +788,13 @@
       '.lb-src{color:var(--grey,#888);font-style:normal;font-size:12px}',
       '.lb-assign{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border,#2a2a2a)}.lb-assign select{background:var(--bg-3,#1b1b1b);border:1px solid var(--border,#2a2a2a);color:inherit;padding:7px 9px;border-radius:7px;font:inherit;font-size:13px;max-width:220px}',
       '@media (max-width:900px){.lb-wrap{grid-template-columns:minmax(0,1fr)}.lb-tools .lb-sel{flex:1 1 140px;min-width:0}.lb-tools .lb-chips{flex-wrap:nowrap;overflow-x:auto;max-width:100%}.lb-more{flex-wrap:nowrap;overflow-x:auto}.lb-ptitle{font-size:16px}.lb-side{display:none}.lb-mproj{display:block}.lb-grid{grid-template-columns:repeat(3,1fr);gap:6px}.lb-tools #libSearch{max-width:none;min-width:100%}.lb-mgrid{grid-template-columns:1fr}.lb-check{opacity:1}.lb-info .lt-meta{display:none}.lb-info .lb-path{display:block}}',
+      '.lb-st{position:absolute;z-index:2;left:6px;right:6px;bottom:30px;text-align:center;font-size:11px;font-weight:700;padding:4px 6px;border-radius:6px;color:#fff;background:rgba(0,0,0,.75)}.lb-st.p{background:rgba(37,99,235,.9)}.lb-st.q{background:rgba(82,82,91,.9)}.lb-st.f{background:rgba(227,6,19,.9)}.lb-st.ok{background:rgba(16,185,129,.9)}',
+      '.lb-plate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:28px 20px;text-align:center;color:#fff;font-size:14px;max-width:440px}.lb-plate .lb-src{font-size:12px;line-height:1.45}.lb-pl-i{font-size:44px;line-height:1}.lb-pl-i.spin{animation:lbspin 2.4s linear infinite}@keyframes lbspin{to{transform:rotate(360deg)}}',
+      '.lb-mst{font-weight:600}',
+      '.lb-ups{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.lb-ups:empty{display:none}',
+      '.lb-up{background:var(--bg-2,#141414);border:1px solid rgba(96,165,250,.5);border-radius:10px;padding:10px 12px;font-size:13px}.lb-up.err{border-color:#E30613}',
+      '.lb-up-n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px}.lb-up-bar{height:6px;border-radius:3px;background:var(--bg-3,#1b1b1b);overflow:hidden}.lb-up-bar i{display:block;height:100%;background:#3b82f6;transition:width .3s}',
+      '.lb-up-t{margin-top:6px;font-size:12px;color:var(--grey,#aaa);display:flex;gap:8px;align-items:center;flex-wrap:wrap}',
       'html[data-dc-theme="light"] .lb-dayh{background:#fafafa}html[data-dc-theme="light"] .lb-chip:not(.on){background:#fff;color:#0a0a0a}'
     ].join('\n');
     document.head.appendChild(st);
