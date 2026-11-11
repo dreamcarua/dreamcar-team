@@ -95,13 +95,20 @@ async function tgCall(method: string, body: any): Promise<any> {
 }
 
 // Завантажити media multipart (коли >20МБ або немає file_id) — 1 раз, повертає file_id.
-async function tgUpload(method: string, chatId: string, field: string, url: string, extra: Record<string, string> = {}): Promise<any> {
+// thumbUrl: постер відео; Telegram приймає thumbnail у multipart лише як окремий файл (attach://), JPEG ≤200 КБ.
+async function tgUpload(method: string, chatId: string, field: string, url: string, extra: Record<string, string> = {}, thumbUrl?: string | null): Promise<any> {
   const resp = await fetch(url); if (!resp.ok) return { ok: false, description: `download ${resp.status}` };
   const blob = await resp.blob();
   const form = new FormData();
   form.append("chat_id", chatId);
   form.append(field, blob, field === "photo" ? "p.jpg" : field === "video_note" ? "vn.mp4" : "v.mp4");
   for (const [k, v] of Object.entries(extra)) form.append(k, v);
+  if (thumbUrl) {
+    try {
+      const tr = await fetch(thumbUrl);
+      if (tr.ok) { const tb = await tr.blob(); if (tb.size > 0 && tb.size <= 200 * 1024) { form.append("thumb", tb, "thumb.jpg"); form.append("thumbnail", "attach://thumb"); } }
+    } catch (_) { /* без постера — не критично */ }
+  }
   const r = await fetch(`https://api.telegram.org/bot${TG}/${method}`, { method: "POST", body: form });
   return await r.json();
 }
@@ -189,7 +196,9 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
       if (it.type === "video") { body.supports_streaming = true; if (it.width) body.width = it.width; if (it.height) body.height = it.height; if (it.duration) body.duration = it.duration; if (it.poster) body.thumbnail = it.poster; }
       j = await tgCall(method, body);
     } else {
-      j = await tgUpload(method, chatId, field, it.url, { caption: cap, parse_mode: "HTML", disable_notification: "true", ...(it.type === "video" ? { supports_streaming: "true" } : {}) });
+      const vx: Record<string, string> = {};
+      if (it.type === "video") { vx.supports_streaming = "true"; if (it.width) vx.width = String(it.width); if (it.height) vx.height = String(it.height); if (it.duration) vx.duration = String(Math.round(it.duration)); }
+      j = await tgUpload(method, chatId, field, it.url, { caption: cap, parse_mode: "HTML", disable_notification: "true", ...vx, ...(kb ? { reply_markup: JSON.stringify(kb) } : {}) }, it.type === "video" ? it.poster : null);
     }
     if (j.ok) {
       const fid = (j.result?.photo?.slice(-1)[0]?.file_id) || j.result?.video?.file_id;
