@@ -22,6 +22,11 @@ const PATCH_COLUMNS = new Set([
 const R2_PREFIXES = ["video-compressed/", "video-compressed-hevc/", "video-poster/"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// 204/205/304 не можуть мати тіла: complete/fail_compress_job повертають void → PostgREST 204.
+const pass = async (r: Response) => {
+  const t = await r.text();
+  return new Response([204, 205, 304].includes(r.status) ? null : t, { status: r.status, headers: { "content-type": "application/json" } });
+};
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -95,7 +100,7 @@ Deno.serve(async (req) => {
       const r = await fetch(`${url}/rest/v1/rpc/${rpc[1]}`, {
         method: "POST", headers: { ...sh, "content-type": "application/json" }, body: body || "{}",
       });
-      return new Response(await r.text(), { status: r.status, headers: { "content-type": "application/json" } });
+      return pass(r);
     }
 
     // ---- creatives row ----
@@ -106,7 +111,7 @@ Deno.serve(async (req) => {
       if (req.method === "GET") {
         if ((u.searchParams.get("select") || "") !== "compressed_status") return json(403, { error: "select not allowed" });
         const r = await fetch(`${url}/rest/v1/creatives?id=eq.${id}&select=compressed_status`, { headers: sh });
-        return new Response(await r.text(), { status: r.status, headers: { "content-type": "application/json" } });
+        return pass(r);
       }
       if (req.method === "PATCH") {
         let body: any;
@@ -130,7 +135,7 @@ Deno.serve(async (req) => {
       const r = await fetch(`${url}/functions/v1/dispatch-workflow`, {
         method: "POST", headers: { ...sh, "content-type": "application/json" }, body: JSON.stringify({ workflow: "autopost" }),
       });
-      return new Response(await r.text(), { status: r.status, headers: { "content-type": "application/json" } });
+      return pass(r);
     }
 
     // ---- R2 presign ----
@@ -144,7 +149,8 @@ Deno.serve(async (req) => {
       return json(200, { url: await presignPut(objectKey, 1800), public_url: `${base}/${objectKey}` });
     }
 
-    return json(404, { error: "not found" });
+    console.warn("[compress-node] no route", req.method, u.pathname);
+    return json(404, { error: "not found", path });
   } catch (e: any) {
     console.error("[compress-node]", e?.message || e);
     return json(500, { error: "internal" });
