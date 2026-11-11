@@ -60,7 +60,8 @@ function parse(html: string): Post[] {
       msg_id: Number(id),
       posted_at: b.match(/<time[^>]*datetime="([^"]+)"/)?.[1] ?? null,
       kind,
-      text_start: strip(b.match(/js-message_text[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "").slice(0, 300),
+      // по символах, не по UTF-16: .slice() розрізав емодзі навпіл → «invalid input syntax for type json»
+      text_start: Array.from(strip(b.match(/js-message_text[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "")).slice(0, 300).join("").replace(/[\uD800-\uDFFF]/g, ""),
       views: num(b.match(/tgme_widget_message_views">([^<]*)</)?.[1]),
       reactions,
     });
