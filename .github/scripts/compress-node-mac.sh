@@ -23,7 +23,7 @@ GW="${COMPRESS_NODE_GW:-https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/co
 TOKEN=$(security find-generic-password -s compress-node-token -w 2>/dev/null || true)
 if [ -z "$TOKEN" ]; then echo "$(date '+%F %T') no Keychain item compress-node-token — exit"; exit 1; fi
 
-export SUPABASE_URL="$GW" SERVICE_KEY="$TOKEN" R2_SIGN_URL="$GW/r2-sign"
+export SUPABASE_URL="$GW" SERVICE_KEY="$TOKEN" R2_SIGN_URL="$GW/r2-sign" DISPATCH_URL="$GW/dispatch-autopost"
 export CLAIM_TYPE=video X264_PRESET="${X264_PRESET:-slow}" JOB_TIMEOUT_S="${JOB_TIMEOUT_S:-900}" LOOP_BUDGET_S="${LOOP_BUDGET_S:-3000}"
 export WORKER_ID="mac-studio"
 mkdir -p "$RUN_DIR"

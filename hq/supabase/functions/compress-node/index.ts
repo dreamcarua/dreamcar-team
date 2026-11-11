@@ -7,7 +7,7 @@
 //   POST  /compress-node/rest/v1/rpc/peek_compress_jobs | claim_compress_jobs | complete_compress_job | fail_compress_job
 //   PATCH /compress-node/rest/v1/creatives?id=eq.<uuid>        лише колонки з PATCH_COLUMNS
 //   GET   /compress-node/rest/v1/creatives?id=eq.<uuid>&select=compressed_status
-//   POST  /compress-node/functions/v1/dispatch-workflow        лише {"workflow":"autopost"}
+//   POST  /compress-node/dispatch-autopost                     лише {"workflow":"autopost"}
 //   POST  /compress-node/r2-sign  {"key","mime"}               presigned PUT у R2, лише video-compressed*/ і video-poster/
 //
 // Токен передається так само, як воркер передає service-ключ: apikey: <token> і Authorization: Bearer <token>.
@@ -129,7 +129,8 @@ Deno.serve(async (req) => {
     }
 
     // ---- autopost dispatch ----
-    if (path === "/functions/v1/dispatch-workflow" && req.method === "POST") {
+    // шлюз Supabase з'їдає вкладений "/functions/v1/..." (приходить порожній шлях), тому вузол шле на /dispatch-autopost
+    if ((path === "/dispatch-autopost" || path === "/functions/v1/dispatch-workflow") && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       if (body?.workflow !== "autopost") return json(403, { error: "only autopost" });
       const r = await fetch(`${url}/functions/v1/dispatch-workflow`, {
