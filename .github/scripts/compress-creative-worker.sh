@@ -45,11 +45,17 @@ CW_JOB_FILE="${CW_JOB_FILE:-}"         # loop-обгортка: сюди пиш�
 
 : "${SUPABASE_URL:?HQ_DB_URL required}"
 : "${SERVICE_KEY:?HQ_DB_SERVICE_KEY required}"
-: "${R2_ACCOUNT_ID:?required}"
-: "${R2_ACCESS_KEY_ID:?required}"
-: "${R2_SECRET_ACCESS_KEY:?required}"
-: "${R2_BUCKET:=dreamcar-creatives}"
-: "${R2_PUBLIC_BASE:?required}"
+# 11.11.2026: R2_SIGN_URL задано (вузол Mac Studio через шлюз compress-node) → ключів R2 на вузлі немає,
+# presigned PUT видає шлюз. Інакше (GitHub) — підписуємо самі, як раніше.
+R2_SIGN_URL="${R2_SIGN_URL:-}"
+CLAIM_TYPE="${CLAIM_TYPE:-}"           # video → вузол бере лише відео (фото потребують ImageMagick)
+if [ -z "$R2_SIGN_URL" ]; then
+  : "${R2_ACCOUNT_ID:?required}"
+  : "${R2_ACCESS_KEY_ID:?required}"
+  : "${R2_SECRET_ACCESS_KEY:?required}"
+  : "${R2_BUCKET:=dreamcar-creatives}"
+  : "${R2_PUBLIC_BASE:?required}"
+fi
 
 CRE_ID=""
 
@@ -90,7 +96,7 @@ CLAIMED=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/claim_compress_jobs" \
   -H "apikey: $SERVICE_KEY" \
   -H "Authorization: Bearer $SERVICE_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"worker_name\":\"${WORKER_ID:-gh}\",\"max_jobs\":1}")
+  -d "$(jq -nc --arg w "${WORKER_ID:-gh}" --arg t "$CLAIM_TYPE" '{worker_name:$w, max_jobs:1} + (if $t == "" then {} else {p_type:$t} end)')")
 
 CLAIMED_TYPE=$(echo "$CLAIMED" | jq -r 'type')
 if [ "$CLAIMED_TYPE" != "array" ]; then
@@ -133,8 +139,22 @@ upload_to_r2() {
   local file="$1"
   local object_key="$2"
   local mime="$3"
-  local upload_url
-  upload_url=$(R2_ACCOUNT_ID="$R2_ACCOUNT_ID" R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" R2_BUCKET="$R2_BUCKET" sign_r2_put "$object_key" "$mime" 1800)
+  local upload_url public_url
+  if [ -n "$R2_SIGN_URL" ]; then
+    local signed
+    signed=$(curl -sS --max-time 30 -X POST "$R2_SIGN_URL" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg k "$object_key" --arg m "$mime" '{key:$k, mime:$m}')")
+    upload_url=$(echo "$signed" | jq -r '.url // empty')
+    public_url=$(echo "$signed" | jq -r '.public_url // empty')
+    if [ -z "$upload_url" ] || [ -z "$public_url" ]; then
+      echo "::error::r2-sign failed for $object_key: $(echo "$signed" | head -c 300)" >&2
+      return 1
+    fi
+  else
+    upload_url=$(R2_ACCOUNT_ID="$R2_ACCOUNT_ID" R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" R2_BUCKET="$R2_BUCKET" sign_r2_put "$object_key" "$mime" 1800)
+    public_url="${R2_PUBLIC_BASE%/}/$object_key"
+  fi
   local http
   http=$(curl -sS -o /tmp/cw/r2-resp.txt -w "%{http_code}" -X PUT \
     --connect-timeout 60 --max-time 1800 \
@@ -145,7 +165,7 @@ upload_to_r2() {
     echo "::error::R2 PUT $object_key failed HTTP=$http: $(cat /tmp/cw/r2-resp.txt | head -c 500)"
     return 1
   fi
-  echo "${R2_PUBLIC_BASE%/}/$object_key"
+  echo "$public_url"
 }
 
 # #388 (14.06.2026): JPEG poster для video creative.
