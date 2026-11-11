@@ -11,7 +11,8 @@
 ## 11.11.2026 — 🆕 Бот у чатах команди аналізує результати публікацій
 
 - 🆕 `team_bot_find` (міграція `hq/db/migrations/2026-11-11_team_bot_find_analytics.sql`): нові види для `odctl find` — `ig_posts`, `ig_stories`, `ig_account`, `tg_posts`, `sales` (оплати по UTM у вікні часу: кількість і виручка, групування по utm_medium/utm_content/utm_campaign/годинах/днях/тарифу). Без контактів учасників і без витрат на рекламу. Інструкцію бота оновлено в `memory-kit/mac/owner-dm`.
-- ⚠️ Знайдено: `tg_post_analytics` має нулі (перегляди 0, синк лише в момент публікації), тож статистики TG-постів поки немає.
+- 🆕 `tg-channel-scrape` (pg_cron щогодини): статистика каналу з публічної сторінки t.me/s/DreamCar_CLUB без входу і платних сервісів. Таблиці `tg_channel_posts`, `tg_channel_post_snapshots` (динаміка 72 год), `tg_channel_daily` (підписники); оновлює `tg_post_analytics.views/reactions_total` для постів з HQ (там були нулі). Обмеження t.me: перегляди від 1000 округлені, пересилань і кліків нема.
+- 🆕 `odctl find post_metrics`: знімки метрик публікацій через 6/24 год (`publication-report`).
 
 ---
 
