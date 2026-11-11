@@ -10,6 +10,8 @@
 //   ?dry=1                           план БЕЗ відправки (DEFAULT якщо нема ?confirm=1)
 //   ?test=<chat_id>                  надіслати ОДНЕ повідомлення на конкретний chat_id
 //   ?limit=<n>                       обмежити аудиторію (тест)
+//   ?source=chats&chats=<id>,<id>    внутрішній тест: реальна відправка на явний список (≤5 chat_id)
+//                                    із записом sent_at/sent_count/failed_count у картку
 //   ?confirm=1  (+ x-hq-cron-secret) РЕАЛЬНА масова відправка
 //
 // Реальна масова відправка можлива ЛИШЕ з ?confirm=1 + секретом. Інакше — dry-run.
@@ -205,7 +207,8 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
   return jg.ok ? { ok: true, mid: jg.result?.[0]?.message_id } : { ok: false, err: jg.description };
 }
 
-async function resolveAudience(msg: any, source: string, limit: number): Promise<{ chat_id: string; sub_id?: string }[]> {
+async function resolveAudience(msg: any, source: string, limit: number, chats: string[] = []): Promise<{ chat_id: string; sub_id?: string }[]> {
+  if (source === "chats") return chats.map(c => ({ chat_id: c }));
   if (source === "team") {
     const { data } = await sb.from("users").select("id, tg_chat_id").not("tg_chat_id", "is", null);
     const rows = (data || []).map((u: any) => ({ chat_id: String(u.tg_chat_id) }));
@@ -235,6 +238,8 @@ Deno.serve(async (req) => {
   const test = url.searchParams.get("test");
   const limit = parseInt(url.searchParams.get("limit") || "0", 10) || 0;
   const confirm = url.searchParams.get("confirm") === "1";
+  // Внутрішній тест (Vadym 11.11.2026): явний короткий список chat_id, не більше 5.
+  const chats = (url.searchParams.get("chats") || "").split(",").map(s => s.trim()).filter(s => /^-?\d+$/.test(s));
   // 08.08.2026 (аудит): fail-closed + dry-run теж під секретом (витікали audience_count,
   // реальні chat_id підписників і текст неопублікованих розсилок)
   const got = req.headers.get("x-hq-cron-secret") || url.searchParams.get("secret");
@@ -258,6 +263,9 @@ Deno.serve(async (req) => {
   const kb = toKeyboard(msg.tg_buttons);
   const cache: Record<string, string> = {};
 
+  if (source === "chats" && test) {
+    return new Response(JSON.stringify({ ok: false, error: "source=chats не поєднується з ?test=" }), { status: 400 });
+  }
   // === TEST: одне повідомлення на конкретний chat_id (потребує секрет) ===
   if (test) {
     if (!authed) return new Response(JSON.stringify({ ok: false, error: "test send потребує x-hq-cron-secret" }), { status: 401 });
@@ -265,7 +273,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: res.ok, mode: "test", chat_id: test, media: items.length, video_note: !!vnote, buttons: !!kb, err: res.err }, null, 2), { headers: { "content-type": "application/json" } });
   }
 
-  const audience = await resolveAudience(msg, source, limit);
+  if (source === "chats" && (chats.length === 0 || chats.length > 5)) {
+    return new Response(JSON.stringify({ ok: false, error: "source=chats: потрібно 1..5 chat_id у ?chats=" }), { status: 400 });
+  }
+  const audience = await resolveAudience(msg, source, limit, chats);
 
   // === DRY-RUN (default якщо нема confirm+secret) ===
   if (!confirm || !authed) {
@@ -281,7 +292,7 @@ Deno.serve(async (req) => {
   // 🔒 Vadym 30.07: прод-розсилка на АУДИТОРІЮ БОТА заблокована до відмашки.
   // Дозволено лише source=team (команда). Увімкнути прод: PROD_BROADCAST_ENABLED=1 у Edge env.
   const PROD_OK = Deno.env.get("PROD_BROADCAST_ENABLED") === "1";
-  if (source !== "team" && !PROD_OK) {
+  if (source !== "team" && source !== "chats" && !PROD_OK) {
     return new Response(JSON.stringify({
       ok: false, blocked: true,
       error: "Прод-розсилка на аудиторію бота ЗАБЛОКОВАНА до відмашки Вадима. Дозволено лише source=team. Щоб увімкнути — виставити PROD_BROADCAST_ENABLED=1 у Edge env.",
