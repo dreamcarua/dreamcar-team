@@ -15,30 +15,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  compress:
+  # Дешева read-only перевірка черги (~2 с) ДО важкого apt-get.
+  # peek_compress_jobs() повторює критерії claim_compress_jobs 1:1, нічого не claim'ить.
+  # 11.11.2026: за розміром черги вирішуємо, скільки паралельних слотів запустити (1..COMPRESS_SLOTS).
+  peek:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 2
+    outputs:
+      pending: ${{ steps.peek.outputs.pending }}
+      slots: ${{ steps.peek.outputs.slots }}
     steps:
-      # Дешева read-only перевірка черги (~2 с) ДО важкого apt-get.
-      # peek_compress_jobs() повторює критерії claim_compress_jobs 1:1, нічого не claim'ить.
       - name: Peek queue (skip everything if empty)
         id: peek
         env:
           SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
           SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
+          # Відкат на один послідовний воркер: COMPRESS_SLOTS=1
+          COMPRESS_SLOTS: 3
         run: |
           N=$(curl -sS --max-time 20 -X POST "$SUPABASE_URL/rest/v1/rpc/peek_compress_jobs" \
                 -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
                 -H "Content-Type: application/json" -d '{}' || echo "")
           case "$N" in ''|*[!0-9]*) echo "peek недоступний — працюємо як завжди"; N=1 ;; esac
+          S=$N; [ "$S" -gt "$COMPRESS_SLOTS" ] && S=$COMPRESS_SLOTS; [ "$S" -lt 1 ] && S=1
           echo "pending=$N" >> "$GITHUB_OUTPUT"
-          echo "::notice::У черзі на стиснення: $N"
+          echo "slots=$(jq -nc --argjson s "$S" '[range(1; $s + 1)]')" >> "$GITHUB_OUTPUT"
+          echo "::notice::У черзі на стиснення: $N, слотів: $S"
 
+  compress:
+    needs: peek
+    if: needs.peek.outputs.pending != '0'
+    runs-on: ubuntu-latest
+    # слот бере задачі ~35 хв (LOOP_BUDGET_S) + остання задача до 15 хв (watchdog) + встановлення
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        slot: ${{ fromJSON(needs.peek.outputs.slots) }}
+    steps:
       - uses: actions/checkout@v4
-        if: steps.peek.outputs.pending != '0'
 
       - name: Install ffmpeg + jq + python3 + ImageMagick + HEIC support
-        if: steps.peek.outputs.pending != '0'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg jq python3 imagemagick libheif-examples libheif1
@@ -46,8 +63,7 @@ jobs:
           sudo sed -i 's@<policy domain="coder" rights="none" pattern="HEIC" />@<policy domain="coder" rights="read|write" pattern="HEIC" />@g' /etc/ImageMagick-6/policy.xml || true
           sudo sed -i 's@<policy domain="coder" rights="none" pattern="HEIF" />@<policy domain="coder" rights="read|write" pattern="HEIF" />@g' /etc/ImageMagick-6/policy.xml || true
 
-      - name: Run compress worker
-        if: steps.peek.outputs.pending != '0'
+      - name: Run compress slot ${{ matrix.slot }}
         env:
           SUPABASE_URL: ${{ secrets.HQ_DB_URL }}
           SERVICE_KEY: ${{ secrets.HQ_DB_SERVICE_KEY }}
@@ -56,5 +72,9 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
-          WORKER_ID: gh-compress-${{ github.run_id }}
-        run: bash .github/scripts/compress-creative-worker.sh
+          WORKER_ID: gh-compress-${{ github.run_id }}-s${{ matrix.slot }}
+          # Відкат на старий енкод: X264_PRESET=slow
+          X264_PRESET: faster
+          JOB_TIMEOUT_S: 900
+          LOOP_BUDGET_S: 2100
+        run: bash .github/scripts/compress-creative-loop.sh

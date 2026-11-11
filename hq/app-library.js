@@ -484,15 +484,15 @@
   }
   function statusText(it) {
     var s = stOf(it);
-    if (s === 'pending') return '⏳ У черзі на стиснення <span class="lb-src">(завантажено ' + ago(it.at) + ' тому)</span>';
-    if (s === 'processing') return '⚙ Стискається <span class="lb-src">(триває ' + ago(it.cstart || it.at) + ')</span>';
+    if (s === 'pending') return '⏳ У черзі на стиснення' + (it.qpos ? ', місце №' + it.qpos : '') + ' <span class="lb-src">(завантажено ' + ago(it.at) + ' тому)</span>';
+    if (s === 'processing') return '⚙ Стискається' + (it.cprog != null ? ' · ' + it.cprog + '%' : '') + ' <span class="lb-src">(триває ' + ago(it.cstart || it.at) + ')</span>';
     if (s === 'failed') return '⚠ Помилка обробки';
     return '✓ Готово';
   }
   function tileStatus(it) {
     var s = stOf(it);
-    if (s === 'pending') return '<span class="lb-st q">⏳ У черзі</span>';
-    if (s === 'processing') return '<span class="lb-st p">⚙ Стискається…</span>';
+    if (s === 'pending') return '<span class="lb-st q">⏳ У черзі' + (it.qpos ? ' · №' + it.qpos : '') + '</span>';
+    if (s === 'processing') return '<span class="lb-st p">⚙ Стискається' + (it.cprog != null ? ' · ' + it.cprog + '%' : '…') + '</span>';
     if (s === 'failed') return '<span class="lb-st f">⚠ Помилка</span>';
     if (ST.justReady && ST.justReady[it.id] && Date.now() - ST.justReady[it.id] < 120000) return '<span class="lb-st ok">✓ Готово</span>';
     return '';
@@ -503,7 +503,9 @@
       ? '<div class="lb-pl-i">⚠</div><b>Не вдалося обробити відео</b>' +
         (it.cerr ? '<div class="lb-src">' + esc(it.cerr) + '</div>' : '') +
         '<button class="btn btn-sm" onclick="dcLib2.retryProc(\'' + it.id + '\')">↻ Повторити обробку</button>'
-      : '<div class="lb-pl-i spin">' + (s === 'pending' ? '⏳' : '⚙') + '</div><b>' + (s === 'pending' ? 'Відео в черзі на стиснення' : 'Відео стискається') + '</b>' +
+      : '<div class="lb-pl-i spin">' + (s === 'pending' ? '⏳' : '⚙') + '</div><b>' +
+        (s === 'pending' ? 'Відео в черзі на стиснення' + (it.qpos ? ', місце №' + it.qpos : '') : 'Відео стискається' + (it.cprog != null ? ' · ' + it.cprog + '%' : '')) + '</b>' +
+        (s === 'processing' && it.cprog != null ? '<div style="width:70%;max-width:240px;height:4px;border-radius:2px;background:rgba(127,127,127,.25);margin:8px auto 0;overflow:hidden"><div style="height:100%;width:' + it.cprog + '%;background:currentColor;opacity:.7"></div></div>' : '') +
         '<div class="lb-src">' + (s === 'pending' ? 'Завантажено ' + ago(it.at) + ' тому' : 'Триває ' + ago(it.cstart || it.at)) +
         '. Великі файли обробляються кілька хвилин. Картка оновиться сама, коли буде «Готово».</div>';
     return '<div class="lb-plate">' + big + '</div>';
@@ -519,12 +521,30 @@
     var ids = busyIds(); if (!ids.length) return;
     var rows = [];
     for (var i = 0; i < ids.length; i += 100) {
+      // позиція в черзі і % стиснення; якщо RPC недоступна — лише статус, як раніше
+      var q = await window.supabase.rpc('compress_queue_info', { p_ids: ids.slice(i, i + 100) });
+      if (!q.error && Array.isArray(q.data)) {
+        rows = rows.concat(q.data.map(function (x) { return { id: x.id, compressed_status: x.s, pos: x.pos, prog: x.prog }; }));
+        continue;
+      }
       var r = await window.supabase.from('creatives').select('id, compressed_status').in('id', ids.slice(i, i + 100));
       if (r.error || !r.data) return;
       rows = rows.concat(r.data);
     }
+    var ticked = [];
+    rows.forEach(function (x) {
+      var it = ST.data.byId[x.id]; if (!it) return;
+      var pos = x.pos != null ? x.pos : null, prog = x.prog != null ? x.prog : null;
+      if (pos !== (it.qpos != null ? it.qpos : null) || prog !== (it.cprog != null ? it.cprog : null)) { it.qpos = pos; it.cprog = prog; ticked.push(x.id); }
+    });
     var moved = rows.some(function (x) { var it = ST.data.byId[x.id]; return it && (x.compressed_status || null) !== (it.cs || null); });
-    if (!moved) { refreshOpenModal([]); return; }
+    if (!moved) {
+      ticked.forEach(function (id) {
+        var el = document.querySelector('.lb-tile[data-id="' + id + '"]');
+        if (el) { var tmp = document.createElement('div'); tmp.innerHTML = tileHtml(ST.data.byId[id]); el.replaceWith(tmp.firstChild); }
+      });
+      refreshOpenModal(ticked); return;
+    }
     // знімок до перезавантаження: оновлюємо всі фактичні зміни, не лише знайдені опитуванням
     var prev = {}; ST.data.items.forEach(function (it) { prev[it.id] = it.cs || null; });
     await load(true);
