@@ -8,6 +8,15 @@
 
 ---
 
+## 11.11.2026 — ⚡ Стиснення відео на Mac Studio: секунди замість хвилин
+
+- ⚡ Новий основний вузол стиснення: Mac Studio (launchd `ua.dreamcar.compress-node`, `.github/scripts/compress-node-mac.sh`). Опитує чергу кожні 5 с і бере лише відео. Бенч: 4K-відео 161 с / 487 МБ стискається за 29 с у preset slow (на GitHub-раннері ~12 хв). GitHub-воркер `compress-creative.yml` лишається запасним, якщо Mac вимкнений або зайнятий.
+- 🛡 На Mac немає service-ключа і ключів R2. Нова Edge Function `compress-node` — вузький шлюз з токеном (у базі лише sha256, `app_secrets.compress_node_secret_sha256`): 4 RPC черги, PATCH кількох колонок рядка, presign R2 лише для `video-compressed*/` і `video-poster/`, dispatch лише autopost.
+- 🔧 `claim_compress_jobs(worker_name, max_jobs, p_type)` і `peek_compress_jobs(p_type)`: фільтр за типом. Джерело тепер `coalesce(thumbnail_url, compressed_url)`: фінали креатив-столу (без thumbnail_url) висіли «у черзі» назавжди. Міграція `hq/db/migrations/2026-11-11_compress_mac_node.sql` + `_rollback.sql`.
+- 🔧 Причина 37 хв очікування 11.11 о 21:32: запуск GitHub Actions упав зі startup_failure, наступний застряг у «queued»; саме стиснення займало 2–3 хв.
+
+---
+
 ## 11.11.2026 — 🆕 Бот у чатах команди аналізує результати публікацій
 
 - 🆕 `team_bot_find` (міграція `hq/db/migrations/2026-11-11_team_bot_find_analytics.sql`): нові види для `odctl find` — `ig_posts`, `ig_stories`, `ig_account`, `tg_posts`, `sales` (оплати по UTM у вікні часу: кількість і виручка, групування по utm_medium/utm_content/utm_campaign/годинах/днях/тарифу). Без контактів учасників і без витрат на рекламу. Інструкцію бота оновлено в `memory-kit/mac/owner-dm`.
