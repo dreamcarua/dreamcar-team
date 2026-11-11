@@ -3,7 +3,8 @@
 --   ig_posts   — пости/рілс IG зі статистикою (пошук: shortcode/посилання, текст підпису або дата YYYY-MM-DD)
 --   ig_stories — сторіз IG зі статистикою (пошук: дата YYYY-MM-DD)
 --   ig_account — денні показники акаунту IG (пошук: дата YYYY-MM-DD = від цієї дати)
---   tg_posts   — статистика постів у TG-каналі (перегляди, реакції, пересилання, кліки кнопок) по картках HQ
+--   post_metrics — знімки метрик публікацій HQ через 6 і 24 год (IG + TG з публічної сторінки каналу)
+--   tg_posts   — пости TG-каналу з публічної сторінки t.me (tg-channel-scrape): перегляди зараз і через ~1/6/24 год, реакції, підписники; пошук: msg_id, текст, назва картки або дата
 --   sales      — оплати по UTM у вікні часу: кількість і сума, згруповано. Пошук = JSON:
 --                {"from":"2026-11-10T20:00","to":"2026-11-11T20:00","group":"utm_medium|utm_campaign|utm_content|utm_source|hour","medium":"instagram_reels","project":"RANGE"}
 --                час без зони = Київ; сума — виручка (без витрат, без прибутку, без контактів).
@@ -65,13 +66,9 @@ BEGIN
        WHERE d IS NULL OR a.date >= d
        ORDER BY a.date DESC LIMIT n) r;
   ELSIF p_kind = 'tg_posts' THEN
-    SELECT coalesce(jsonb_agg(r), '[]') INTO v FROM (
-      SELECT t.publication_id, p.title, t.first_published_at AT TIME ZONE 'Europe/Kyiv' AS published_kyiv, t.views,
-             t.reactions_total, t.forwards, t.clicks_total, t.clicks_by_button, t.comments_count, t.last_synced_at
-        FROM tg_post_analytics t LEFT JOIN publications p ON p.id = t.publication_id
-       WHERE q IS NULL OR t.publication_id::text = q OR p.title ILIKE '%' || q || '%'
-          OR (d IS NOT NULL AND (t.first_published_at AT TIME ZONE 'Europe/Kyiv')::date = d)
-       ORDER BY t.first_published_at DESC NULLS LAST LIMIT n) r;
+    RETURN public.team_bot_tg_posts(q, d, n);
+  ELSIF p_kind = 'post_metrics' THEN
+    RETURN public.team_bot_post_metrics(q, n);
   ELSIF p_kind = 'sales' THEN
     BEGIN s := coalesce(q, '{}')::jsonb; EXCEPTION WHEN others THEN
       RETURN jsonb_build_object('error', 'sales: search must be JSON {"from","to","group","medium","campaign","content","project"}'); END;
@@ -109,9 +106,49 @@ BEGIN
     INTO v;
     RETURN v;
   ELSE
-    RETURN jsonb_build_object('error', 'kind must be publications | retention | launches | history | ig_posts | ig_stories | ig_account | tg_posts | sales');
+    RETURN jsonb_build_object('error', 'kind must be publications | retention | launches | history | ig_posts | ig_stories | ig_account | tg_posts | post_metrics | sales');
   END IF;
   RETURN jsonb_build_object('rows', v);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.team_bot_find(text, text, integer) FROM public, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.team_bot_post_metrics(p_search text DEFAULT NULL, p_limit integer DEFAULT 20)
+ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public', 'pg_temp'
+AS $$
+  SELECT jsonb_build_object('rows', coalesce(jsonb_agg(r), '[]'::jsonb)) FROM (
+    SELECT s.publication_id, p.title, s.platform, s.format, s.stage, s.status, s.permalink,
+           s.posted_at AT TIME ZONE 'Europe/Kyiv' AS posted_kyiv, s.captured_at AT TIME ZONE 'Europe/Kyiv' AS captured_kyiv,
+           s.views, s.reach, s.likes, s.comments, s.saves, s.shares, s.total_interactions, s.avg_watch_sec,
+           s.skip_rate, s.profile_visits, s.follows, s.replies, s.exits, s.taps_forward, s.clicks, s.unavailable
+      FROM publication_metric_snapshots s LEFT JOIN publications p ON p.id = s.publication_id
+     WHERE s.status = 'ok' AND (nullif(trim(coalesce(p_search,'')),'') IS NULL OR s.publication_id::text = p_search
+            OR p.title ILIKE '%' || p_search || '%' OR s.permalink ILIKE '%' || p_search || '%'
+            OR s.platform = p_search OR s.format ILIKE p_search)
+     ORDER BY s.captured_at DESC LIMIT least(greatest(coalesce(p_limit,20),1),30)) r;
+$$;
+REVOKE ALL ON FUNCTION public.team_bot_post_metrics(text, integer) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.team_bot_post_metrics(text, integer) TO service_role;
+
+-- tg_posts (11.11.2026): дані tg-channel-scrape
+CREATE OR REPLACE FUNCTION public.team_bot_tg_posts(p_q text, p_d date, p_n integer)
+ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public', 'pg_temp'
+AS $$
+  SELECT jsonb_build_object(
+    'subscribers', (SELECT jsonb_agg(x ORDER BY x.date DESC) FROM (SELECT date, subscribers FROM tg_channel_daily ORDER BY date DESC LIMIT 14) x),
+    'note', 'джерело: публічна сторінка t.me, перегляди від 1000 округлені до сотень; пересилань і кліків там немає',
+    'rows', coalesce((SELECT jsonb_agg(r) FROM (
+      SELECT c.msg_id, 'https://t.me/' || c.channel || '/' || c.msg_id AS link, c.posted_at AT TIME ZONE 'Europe/Kyiv' AS published_kyiv,
+             c.kind, c.text_start, c.views AS views_now, c.reactions, pub.title AS hq_card, a.publication_id,
+             (SELECT s.views FROM tg_channel_post_snapshots s WHERE s.channel=c.channel AND s.msg_id=c.msg_id AND s.age_hours BETWEEN 0.5 AND 2 ORDER BY abs(s.age_hours-1) LIMIT 1) AS views_1h,
+             (SELECT s.views FROM tg_channel_post_snapshots s WHERE s.channel=c.channel AND s.msg_id=c.msg_id AND s.age_hours BETWEEN 5 AND 7 ORDER BY abs(s.age_hours-6) LIMIT 1) AS views_6h,
+             (SELECT s.views FROM tg_channel_post_snapshots s WHERE s.channel=c.channel AND s.msg_id=c.msg_id AND s.age_hours BETWEEN 22 AND 26 ORDER BY abs(s.age_hours-24) LIMIT 1) AS views_24h
+        FROM tg_channel_posts c
+        LEFT JOIN tg_post_analytics a ON a.channel_id = '-1002496656144' AND a.message_id = c.msg_id
+        LEFT JOIN publications pub ON pub.id = a.publication_id
+       WHERE p_q IS NULL OR c.msg_id::text = p_q OR c.text_start ILIKE '%' || p_q || '%' OR pub.title ILIKE '%' || p_q || '%'
+          OR (p_d IS NOT NULL AND (c.posted_at AT TIME ZONE 'Europe/Kyiv')::date = p_d)
+       ORDER BY c.msg_id DESC LIMIT p_n) r), '[]'::jsonb));
+$$;
+REVOKE ALL ON FUNCTION public.team_bot_tg_posts(text, date, integer) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.team_bot_tg_posts(text, date, integer) TO service_role;
