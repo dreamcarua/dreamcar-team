@@ -1,6 +1,14 @@
 #!/bin/bash
 # Compress Creative Worker — TARGET-BITRATE 2-pass H.264 high, MAX quality ≤49.5MB.
 #
+# v5 — швидка черга (11.11.2026):
+#   • один запуск скрипта = одна задача; цикл, паралельні слоти і watchdog 15 хв —
+#     у compress-creative-loop.sh, слотів 2–3 у compress-creative.yml
+#   • X264_PRESET=faster (було slow з важкими x264-params): бенч на реальних відео
+#     ~5× швидше, SSIM різниця ≤0.001. Відкат: X264_PRESET=slow повертає старий профіль 1:1
+#   • H.264 yuv420p ≤49.5 MB, ≤1920 px, без повороту → без перекодування (лише remux у MP4)
+#   • прогрес енкоду пишеться у creatives.compress_progress, картка показує %
+#
 # v4 — CPU optimization (#526, 20.06.2026):
 #   • preset veryslow → slow (3× швидше, QP loss <1%; SMM/IG/TG users не побачать різниці)
 #   • subme=10 → 8 (motion search refinement)
@@ -32,6 +40,8 @@ MIN_AUDIO_KBPS=96
 MAX_AUDIO_KBPS=128
 ENABLE_HEVC="${ENABLE_HEVC:-0}"
 DISPATCH_AUTOPOST="${DISPATCH_AUTOPOST:-1}"
+X264_PRESET="${X264_PRESET:-faster}"   # slow = старий профіль (відкат)
+CW_JOB_FILE="${CW_JOB_FILE:-}"         # loop-обгортка: сюди пишемо id взятої задачі (для watchdog)
 
 : "${SUPABASE_URL:?HQ_DB_URL required}"
 : "${SERVICE_KEY:?HQ_DB_SERVICE_KEY required}"
@@ -46,6 +56,7 @@ CRE_ID=""
 on_error() {
   local exit_code=$?
   local line_no=$1
+  stop_progress_reporter || true
   if [ -n "$CRE_ID" ]; then
     echo "::error::Worker died on line $line_no (exit=$exit_code). Marking creative $CRE_ID as failed."
     # Якщо є im-err.txt — додамо у error message для debug
@@ -65,6 +76,10 @@ on_error() {
   fi
   rm -rf /tmp/cw || true
   exit $exit_code
+}
+PROGRESS_PID=""
+stop_progress_reporter() {
+  if [ -n "$PROGRESS_PID" ]; then kill "$PROGRESS_PID" 2>/dev/null || true; wait "$PROGRESS_PID" 2>/dev/null || true; PROGRESS_PID=""; fi
 }
 trap 'on_error $LINENO' ERR
 
@@ -192,6 +207,7 @@ generate_video_poster_and_patch() {
 
 JOB=$(echo "$CLAIMED" | jq -c '.[0]')
 CRE_ID=$(echo "$JOB"  | jq -r '.id')
+[ -n "$CW_JOB_FILE" ] && echo "$CRE_ID" > "$CW_JOB_FILE"
 CRE_NAME=$(echo "$JOB" | jq -r '.name // "creative"')
 CRE_URL=$(echo "$JOB"  | jq -r '.thumbnail_url')
 CRE_SIZE=$(echo "$JOB" | jq -r '.size_bytes // 0')
@@ -518,6 +534,57 @@ fi
 
 HDR_PREFIX=""
 
+# 11.11.2026: не стискаємо зайве. Файл уже H.264 8-bit 4:2:0, вкладається в стелю 49.5 MB,
+# найдовша сторона ≤1920, без повороту, звук AAC або без звуку → лише remux у MP4 з faststart
+# (секунди), без перекодування. Поворот виключаємо свідомо: #260 — його обробляє лише енкод.
+SRC_VCODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "$INPUT" | head -1)
+SRC_ACODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "$INPUT" | head -1)
+if [ "$LOGICAL_W" -ge "$LOGICAL_H" ]; then SKIP_LONG=$LOGICAL_W; else SKIP_LONG=$LOGICAL_H; fi
+if [ "$SRC_VCODEC" = "h264" ] && [ "$SRC_PIXFMT" = "yuv420p" ] && [ "$SRC_ROT_ABS" = "0" ] \
+   && [ "$IN_SIZE" -le "$TARGET_BUDGET_BYTES" ] && [ "$SKIP_LONG" -le 1920 ] \
+   && { [ -z "$SRC_ACODEC" ] || [ "$SRC_ACODEC" = "aac" ]; }; then
+  echo "=== Вже H.264 ≤49.5 MB і ≤1920 px — без перекодування (remux у MP4) ==="
+  if ffmpeg -y -v error -i "$INPUT" -map 0:v:0 -map "0:a:0?" -c copy -movflags +faststart "$OUTPUT" \
+     && [ -s "$OUTPUT" ] && [ "$(stat -c%s "$OUTPUT")" -le "$TARGET_BUDGET_BYTES" ]; then
+    OUT_SIZE=$(stat -c%s "$OUTPUT")
+    OBJECT_KEY="video-compressed/${CRE_ID}.mp4"
+    PUBLIC_URL=$(upload_to_r2 "$OUTPUT" "$OBJECT_KEY" "video/mp4")
+    curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/complete_compress_job" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg id "$CRE_ID" --arg url "$PUBLIC_URL" --argjson sz "$OUT_SIZE" '{cre_id:$id, out_url:$url, out_size_bytes:$sz}')"
+    echo "✓ PASS-THROUGH DONE: $CRE_ID → $PUBLIC_URL (${IN_MB} MB, без перекодування)"
+    generate_video_poster_and_patch "$INPUT" "$CRE_ID"
+    trap - ERR
+    rm -rf /tmp/cw
+    exit 0
+  fi
+  echo "::warning::remux не вдався — стискаємо як звичайно"
+fi
+
+# Прогрес енкоду → creatives.compress_progress (картка в HQ показує %). Не критично: будь-яка
+# помилка тут лише губить відсоток, а не задачу.
+PROGRESS_FILE=/tmp/cw/progress.txt
+start_progress_reporter() {
+  : > "$PROGRESS_FILE"
+  (
+    set +e; trap - ERR
+    last=-1
+    while sleep 10; do
+      us=$(grep -o '^out_time_us=[0-9]*' "$PROGRESS_FILE" 2>/dev/null | tail -1 | cut -d= -f2)
+      [ -z "$us" ] && continue
+      pct=$(awk -v u="$us" -v d="$DURATION" 'BEGIN{ if (d<=0) {print 0; exit}; p=int(u/1e6/d*100); if (p>99) p=99; if (p<0) p=0; print p }')
+      [ "$pct" = "$last" ] && continue
+      last=$pct
+      curl -sS --max-time 10 -X PATCH "$SUPABASE_URL/rest/v1/creatives?id=eq.$CRE_ID" \
+        -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+        -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+        -d "{\"compress_progress\": $pct}" >/dev/null 2>&1
+    done
+  ) &
+  PROGRESS_PID=$!
+}
+
 # v2: Target = 99% of budget, не 91% undershoot
 EFFECTIVE_BUDGET=$((TARGET_BUDGET_BYTES * TARGET_FILL_PCT / 100))
 TOTAL_KBPS=$(awk "BEGIN{printf \"%.0f\", ($EFFECTIVE_BUDGET * 8 / 1024) / $DURATION}")
@@ -569,11 +636,17 @@ echo "Target longest side: ${MAX_LONG}px (orig logical=${SRC_LONG}), aspect pres
 # #526 (20.06.2026): preset veryslow → slow. veryslow дає ~1.5% краще стиснення
 # але у 3-4× повільніше. На фоні розміру H.264 у TG/IG це непомітно. Тішучи runners,
 # забезпечуємо що 1-min кліп завжди влізає у 30-min timeout навіть на slowest runner.
-X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset slow -tune film"
-# #526: subme=8 (було 10), merange=24 (було 32), rc-lookahead=60 (було 80).
-#       Bframes=8 (було 12) — кращий tradeoff swap для preset=slow.
-#       Сумарно: ~50% швидше encoding на тому ж VIDEO_KBPS бюджеті.
-X264_PARAMS="bframes=8:b-adapt=2:ref=6:no-fast-pskip=1:aq-mode=3:aq-strength=1.0:psy-rd=1.0,0.15:rc-lookahead=60:trellis=2:me=hex:subme=8:mixed-refs=1:8x8dct=1:weightb=1:weightp=2:merange=24:qcomp=0.7:deblock=-1,-1"
+X264_OPTS="-c:v libx264 -profile:v high -level 4.1 -preset ${X264_PRESET} -tune film"
+if [ "$X264_PRESET" = "slow" ]; then
+  # #526: subme=8 (було 10), merange=24 (було 32), rc-lookahead=60 (було 80).
+  #       Bframes=8 (було 12) — кращий tradeoff swap для preset=slow.
+  X264_PARAMS="bframes=8:b-adapt=2:ref=6:no-fast-pskip=1:aq-mode=3:aq-strength=1.0:psy-rd=1.0,0.15:rc-lookahead=60:trellis=2:me=hex:subme=8:mixed-refs=1:8x8dct=1:weightb=1:weightp=2:merange=24:qcomp=0.7:deblock=-1,-1"
+else
+  # 11.11.2026: швидкий профіль. Важкі параметри пошуку руху (ref/subme/trellis/b-adapt) перебивали
+  # preset і робили енкод повільним за будь-якого preset; лишаємо тільки «смакові» параметри якості.
+  X264_PARAMS="aq-mode=3:aq-strength=1.0:psy-rd=1.0,0.15:qcomp=0.7:deblock=-1,-1"
+fi
+echo "x264 preset: ${X264_PRESET}"
 
 echo ""
 # 05.09.2026 · two-pass ABR → capped CRF (одним проходом)
@@ -605,6 +678,7 @@ encode_h264() {
     -vf "$SCALE_FILTER" -fps_mode cfr \
     -c:a aac -b:a "${AUDIO_KBPS}k" -ac 2 -ar 48000 \
     -movflags +faststart -pix_fmt yuv420p \
+    -progress "$PROGRESS_FILE" \
     "$OUTPUT"
 }
 
@@ -622,6 +696,7 @@ encode_h264_safe() {
     "$OUTPUT"
 }
 
+start_progress_reporter
 while : ; do
   echo ""
   echo "[H.264 capped CRF] crf=${CRF}, стеля ${VIDEO_KBPS}k + ${AUDIO_KBPS}k AAC..."
@@ -646,6 +721,7 @@ while : ; do
   CRF=$((CRF + CRF_STEP))
   echo "::warning::Перевищення стелі (${OUT_SIZE} > ${TARGET_BUDGET_BYTES}) → crf=${CRF}"
 done
+stop_progress_reporter
 
 OUT_MB=$(awk "BEGIN{printf \"%.1f\", $OUT_SIZE/1024/1024}")
 RATIO=$(awk "BEGIN{printf \"%.0f\", ($OUT_SIZE*100)/$IN_SIZE}")
