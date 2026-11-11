@@ -13,6 +13,11 @@
 //   ?source=chats&chats=<id>,<id>    внутрішній тест: реальна відправка на явний список (≤5 chat_id)
 //                                    із записом sent_at/sent_count/failed_count у картку
 //   ?confirm=1  (+ x-hq-cron-secret) РЕАЛЬНА масова відправка
+//   ?action=edit|delete&id=..        11.11.2026: змінити / видалити ВЖЕ надіслане (за журналом retention_deliveries).
+//                                    edit — текст, підпис і кнопки за поточною карткою (медіа не міняється);
+//                                    delete — прибрати повідомлення в отримувачів (Telegram: лише до 48 год після відправки).
+//                                    Без ?confirm=1 — план (скільки отримувачів, скільки старші за 48 год).
+//                                    Порціями: &batch=3000 (default), відповідь має next_after → наступний виклик з &after=.
 //
 // Реальна масова відправка можлива ЛИШЕ з ?confirm=1 + секретом. Інакше — dry-run.
 // file_id-кеш: медіа завантажується 1 раз, далі reuse file_id (швидка розсилка на 10k+).
@@ -30,6 +35,7 @@ const sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 const esc = (s: string) => (s || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+type Part = { id: number; role: "text" | "caption" | "album" | "kb" | "vnote" };
 type Item = { type: "photo" | "video"; url: string; size: number; width?: number; height?: number; duration?: number; poster?: string | null; file_id?: string };
 
 async function headSize(url: string): Promise<number> {
@@ -125,17 +131,20 @@ async function getVideoNote(creativeId: string | null): Promise<Item | null> {
 }
 
 // Відправка ОДНОМУ chat_id. cache — спільний file_id-кеш для всієї розсилки.
-async function sendToChat(chatId: string, caption: string, items: Item[], vnote: Item | null, kb: any, cache: Record<string, string>): Promise<{ ok: boolean; err?: string; mid?: number }> {
+async function sendToChat(chatId: string, caption: string, items: Item[], vnote: Item | null, kb: any, cache: Record<string, string>): Promise<{ ok: boolean; err?: string; mid?: number; parts: Part[] }> {
+  const parts: Part[] = [];
   // 1) відеозамітка (кружечок) — окремо, без підпису/кнопок
   if (vnote) {
-    if (cache.vnote) { await tgCall("sendVideoNote", { chat_id: chatId, video_note: cache.vnote, disable_notification: true }); }
+    let jv: any = null;
+    if (cache.vnote) { jv = await tgCall("sendVideoNote", { chat_id: chatId, video_note: cache.vnote, disable_notification: true }); }
     else if (vnote.size > 0 && vnote.size <= MAX_URL) {
-      const j = await tgCall("sendVideoNote", { chat_id: chatId, video_note: vnote.url, disable_notification: true });
-      if (j.ok && j.result?.video_note?.file_id) cache.vnote = j.result.video_note.file_id;
+      jv = await tgCall("sendVideoNote", { chat_id: chatId, video_note: vnote.url, disable_notification: true });
+      if (jv.ok && jv.result?.video_note?.file_id) cache.vnote = jv.result.video_note.file_id;
     } else if (vnote.size <= MAX_TG) {
-      const j = await tgUpload("sendVideoNote", chatId, "video_note", vnote.url, { disable_notification: "true" });
-      if (j.ok && j.result?.video_note?.file_id) cache.vnote = j.result.video_note.file_id;
+      jv = await tgUpload("sendVideoNote", chatId, "video_note", vnote.url, { disable_notification: "true" });
+      if (jv.ok && jv.result?.video_note?.file_id) cache.vnote = jv.result.video_note.file_id;
     }
+    if (jv?.ok && jv.result?.message_id) parts.push({ id: jv.result.message_id, role: "vnote" });
   }
 
   // Якщо текст не влазить у caption (1024 видимих) — медіа без підпису,
@@ -150,9 +159,10 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
   // 2) без медіа → текст (+кнопки). Ліміт тексту 4096.
   if (items.length === 0) {
     const txt = trimHtml(caption, 4096);
-    if (!txt && !kb) return { ok: true }; // лише відеозамітка була
+    if (!txt && !kb) return { ok: true, parts }; // лише відеозамітка була
     const j = await tgCall("sendMessage", { chat_id: chatId, text: txt || " ", parse_mode: "HTML", disable_web_page_preview: true, ...(kb ? { reply_markup: kb } : {}), disable_notification: true });
-    return j.ok ? { ok: true, mid: j.result?.message_id } : { ok: false, err: j.description };
+    if (j.ok) parts.push({ id: j.result?.message_id, role: "text" });
+    return j.ok ? { ok: true, mid: j.result?.message_id, parts } : { ok: false, err: j.description, parts };
   }
   // 3) одне медіа → sendPhoto/Video з підписом+кнопками (ОДНЕ повідомлення)
   if (items.length === 1) {
@@ -164,7 +174,7 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
         link_preview_options: { url: it.url, prefer_large_media: true, show_above_text: true },
         ...(kb ? { reply_markup: kb } : {}),
       });
-      if (j.ok) return { ok: true, mid: j.result?.message_id };
+      if (j.ok) { parts.push({ id: j.result?.message_id, role: "text" }); return { ok: true, mid: j.result?.message_id, parts }; }
       // якщо прев'ю не спрацювало — звичайний шлях із підписом
     }
     const method = it.type === "video" ? "sendVideo" : "sendPhoto"; const field = it.type;
@@ -184,9 +194,10 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
     if (j.ok) {
       const fid = (j.result?.photo?.slice(-1)[0]?.file_id) || j.result?.video?.file_id;
       if (fid && !cache[ck]) cache[ck] = fid;
-      return { ok: true, mid: j.result?.message_id };
+      parts.push({ id: j.result?.message_id, role: "caption" });
+      return { ok: true, mid: j.result?.message_id, parts };
     }
-    return { ok: false, err: j.description };
+    return { ok: false, err: j.description, parts };
   }
   // 4) медіагрупа (album) — підпис ЗАВЖДИ на першому елементі (текст як опис до альбому).
   // Telegram API не дозволяє reply_markup в медіагрупі: якщо є кнопки, вони йдуть
@@ -199,12 +210,16 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
   });
   const jg = await tgCall("sendMediaGroup", { chat_id: chatId, media, disable_notification: true });
   if (jg.ok && Array.isArray(jg.result)) {
-    jg.result.forEach((r: any, i: number) => { const fid = r.photo?.slice(-1)[0]?.file_id || r.video?.file_id; if (fid && !cache[`a${i}`]) cache[`a${i}`] = fid; });
+    jg.result.forEach((r: any, i: number) => {
+      const fid = r.photo?.slice(-1)[0]?.file_id || r.video?.file_id; if (fid && !cache[`a${i}`]) cache[`a${i}`] = fid;
+      if (r.message_id) parts.push({ id: r.message_id, role: i === 0 ? "caption" : "album" });
+    });
   }
   if (jg.ok && kb) {
-    await tgCall("sendMessage", { chat_id: chatId, text: "👇", parse_mode: "HTML", disable_web_page_preview: true, reply_markup: kb, disable_notification: true });
+    const jk = await tgCall("sendMessage", { chat_id: chatId, text: "👇", parse_mode: "HTML", disable_web_page_preview: true, reply_markup: kb, disable_notification: true });
+    if (jk.ok && jk.result?.message_id) parts.push({ id: jk.result.message_id, role: "kb" });
   }
-  return jg.ok ? { ok: true, mid: jg.result?.[0]?.message_id } : { ok: false, err: jg.description };
+  return jg.ok ? { ok: true, mid: jg.result?.[0]?.message_id, parts } : { ok: false, err: jg.description, parts };
 }
 
 async function resolveAudience(msg: any, source: string, limit: number, chats: string[] = []): Promise<{ chat_id: string; sub_id?: string }[]> {
@@ -229,6 +244,86 @@ async function resolveAudience(msg: any, source: string, limit: number, chats: s
     if (data.length < page) break;
   }
   return out;
+}
+
+// Telegram: «message is not modified» = вже такий, вважаємо успіхом.
+const notModified = (j: any) => /not modified/i.test(String(j?.description || ""));
+const H48 = 48 * 3600 * 1000;
+
+async function handleSentAction(action: "edit" | "delete", msg: any, url: URL, confirm: boolean, caption: string, items: Item[], kb: any): Promise<Response> {
+  const J = (b: any, status = 200) => new Response(JSON.stringify(b, null, 2), { status, headers: { "content-type": "application/json" } });
+  const batch = Math.min(Math.max(parseInt(url.searchParams.get("batch") || "3000", 10) || 3000, 1), 5000);
+  const after = url.searchParams.get("after") || "";
+  const base = () => sb.from("retention_deliveries").select("chat_id, parts, sent_at", { count: "exact" })
+    .eq("retention_message_id", msg.id).is("deleted_at", null);
+
+  if (!confirm) {
+    const { count } = await base().limit(1);
+    const cutoff = new Date(Date.now() - H48).toISOString();
+    const { count: old } = await sb.from("retention_deliveries").select("chat_id", { count: "exact", head: true })
+      .eq("retention_message_id", msg.id).is("deleted_at", null).lt("sent_at", cutoff);
+    return J({ ok: true, mode: "dry-run", action, message: { id: msg.id, title: msg.title, sent_at: msg.sent_at },
+      recipients: count || 0, older_than_48h: old || 0,
+      note: action === "delete" ? "Telegram дозволяє боту видаляти лише повідомлення, молодші за 48 год" :
+        "Змінюються текст, підпис і кнопки за поточною карткою; медіа лишаються ті, що були надіслані",
+      preview: action === "edit" ? { caption: caption.slice(0, 400), buttons: kb?.inline_keyboard?.flat().map((b: any) => b.text) || [] } : undefined });
+  }
+
+  let q = base().order("chat_id", { ascending: true }).limit(batch);
+  if (after) q = q.gt("chat_id", after);
+  const { data: rows, count, error } = await q;
+  if (error) return J({ ok: false, error: error.message }, 500);
+  const longText = items.length > 0 && plainLen(caption) > 1024;
+  const singlePhoto = items.length === 1 && items[0].type === "photo";
+  const cap = trimHtml(caption, 1024);
+  let ok = 0, failed = 0, tooOld = 0; const errs: Record<string, number> = {};
+  for (const r of rows || []) {
+    const parts: Part[] = Array.isArray(r.parts) ? r.parts : [];
+    let good = true; let lastErr = "";
+    if (action === "delete") {
+      if (Date.now() - new Date(r.sent_at).getTime() > H48) { tooOld++; continue; }
+      const ids = parts.map((p) => p.id).filter(Boolean);
+      if (ids.length) {
+        const j = await tgCall("deleteMessages", { chat_id: r.chat_id, message_ids: ids });
+        if (!j.ok) { good = false; lastErr = String(j.description || "delete failed"); }
+      }
+    } else {
+      for (const p of parts) {
+        let j: any = { ok: true };
+        if (p.role === "text") {
+          j = await tgCall("editMessageText", {
+            chat_id: r.chat_id, message_id: p.id, text: trimHtml(caption, 4096) || " ", parse_mode: "HTML",
+            ...(longText && singlePhoto ? { link_preview_options: { url: items[0].url, prefer_large_media: true, show_above_text: true } } : { link_preview_options: { is_disabled: true } }),
+            ...(kb ? { reply_markup: kb } : {}),
+          });
+        } else if (p.role === "caption") {
+          const single = !parts.some((x) => x.role === "album");
+          j = await tgCall("editMessageCaption", { chat_id: r.chat_id, message_id: p.id, caption: cap, parse_mode: "HTML", ...(single && kb ? { reply_markup: kb } : {}) });
+        } else if (p.role === "kb" && kb) {
+          j = await tgCall("editMessageReplyMarkup", { chat_id: r.chat_id, message_id: p.id, reply_markup: kb });
+        }
+        if (!j.ok && !notModified(j)) { good = false; lastErr = String(j.description || "edit failed"); }
+        await sleep(RATE_MS);
+      }
+    }
+    const now = new Date().toISOString();
+    if (good) {
+      ok++;
+      await sb.from("retention_deliveries").update(action === "delete" ? { deleted_at: now, last_error: null } : { edited_at: now, last_error: null })
+        .eq("retention_message_id", msg.id).eq("chat_id", r.chat_id);
+    } else {
+      failed++; errs[lastErr.slice(0, 80)] = (errs[lastErr.slice(0, 80)] || 0) + 1;
+      await sb.from("retention_deliveries").update({ last_error: `${action}: ${lastErr}`.slice(0, 300) })
+        .eq("retention_message_id", msg.id).eq("chat_id", r.chat_id);
+    }
+    if (action === "delete") await sleep(RATE_MS);
+  }
+  const last = rows?.length ? rows[rows.length - 1].chat_id : null;
+  const done = !rows?.length || rows.length < batch;
+  if (done) {
+    await sb.from("retention_messages").update(action === "delete" ? { sent_deleted_at: new Date().toISOString() } : { sent_edited_at: new Date().toISOString() }).eq("id", msg.id);
+  }
+  return J({ ok: true, mode: action, processed: rows?.length || 0, remaining_before_batch: count || 0, done_ok: ok, failed, too_old_48h: tooOld, errors: errs, next_after: done ? null : last, done });
 }
 
 Deno.serve(async (req) => {
@@ -262,6 +357,12 @@ Deno.serve(async (req) => {
   const vnote = await getVideoNote(msg.video_note_creative_id);
   const kb = toKeyboard(msg.tg_buttons);
   const cache: Record<string, string> = {};
+
+  // === 11.11.2026: змінити / видалити вже надіслане ===
+  const action = url.searchParams.get("action");
+  if (action === "edit" || action === "delete") {
+    return await handleSentAction(action, msg, url, confirm, caption, items, kb);
+  }
 
   if (source === "chats" && test) {
     return new Response(JSON.stringify({ ok: false, error: "source=chats не поєднується з ?test=" }), { status: 400 });
@@ -302,8 +403,18 @@ Deno.serve(async (req) => {
   // === РЕАЛЬНА розсилка (confirm + secret) ===
   await sb.from("retention_messages").update({ status: "sending" }).eq("id", msg.id);
   let sent = 0, failed = 0; const mids: number[] = [];
+  // 11.11.2026: журнал доставок — без нього надіслане неможливо ні виправити, ні видалити.
+  let log: any[] = [];
+  const flush = async () => {
+    if (!log.length) return;
+    const rows = log; log = [];
+    const { error: le } = await sb.from("retention_deliveries").upsert(rows, { onConflict: "retention_message_id,chat_id" });
+    if (le) console.error("[deliveries] upsert", le.message);
+  };
   for (const a of audience) {
     const res = await sendToChat(a.chat_id, caption, items, vnote, kb, cache);
+    if (res.parts?.length) log.push({ retention_message_id: msg.id, chat_id: a.chat_id, parts: res.parts, sent_at: new Date().toISOString() });
+    if (log.length >= 200) await flush();
     if (res.ok) { sent++; if (res.mid && mids.length < 20) mids.push(res.mid); }
     else {
       failed++;
@@ -314,6 +425,7 @@ Deno.serve(async (req) => {
     }
     await sleep(RATE_MS);
   }
+  await flush();
   await sb.from("retention_messages").update({
     status: sent > 0 ? "sent" : "failed", sent_at: new Date().toISOString(),
     sent_count: sent, delivered_count: sent, failed_count: failed, tg_message_ids: mids,
