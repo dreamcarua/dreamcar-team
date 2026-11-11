@@ -13,7 +13,7 @@
 //   { action: "reply", id, text, final }   → відповідь власнику (HTML), final → статус done
 //   { action: "send_file", id, name, b64, caption } → файл власнику
 //   { action: "fail", id, error }          → статус failed + повідомлення
-//   { action: "state", id }                → { status, cancel_requested }
+//   { action: "state", id }                → { status, approval, cancel_requested }
 //   { action: "team_find", id, kind, search }          → читання для колег (RPC team_bot_find)
 //   { action: "team_update", id, kind, row_id, fields } → дрібна правка від імені автора (RPC team_bot_update)
 //   { action: "creative", id, brief }                → задача у відділ креативів (creative_requests); файли запиту
@@ -247,7 +247,7 @@ async function workerAction(sb: any, b: any): Promise<Response> {
     if (!job) return json(200, { job: null });
     let parent: any = null;
     if (job.parent_job_id) {
-      const { data: p } = await sb.from("owner_dm_jobs").select("id,session_id,text,result,confirm_text,status").eq("id", job.parent_job_id).maybeSingle();
+      const { data: p } = await sb.from("owner_dm_jobs").select("id,session_id,text,result,confirm_text,status,approval,error,from_name,reply_context").eq("id", job.parent_job_id).maybeSingle();
       parent = p;
     }
     return json(200, { job, parent });
@@ -266,7 +266,7 @@ async function workerAction(sb: any, b: any): Promise<Response> {
   const { data: j } = await sb.from("owner_dm_jobs").select("*").eq("id", id).maybeSingle();
   if (!j) return json(404, { error: "job not found" });
 
-  if (act === "state") return json(200, { status: j.status, cancel_requested: j.cancel_requested });
+  if (act === "state") return json(200, { status: j.status, approval: j.approval, cancel_requested: j.cancel_requested });
 
   if (act === "session") {
     await sb.from("owner_dm_jobs").update({ session_id: String(b.session_id || "").slice(0, 80), updated_at: now }).eq("id", id);
