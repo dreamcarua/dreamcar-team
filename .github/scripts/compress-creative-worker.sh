@@ -812,7 +812,7 @@ if [ "$DISPATCH_AUTOPOST" = "1" ]; then
   echo ""
   echo "Triggering autopost workflow via dispatch-workflow Edge Function..."
   DISPATCH_HTTP=$(curl -sS -o /tmp/cw/dispatch-resp.txt -w "%{http_code}" -X POST \
-    "$SUPABASE_URL/functions/v1/dispatch-workflow" \
+    "${DISPATCH_URL:-$SUPABASE_URL/functions/v1/dispatch-workflow}" \
     -H "Authorization: Bearer $SERVICE_KEY" \
     -H "Content-Type: application/json" \
     -d '{"workflow":"autopost"}' || echo "000")
