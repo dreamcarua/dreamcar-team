@@ -35,7 +35,7 @@ const sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 const esc = (s: string) => (s || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-type Part = { id: number; role: "text" | "caption" | "album" | "kb" | "vnote" };
+type Part = { id: number; role: "text" | "caption" | "album" | "kb" | "vnote" | "media" | "vtext" };
 type Item = { type: "photo" | "video"; url: string; size: number; width?: number; height?: number; duration?: number; poster?: string | null; file_id?: string };
 
 async function headSize(url: string): Promise<number> {
@@ -137,6 +137,32 @@ async function getVideoNote(creativeId: string | null): Promise<Item | null> {
   return { type: "video", url, size: data.compressed_size_bytes || await headSize(url) };
 }
 
+// Одне фото/відео: file_id-кеш → URL (≤ліміт) → multipart. extra — caption/parse_mode або {} (без підпису).
+function isVertical(it: Item): boolean { return it.type === "video" && !!it.width && !!it.height && it.height > it.width; }
+async function sendSingleMedia(chatId: string, it: Item, extra: Record<string, string>, kb: any, cache: Record<string, string>): Promise<any> {
+  const method = it.type === "video" ? "sendVideo" : "sendPhoto"; const field = it.type;
+  const ck = `m0_${it.type}`;
+  let j: any;
+  if (cache[ck]) {
+    const body: any = { chat_id: chatId, [field]: cache[ck], ...extra, disable_notification: true, ...(kb ? { reply_markup: kb } : {}) };
+    if (it.type === "video") body.supports_streaming = true;
+    j = await tgCall(method, body);
+  } else if (it.size > 0 && it.size <= urlLimit(it)) {
+    const body: any = { chat_id: chatId, [field]: it.url, ...extra, disable_notification: true, ...(kb ? { reply_markup: kb } : {}) };
+    if (it.type === "video") { body.supports_streaming = true; if (it.width) body.width = it.width; if (it.height) body.height = it.height; if (it.duration) body.duration = it.duration; if (it.poster) body.thumbnail = it.poster; }
+    j = await tgCall(method, body);
+  } else {
+    const vx: Record<string, string> = {};
+    if (it.type === "video") { vx.supports_streaming = "true"; if (it.width) vx.width = String(it.width); if (it.height) vx.height = String(it.height); if (it.duration) vx.duration = String(Math.round(it.duration)); }
+    j = await tgUpload(method, chatId, field, it.url, { ...extra, disable_notification: "true", ...vx, ...(kb ? { reply_markup: JSON.stringify(kb) } : {}) }, it.type === "video" ? it.poster : null);
+  }
+  if (j.ok) {
+    const fid = (j.result?.photo?.slice(-1)[0]?.file_id) || j.result?.video?.file_id;
+    if (fid && !cache[ck]) cache[ck] = fid;
+  }
+  return j;
+}
+
 // Відправка ОДНОМУ chat_id. cache — спільний file_id-кеш для всієї розсилки.
 async function sendToChat(chatId: string, caption: string, items: Item[], vnote: Item | null, kb: any, cache: Record<string, string>): Promise<{ ok: boolean; err?: string; mid?: number; parts: Part[] }> {
   const parts: Part[] = [];
@@ -174,6 +200,17 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
   // 3) одне медіа → sendPhoto/Video з підписом+кнопками (ОДНЕ повідомлення)
   if (items.length === 1) {
     const it = items[0];
+    // Vadym 11.11.2026: вертикальне відео — БЕЗ підпису, текст+кнопки окремим повідомленням одразу після.
+    // Причина: Telegram iOS під підписом розтягує бульбашку на всю ширину й обрізає 9:16 до ~1:1.
+    if (isVertical(it) && caption) {
+      const vr = await sendSingleMedia(chatId, it, {}, null, cache);
+      if (!vr.ok) return { ok: false, err: vr.description, parts };
+      parts.push({ id: vr.result?.message_id, role: "media" });
+      const jt = await tgCall("sendMessage", { chat_id: chatId, text: trimHtml(caption, 4096), parse_mode: "HTML", link_preview_options: { is_disabled: true }, disable_notification: true, ...(kb ? { reply_markup: kb } : {}) });
+      if (!jt.ok) return { ok: false, err: jt.description, parts };
+      parts.push({ id: jt.result?.message_id, role: "vtext" });
+      return { ok: true, mid: jt.result?.message_id, parts };
+    }
     // довгий текст + фото → текст із великим прев'ю картинки зверху (один меседж, до 4096)
     if (useLinkPreview) {
       const j = await tgCall("sendMessage", {
@@ -184,25 +221,8 @@ async function sendToChat(chatId: string, caption: string, items: Item[], vnote:
       if (j.ok) { parts.push({ id: j.result?.message_id, role: "text" }); return { ok: true, mid: j.result?.message_id, parts }; }
       // якщо прев'ю не спрацювало — звичайний шлях із підписом
     }
-    const method = it.type === "video" ? "sendVideo" : "sendPhoto"; const field = it.type;
-    const ck = `m0_${it.type}`;
-    let j: any;
-    if (cache[ck]) {
-      const body: any = { chat_id: chatId, [field]: cache[ck], caption: cap, parse_mode: "HTML", disable_notification: true, ...(kb ? { reply_markup: kb } : {}) };
-      if (it.type === "video") body.supports_streaming = true;
-      j = await tgCall(method, body);
-    } else if (it.size > 0 && it.size <= (it.type === "photo" ? 5 * 1024 * 1024 : MAX_URL)) {
-      const body: any = { chat_id: chatId, [field]: it.url, caption: cap, parse_mode: "HTML", disable_notification: true, ...(kb ? { reply_markup: kb } : {}) };
-      if (it.type === "video") { body.supports_streaming = true; if (it.width) body.width = it.width; if (it.height) body.height = it.height; if (it.duration) body.duration = it.duration; if (it.poster) body.thumbnail = it.poster; }
-      j = await tgCall(method, body);
-    } else {
-      const vx: Record<string, string> = {};
-      if (it.type === "video") { vx.supports_streaming = "true"; if (it.width) vx.width = String(it.width); if (it.height) vx.height = String(it.height); if (it.duration) vx.duration = String(Math.round(it.duration)); }
-      j = await tgUpload(method, chatId, field, it.url, { caption: cap, parse_mode: "HTML", disable_notification: "true", ...vx, ...(kb ? { reply_markup: JSON.stringify(kb) } : {}) }, it.type === "video" ? it.poster : null);
-    }
+    const j = await sendSingleMedia(chatId, it, { caption: cap, parse_mode: "HTML" }, kb, cache);
     if (j.ok) {
-      const fid = (j.result?.photo?.slice(-1)[0]?.file_id) || j.result?.video?.file_id;
-      if (fid && !cache[ck]) cache[ck] = fid;
       parts.push({ id: j.result?.message_id, role: "caption" });
       return { ok: true, mid: j.result?.message_id, parts };
     }
@@ -340,6 +360,11 @@ async function editDelivery(chatId: string, parts: Part[], c: Ctx): Promise<stri
         if (c.mediaChanged) c.warn.add("Кількість медіа змінилась — Telegram не дозволяє, оновлено лише підпис і кнопки");
         calls.push(() => tgCall("editMessageCaption", { chat_id: chatId, message_id: p.id, caption: cap, parse_mode: "HTML", reply_markup: rm }));
       }
+    } else if (p.role === "media") {
+      if (c.mediaChanged && c.items.length === 1) calls.push(() => editMedia(chatId, p.id, c.items[0], 0, c.cache, {}));
+      else if (c.mediaChanged) c.warn.add("Кількість медіа змінилась — Telegram не дозволяє, оновлено лише текст і кнопки");
+    } else if (p.role === "vtext") {
+      calls.push(() => tgCall("editMessageText", { chat_id: chatId, message_id: p.id, text: trimHtml(c.caption, 4096) || " ", parse_mode: "HTML", link_preview_options: { is_disabled: true }, reply_markup: rm }));
     } else if (p.role === "kb") {
       calls.push(() => tgCall("editMessageReplyMarkup", { chat_id: chatId, message_id: p.id, reply_markup: rm }));
     }
