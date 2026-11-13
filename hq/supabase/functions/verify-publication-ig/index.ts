@@ -1,5 +1,11 @@
 // =====================================================================
-// DreamCar — Verify Publication v7 (01.07.2026)
+// DreamCar — Verify Publication v8 (13.11.2026)
+// v8: (1) ідемпотентність: update статусу перевіряється на помилку; якщо тригер
+//     publications_check_platforms_before_status відхиляє 'published' (картка без платформ),
+//     записуємо verified_at/verified_status/evidence без статусу, щоб batch більше її не брав.
+//     TG «Автопідтверджено» не шлеться, якщо auto_verified_ig вже є в історії.
+//     Було: update мовчки падав → кожні 2 хв новий запис + повідомлення (сторіз 13.11, 19 разів).
+//     (2) сторіз матчаться лише з медіа STORY (/stories), пости/рілси лише не-STORY (/media).
 // v7 (#554): actor_id для publication_history insert (колонка NOT NULL) —
 //     було actor_id:null → insert падав → auto-verify TG «✅ Автопідтверджено»
 //     не слалась + cron verify_pub_ не чистився. Тепер SYSTEM_ACTOR_ID (founder).
@@ -36,7 +42,7 @@ async function resolveFbToken(sb: any) {
 
 const HQ_BASE = "https://dreamcarua.github.io/dreamcar-team/hq/";
 
-interface IGMedia { id: string; caption?: string; permalink: string; timestamp: string; media_type: string; }
+interface IGMedia { id: string; caption?: string; permalink: string; timestamp: string; media_type: string; media_product_type?: string; }
 interface UserRow { id: string; name: string; tg_chat_id: number | null; }
 
 function escHtml(s: string): string { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -69,11 +75,26 @@ async function getStakeholders(sb: any, pubId: string, createdBy: string|null): 
 
 async function fetchIGRecentMedia(): Promise<IGMedia[]> {
   if (!FB_ACCESS_TOKEN) throw new Error("MISSING_FB_ACCESS_TOKEN");
-  const url = `https://graph.facebook.com/v21.0/${IG_USER_ID}/media?fields=id,caption,permalink,timestamp,media_type&limit=25&access_token=${FB_ACCESS_TOKEN}`;
+  const fields = "id,caption,permalink,timestamp,media_type,media_product_type";
+  const url = `https://graph.facebook.com/v21.0/${IG_USER_ID}/media?fields=${fields}&limit=25&access_token=${FB_ACCESS_TOKEN}`;
   const r = await fetch(url);
   if (!r.ok) { const t = await r.text(); throw new Error(`IG API ${r.status}: ${t.slice(0, 300)}`); }
   const j = await r.json();
-  return (j.data ?? []) as IGMedia[];
+  const feed = ((j.data ?? []) as IGMedia[]).filter(m => m.media_product_type !== "STORY");
+  // v8: сторіз не приходять у /media — окремий запит /stories (лише активні 24 год).
+  let stories: IGMedia[] = [];
+  try {
+    const rs = await fetch(`https://graph.facebook.com/v21.0/${IG_USER_ID}/stories?fields=${fields}&limit=50&access_token=${FB_ACCESS_TOKEN}`);
+    if (rs.ok) stories = (((await rs.json()).data ?? []) as IGMedia[]).map(m => ({ ...m, media_product_type: "STORY" }));
+    else console.error("IG stories API", rs.status, (await rs.text()).slice(0, 300));
+  } catch (e) { console.error("IG stories fetch threw", e); }
+  return [...feed, ...stories];
+}
+
+// v8: сторіз-картка матчиться лише зі STORY, решта лише з не-STORY.
+function mediaForPub(media: IGMedia[], pub: any): IGMedia[] {
+  const isStory = pub.content_type === "stories";
+  return media.filter(m => isStory ? m.media_product_type === "STORY" : m.media_product_type !== "STORY");
 }
 
 function findMatchingMedia(media: IGMedia[], publishAt: string, pubText: string|null): IGMedia | null {
@@ -152,22 +173,41 @@ async function verifyPublication(sb: any, pubId: string, igMediaCache: IGMedia[]
   if (hasIG && FB_ACCESS_TOKEN) {
     try {
       const media = igMediaCache ?? await fetchIGRecentMedia();
-      const match = findMatchingMedia(media, pub.publish_at, pub.text_body || pub.title);
+      const match = findMatchingMedia(mediaForPub(media, pub), pub.publish_at, pub.text_body || pub.title);
       if (match) {
-        await sb.from("publications").update({
-          status: "published",
+        const verifiedFields = {
           verified_at: new Date().toISOString(),
           verified_status: "ok",
           verified_evidence_url: match.permalink,
+        };
+        const { error: upErr } = await sb.from("publications").update({
+          status: "published", ...verifiedFields,
           published_at: new Date(match.timestamp).toISOString(),
         }).eq("id", pubId);
-        await sb.from("publication_history").insert({
-          publication_id: pubId, action: "auto_verified_ig",
-          detail: `IG Graph API match: ${match.permalink} (timestamp ${match.timestamp})`, actor_id: SYSTEM_ACTOR_ID,
-        });
-        await notifySuccess(pub, match, stakeholders);
+        let statusWritten = !upErr;
+        if (upErr) {
+          // v8: напр. картка без платформ — тригер забороняє 'published'. Фіксуємо факт перевірки
+          // без зміни статусу, інакше batch кожні 2 хв знову знаходить і знову шле повідомлення.
+          console.error("verify: status update rejected for", pubId, upErr.message);
+          const { error: up2Err } = await sb.from("publications").update(verifiedFields).eq("id", pubId);
+          if (up2Err) {
+            console.error("verify: verified_* update failed too for", pubId, up2Err.message);
+            return { result: "update_failed", error: up2Err.message };
+          }
+        }
+        const { data: prev } = await sb.from("publication_history").select("id")
+          .eq("publication_id", pubId).eq("action", "auto_verified_ig").limit(1);
+        const alreadyNotified = (prev ?? []).length > 0;
+        if (!alreadyNotified) {
+          await sb.from("publication_history").insert({
+            publication_id: pubId, action: "auto_verified_ig",
+            detail: `IG Graph API match: ${match.permalink} (timestamp ${match.timestamp})${statusWritten ? "" : " [status not changed: " + upErr!.message.slice(0, 120) + "]"}`,
+            actor_id: SYSTEM_ACTOR_ID,
+          });
+          await notifySuccess(pub, match, stakeholders);
+        }
         await cleanupCronJob(sb, pubId);
-        return { result: "auto_published", evidence: match.permalink };
+        return { result: statusWritten ? "auto_published" : "auto_verified_status_kept", evidence: match.permalink, notified: !alreadyNotified };
       }
     } catch (e: any) {
       console.error("IG check failed for", pubId, e?.message || e);
@@ -330,10 +370,10 @@ Deno.serve(async (req: Request) => {
   try {
     if (body.publication_id) {
       const r = await verifyPublication(sb, body.publication_id);
-      return new Response(JSON.stringify({ ok: true, version:"v7", mode: "single", id: body.publication_id, ...r }), { status: 200, headers: { "Content-Type":"application/json" } });
+      return new Response(JSON.stringify({ ok: true, version:"v8", mode: "single", id: body.publication_id, ...r }), { status: 200, headers: { "Content-Type":"application/json" } });
     } else {
       const r = await batchProcessPending(sb);
-      return new Response(JSON.stringify({ ok: true, version:"v7", mode: "batch", ...r }), { status: 200, headers: { "Content-Type":"application/json" } });
+      return new Response(JSON.stringify({ ok: true, version:"v8", mode: "batch", ...r }), { status: 200, headers: { "Content-Type":"application/json" } });
     }
   } catch (e: any) {
     console.error("verify-publication-ig error:", e);
