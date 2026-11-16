@@ -105,7 +105,7 @@ textarea{resize:vertical;min-height:70px;width:100%}
 select{font-family:var(--mono);font-size:12px}
 .count{font-family:var(--mono);font-size:12px;color:var(--ash);margin-left:auto}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
-table{width:100%;border-collapse:collapse;min-width:900px}
+table{width:100%;border-collapse:collapse;min-width:960px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash);background:var(--bg-2);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
 th[data-k]:hover{color:var(--white)}
@@ -296,8 +296,10 @@ function model(pool){
     r.url = r.reply && r.parent ? `https://www.instagram.com/p/${sc}/c/${r.parent}/r/${r.id}/` : `https://www.instagram.com/p/${sc}/c/${r.id}/`;
     if (ex.has(String(r.u).toLowerCase())) { excludedTeam++; exBy[r.u]=(exBy[r.u]||0)+1; continue; }
     r.kw = re ? re.test(r.text) : false;
-    r.out = null;
-    if (!cfg.include_replies && r.reply) r.out='відповідь';
+    r.out = null; r.man = (cfg.manual||{})[r.id] || null;
+    if (r.man==='out') r.out='виключено вручну';
+    else if (r.man==='in') r.out=null;
+    else if (!cfg.include_replies && r.reply) r.out='відповідь';
     else if (cfg.keywords_required && !r.kw) r.out='без ключового слова';
     rows.push(r);
   }
@@ -332,7 +334,7 @@ function openEdit(){
   app.innerHTML=`<section class="panel"><div class="hd"><h2>Умови сторінки</h2><span class="eyebrow">номери перераховуються одразу</span></div><form id="editForm" class="form"></form></section>`;
   const f=$('editForm'); f.innerHTML=formHTML(POOL.config, POOL.url, POOL.title, true);
   if ((POOL.draws||[]).length) f.insertAdjacentHTML('afterbegin','<div class="full note err" style="grid-column:1/-1">Увага: спроби вибору вже були. Зміна умов змінить номери учасників.</div>');
-  bindForm(f, async ({title,config})=>{ await call('update',{id:POOL.id,title,config}); toast('Збережено'); renderPool(POOL.id); });
+  bindForm(f, async ({title,config})=>{ config.manual=(POOL.config||{}).manual||{}; await call('update',{id:POOL.id,title,config}); toast('Збережено'); renderPool(POOL.id); });
 }
 
 function hl(text){ const s=esc(text); if(!M.re) return s; const re=new RegExp(M.re.source,'giu'); return s.replace(re,(m,a,b)=>a+'<mark>'+b+'</mark>'); }
@@ -400,7 +402,7 @@ function draw(){
     </div>
     <div class="tbl-wrap"><table><thead><tr>
       <th data-k="n">№ <span class="ar"></span></th><th data-k="t">Дата і час <span class="ar"></span></th><th data-k="u">Акаунт <span class="ar"></span></th>
-      <th>Коментар</th><th data-k="likes" style="text-align:right">Лайки <span class="ar"></span></th><th>Підписка</th><th>Коментар ↗</th>
+      <th>Коментар</th><th data-k="likes" style="text-align:right">Лайки <span class="ar"></span></th><th>Підписка</th><th>Коментар ↗</th><th title="Ручне рішення оператора">Пул</th>
     </tr></thead><tbody id="tb"></tbody></table></div>
     <div class="pager"><button class="btn" id="prev" type="button">← Назад</button><span class="mono" id="pageInfo" style="color:var(--ash);font-size:12px"></span><button class="btn" id="next" type="button">Далі →</button></div>
   </section>
@@ -497,6 +499,14 @@ function initTable(){
   document.querySelectorAll('th[data-k]').forEach(th=>th.addEventListener('click',()=>{ const k=th.dataset.k; if(sortK===k) sortDir*=-1; else {sortK=k; sortDir=(k==='likes')?-1:1;} apply(); }));
   ['q','fPool','fType','fLikes'].forEach(id=>$(id).addEventListener('input',apply));
   $('prev').onclick=()=>{page--;render()}; $('next').onclick=()=>{page++;render()};
+  $('tb').onclick=async e=>{ const b=e.target.closest('[data-man]'); if(!b) return;
+    if ((POOL.draws||[]).some(d=>d.status==='picked')) { toast('Спроби вибору вже були: ручна зміна пулу змінить номери'); }
+    b.disabled=true; const cfg=Object.assign({},POOL.config); cfg.manual=Object.assign({},cfg.manual||{});
+    const r=M.rows.find(x=>x.id===b.dataset.man); const auto = r && !(cfg.keywords_required&&!r.kw) && !(!cfg.include_replies&&r.reply);
+    if ((b.dataset.to==='in'&&auto)||(b.dataset.to==='out'&&!auto&&cfg.manual[b.dataset.man]==='in')) delete cfg.manual[b.dataset.man]; else cfg.manual[b.dataset.man]=b.dataset.to;
+    try{ const j=await call('update',{id:POOL.id,config:cfg}); POOL.config=j.config; const keep={q:$('q').value,p:$('fPool').value,t:$('fType').value,l:$('fLikes').value,pg:page,sk:sortK,sd:sortDir};
+      M=model(POOL); draw(); $('q').value=keep.q;$('fPool').value=keep.p;$('fType').value=keep.t;$('fLikes').value=keep.l;sortK=keep.sk;sortDir=keep.sd;apply();page=keep.pg;render(); toast(b.dataset.to==='in'?'Додано в пул':'Прибрано з пулу'); }
+    catch(err){ toast(err.message); b.disabled=false; } };
   apply();
 }
 function apply(){
@@ -522,7 +532,8 @@ function render(){
     <td class="acc"><a href="${prof(r.u)}" target="_blank" rel="noopener">@${esc(r.u)}</a>${r.reply?' <span class="pill reply">відповідь</span>':''}${r.hidden?' <span class="pill hid">приховано</span>':''}${r.kw?' <span class="pill kw">ключове</span>':''}${r.out?` <span class="pill">${esc(r.out)}</span>`:''}${used.has(r.id)?' <span class="pill chk">обрано</span>':''}</td>
     <td class="tx">${hl(r.text)}</td><td class="lk${(r.likes||0)>=20?' hot':''}">${fmt(r.likes)}</td>
     <td><a class="pill chk" href="${prof(r.u)}" target="_blank" rel="noopener" title="Instagram не віддає підписки через API">перевірити</a></td>
-    <td><a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">Відкрити ↗</a></td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--ash);padding:24px">Нічого не знайдено. Спробуйте номер, частину нікнейму або слово з коментаря.</td></tr>';
+    <td><a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">Відкрити ↗</a></td>
+    <td><button class="btn${r.n?' no':' ok'}" type="button" data-man="${r.id}" data-to="${r.n?'out':'in'}" title="${r.n?'Прибрати з пулу':'Додати в пул'}">${r.n?'✗':'✓'}</button>${r.man?' <span class="pill">вручну</span>':''}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--ash);padding:24px">Нічого не знайдено. Спробуйте номер, частину нікнейму або слово з коментаря.</td></tr>';
   $('count').textContent=`${fmt(view.length)} з ${fmt(M.rows.length)} · у пулі ${fmt(M.pool.length)}`;
   $('pageInfo').textContent=`стор. ${page+1} / ${pages}`;
   $('prev').disabled=page===0; $('next').disabled=page>=pages-1;
