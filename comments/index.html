@@ -665,7 +665,7 @@ function openLive(){
       <div class="phonewrap" id="lvPhoneWrap"></div>
     </div>
     <div class="bottom"><div class="ticker"><span class="tag" id="lvTag"></span><span class="tx" id="lvTx"></span></div>
-      <div class="ctl"><button class="btn primary big" type="button" id="lvPick">Обрати номер · пробіл</button>
+      <div class="ctl"><a class="btn" id="lvProf" href="#" target="_blank" rel="noopener" hidden title="Клавіша I">👤 Профіль ↗</a><a class="btn" id="lvCmtLink" href="#" target="_blank" rel="noopener" hidden>💬 Коментар ↗</a><button class="btn primary big" type="button" id="lvPick">Обрати номер · пробіл</button>
         <button class="btn ok" type="button" id="lvOk" hidden>✓ Умови виконано</button><button class="btn no" type="button" id="lvNo" hidden>✗ Не виконано · прибрати</button></div></div>`;
   document.body.appendChild(d); document.body.style.overflow='hidden';
   LIVE={i:rnds[0].i, facts:factsList(S), fi:0, S};
@@ -679,7 +679,7 @@ function openLive(){
   $('lvPick').onclick=()=>livePick();
   $('lvPh').onclick=()=>togglePhone();
   $('lvOk').onclick=()=>liveVerdict('confirmed'); $('lvNo').onclick=()=>liveVerdict('rejected');
-  LIVE.key=e=>{ if(e.target&&e.target.tagName==='INPUT') return; if(e.key==='p'||e.key==='P'||e.key==='з'||e.key==='З'){ togglePhone(); return; } if(e.key==='Escape') closeLive(); else if(e.code==='Space'&&!$('lvPick').disabled&&!$('lvPick').hidden){ e.preventDefault(); livePick(); } };
+  LIVE.key=e=>{ if(e.target&&e.target.tagName==='INPUT') return; if(e.key==='p'||e.key==='P'||e.key==='з'||e.key==='З'){ togglePhone(); return; } if((e.key==='i'||e.key==='I'||e.key==='ш'||e.key==='Ш')&&!$('lvProf').hidden){ window.open($('lvProf').href,'_blank','noopener'); return; } if(e.key==='Escape') closeLive(); else if(e.code==='Space'&&!$('lvPick').disabled&&!$('lvPick').hidden){ e.preventDefault(); livePick(); } };
   document.addEventListener('keydown',LIVE.key);
   tickFacts(); LIVE.ft=setInterval(tickFacts,6500);
   liveState();
@@ -729,10 +729,13 @@ function flicker(stopAt){ const el=$('lvFlick'); const P=M.pool; if(REDUCE()){ e
   let on=true; (function f(){ if(!on) return; el.textContent='@'+P[rnd(P.length)-1].u; setTimeout(f, 70+Math.random()*40); })();
   return ()=>{ on=false; el.textContent=''; }; }
 function showWinner(r, confirmed){
+  const pf=$('lvProf'), cl=$('lvCmtLink');
+  if(pf&&r.u){ pf.href=prof(r.u); pf.hidden=false; pf.textContent='👤 @'+r.u+' ↗'; }
+  if(cl){ const url=r.url||rowUrl(r.id); cl.href=url; cl.hidden=!url; }
   const S=LIVE.S; const cnt=M.pool.filter(x=>x.u===r.u).length;
   const rank=r.n; const after=S.pub&&r.t?S.mins(r.t-S.pub):null;
   $('lvWin').innerHTML=`${confirmed?'<div class="won appear">✓ отримувач призу</div>':''}
-    <div class="nick appear">@${esc(r.u)}</div>
+    <a class="nick appear" href="${prof(r.u)}" target="_blank" rel="noopener" style="text-decoration:none">@${esc(r.u)} <span style="font-size:.45em;vertical-align:middle;opacity:.7">↗</span></a>
     <div class="cmt appear">${hl(r.text||'')}</div>
     <div class="facts2 appear">
       <span>номер <b>${r.n}</b> з ${fmt(M.pool.length)}</span>
@@ -756,7 +759,7 @@ async function livePick(){
   const i=LIVE.i, b=$('lvPick'); if(b.disabled) return;
   if(!M.frozen){ toast('Спершу зафіксуйте пул'); return; }
   if(pendingAttempt(i)||winnerOf(i)) return;
-  b.disabled=true; $('lvOk').hidden=$('lvNo').hidden=true; $('lvReels').classList.remove('win');
+  b.disabled=true; $('lvOk').hidden=$('lvNo').hidden=true; $('lvReels').classList.remove('win'); $('lvProf').hidden=$('lvCmtLink').hidden=true;
   $('lvWin').innerHTML='<div class="sub">Обираємо…</div>';
   const r=choose(i); if(!r){ b.disabled=false; return; }
   await countdown();
@@ -770,7 +773,7 @@ async function liveVerdict(v){
   $('lvOk').hidden=$('lvNo').hidden=true;
   const a=pendingAttempt(LIVE.i); if(!a) return;
   if(v==='confirmed'){ await verdictFor(LIVE.i,a.pick,'confirmed'); burst(); }
-  else { await removeAttempt(LIVE.i,a.pick,true); setReels(0); $('lvWin').innerHTML='<div class="sub">Спробу прибрано. Наступна спроба: пробіл</div>'; }
+  else { await removeAttempt(LIVE.i,a.pick,true); $('lvProf').hidden=$('lvCmtLink').hidden=true; setReels(0); $('lvWin').innerHTML='<div class="sub">Спробу прибрано. Наступна спроба: пробіл</div>'; }
   LIVE.setPrize(); liveState();
 }
 
