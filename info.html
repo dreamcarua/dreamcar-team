@@ -295,6 +295,14 @@
       <div class="tile-meta">/// /info.html</div>
     </a>
 
+    <a href="/comments/" class="tile">
+      <span class="tile-badge new">NEW</span>
+      <div class="tile-icon">💬</div>
+      <div class="tile-title">КОМЕНТАРІ</div>
+      <div class="tile-desc">Посилання на пост → реєстр учасників, номери, вибір у прямому ефірі.</div>
+      <div class="tile-meta">/// /comments/</div>
+    </a>
+
     <a href="https://dashboard.dreamcar.ua/" target="_blank" rel="noopener" class="tile">
       <span class="tile-badge ext">↗</span>
       <div class="tile-icon">📊</div>
@@ -379,6 +387,23 @@
       </div>
       <div class="info-card-body" id="regBody"><div class="loading">Завантажую…</div></div>
       <a class="open-btn" href="/regulations/">Усі регламенти →</a>
+    </div>
+
+    <div class="info-card">
+      <div class="info-card-head">
+        <div class="info-card-title"><span class="icon">💬</span> Учасники з коментарів</div>
+        <span class="info-card-counter new">NEW · 16.11</span>
+      </div>
+      <div class="info-card-body">
+        <div style="font-size:13px;color:var(--grey-2);line-height:1.5;margin-bottom:12px;">
+          Вставте посилання на пост @dreamcar.ua: сторінка збере всі коментарі, дасть кожному номер, покаже аналітику і обере номер у прямому ефірі.
+        </div>
+        <form action="/comments/" method="get" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input name="url" type="url" required placeholder="https://www.instagram.com/p/…" style="flex:1 1 200px;min-width:0;background:#0a0a0a;border:1px solid #2a2a2a;color:#fff;border-radius:6px;padding:10px 12px;font-size:13px;">
+          <button type="submit" class="open-btn" style="margin-top:0;border:none;cursor:pointer;">Далі →</button>
+        </form>
+      </div>
+      <a class="open-btn" href="/comments/">Усі сторінки постів →</a>
     </div>
 
     <div class="info-card">

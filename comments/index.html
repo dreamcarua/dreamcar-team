@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<title>DreamCar · Учасники з коментарів</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<script src="/hq/config.js" defer></script>
+<script src="/assets/auth-guard.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous" defer></script>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0a0a0a;--bg-2:#131313;--bg-3:#1b1b1b;--line:#242424;--steel:#2f2f2f;
+  --white:#fff;--text:#ececec;--ash:#8d8d8d;--grey:#b4b4b4;
+  --red:#E30613;--red-deep:#B8050F;--red-soft:#FF6A7A;--gold:#FBBF24;--green:#10B981;--blue:#60A5FA;
+  --display:'Oswald','Arial Narrow',Impact,sans-serif;
+  --body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text);margin:0}
+body{font-family:var(--body);font-size:14px;line-height:1.5;padding:0 16px 48px}
+a{color:inherit}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash)}
+h1,h2,h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.02em;color:var(--white);margin:0;text-wrap:balance;font-weight:700}
+h2{font-size:22px}
+h3{font-size:15px;letter-spacing:.06em}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-block:18px;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:.04em;text-decoration:none;color:var(--white)}
+.brand .r{color:var(--red)}
+.topbar .meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;background:var(--bg-3);border:1px solid var(--steel);color:var(--white);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;border-radius:6px;cursor:pointer;text-decoration:none;transition:border-color .15s,background .15s,transform .1s}
+.btn:hover{border-color:var(--red)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible,.inp:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.btn.primary{background:var(--red);border-color:var(--red)}
+.btn.primary:hover{background:var(--red-deep)}
+.btn.ok{border-color:rgba(16,185,129,.5);color:var(--green)}
+.btn.no{border-color:rgba(255,106,122,.5);color:var(--red-soft)}
+.hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:28px;align-items:start;padding-top:8px}
+.hero h1{font-size:clamp(30px,5vw,58px);line-height:1}
+.hero .lead{color:var(--grey);max-width:62ch;margin:14px 0 0;white-space:pre-line}
+.rules{margin:18px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.rules li{display:flex;gap:10px;align-items:baseline}
+.rules li b{font-family:var(--mono);font-size:11px;color:var(--ash);letter-spacing:.1em;min-width:74px;text-transform:uppercase}
+.prizes{display:flex;flex-direction:column;gap:12px}
+.prize{position:relative;background:var(--bg-2);border:1px solid var(--steel);border-radius:10px;padding:18px 18px 16px;overflow:hidden}
+.prize::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--c,var(--red))}
+.prize .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.prize .amt{font-family:var(--display);font-size:24px;color:var(--white);font-weight:700;text-transform:uppercase}
+.prize .how{font-size:12px;color:var(--ash);font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.prize .lead-now{margin-top:10px;padding-top:10px;border-top:1px dashed var(--steel);font-size:13px;color:var(--grey);display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+.prize .lead-now a{color:var(--white);font-weight:700;text-decoration:none;border-bottom:1px solid var(--gold)}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;background:var(--bg-2)}
+.kpi{padding:16px 18px;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:0}
+.kpi .v{font-family:var(--display);font-size:30px;color:var(--white);line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash)}
+.kpi .s{font-size:12px;color:var(--grey);margin-top:2px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.panel{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.chartbox{position:relative;height:260px}
+.lb{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.lb li{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center}
+.lb .rk{font-family:var(--mono);font-size:12px;color:var(--ash);text-align:right}
+.lb li:first-child .rk{color:var(--gold)}
+.lb .who{min-width:0}
+.lb .who a{color:var(--white);text-decoration:none;font-weight:600}
+.lb .who a:hover{color:var(--red-soft)}
+.lb .txt{font-size:12px;color:var(--ash);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb .bar{height:3px;background:var(--line);border-radius:2px;margin-top:4px}
+.lb .bar i{display:block;height:100%;background:var(--c,var(--gold));border-radius:2px}
+.lb .num{font-family:var(--mono);font-size:13px;color:var(--white)}
+.dist{display:flex;flex-direction:column;gap:8px}
+.dist .r{display:grid;grid-template-columns:110px minmax(0,1fr) 64px;gap:10px;align-items:center;font-size:12px}
+.dist .r .t{height:10px;background:var(--bg-3);border-radius:2px}
+.dist .r .t i{display:block;height:100%;background:var(--red);border-radius:2px}
+.dist .r .n{font-family:var(--mono);text-align:right;color:var(--white)}
+.note{font-size:12px;color:var(--ash)}
+.note b{color:var(--grey)}
+.picker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;background:linear-gradient(90deg,rgba(227,6,19,.14),rgba(227,6,19,0) 60%),var(--bg-2);border:1px solid var(--steel);border-radius:10px;padding:18px}
+.picker .res{display:flex;gap:16px;align-items:center;flex-wrap:wrap;min-width:0}
+.picker .big{font-family:var(--display);font-size:54px;line-height:1;color:var(--white);min-width:3ch;font-variant-numeric:tabular-nums}
+.picker .who{min-width:0}
+.picker .who a{color:var(--white);font-weight:700;text-decoration:none;font-size:16px}
+.picker .who .txt{color:var(--grey);font-size:13px;overflow-wrap:anywhere}
+.picker .acts{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.picker .acts .row2{display:flex;gap:8px}
+.log{grid-column:1/-1;margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--grey)}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.inp,select,textarea{background:var(--bg);border:1px solid var(--steel);color:var(--white);border-radius:6px;padding:10px 12px;font-family:var(--body);font-size:14px}
+textarea{resize:vertical;min-height:70px;width:100%}
+.inp{flex:1 1 260px;min-width:0}
+select{font-family:var(--mono);font-size:12px}
+.count{font-family:var(--mono);font-size:12px;color:var(--ash);margin-left:auto}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:900px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash);background:var(--bg-2);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
+th[data-k]:hover{color:var(--white)}
+th .ar{color:var(--red)}
+tbody tr:hover{background:#111}
+tbody tr.hl{background:rgba(227,6,19,.16);box-shadow:inset 4px 0 0 var(--gold)}
+tbody tr.out td{opacity:.55}
+td.n{font-family:var(--mono);color:var(--white);font-weight:700;white-space:nowrap}
+td.dt{font-family:var(--mono);font-size:12px;color:var(--grey);white-space:nowrap}
+td.acc a{color:var(--white);text-decoration:none;font-weight:600}
+td.acc a:hover{color:var(--red-soft)}
+td.tx{max-width:460px;overflow-wrap:anywhere}
+td.tx mark{background:rgba(251,191,36,.25);color:var(--white);border-radius:2px;padding:0 2px}
+td.lk{font-family:var(--mono);text-align:right;white-space:nowrap}
+td.lk.hot{color:var(--gold);font-weight:700}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:4px;border:1px solid var(--steel);color:var(--ash);white-space:nowrap}
+.pill.reply{color:var(--blue);border-color:rgba(96,165,250,.4)}
+.pill.chk{color:var(--gold);border-color:rgba(251,191,36,.4);text-decoration:none}
+.pill.hid{color:var(--red-soft);border-color:rgba(255,106,122,.4)}
+.pill.kw{color:var(--green);border-color:rgba(16,185,129,.4)}
+.pill.st-ready{color:var(--green);border-color:rgba(16,185,129,.4)}
+.pill.st-error{color:var(--red-soft);border-color:rgba(255,106,122,.4)}
+.pill.st-fetching,.pill.st-queued{color:var(--gold);border-color:rgba(251,191,36,.4)}
+.open{display:inline-flex;align-items:center;gap:6px;color:var(--white);text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border:1px solid var(--steel);border-radius:5px;white-space:nowrap}
+.open:hover{border-color:var(--red)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.foot{font-size:12px;color:var(--ash);border-top:1px solid var(--line);padding-top:16px;display:flex;flex-direction:column;gap:6px}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.form label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--grey)}
+.form label.full{grid-column:1/-1}
+.form .chk{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--text)}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 190px 40px;gap:8px;margin-bottom:8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;transition:border-color .15s}
+.card:hover{border-color:var(--red)}
+.card .t{font-family:var(--display);font-size:18px;color:var(--white);text-transform:uppercase}
+.state{padding:40px;text-align:center;color:var(--grey)}
+.spin{width:28px;height:28px;border:3px solid var(--steel);border-top-color:var(--red);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:var(--red-soft)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--steel);border-radius:8px;padding:10px 16px;font-size:13px;z-index:50}
+@media (max-width:980px){
+  .hero,.grid2,.grid3,.form{grid-template-columns:minmax(0,1fr)}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kpi:nth-child(3){border-right:0}
+  .kpi:nth-child(-n+3){border-bottom:1px solid var(--line)}
+}
+@media (max-width:520px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi{border-right:0;border-bottom:1px solid var(--line)}
+  .kpi:nth-child(odd){border-right:1px solid var(--line)}
+  .picker{grid-template-columns:minmax(0,1fr)}
+  .picker .big{font-size:42px}
+  .prow{grid-template-columns:minmax(0,1fr) 40px}
+  .prow select{grid-column:1/2}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <a class="brand" href="/comments/">DREAM<span class="r">CAR</span> <span class="eyebrow" style="margin-left:8px">учасники з коментарів</span></a>
+    <div class="meta" id="topMeta"><a class="btn" href="/info.html">← Team Hub</a></div>
+  </header>
+  <main id="app" class="wrap" style="gap:28px"><div class="state"><div class="spin"></div>Завантажую…</div></main>
+</div>
+
+<template id="tplHome">
+  <section class="panel">
+    <div class="hd"><h2>Новий пул з поста</h2><span class="eyebrow">вставте посилання і умови</span></div>
+    <form id="newForm" class="form" autocomplete="off"></form>
+  </section>
+  <section class="panel">
+    <div class="hd"><h2>Сторінки постів</h2><span class="eyebrow" id="listCount"></span></div>
+    <div class="cards" id="list"></div>
+  </section>
+</template>
+
+<script>
+const FN = () => (window.HQ_CONFIG?.SUPABASE_URL || 'https://wotghlaehnvxyeacznvv.supabase.co') + '/functions/v1/comment-pool';
+const DEFAULT_EXCLUDED = ['dreamcar.ua','ai.dreamcar.ua','club.dreamcar.ua','some_mario'];
+const fmt = n => (n==null||n===''?'—':Number(n).toLocaleString('uk-UA'));
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const prof = u => 'https://www.instagram.com/' + encodeURIComponent(u) + '/';
+const kyiv = (ms, opt) => new Date(ms).toLocaleString('uk-UA', Object.assign({timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}, opt||{}));
+const $ = id => document.getElementById(id);
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3200);}
+
+let SESSION = null;
+async function call(action, payload){
+  if (!SESSION) { const { data } = await window.supabase.auth.getSession(); SESSION = data.session; }
+  const r = await fetch(FN(), { method:'POST', headers:{ 'content-type':'application/json', authorization:'Bearer '+SESSION.access_token, apikey: window.HQ_CONFIG?.SUPABASE_ANON_KEY||'' }, body: JSON.stringify(Object.assign({action}, payload||{})) });
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok && r.status!==202) throw new Error(j.error || ('HTTP '+r.status));
+  return j;
+}
+
+/* ---------- форма умов (нова і редагування) ---------- */
+function formHTML(cfg, url, title, isEdit){
+  cfg = cfg || {};
+  const prizes = (cfg.prizes && cfg.prizes.length) ? cfg.prizes : [{label:'',method:'random'}];
+  return `
+    ${isEdit?'':`<label class="full">Посилання на пост Instagram
+      <input class="inp" name="url" required placeholder="https://www.instagram.com/p/…" value="${esc(url||'')}"></label>`}
+    <label class="full">Заголовок сторінки
+      <input class="inp" name="title" placeholder="Напр.: 150 л пального за коментар" value="${esc(title||'')}"></label>
+    <div class="full" style="grid-column:1/-1"><div class="eyebrow" style="margin-bottom:8px">Призи і спосіб вибору</div>
+      <div id="prizeRows">${prizes.map(prizeRow).join('')}</div>
+      <button class="btn" type="button" id="addPrize">+ Приз</button></div>
+    <label>Умови (кожна з нового рядка)
+      <textarea name="rules" placeholder="залишити коментар під постом&#10;бути підписаним на @dreamcar.ua">${esc((cfg.rules||[]).join('\n'))}</textarea></label>
+    <label>Ключові слова правильної відповіді (кома або новий рядок)
+      <textarea name="keywords" placeholder="range rover, рендж ровер">${esc((cfg.keywords||[]).join(', '))}</textarea></label>
+    <label class="chk"><input type="checkbox" name="keywords_required" ${cfg.keywords_required?'checked':''}> У пул лише коментарі з ключовим словом</label>
+    <label class="chk"><input type="checkbox" name="include_replies" ${cfg.include_replies===false?'':'checked'}> Відповіді на коментарі теж отримують номер</label>
+    <label class="chk"><input type="checkbox" name="one_per_account" ${cfg.one_per_account?'checked':''}> Один номер на акаунт (перший коментар)</label>
+    <label>Виключити акаунти (команда)
+      <textarea name="excluded">${esc((cfg.excluded||DEFAULT_EXCLUDED).join(', '))}</textarea></label>
+    <div class="full tools" style="grid-column:1/-1"><button class="btn primary" type="submit">${isEdit?'Зберегти умови':'Створити сторінку'}</button><span class="note" id="formMsg"></span></div>`;
+}
+function prizeRow(p){
+  return `<div class="prow"><input class="inp" name="plabel" placeholder="Напр.: 100 л або 10 000 ₴" value="${esc(p.label||'')}">
+    <select name="pmethod"><option value="random"${p.method!=='top_likes'?' selected':''}>Випадковий номер</option><option value="top_likes"${p.method==='top_likes'?' selected':''}>Найбільше лайків</option></select>
+    <button class="btn" type="button" data-del title="Прибрати">✕</button></div>`;
+}
+function bindForm(form, onSubmit){
+  form.addEventListener('click', e=>{
+    if (e.target.id==='addPrize') form.querySelector('#prizeRows').insertAdjacentHTML('beforeend', prizeRow({method:'random'}));
+    if (e.target.hasAttribute('data-del')) { const rows=form.querySelectorAll('.prow'); if (rows.length>1) e.target.closest('.prow').remove(); }
+  });
+  form.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const f = new FormData(form);
+    const labels=f.getAll('plabel'), methods=f.getAll('pmethod');
+    const config = {
+      prizes: labels.map((l,i)=>({label:String(l).trim(),method:methods[i]})).filter(p=>p.label),
+      rules: String(f.get('rules')||'').split('\n').map(s=>s.trim()).filter(Boolean),
+      keywords: String(f.get('keywords')||'').split(/[\n,]+/).map(s=>s.trim()).filter(Boolean),
+      keywords_required: !!f.get('keywords_required'),
+      include_replies: !!f.get('include_replies'),
+      one_per_account: !!f.get('one_per_account'),
+      excluded: String(f.get('excluded')||'').split(/[\n,\s]+/).map(s=>s.trim().replace(/^@/,'')).filter(Boolean),
+    };
+    const btn = form.querySelector('[type=submit]'); btn.disabled=true; $('formMsg').textContent='Зберігаю…';
+    try { await onSubmit({ url: f.get('url'), title: String(f.get('title')||'').trim(), config }); }
+    catch(err){ $('formMsg').innerHTML='<span class="err">'+esc(err.message)+'</span>'; }
+    btn.disabled=false;
+  });
+}
+
+/* ---------- список ---------- */
+const ST = {queued:'в черзі',fetching:'збираю коментарі',ready:'готово',error:'помилка'};
+async function renderHome(){
+  const app=$('app'); app.innerHTML=''; app.appendChild($('tplHome').content.cloneNode(true));
+  const form=$('newForm'); form.innerHTML=formHTML({prizes:[{label:'',method:'random'}],include_replies:true,excluded:DEFAULT_EXCLUDED},new URLSearchParams(location.search).get('url')||'','',false);
+  bindForm(form, async ({url,title,config})=>{
+    const j = await call('create',{url,title,config});
+    location.href='/comments/?id='+j.id;
+  });
+  try{
+    const j = await call('list');
+    const items=j.items||[];
+    $('listCount').textContent = items.length + ' сторінок';
+    $('list').innerHTML = items.map(p=>`<a class="card" href="/comments/?id=${p.id}">
+      <div class="eyebrow">${esc(kyiv(Date.parse(p.created_at)))} · ${esc(p.created_by_name||'')}</div>
+      <div class="t">${esc(p.title||p.shortcode)}</div>
+      <div class="note">${esc(p.url)}</div>
+      <div class="tools"><span class="pill st-${p.status}">${ST[p.status]||p.status}</span>
+      ${p.api_total!=null?`<span class="pill">${fmt(p.api_total)} коментарів</span>`:''}
+      ${(p.draws||[]).length?`<span class="pill chk">спроб: ${(p.draws||[]).filter(d=>d.status==='picked').length}</span>`:''}</div></a>`).join('') || '<div class="note">Ще немає жодної сторінки. Створіть першу формою вище.</div>';
+  }catch(e){ $('list').innerHTML='<div class="err">'+esc(e.message)+'</div>'; }
+}
+
+/* ---------- сторінка поста ---------- */
+let POOL=null, M=null, CHART=null, pollT=null;
+function kwRegex(list){
+  const k=(list||[]).map(s=>s.toLowerCase().trim()).filter(Boolean).map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+  return k.length ? new RegExp('(^|[^\\p{L}\\p{N}])('+k.join('|')+')','iu') : null;
+}
+function model(pool){
+  const cfg=pool.config||{}, sc=pool.shortcode, ex=new Set((cfg.excluded||[]).map(s=>s.toLowerCase()));
+  const re=kwRegex(cfg.keywords);
+  const all=(pool.rows||[]).map(r=>({id:String(r[0]),t:r[1],u:r[2],text:r[3],likes:r[4]||0,reply:!!r[5],hidden:!!r[6],parent:r[7]||null}));
+  let excludedTeam=0; const exBy={};
+  const rows=[];
+  for(const r of all){
+    r.url = r.reply && r.parent ? `https://www.instagram.com/p/${sc}/c/${r.parent}/r/${r.id}/` : `https://www.instagram.com/p/${sc}/c/${r.id}/`;
+    if (ex.has(String(r.u).toLowerCase())) { excludedTeam++; exBy[r.u]=(exBy[r.u]||0)+1; continue; }
+    r.kw = re ? re.test(r.text) : false;
+    r.out = null;
+    if (!cfg.include_replies && r.reply) r.out='відповідь';
+    else if (cfg.keywords_required && !r.kw) r.out='без ключового слова';
+    rows.push(r);
+  }
+  rows.sort((a,b)=>a.t-b.t||a.id.localeCompare(b.id));
+  if (cfg.one_per_account){ const s=new Set(); for(const r of rows){ if(r.out) continue; if(s.has(r.u)) r.out='повторний коментар акаунта'; else s.add(r.u); } }
+  let n=0; for(const r of rows){ r.n = r.out ? null : ++n; }
+  const pool_=rows.filter(r=>r.n);
+  return {cfg, rows, pool:pool_, excludedTeam, exBy, re};
+}
+
+async function renderPool(id){
+  clearTimeout(pollT);
+  let j; try{ j=await call('get',{id}); }catch(e){ $('app').innerHTML='<div class="state err">'+esc(e.message)+'</div>'; return; }
+  POOL=j.pool;
+  document.title = 'DreamCar · ' + (POOL.title||POOL.shortcode);
+  $('topMeta').innerHTML = `<a class="btn" href="/comments/">← Усі пости</a><a class="btn" href="${esc(POOL.url)}" target="_blank" rel="noopener">Відкрити пост ↗</a>
+    <button class="btn" id="refreshBtn" type="button">↻ Оновити коментарі</button><button class="btn" id="editBtn" type="button">Умови</button>`;
+  $('refreshBtn').onclick = async()=>{ $('refreshBtn').disabled=true; try{ await call('refresh',{id}); toast('Збираю коментарі заново…'); setTimeout(()=>renderPool(id),2500);}catch(e){toast(e.message);} };
+  $('editBtn').onclick = ()=>openEdit();
+  if (POOL.status==='queued'||POOL.status==='fetching'){
+    $('app').innerHTML = `<div class="state"><div class="spin"></div>Збираю коментарі з Instagram… Сторінка оновиться сама.${POOL.rows?.length?'<div class="note">Попередні дані: '+fmt(POOL.rows.length)+' коментарів</div>':''}</div>`;
+    pollT=setTimeout(()=>renderPool(id),3000); return;
+  }
+  if (POOL.status==='error' && !(POOL.rows||[]).length){
+    $('app').innerHTML = `<div class="state"><div class="err">Не вдалося зібрати коментарі: ${esc(POOL.error)}</div><p class="note">Перевірте посилання (пост має бути з акаунта @dreamcar.ua) і натисніть «Оновити коментарі».</p></div>`; return;
+  }
+  M=model(POOL); draw();
+}
+
+function openEdit(){
+  const app=$('app');
+  app.innerHTML=`<section class="panel"><div class="hd"><h2>Умови сторінки</h2><span class="eyebrow">номери перераховуються одразу</span></div><form id="editForm" class="form"></form></section>`;
+  const f=$('editForm'); f.innerHTML=formHTML(POOL.config, POOL.url, POOL.title, true);
+  if ((POOL.draws||[]).length) f.insertAdjacentHTML('afterbegin','<div class="full note err" style="grid-column:1/-1">Увага: спроби вибору вже були. Зміна умов змінить номери учасників.</div>');
+  bindForm(f, async ({title,config})=>{ await call('update',{id:POOL.id,title,config}); toast('Збережено'); renderPool(POOL.id); });
+}
+
+function hl(text){ const s=esc(text); if(!M.re) return s; const re=new RegExp(M.re.source,'giu'); return s.replace(re,(m,a,b)=>a+'<mark>'+b+'</mark>'); }
+
+function draw(){
+  const {cfg, rows, pool} = M; const P=POOL.post||{};
+  const authors={}; pool.forEach(r=>authors[r.u]=(authors[r.u]||0)+1);
+  const authorList=Object.entries(authors).sort((a,b)=>b[1]-a[1]);
+  const byLikes=[...pool].sort((a,b)=>b.likes-a.likes||a.t-b.t);
+  const leader=byLikes[0];
+  const ruleLis=(cfg.rules||[]).map(r=>`<li><b>Умова</b><span>${esc(r)}</span></li>`).join('');
+  const prizeCards=(cfg.prizes||[]).map((p,i)=>`<div class="prize" style="--c:${p.method==='top_likes'?'var(--gold)':'var(--red)'}">
+    <div class="row"><span class="amt">${esc(p.label)}</span><span class="how">${p.method==='top_likes'?'Найбільше лайків':'Випадковий номер'}</span></div>
+    <div class="lead-now">${p.method==='top_likes' ? (leader?`Зараз лідирує <a href="${esc(leader.url)}" target="_blank" rel="noopener">@${esc(leader.u)}</a> <span class="mono">№${leader.n}</span> · <b class="mono" style="color:var(--gold)">${fmt(leader.likes)} ❤</b>`:'—') : `У пулі <b class="mono" style="color:var(--white)">${fmt(pool.length)}</b> номерів · від №1 до №${pool.length}`}</div></div>`).join('');
+  const ts=P.timestamp?Date.parse(String(P.timestamp).replace(/\+0000$/,'Z')):null;
+  const kwN=rows.filter(r=>r.kw).length;
+
+  $('app').innerHTML = `
+  <div class="eyebrow">Дані на <span class="mono">${POOL.fetched_at?esc(kyiv(Date.parse(POOL.fetched_at))):'—'}</span> · час за Києвом${POOL.status==='error'?' · <span class="err">остання спроба оновлення: '+esc(POOL.error)+'</span>':''}</div>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">@dreamcar.ua · пост від ${ts?esc(kyiv(ts,{hour:undefined,minute:undefined})):'—'}</div>
+      <h1 style="margin-top:10px">${esc(POOL.title||'Учасники з коментарів')}</h1>
+      <p class="lead">Аналітика поста і повний реєстр учасників. Кожен коментар у пулі має свій порядковий номер за часом, від найранішого. Коментарі акаунтів команди виключені.</p>
+      <ul class="rules">${ruleLis}
+        ${cfg.keywords_required?`<li><b>Відбір</b><span>у пул потрапляють лише коментарі з ключовими словами: ${esc((cfg.keywords||[]).join(', '))}</span></li>`:''}
+        ${cfg.one_per_account?'<li><b>Відбір</b><span>один номер на акаунт (перший коментар)</span></li>':''}
+        ${cfg.include_replies?'':'<li><b>Відбір</b><span>відповіді на коментарі номер не отримують</span></li>'}
+      </ul>
+    </div>
+    <div class="prizes">${prizeCards}</div>
+  </section>
+  <section class="kpis">${[
+    ['Лайки поста', P.like_count ?? P.i_likes, P.i_reach?'охоплення '+fmt(P.i_reach):''],
+    ['Коментарі всього', P.api_total, P.i_comments!=null?'Instagram рахує '+fmt(P.i_comments):'зібрано через API'],
+    ['Номерів у пулі', pool.length, cfg.keywords?.length?('з ключовим словом '+fmt(kwN)):'після виключень'],
+    ['Унікальних акаунтів', authorList.length, authorList.length?(pool.length/authorList.length).toFixed(1).replace('.',',')+' ном. на акаунт':''],
+    ['Репости', P.i_shares, P.i_views?'перегляди '+fmt(P.i_views):''],
+    ['Збереження', P.i_saved, P.i_total_interactions?'взаємодій '+fmt(P.i_total_interactions):''],
+  ].map(([l,v,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(v)}</div><div class="s">${esc(s||'')}</div></div>`).join('')}</section>
+
+  <section class="grid2">
+    <div class="panel"><div class="hd"><h3>Динаміка коментарів</h3><span class="eyebrow">по годинах, Київ</span></div>
+      <div class="chartbox"><canvas id="timeline" aria-label="Кількість коментарів по годинах"></canvas></div><div class="note" id="peakNote"></div></div>
+    <div class="panel"><div class="hd"><h3>Гонка за лайки</h3><span class="eyebrow">топ-10 коментарів у пулі</span></div><ul class="lb" id="topLikes"></ul></div>
+  </section>
+  <section class="grid3">
+    <div class="panel"><div class="hd"><h3>Найактивніші</h3><span class="eyebrow">номерів на акаунт</span></div><ul class="lb" id="topAuthors" style="--c:var(--red)"></ul></div>
+    <div class="panel"><div class="hd"><h3>Скільки пишуть</h3><span class="eyebrow">розподіл акаунтів</span></div><div class="dist" id="dist"></div><div class="note" id="distNote"></div></div>
+    <div class="panel"><div class="hd"><h3>${cfg.keywords?.length?'Відповіді':'Лайки на коментарях'}</h3><span class="eyebrow">${cfg.keywords?.length?'ключові слова':'розподіл коментарів'}</span></div><div class="dist" id="likeDist"></div><div class="note" id="excludedNote"></div></div>
+  </section>
+
+  <div id="pickers"></div>
+
+  <section class="panel" id="tableSec">
+    <div class="hd"><h2>Учасники</h2><span class="eyebrow">клік по заголовку сортує</span></div>
+    <div class="tools">
+      <input class="inp" id="q" type="search" placeholder="Пошук: номер (напр. 95), @акаунт або текст" autocomplete="off">
+      <select id="fPool" aria-label="Пул"><option value="">Усі коментарі</option><option value="in">Лише в пулі</option><option value="out">Поза пулом</option>${cfg.keywords?.length?'<option value="kw">З ключовим словом</option>':''}</select>
+      <select id="fType" aria-label="Тип"><option value="">Основні і відповіді</option><option value="c">Лише основні</option><option value="r">Лише відповіді</option></select>
+      <select id="fLikes" aria-label="Лайки"><option value="0">Будь-які лайки</option><option value="1">1+ лайк</option><option value="5">5+</option><option value="20">20+</option></select>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th data-k="n">№ <span class="ar"></span></th><th data-k="t">Дата і час <span class="ar"></span></th><th data-k="u">Акаунт <span class="ar"></span></th>
+      <th>Коментар</th><th data-k="likes" style="text-align:right">Лайки <span class="ar"></span></th><th>Підписка</th><th>Коментар ↗</th>
+    </tr></thead><tbody id="tb"></tbody></table></div>
+    <div class="pager"><button class="btn" id="prev" type="button">← Назад</button><span class="mono" id="pageInfo" style="color:var(--ash);font-size:12px"></span><button class="btn" id="next" type="button">Далі →</button></div>
+  </section>
+
+  <footer class="foot">
+    <div><b style="color:var(--grey)">Підписка і лайк поста.</b> Instagram не показує через API, хто підписаний на сторінку і хто поставив лайк посту. Колонка веде на профіль учасника: перевірити переможця вручну перед оголошенням.</div>
+    <div><b style="color:var(--grey)">Виключено</b> акаунти: ${(cfg.excluded||[]).map(u=>'@'+esc(u)).join(', ')||'—'}. Номери присвоєні за часом коментаря, від найранішого.</div>
+    <div>Зібрано через Instagram Graph API: ${fmt(P.api_total)} коментарів і відповідей${P.i_comments!=null?`, Instagram у статистиці поста рахує ${fmt(P.i_comments)}`:''}. Різниця можлива через видалені коментарі та коментарі, приховані фільтром Instagram.</div>
+  </footer>`;
+
+  // timeline
+  const buckets={}; pool.forEach(r=>{const d=new Date(r.t); const k=d.toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit'}); buckets[k]=(buckets[k]||0)+1;});
+  const tl=[]; if(pool.length){ let t=Math.floor(pool[0].t/3600000)*3600000; const end=pool[pool.length-1].t; while(t<=end && tl.length<24*60){ const k=new Date(t).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit'}); tl.push([k+':00',buckets[k]||0]); delete buckets[k]; t+=3600000; } }
+  const peak=tl.reduce((m,x)=>x[1]>m[1]?x:m,['',0]);
+  const firstDay=pool.length?Math.round(pool.filter(r=>r.t-pool[0].t<86400000).length/pool.length*100):0;
+  $('peakNote').innerHTML = pool.length?`Пік: <b>${esc(peak[0])}</b>, ${fmt(peak[1])} номерів за годину. Перша доба дала <b>${firstDay}%</b> усіх номерів.`:'';
+  if (CHART) { CHART.destroy(); CHART=null; }
+  if (window.Chart && tl.length){
+    Chart.defaults.color='#8d8d8d'; Chart.defaults.font.family="'JetBrains Mono', monospace"; Chart.defaults.font.size=10;
+    CHART=new Chart($('timeline'),{type:'bar',data:{labels:tl.map(x=>x[0]),datasets:[{data:tl.map(x=>x[1]),backgroundColor:tl.map(x=>x===peak?'#E30613':'rgba(227,6,19,.45)'),borderRadius:2,barPercentage:.95,categoryPercentage:1}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' номерів'}}},scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}},y:{beginAtZero:true,grid:{color:'#1f1f1f'},ticks:{precision:0}}}}});
+  }
+  const maxL=byLikes[0]?byLikes[0].likes||1:1;
+  $('topLikes').innerHTML=byLikes.slice(0,10).map((r,i)=>`<li><span class="rk">${i+1}</span><div class="who"><a href="${esc(r.url)}" target="_blank" rel="noopener">@${esc(r.u)}</a> <span class="mono" style="color:var(--ash);font-size:11px">№${r.n}</span><div class="txt">${esc(r.text)}</div><div class="bar"><i style="width:${Math.max(2,r.likes/maxL*100)}%"></i></div></div><span class="num">${fmt(r.likes)} ❤</span></li>`).join('')||'<li class="note">Пул порожній</li>';
+  const maxA=authorList[0]?authorList[0][1]:1;
+  $('topAuthors').innerHTML=authorList.slice(0,8).map(([u,c],i)=>`<li><span class="rk">${i+1}</span><div class="who"><a href="${prof(u)}" target="_blank" rel="noopener">@${esc(u)}</a><div class="bar"><i style="width:${c/maxA*100}%"></i></div></div><span class="num">${fmt(c)}</span></li>`).join('')||'<li class="note">—</li>';
+  const distRows=(el,b)=>{const mx=Math.max(...b.map(x=>x[1]),1); $(el).innerHTML=b.map(([l,v])=>`<div class="r"><span>${l}</span><span class="t"><i style="width:${v/mx*100}%"></i></span><span class="n">${fmt(v)}</span></div>`).join('');};
+  const ab=[['1 номер',0],['2–3',0],['4–10',0],['11+',0]]; authorList.forEach(([,c])=>ab[c===1?0:c<=3?1:c<=10?2:3][1]++); distRows('dist',ab);
+  if (authorList.length) $('distNote').innerHTML=`<b>${Math.round(ab[0][1]/authorList.length*100)}%</b> акаунтів мають один номер. Акаунти з 11+ номерами мають <b>${Math.round(authorList.filter(a=>a[1]>10).reduce((s,a)=>s+a[1],0)/Math.max(pool.length,1)*100)}%</b> пулу.`;
+  if (cfg.keywords?.length){
+    distRows('likeDist',[['з ключовим',kwN],['без нього',rows.length-kwN],['у пулі',pool.length],['поза пулом',rows.length-pool.length]]);
+  } else {
+    const lb=[['0 лайків',0],['1–4',0],['5–19',0],['20+',0]]; pool.forEach(r=>{const l=r.likes;lb[l===0?0:l<5?1:l<20?2:3][1]++}); distRows('likeDist',lb);
+  }
+  $('excludedNote').innerHTML=`Виключено <b>${fmt(M.excludedTeam)}</b> коментарів команди${Object.keys(M.exBy).length?': '+Object.entries(M.exBy).map(([u,c])=>'@'+esc(u)+' '+c).join(', '):''}.`;
+
+  renderPickers();
+  initTable();
+}
+
+/* ---------- вибір ---------- */
+function rnd(max){const a=new Uint32Array(1);const lim=Math.floor(0x100000000/max)*max;let x;do{crypto.getRandomValues(a);x=a[0]}while(x>=lim);return x%max+1}
+function drawnIds(){ return new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>d.comment_id)); }
+function renderPickers(){
+  const {cfg,pool}=M;
+  const rnds=(cfg.prizes||[]).map((p,i)=>({...p,i})).filter(p=>p.method==='random');
+  $('pickers').innerHTML = rnds.map(p=>`<section class="picker" data-i="${p.i}" style="margin-bottom:18px">
+    <div class="res"><div class="big mono" id="pickN${p.i}">—</div>
+      <div class="who" id="pickWho${p.i}"><div class="eyebrow">${esc(p.label)} · випадковий номер</div><div class="txt">Генератор бере номер від 1 до ${fmt(pool.length)} через crypto.getRandomValues, без повторів, і підсвічує рядок у таблиці. Кожна спроба пишеться в журнал.</div></div></div>
+    <div class="acts"><button class="btn primary" type="button" data-pick="${p.i}" ${pool.length?'':'disabled'}>Обрати випадковий номер</button>
+      <div class="row2" id="verdict${p.i}" hidden><button class="btn ok" type="button" data-v="confirmed">✓ Умови виконано</button><button class="btn no" type="button" data-v="rejected">✗ Не виконано</button></div></div>
+    <ol class="log" id="log${p.i}" reversed></ol></section>`).join('');
+  rnds.forEach(p=>renderLog(p.i));
+  $('pickers').onclick = e=>{
+    const b=e.target.closest('[data-pick]'); if(b) return pick(+b.dataset.pick, b);
+    const v=e.target.closest('[data-v]'); if(v) return verdict(+v.closest('.picker').dataset.i, v.dataset.v);
+  };
+}
+function renderLog(i){
+  const label=M.cfg.prizes[i].label; const L=(POOL.draws||[]).filter(d=>d.prize===label);
+  const el=$('log'+i); if(!el) return;
+  el.innerHTML = L.slice().reverse().map(d=>`<li><span class="mono">${esc(kyiv(Date.parse(d.at),{second:'2-digit'}))}</span> · ${d.status==='picked'?`<b class="mono">№${d.n}</b> з ${fmt(d.pool_size)} · <a href="${esc(rowUrl(d.comment_id))}" target="_blank" rel="noopener">@${esc(d.username)}</a>`:(d.status==='confirmed'?'<span style="color:var(--green)">✓ умови виконано</span>':'<span style="color:var(--red-soft)">✗ не виконано</span>')+` · @${esc(d.username)}`} <span class="note">· ${esc(d.by||'')}</span></li>`).join('');
+  el.hidden=!L.length;
+}
+function rowUrl(cid){ const r=M.rows.find(x=>x.id===cid); return r?r.url:POOL.url; }
+let LAST={};
+async function pick(i, btn){
+  const {pool}=M; const used=drawnIds(); const avail=pool.filter(r=>!used.has(r.id));
+  if(!avail.length){ toast('Усі номери вже обрані'); return; }
+  btn.disabled=true; $('verdict'+i).hidden=true;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const r=avail[rnd(avail.length)-1]; const out=$('pickN'+i); const steps=reduce?1:30; let k=0;
+  await new Promise(res=>{(function tick(){ k++; out.textContent = k<steps ? pool[rnd(pool.length)-1].n : r.n; if(k<steps){ setTimeout(tick,30+Math.pow(k/steps,3)*420); } else res(); })();});
+  const cntA=pool.filter(x=>x.u===r.u).length;
+  $('pickWho'+i).innerHTML=`<div class="eyebrow">${esc(M.cfg.prizes[i].label)} · номер ${r.n} з ${fmt(pool.length)}</div><a href="${esc(r.url)}" target="_blank" rel="noopener">@${esc(r.u)} ↗</a><div class="txt">${hl(r.text)}</div><div class="txt mono" style="font-size:11px;color:var(--ash)">${esc(kyiv(r.t,{second:'2-digit'}))} · ${fmt(r.likes)} ❤ · у акаунта ${cntA} ном. · підписку перевірити на <a href="${prof(r.u)}" target="_blank" rel="noopener" style="color:var(--gold)">профілі</a></div>`;
+  LAST[i]=r;
+  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:pool.length,comment_id:r.id,username:r.u,text:r.text,status:'picked'}}); POOL.draws=j.draws; }
+  catch(e){ toast('Журнал не записано: '+e.message); }
+  renderLog(i); $('verdict'+i).hidden=false;
+  btn.disabled=false; btn.textContent='Наступна спроба (без повторів)';
+  focusRow(r);
+}
+async function verdict(i, v){
+  const r=LAST[i]; if(!r) return; $('verdict'+i).hidden=true;
+  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:M.pool.length,comment_id:r.id,username:r.u,text:'',status:v}}); POOL.draws=j.draws; }
+  catch(e){ toast('Журнал не записано: '+e.message); }
+  renderLog(i);
+}
+
+/* ---------- таблиця ---------- */
+let sortK='t', sortDir=1, page=0, highlight=null, view=[]; const PER=100;
+function initTable(){
+  document.querySelectorAll('th[data-k]').forEach(th=>th.addEventListener('click',()=>{ const k=th.dataset.k; if(sortK===k) sortDir*=-1; else {sortK=k; sortDir=(k==='likes')?-1:1;} apply(); }));
+  ['q','fPool','fType','fLikes'].forEach(id=>$(id).addEventListener('input',apply));
+  $('prev').onclick=()=>{page--;render()}; $('next').onclick=()=>{page++;render()};
+  apply();
+}
+function apply(){
+  const q=$('q').value.trim().toLowerCase().replace(/^@/,'').replace(/^[№#]\s*/,'');
+  const fp=$('fPool').value, ft=$('fType').value, fl=+$('fLikes').value;
+  view=M.rows.filter(r=>{
+    if(fp==='in'&&!r.n) return false; if(fp==='out'&&r.n) return false; if(fp==='kw'&&!r.kw) return false;
+    if(ft==='c'&&r.reply) return false; if(ft==='r'&&!r.reply) return false;
+    if(r.likes<fl) return false;
+    if(!q) return true;
+    if(/^\d+$/.test(q)) return String(r.n)===q;
+    return r.u.toLowerCase().includes(q)||r.text.toLowerCase().includes(q);
+  });
+  const key=sortK==='n'?(r=>r.n??1e9):(r=>r[sortK]);
+  view.sort((a,b)=>{const x=key(a),y=key(b);return (x>y?1:x<y?-1:0)*sortDir||a.t-b.t;});
+  page=0; render();
+}
+function render(){
+  const pages=Math.max(1,Math.ceil(view.length/PER)); page=Math.min(Math.max(page,0),pages-1);
+  const used=drawnIds();
+  $('tb').innerHTML=view.slice(page*PER,page*PER+PER).map(r=>`<tr id="r${r.id}" class="${highlight===r.id?'hl':''}${r.n?'':' out'}">
+    <td class="n">${r.n??'—'}</td><td class="dt">${esc(kyiv(r.t,{second:'2-digit'}))}</td>
+    <td class="acc"><a href="${prof(r.u)}" target="_blank" rel="noopener">@${esc(r.u)}</a>${r.reply?' <span class="pill reply">відповідь</span>':''}${r.hidden?' <span class="pill hid">приховано</span>':''}${r.kw?' <span class="pill kw">ключове</span>':''}${r.out?` <span class="pill">${esc(r.out)}</span>`:''}${used.has(r.id)?' <span class="pill chk">обрано</span>':''}</td>
+    <td class="tx">${hl(r.text)}</td><td class="lk${r.likes>=20?' hot':''}">${fmt(r.likes)}</td>
+    <td><a class="pill chk" href="${prof(r.u)}" target="_blank" rel="noopener" title="Instagram не віддає підписки через API">перевірити</a></td>
+    <td><a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">Відкрити ↗</a></td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--ash);padding:24px">Нічого не знайдено. Спробуйте номер, частину нікнейму або слово з коментаря.</td></tr>';
+  $('count').textContent=`${fmt(view.length)} з ${fmt(M.rows.length)} · у пулі ${fmt(M.pool.length)}`;
+  $('pageInfo').textContent=`стор. ${page+1} / ${pages}`;
+  $('prev').disabled=page===0; $('next').disabled=page>=pages-1;
+  document.querySelectorAll('th[data-k] .ar').forEach(s=>s.textContent='');
+  const th=document.querySelector(`th[data-k="${sortK}"] .ar`); if(th) th.textContent=sortDir>0?'↑':'↓';
+}
+function focusRow(r){
+  highlight=r.id; sortK='n'; sortDir=1; $('q').value=String(r.n); $('fPool').value=''; $('fType').value=''; $('fLikes').value='0'; apply();
+  const row=$('r'+r.id); if(row) row.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+}
+
+/* ---------- старт ---------- */
+window.addEventListener('dc-auth-ok', ()=>{
+  const id=new URLSearchParams(location.search).get('id');
+  if (id) renderPool(id); else renderHome();
+});
+</script>
+</body>
+</html>
