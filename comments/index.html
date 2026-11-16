@@ -98,7 +98,7 @@ h3{font-size:15px;letter-spacing:.06em}
 .picker .who .txt{color:var(--grey);font-size:13px;overflow-wrap:anywhere}
 .picker .acts{display:flex;flex-direction:column;gap:8px;align-items:stretch}
 .picker .acts .row2{display:flex;gap:8px}
-.log{grid-column:1/-1;margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--grey)}
+.log{grid-column:1/-1;margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--grey)}
 .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .inp,select,textarea{background:var(--bg);border:1px solid var(--steel);color:var(--white);border-radius:6px;padding:10px 12px;font-family:var(--body);font-size:14px}
 textarea{resize:vertical;min-height:70px;width:100%}
@@ -516,7 +516,7 @@ function openLive(){
       <button class="btn ok" type="button" id="lvOk" hidden>✓ Умови виконано</button><button class="btn no" type="button" id="lvNo" hidden>✗ Не виконано</button></div>`;
   document.body.appendChild(d); document.body.style.overflow='hidden';
   LIVE={i:rnds[0].i};
-  const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; const used=drawnIds(); const ua=new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>String(d.username).toLowerCase())); const left=M.pool.filter(r=>!used.has(r.id)&&!ua.has(String(r.u).toLowerCase())).length;
+  const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; const used=drawnIds(); const ua=new Set(livePicks().map(d=>String(d.username).toLowerCase())); const left=M.pool.filter(r=>!used.has(r.id)&&!ua.has(String(r.u).toLowerCase())).length;
     $('lvPrz').textContent=p.label; $('lvSub').textContent=`${M.frozen?'🔒 пул зафіксовано · ':''}${fmt(M.pool.length)} учасників · номери від 1 до ${M.pool.length} · доступно ${fmt(left)}`; };
   setPrize(); LIVE.setPrize=setPrize;
   if(!M.frozen){ $('lvPick').disabled=true; $('lvPick').textContent='🔒 Спершу зафіксуйте пул'; }
@@ -547,7 +547,10 @@ async function liveVerdict(v){
 
 /* ---------- вибір ---------- */
 function rnd(max){const a=new Uint32Array(1);const lim=Math.floor(0x100000000/max)*max;let x;do{crypto.getRandomValues(a);x=a[0]}while(x>=lim);return x%max+1}
-function drawnIds(){ return new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>d.comment_id)); }
+// Анульовані спроби (status=void) не займають ні номер, ні акаунт
+function voidedIds(){ return new Set((POOL.draws||[]).filter(d=>d.status==='void').map(d=>d.comment_id+'|'+d.prize)); }
+function livePicks(){ const v=voidedIds(); return (POOL.draws||[]).filter(d=>d.status==='picked'&&!v.has(d.comment_id+'|'+d.prize)); }
+function drawnIds(){ return new Set(livePicks().map(d=>d.comment_id)); }
 function renderPickers(){
   const {cfg,pool}=M;
   const rnds=(cfg.prizes||[]).map((p,i)=>({...p,i})).filter(p=>p.method==='random');
@@ -571,18 +574,19 @@ function attempts(i){
   const out=[];
   for(const d of L){
     if(d.status==='picked') out.push({pick:d,verdict:null});
+    else if(d.status==='void'){ const a=[...out].reverse().find(x=>x.pick.comment_id===d.comment_id&&!x.verdict&&!x.void); if(a) a.void=d; }
     else { const a=[...out].reverse().find(x=>x.pick.comment_id===d.comment_id&&!x.verdict); if(a) a.verdict=d; }
   }
   return out;
 }
-function pendingAttempt(i){ const a=attempts(i); const last=a[a.length-1]; return last&&!last.verdict?last:null; }
+function pendingAttempt(i){ const a=attempts(i).filter(x=>!x.void); const last=a[a.length-1]; return last&&!last.verdict?last:null; }
 function renderLog(i){
   const el=$('log'+i); if(!el) return;
-  const A=attempts(i); const win=A.find(a=>a.verdict&&a.verdict.status==='confirmed');
+  const A=attempts(i); const win=A.find(a=>!a.void&&a.verdict&&a.verdict.status==='confirmed');
   const t=ms=>esc(kyiv(ms,{second:'2-digit'}));
-  el.innerHTML = (A.length?`<li style="list-style:none;margin-left:-18px;margin-bottom:6px"><b style="color:${win?'var(--green)':'var(--gold)'}">${win?`Отримувач призу: @${esc(win.pick.username)} (№${win.pick.n}, спроба ${A.indexOf(win)+1})`:'Отримувача ще не визначено: потрібен вердикт ✓ по спробі'}</b> <span class="note">· час за Києвом</span></li>`:'')+
-    A.map((a,k)=>`<li value="${k+1}">Спроба ${k+1} · <span class="mono">${t(Date.parse(a.pick.at))}</span> · <b class="mono">№${a.pick.n}</b> з ${fmt(a.pick.pool_size)} · <a href="${esc(rowUrl(a.pick.comment_id))}" target="_blank" rel="noopener">@${esc(a.pick.username)}</a>
-      · ${a.verdict?(a.verdict.status==='confirmed'?'<span style="color:var(--green)">✓ умови виконано</span>':'<span style="color:var(--red-soft)">✗ умови не виконано</span>')+` <span class="note">(вердикт: ${esc(a.verdict.by||'')})</span>`:`<span style="color:var(--gold)">без вердикту</span> <button class="btn ok" type="button" data-lv="${k}" data-v="confirmed" style="padding:4px 8px">✓</button> <button class="btn no" type="button" data-lv="${k}" data-v="rejected" style="padding:4px 8px">✗</button>`}
+  el.innerHTML = (A.length?`<li style="margin-bottom:6px"><b style="color:${win?'var(--green)':'var(--gold)'}">${win?`Отримувач призу: @${esc(win.pick.username)} (№${win.pick.n}, спроба ${A.indexOf(win)+1})`:'Отримувача ще не визначено: потрібен вердикт ✓ по спробі'}</b> <span class="note">· час за Києвом</span></li>`:'')+
+    A.map((a,k)=>a.void?`<li style="opacity:.5"><s>Спроба ${k+1} · <span class="mono">${t(Date.parse(a.pick.at))}</span> · №${a.pick.n} · @${esc(a.pick.username)}</s> · <span class="note">анульовано (${esc(a.void.by||'')}, ${t(Date.parse(a.void.at))}): не рахується</span></li>`:`<li>Спроба ${k+1} · <span class="mono">${t(Date.parse(a.pick.at))}</span> · <b class="mono">№${a.pick.n}</b> з ${fmt(a.pick.pool_size)} · <a href="${esc(rowUrl(a.pick.comment_id))}" target="_blank" rel="noopener">@${esc(a.pick.username)}</a>
+      · ${a.verdict?(a.verdict.status==='confirmed'?'<span style="color:var(--green)">✓ умови виконано</span>':'<span style="color:var(--red-soft)">✗ умови не виконано</span>')+` <span class="note">(вердикт: ${esc(a.verdict.by||'')})</span>`:`<span style="color:var(--gold)">без вердикту</span> <button class="btn ok" type="button" data-lv="${k}" data-v="confirmed" style="padding:4px 8px">✓</button> <button class="btn no" type="button" data-lv="${k}" data-v="rejected" style="padding:4px 8px">✗</button> <button class="btn" type="button" data-lv="${k}" data-v="void" style="padding:4px 8px" title="Тестова або помилкова спроба: не рахується, номер і акаунт повертаються в пул">анулювати</button>`}
       <span class="note">· натиснув(ла): ${esc(a.pick.by||'—')}</span></li>`).join('');
   el.hidden=!A.length;
 }
@@ -592,7 +596,7 @@ async function pickCore(i, onTick){
   if(!M.frozen){ toast('Спершу зафіксуйте пул: кнопка «🔒 Зафіксувати пул» над вибором'); return null; }
   if(pendingAttempt(i)){ toast('Поставте вердикт ✓ або ✗ попередній спробі, потім наступна'); return null; }
   const {pool}=M; const used=drawnIds();
-  const usedAcc=new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>String(d.username).toLowerCase()));
+  const usedAcc=new Set(livePicks().map(d=>String(d.username).toLowerCase()));
   // наступна спроба не обирає ні той самий номер, ні той самий акаунт
   const avail=pool.filter(r=>!used.has(r.id)&&!usedAcc.has(String(r.u).toLowerCase()));
   if(!avail.length){ toast('Усі учасники вже обрані'); return null; }
