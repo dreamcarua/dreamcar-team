@@ -1,4 +1,4 @@
-// comment-pool v1.0.1 (16.11.2026) · повторний деплой: 1-й ран CI упав на Setup Supabase CLI
+// comment-pool v1.1 (16.11.2026): fallback на ig_comment_queue, коли /comments віддає менше, ніж є
 // Пул учасників з коментарів Instagram-поста @dreamcar.ua для сторінки team.dreamcar.ua/comments/.
 // Дії (POST JSON, Authorization: Bearer <JWT учасника команди>):
 //   list                         → останні пули (без rows)
@@ -126,8 +126,41 @@ async function collect(sb: any, id: string) {
       }
       next = b.paging?.next ?? null;
     }
-    rows.sort((a, b) => a[1] - b[1] || String(a[0]).localeCompare(String(b[0])));
     post.api_pages = pages;
+    post.graph_total = rows.length;
+
+    // Graph /{media}/comments інколи віддає 0 при сотнях коментарів (16.11.2026: DfHPBGFMHta, 0 проти 474).
+    // Вебхук ig-comments-bot пише кожен коментар у ig_comment_queue: добираємо звідти, лайки тягнемо по id.
+    const queued: any[] = [];
+    for (let from = 0; from < 50000; from += 1000) {
+      const { data: q } = await sb.from("ig_comment_queue").select("comment_id,author,comment_text,comment_ts,parent_id,status")
+        .eq("media_id", mediaId).order("comment_ts", { ascending: true }).range(from, from + 999);
+      if (!q?.length) break;
+      queued.push(...q);
+      if (q.length < 1000) break;
+    }
+    post.queue_total = queued.length;
+    const missing = queued.filter((q) => !seen.has(String(q.comment_id)) && q.status !== "gone");
+    if (missing.length) {
+      let gone = 0, likesOk = 0;
+      for (let i = 0; i < missing.length; i += 10) {
+        await Promise.all(missing.slice(i, i + 10).map(async (q) => {
+          let likes: number | null = null, hidden = 0;
+          try {
+            const c: any = await graph(`${q.comment_id}?fields=id,like_count,hidden`, token);
+            likes = Number(c.like_count ?? 0); hidden = c.hidden ? 1 : 0; likesOk++;
+          } catch (e) {
+            if (/does not exist|cannot be loaded|Unsupported get request|deleted/i.test(String((e as Error).message))) { gone++; return; }
+          }
+          seen.add(String(q.comment_id));
+          rows.push([String(q.comment_id), Date.parse(q.comment_ts) || 0, String(q.author ?? ""), String(q.comment_text ?? ""), likes ?? 0, q.parent_id ? 1 : 0, hidden, q.parent_id ? String(q.parent_id) : null]);
+        }));
+      }
+      post.queue_added = missing.length - gone;
+      post.queue_gone = gone;
+      post.queue_likes_ok = likesOk;
+    }
+    rows.sort((a, b) => a[1] - b[1] || String(a[0]).localeCompare(String(b[0])));
     post.api_total = rows.length;
     await sb.from("comment_pools").update({
       media_id: mediaId, post, rows, status: "ready", error: null,

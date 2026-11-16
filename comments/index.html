@@ -101,6 +101,7 @@ h3{font-size:15px;letter-spacing:.06em}
 .inp,select,textarea{background:var(--bg);border:1px solid var(--steel);color:var(--white);border-radius:6px;padding:10px 12px;font-family:var(--body);font-size:14px}
 textarea{resize:vertical;min-height:70px;width:100%}
 .inp{flex:1 1 260px;min-width:0}
+.form .inp{flex:none;width:100%}
 select{font-family:var(--mono);font-size:12px}
 .count{font-family:var(--mono);font-size:12px;color:var(--ash);margin-left:auto}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
@@ -405,7 +406,7 @@ function draw(){
   <footer class="foot">
     <div><b style="color:var(--grey)">Підписка і лайк поста.</b> Instagram не показує через API, хто підписаний на сторінку і хто поставив лайк посту. Колонка веде на профіль учасника: перевірити переможця вручну перед оголошенням.</div>
     <div><b style="color:var(--grey)">Виключено</b> акаунти: ${(cfg.excluded||[]).map(u=>'@'+esc(u)).join(', ')||'—'}. Номери присвоєні за часом коментаря, від найранішого.</div>
-    <div>Зібрано через Instagram Graph API: ${fmt(P.api_total)} коментарів і відповідей${P.i_comments!=null?`, Instagram у статистиці поста рахує ${fmt(P.i_comments)}`:''}. Різниця можлива через видалені коментарі та коментарі, приховані фільтром Instagram.</div>
+    <div>Зібрано ${fmt(P.api_total)} коментарів і відповідей: ${fmt(P.graph_total ?? P.api_total)} напряму з Instagram Graph API${P.queue_added?`, ${fmt(P.queue_added)} з журналу вебхука коментарів (лайки дотягнуто для ${fmt(P.queue_likes_ok)})`:''}${P.queue_gone?`, ${fmt(P.queue_gone)} видалено автором`:''}${P.i_comments!=null?`. Instagram у статистиці поста рахує ${fmt(P.i_comments)}`:''}. Різниця можлива через видалені коментарі та коментарі, приховані фільтром Instagram.</div>
   </footer>`;
 
   // timeline
