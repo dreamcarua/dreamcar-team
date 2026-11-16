@@ -1,4 +1,4 @@
-// comment-pool v1 (16.11.2026)
+// comment-pool v1.0.1 (16.11.2026) · повторний деплой: 1-й ран CI упав на Setup Supabase CLI
 // Пул учасників з коментарів Instagram-поста @dreamcar.ua для сторінки team.dreamcar.ua/comments/.
 // Дії (POST JSON, Authorization: Bearer <JWT учасника команди>):
 //   list                         → останні пули (без rows)
