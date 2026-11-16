@@ -1,4 +1,4 @@
-// comment-pool v1.4 (16.11.2026): фіксація пулу перед ефіром (freeze / unfreeze)
+// comment-pool v1.5 (16.11.2026): remove_draw (✗ = спроба зникає з журналу, учасник у skipped)
 // Пул учасників з коментарів Instagram-поста @dreamcar.ua для сторінки team.dreamcar.ua/comments/.
 // Дії (POST JSON, Authorization: Bearer <JWT учасника команди>):
 //   list                         → останні пули (без rows)
@@ -241,7 +241,7 @@ Deno.serve(async (req: Request) => {
 
   const id = String(body.id ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "bad id" }, 400);
-  const { data: pool } = await sb.from("comment_pools").select("id,created_by,draws,status,frozen").eq("id", id).is("deleted_at", null).maybeSingle();
+  const { data: pool } = await sb.from("comment_pools").select("id,created_by,draws,status,frozen,skipped").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!pool) return json({ error: "not found" }, 404);
 
   if (action === "get") {
@@ -296,6 +296,20 @@ Deno.serve(async (req: Request) => {
     const { error } = await sb.from("comment_pools").update({ draws, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) return json({ error: error.message }, 500);
     return json({ ok: true, draws });
+  }
+  if (action === "remove_draw") {
+    // Невдала спроба зникає з журналу повністю; skip=true — учасник більше не потрапляє в наступні спроби
+    const cid = String(body.comment_id ?? ""), prize = String(body.prize ?? "");
+    if (!/^\d{5,25}$/.test(cid)) return json({ error: "bad comment_id" }, 400);
+    const before = Array.isArray(pool.draws) ? pool.draws : [];
+    const hit = before.find((d: any) => d.comment_id === cid && d.prize === prize && d.status === "picked");
+    if (!hit) return json({ error: "Спробу не знайдено" }, 404);
+    const draws = before.filter((d: any) => !(d.comment_id === cid && d.prize === prize));
+    const skipped = Array.isArray(pool.skipped) ? pool.skipped : [];
+    if (body.skip) skipped.push({ comment_id: cid, username: hit.username, prize, at: new Date().toISOString(), by: me.name ?? null });
+    const { error } = await sb.from("comment_pools").update({ draws, skipped, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true, draws, skipped });
   }
   if (action === "delete") {
     if (!(["ceo", "coo", "system"].includes(String(me.role)) || (uid && pool.created_by === uid))) return json({ error: "forbidden" }, 403);
