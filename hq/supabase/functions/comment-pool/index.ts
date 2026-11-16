@@ -1,4 +1,4 @@
-// comment-pool v1.1 (16.11.2026): fallback на ig_comment_queue, коли /comments віддає менше, ніж є
+// comment-pool v1.2 (16.11.2026): коментування вимкнено → коментарі з ig_comment_queue без лайків
 // Пул учасників з коментарів Instagram-поста @dreamcar.ua для сторінки team.dreamcar.ua/comments/.
 // Дії (POST JSON, Authorization: Bearer <JWT учасника команди>):
 //   list                         → останні пули (без rows)
@@ -141,7 +141,17 @@ async function collect(sb: any, id: string) {
     }
     post.queue_total = queued.length;
     const missing = queued.filter((q) => !seen.has(String(q.comment_id)) && q.status !== "gone");
-    if (missing.length) {
+    // Коментування вимкнено (comments_count = 0, а /comments порожній): Instagram ховає всі коментарі,
+    // і запит по id теж падає «does not exist». Тоді це не видалення: беремо журнал як є, лайки невідомі.
+    const commentsOff = rows.length === 0 && Number(m.comments_count ?? 0) === 0 && missing.length > 0;
+    post.comments_off = commentsOff;
+    if (commentsOff) {
+      for (const q of missing) {
+        seen.add(String(q.comment_id));
+        rows.push([String(q.comment_id), Date.parse(q.comment_ts) || 0, String(q.author ?? ""), String(q.comment_text ?? ""), null, q.parent_id ? 1 : 0, 0, q.parent_id ? String(q.parent_id) : null]);
+      }
+      post.queue_added = missing.length;
+    } else if (missing.length) {
       let gone = 0, likesOk = 0;
       for (let i = 0; i < missing.length; i += 10) {
         await Promise.all(missing.slice(i, i + 10).map(async (q) => {
