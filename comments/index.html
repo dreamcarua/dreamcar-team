@@ -214,6 +214,53 @@ td.lk.hot{color:var(--gold);font-weight:700}
 #live canvas.fx{position:absolute;inset:0;pointer-events:none;z-index:2}
 #live .won{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);border:1px solid rgba(16,185,129,.5);border-radius:999px;padding:6px 14px}
 @media (max-width:1100px){#live .body{grid-template-columns:minmax(0,1fr)} #live .side{display:none}}
+/* ===== айфон з постом у режимі ефіру ===== */
+#live .body.phone-on{grid-template-columns:minmax(250px,.85fr) minmax(0,2fr) auto}
+#live .body.phone-on .side.right{display:none}
+#live .phonewrap{display:none;align-items:center;justify-content:center;min-height:0}
+#live .body.phone-on .phonewrap{display:flex;animation:lvPh 380ms cubic-bezier(0.23,1,0.32,1) both}
+@keyframes lvPh{from{opacity:0;transform:translateX(24px) rotate(1.5deg)}to{opacity:1;transform:rotate(-2deg)}}
+#live .phone{position:relative;height:min(100%,780px);aspect-ratio:9/19.3;border-radius:clamp(34px,5.2vh,54px);padding:clamp(7px,1.1vh,11px);
+  background:linear-gradient(145deg,#3a3a3c,#1c1c1e 35%,#2c2c2e 70%,#48484a);box-shadow:0 0 0 1.5px #555 inset,0 40px 90px -30px rgba(0,0,0,.9),0 0 60px -20px rgba(227,6,19,.35);transform:rotate(-2deg)}
+#live .phone::before{content:"";position:absolute;right:-3px;top:22%;width:3px;height:9%;border-radius:0 2px 2px 0;background:#2c2c2e}
+#live .phone::after{content:"";position:absolute;left:-3px;top:18%;width:3px;height:6%;border-radius:2px 0 0 2px;background:#2c2c2e;box-shadow:0 calc(6vh + 14px) 0 #2c2c2e}
+#live .scr{position:relative;width:100%;height:100%;border-radius:clamp(27px,4.3vh,44px);overflow:hidden;background:#000;display:flex;flex-direction:column;font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;color:#f5f5f5}
+#live .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:31%;height:clamp(20px,3.3vh,30px);border-radius:20px;background:#000;z-index:3}
+#live .sbar{display:flex;justify-content:space-between;align-items:center;padding:clamp(10px,1.6vh,15px) 22px 4px 26px;font-size:clamp(11px,1.6vh,15px);font-weight:600;letter-spacing:.01em}
+#live .sbar .ic{display:flex;gap:5px;align-items:center}
+#live .sbar .bat{width:22px;height:11px;border:1.5px solid #f5f5f5;border-radius:3px;position:relative}
+#live .sbar .bat::after{content:"";position:absolute;inset:1.5px 4px 1.5px 1.5px;background:#f5f5f5;border-radius:1px}
+#live .ighd{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #262626}
+#live .ighd .av{width:30px;height:30px;border-radius:50%;background:conic-gradient(#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75);padding:2px;flex:none}
+#live .ighd .av span{display:flex;width:100%;height:100%;border-radius:50%;background:#000;align-items:center;justify-content:center;font-family:var(--display);font-size:11px;color:#fff;border:1.5px solid #000}
+#live .ighd b{font-size:14px} #live .ighd .vf{color:#3897f0;font-size:13px}
+#live .igtabs{display:flex;border-bottom:1px solid #262626}
+#live .igtabs button{flex:1;background:none;border:0;color:#a8a8a8;font:600 13px -apple-system,system-ui,sans-serif;padding:10px 0;border-bottom:1.5px solid transparent;cursor:pointer}
+#live .igtabs button.on{color:#f5f5f5;border-bottom-color:#f5f5f5}
+#live .igview{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+#live .igview::-webkit-scrollbar{display:none}
+#live .igview iframe{width:100%;border:0;display:block;min-height:100%;background:#fff}
+#live .igsearch{position:sticky;top:0;z-index:2;background:#000;padding:8px 12px}
+#live .igsearch input{width:100%;background:#262626;border:0;border-radius:10px;color:#f5f5f5;padding:8px 12px;font:14px -apple-system,system-ui,sans-serif}
+#live .igc{display:grid;grid-template-columns:32px minmax(0,1fr) 22px;gap:10px;padding:9px 12px;align-items:start;transition:background-color .25s ease}
+#live .igc .a{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px -apple-system,system-ui,sans-serif;color:#fff}
+#live .igc .t{font-size:13.5px;line-height:1.35;overflow-wrap:anywhere}
+#live .igc .t b{font-weight:600;margin-right:4px}
+#live .igc .m{font-size:11.5px;color:#a8a8a8;margin-top:4px;display:flex;gap:12px}
+#live .igc .h{font-size:11px;color:#a8a8a8;text-align:center;padding-top:2px;line-height:1.1}
+#live .igc .h svg{width:13px;height:13px;display:block;margin:0 auto 2px}
+#live .igc.cap{border-bottom:1px solid #262626;padding-bottom:12px;margin-bottom:4px}
+#live .igc.rep{padding-left:54px}
+#live .igc.off{opacity:.45}
+#live .igc.hit{background:rgba(251,191,36,.18);box-shadow:inset 3px 0 0 #FBBF24}
+#live .igc .no{font-family:var(--mono);font-size:10.5px;color:#FBBF24;margin-left:4px}
+#live .igbar{display:flex;justify-content:space-around;padding:8px 0 clamp(14px,2.4vh,24px);border-top:1px solid #262626}
+#live .igbar i{width:22px;height:22px;border:2px solid #f5f5f5;border-radius:6px;opacity:.85}
+#live .igbar i:nth-child(2){border-radius:50%} #live .igbar i:nth-child(3){border-radius:4px;transform:rotate(45deg) scale(.8)}
+#live .ignote{font-size:11px;color:#8e8e8e;text-align:center;padding:8px 14px}
+@media (max-width:1100px){#live .body.phone-on{grid-template-columns:minmax(0,1fr) auto}}
+@media (prefers-reduced-motion:reduce){#live .body.phone-on .phonewrap{animation:lvFade 200ms ease both}#live .phone{transform:none}}
+
 @media (max-height:620px){#live .facts2{display:none} #live .sub{display:none}}
 @media (prefers-reduced-motion:reduce){#live .chip .dot{animation:none}#live .appear{animation:lvFade 200ms ease both}@keyframes lvFade{from{opacity:0}to{opacity:1}}}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--steel);border-radius:8px;padding:10px 16px;font-size:13px;z-index:50}
@@ -595,7 +642,7 @@ function openLive(){
   const d=document.createElement('div'); d.id='live';
   d.innerHTML=`<div class="lt"><div class="tools" style="gap:14px"><span class="brand">DREAM<span class="r">CAR</span></span><span class="chip"><span class="dot"></span>${M.frozen?'🔒 пул зафіксовано':'пул не зафіксовано'}</span></div>
       <div class="tools">${rnds.length>1?`<select id="lvPrize">${rnds.map(p=>`<option value="${p.i}">${esc(p.label)}</option>`).join('')}</select>`:''}
-      <button class="btn" type="button" id="lvFs">⛶ Весь екран</button><button class="btn" type="button" id="lvClose">✕ Esc</button></div></div>
+      <button class="btn" type="button" id="lvPh" title="Клавіша P">📱 Пост</button><button class="btn" type="button" id="lvFs">⛶ Весь екран</button><button class="btn" type="button" id="lvClose">✕ Esc</button></div></div>
     <div class="body">
       <aside class="side">
         <div class="card appear"><div class="k">Учасників у пулі</div><div class="v">${fmt(M.pool.length)}</div><div class="s">з ${fmt(S.all)} коментарів · ${fmt(S.acc)} акаунтів</div></div>
@@ -609,11 +656,12 @@ function openLive(){
         <div class="flick" id="lvFlick"></div>
         <div class="winner" id="lvWin"><div class="sub">Натисніть «Обрати номер» або пробіл</div></div>
       </section>
-      <aside class="side">
+      <aside class="side right">
         ${S.otherTop.length?`<div class="card appear"><div class="k">Інші версії учасників</div><div class="bars">${S.otherTop.map(([n,c])=>`<div class="r"><span class="l" style="--w:${c/S.otherTop[0][1]}"><i></i>${esc(n)}</span><span class="n">${fmt(c)}</span></div>`).join('')}</div></div>`:''}
         ${S.topAcc?`<div class="card appear"><div class="k">Найактивніший</div><div class="v" style="font-size:clamp(20px,1.9vw,28px)">@${esc(S.topAcc[0])}</div><div class="s"><b>${fmt(S.topAcc[1])}</b> коментарів під постом</div></div>`:''}
         <div class="card appear"><div class="k">Спроби</div><div id="lvAtt" class="bars"></div></div>
       </aside>
+      <div class="phonewrap" id="lvPhoneWrap"></div>
     </div>
     <div class="bottom"><div class="ticker"><span class="tag" id="lvTag"></span><span class="tx" id="lvTx"></span></div>
       <div class="ctl"><button class="btn primary big" type="button" id="lvPick">Обрати номер · пробіл</button>
@@ -628,8 +676,9 @@ function openLive(){
   $('lvClose').onclick=()=>closeLive();
   $('lvFs').onclick=()=>{ const el=document.documentElement; (el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el); };
   $('lvPick').onclick=()=>livePick();
+  $('lvPh').onclick=()=>togglePhone();
   $('lvOk').onclick=()=>liveVerdict('confirmed'); $('lvNo').onclick=()=>liveVerdict('rejected');
-  LIVE.key=e=>{ if(e.key==='Escape') closeLive(); else if(e.code==='Space'&&!$('lvPick').disabled&&!$('lvPick').hidden){ e.preventDefault(); livePick(); } };
+  LIVE.key=e=>{ if(e.target&&e.target.tagName==='INPUT') return; if(e.key==='p'||e.key==='P'||e.key==='з'||e.key==='З'){ togglePhone(); return; } if(e.key==='Escape') closeLive(); else if(e.code==='Space'&&!$('lvPick').disabled&&!$('lvPick').hidden){ e.preventDefault(); livePick(); } };
   document.addEventListener('keydown',LIVE.key);
   tickFacts(); LIVE.ft=setInterval(tickFacts,6500);
   liveState();
@@ -714,7 +763,7 @@ async function livePick(){
   await spinReels(r.n);
   stop();
   await logPick(i, r);
-  showWinner(r,false); burst(); LIVE.setPrize(); liveState();
+  showWinner(r,false); burst(); LIVE.setPrize(); liveState(); phoneFocus(r.id);
 }
 async function liveVerdict(v){
   $('lvOk').hidden=$('lvNo').hidden=true;
@@ -722,6 +771,48 @@ async function liveVerdict(v){
   if(v==='confirmed'){ await verdictFor(LIVE.i,a.pick,'confirmed'); burst(); }
   else { await removeAttempt(LIVE.i,a.pick,true); setReels(0); $('lvWin').innerHTML='<div class="sub">Спробу прибрано. Наступна спроба: пробіл</div>'; }
   LIVE.setPrize(); liveState();
+}
+
+/* ---------- айфон з постом ---------- */
+const AVC=['#E30613','#8B5CF6','#0EA5E9','#10B981','#F59E0B','#EC4899','#6366F1','#14B8A6'];
+const avc=u=>{ let h=0; for(const ch of String(u)) h=(h*31+ch.charCodeAt(0))>>>0; return AVC[h%AVC.length]; };
+function ago(ms){ const d=(Date.now()-ms)/1000; if(d<3600) return Math.max(1,Math.round(d/60))+' хв'; if(d<86400) return Math.round(d/3600)+' год'; if(d<604800) return Math.round(d/86400)+' дн'; return Math.round(d/604800)+' тиж'; }
+const HEART='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.6-9.5-9.2C1 8.3 3.2 5 6.6 5c2 0 3.4 1.1 4.4 2.5C12 6.1 13.4 5 15.4 5 18.8 5 21 8.3 21.5 11.8 19.5 16.4 12 21 12 21z"/></svg>';
+function togglePhone(){ const b=document.querySelector('#live .body'); if(!b) return; const on=!b.classList.contains('phone-on');
+  if(on && !$('lvPhone')) buildPhone(); b.classList.toggle('phone-on',on); $('lvPh').classList.toggle('primary',on); }
+function buildPhone(){
+  const P=POOL.post||{}, sc=POOL.shortcode; const now=new Date().toLocaleTimeString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'});
+  const pub=P.timestamp?Date.parse(String(P.timestamp).replace(/\+0000$/,'Z')):null;
+  $('lvPhoneWrap').innerHTML=`<div class="phone" id="lvPhone"><div class="scr"><div class="island"></div>
+    <div class="sbar"><span>${now}</span><span class="ic">▂▄▆ <span class="bat"></span></span></div>
+    <div class="ighd"><span class="av"><span>DC</span></span><b>dreamcar.ua</b><span class="vf">✔</span><span style="margin-left:auto;color:#a8a8a8;font-size:12px">${pub?esc(kyiv(pub,{hour:undefined,minute:undefined})):''}</span></div>
+    <div class="igtabs"><button type="button" data-t="post" class="on">Публікація</button><button type="button" data-t="cm">Коментарі · ${fmt(M.rows.length)}</button></div>
+    <div class="igview" id="igPost"><iframe src="https://www.instagram.com/p/${encodeURIComponent(sc)}/embed/captioned/" loading="lazy" title="Пост Instagram" allowtransparency="true" scrolling="no" id="igFrame"></iframe></div>
+    <div class="igview" id="igCm" hidden><div class="igsearch"><input id="igQ" type="search" placeholder="Пошук: @акаунт, слово або №"></div><div id="igList"></div></div>
+    <div class="igbar"><i></i><i></i><i></i><i></i></div></div></div>`;
+  $('igFrame').addEventListener('load',()=>{ $('igFrame').style.height='1200px'; });
+  $('lvPhone').querySelector('.igtabs').onclick=e=>{ const t=e.target.closest('[data-t]'); if(t) phoneTab(t.dataset.t); };
+  $('igQ').addEventListener('input',()=>renderIgList());
+  renderIgList();
+}
+function phoneTab(t){ $('igPost').hidden=t!=='post'; $('igCm').hidden=t!=='cm'; $('lvPhone').querySelectorAll('.igtabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); }
+function renderIgList(focusId){
+  const el=$('igList'); if(!el) return; const P=POOL.post||{}; const q=($('igQ').value||'').trim().toLowerCase().replace(/^@/,'').replace(/^[№#]\s*/,'');
+  const pub=P.timestamp?Date.parse(String(P.timestamp).replace(/\+0000$/,'Z')):null;
+  let rows=[...M.rows].sort((a,b)=>a.t-b.t);
+  if(q) rows=rows.filter(r=>/^\d+$/.test(q)?String(r.n)===q:(r.u.toLowerCase().includes(q)||String(r.text).toLowerCase().includes(q)));
+  const shown=rows.slice(0,600);
+  const cap=P.caption?`<div class="igc cap"><span class="a" style="background:var(--red)">DC</span><div><div class="t"><b>dreamcar.ua</b>${esc(P.caption).replace(/\n/g,'<br>')}</div><div class="m">${pub?esc(ago(pub)):''}</div></div><span></span></div>`:'';
+  el.innerHTML=(q?'':cap)+shown.map(r=>`<div class="igc${r.reply?' rep':''}${r.n?'':' off'}${focusId===r.id?' hit':''}" id="ig${r.id}" data-id="${r.id}">
+    <span class="a" style="background:${avc(r.u)}">${esc(String(r.u).slice(0,1).toUpperCase())}</span>
+    <div><div class="t"><b>${esc(r.u)}</b>${hl(r.text)}</div><div class="m"><span>${esc(ago(r.t))}</span>${r.likes?`<span>${fmt(r.likes)} позначок «Подобається»</span>`:''}<span>Відповісти</span>${r.n?`<span class="no">№${r.n}</span>`:''}</div></div>
+    <span class="h">${HEART}${r.likes?fmt(r.likes):''}</span></div>`).join('')+(rows.length>600?`<div class="ignote">Показано 600 з ${fmt(rows.length)}: уточніть пошук</div>`:'')+
+    '<div class="ignote">Коментарі з даних Instagram Graph API · вигляд як у застосунку</div>';
+  el.onclick=e=>{ const c=e.target.closest('.igc[data-id]'); if(!c) return; el.querySelectorAll('.hit').forEach(x=>x.classList.remove('hit')); c.classList.add('hit'); };
+}
+function phoneFocus(id){
+  if(!$('lvPhone')) return; phoneTab('cm'); $('igQ').value=''; renderIgList(id);
+  const c=$('ig'+id); if(c) c.scrollIntoView({block:'center',behavior:REDUCE()?'auto':'smooth'});
 }
 
 /* ---------- вибір ---------- */
