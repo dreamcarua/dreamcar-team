@@ -1,4 +1,4 @@
-// comment-pool v1.3 (16.11.2026): ручне включення/виключення коментарів (config.manual) · redeploy
+// comment-pool v1.4 (16.11.2026): фіксація пулу перед ефіром (freeze / unfreeze)
 // Пул учасників з коментарів Instagram-поста @dreamcar.ua для сторінки team.dreamcar.ua/comments/.
 // Дії (POST JSON, Authorization: Bearer <JWT учасника команди>):
 //   list                         → останні пули (без rows)
@@ -220,7 +220,7 @@ Deno.serve(async (req: Request) => {
 
   if (action === "list") {
     const { data, error } = await sb.from("comment_pools")
-      .select("id,created_at,created_by_name,url,shortcode,title,status,error,fetched_at,config,draws,post->>timestamp,post->>api_total")
+      .select("id,created_at,created_by_name,url,shortcode,title,status,error,fetched_at,config,draws,frozen->>at,post->>timestamp,post->>api_total")
       .is("deleted_at", null).order("created_at", { ascending: false }).limit(100);
     if (error) return json({ error: error.message }, 500);
     return json({ items: data, me: { name: me.name, role: me.role } });
@@ -241,7 +241,7 @@ Deno.serve(async (req: Request) => {
 
   const id = String(body.id ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "bad id" }, 400);
-  const { data: pool } = await sb.from("comment_pools").select("id,created_by,draws,status").eq("id", id).is("deleted_at", null).maybeSingle();
+  const { data: pool } = await sb.from("comment_pools").select("id,created_by,draws,status,frozen").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!pool) return json({ error: "not found" }, 404);
 
   if (action === "get") {
@@ -253,7 +253,29 @@ Deno.serve(async (req: Request) => {
     bg(collect(sb, id));
     return json({ status: "queued" }, 202);
   }
+  if (action === "freeze") {
+    if (pool.frozen) return json({ error: "Пул уже зафіксовано" }, 409);
+    if (pool.status !== "ready") return json({ error: "Дочекайтеся завершення збору коментарів" }, 409);
+    const entries = (Array.isArray(body.entries) ? body.entries : []).slice(0, 100000).map((e: any) => [
+      Number(e?.[0]) || 0, String(e?.[1] ?? "").slice(0, 40), String(e?.[2] ?? "").slice(0, 60), String(e?.[3] ?? "").slice(0, 2200), Number(e?.[4]) || 0,
+    ]).filter((e: any[]) => e[0] > 0 && /^\d{5,25}$/.test(e[1]));
+    if (!entries.length) return json({ error: "Порожній пул: фіксувати нічого" }, 400);
+    const ns = entries.map((e: any[]) => e[0]).sort((a: number, b: number) => a - b);
+    if (ns.some((n: number, i: number) => n !== i + 1)) return json({ error: "Номери мають іти підряд від 1" }, 400);
+    const { data: cur } = await sb.from("comment_pools").select("config").eq("id", id).single();
+    const frozen = { at: new Date().toISOString(), by: me.name ?? null, config: cur?.config ?? {}, entries };
+    const { error } = await sb.from("comment_pools").update({ frozen, updated_at: new Date().toISOString() }).eq("id", id).is("frozen", null);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true, frozen });
+  }
+  if (action === "unfreeze") {
+    if (!["ceo", "coo", "system"].includes(String(me.role))) return json({ error: "Зняти фіксацію може лише CEO або COO" }, 403);
+    if ((pool.draws ?? []).some((d: any) => d.status === "picked")) return json({ error: "Уже були спроби вибору: фіксацію не знімаємо" }, 409);
+    await sb.from("comment_pools").update({ frozen: null, updated_at: new Date().toISOString() }).eq("id", id);
+    return json({ ok: true });
+  }
   if (action === "update") {
+    if (pool.frozen && body.config) return json({ error: "Пул зафіксовано: умови не змінюються" }, 409);
     const patch: any = { updated_at: new Date().toISOString() };
     if (typeof body.title === "string") patch.title = body.title.slice(0, 160);
     if (body.config) patch.config = cleanConfig(body.config);
