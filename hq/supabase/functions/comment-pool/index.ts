@@ -1,4 +1,4 @@
-// comment-pool v1.2 (16.11.2026): коментування вимкнено → коментарі з ig_comment_queue без лайків
+// comment-pool v1.3 (16.11.2026): ручне включення/виключення коментарів (config.manual)
 // Пул учасників з коментарів Instagram-поста @dreamcar.ua для сторінки team.dreamcar.ua/comments/.
 // Дії (POST JSON, Authorization: Bearer <JWT учасника команди>):
 //   list                         → останні пули (без rows)
@@ -46,6 +46,8 @@ function cleanConfig(c: any) {
     one_per_account: !!c?.one_per_account,
     excluded: strs(c?.excluded ?? DEFAULT_EXCLUDED, 50).map((s: string) => s.toLowerCase().replace(/^@/, "")),
     deadline: c?.deadline ? String(c.deadline).slice(0, 40) : null,
+    manual: Object.fromEntries(Object.entries(c?.manual && typeof c.manual === "object" ? c.manual : {})
+      .filter(([k, v]) => /^\d{5,25}$/.test(k) && (v === "in" || v === "out")).slice(0, 5000)),
   };
 }
 
