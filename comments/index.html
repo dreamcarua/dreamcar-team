@@ -289,7 +289,7 @@ function kwRegex(list){
 function model(pool){
   const cfg=pool.config||{}, sc=pool.shortcode, ex=new Set((cfg.excluded||[]).map(s=>s.toLowerCase()));
   const re=kwRegex(cfg.keywords);
-  const all=(pool.rows||[]).map(r=>({id:String(r[0]),t:r[1],u:r[2],text:r[3],likes:r[4]||0,reply:!!r[5],hidden:!!r[6],parent:r[7]||null}));
+  const all=(pool.rows||[]).map(r=>({id:String(r[0]),t:r[1],u:r[2],text:r[3],likes:r[4]==null?null:r[4],reply:!!r[5],hidden:!!r[6],parent:r[7]||null}));
   let excludedTeam=0; const exBy={};
   const rows=[];
   for(const r of all){
@@ -341,16 +341,18 @@ function draw(){
   const {cfg, rows, pool} = M; const P=POOL.post||{};
   const authors={}; pool.forEach(r=>authors[r.u]=(authors[r.u]||0)+1);
   const authorList=Object.entries(authors).sort((a,b)=>b[1]-a[1]);
-  const byLikes=[...pool].sort((a,b)=>b.likes-a.likes||a.t-b.t);
+  const noLikes=!!(POOL.post||{}).comments_off||pool.every(r=>r.likes==null);
+  const byLikes=noLikes?[]:[...pool].sort((a,b)=>(b.likes||0)-(a.likes||0)||a.t-b.t);
   const leader=byLikes[0];
   const ruleLis=(cfg.rules||[]).map(r=>`<li><b>Умова</b><span>${esc(r)}</span></li>`).join('');
   const prizeCards=(cfg.prizes||[]).map((p,i)=>`<div class="prize" style="--c:${p.method==='top_likes'?'var(--gold)':'var(--red)'}">
     <div class="row"><span class="amt">${esc(p.label)}</span><span class="how">${p.method==='top_likes'?'Найбільше лайків':'Випадковий номер'}</span></div>
-    <div class="lead-now">${p.method==='top_likes' ? (leader?`Зараз лідирує <a href="${esc(leader.url)}" target="_blank" rel="noopener">@${esc(leader.u)}</a> <span class="mono">№${leader.n}</span> · <b class="mono" style="color:var(--gold)">${fmt(leader.likes)} ❤</b>`:'—') : `У пулі <b class="mono" style="color:var(--white)">${fmt(pool.length)}</b> номерів · від №1 до №${pool.length}`}</div></div>`).join('');
+    <div class="lead-now">${p.method==='top_likes' ? (noLikes?'Лайки коментарів недоступні: коментування на пості вимкнено':leader?`Зараз лідирує <a href="${esc(leader.url)}" target="_blank" rel="noopener">@${esc(leader.u)}</a> <span class="mono">№${leader.n}</span> · <b class="mono" style="color:var(--gold)">${fmt(leader.likes)} ❤</b>`:'—') : `У пулі <b class="mono" style="color:var(--white)">${fmt(pool.length)}</b> номерів · від №1 до №${pool.length}`}</div></div>`).join('');
   const ts=P.timestamp?Date.parse(String(P.timestamp).replace(/\+0000$/,'Z')):null;
   const kwN=rows.filter(r=>r.kw).length;
 
   $('app').innerHTML = `
+  ${(POOL.post||{}).comments_off?'<div class="panel" style="border-color:var(--gold)"><b style="color:var(--gold)">Коментування на пості вимкнено.</b> Instagram зараз ховає коментарі, тому список узято з журналу вебхука коментарів (усі коментарі, що надійшли, з часом і текстом). Лайки коментарів і прапорець «приховано» недоступні. Щоб їх отримати, увімкніть коментування на пості й натисніть «Оновити коментарі».</div>':''}
   <div class="eyebrow">Дані на <span class="mono">${POOL.fetched_at?esc(kyiv(Date.parse(POOL.fetched_at))):'—'}</span> · час за Києвом${POOL.status==='error'?' · <span class="err">остання спроба оновлення: '+esc(POOL.error)+'</span>':''}</div>
   <section class="hero">
     <div>
@@ -422,6 +424,7 @@ function draw(){
       options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' номерів'}}},scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}},y:{beginAtZero:true,grid:{color:'#1f1f1f'},ticks:{precision:0}}}}});
   }
   const maxL=byLikes[0]?byLikes[0].likes||1:1;
+  if(noLikes) $('topLikes').innerHTML='<li class="note">Instagram не віддає лайки коментарів, поки коментування на пості вимкнено. Увімкніть коментування і натисніть «Оновити коментарі».</li>'; else
   $('topLikes').innerHTML=byLikes.slice(0,10).map((r,i)=>`<li><span class="rk">${i+1}</span><div class="who"><a href="${esc(r.url)}" target="_blank" rel="noopener">@${esc(r.u)}</a> <span class="mono" style="color:var(--ash);font-size:11px">№${r.n}</span><div class="txt">${esc(r.text)}</div><div class="bar"><i style="width:${Math.max(2,r.likes/maxL*100)}%"></i></div></div><span class="num">${fmt(r.likes)} ❤</span></li>`).join('')||'<li class="note">Пул порожній</li>';
   const maxA=authorList[0]?authorList[0][1]:1;
   $('topAuthors').innerHTML=authorList.slice(0,8).map(([u,c],i)=>`<li><span class="rk">${i+1}</span><div class="who"><a href="${prof(u)}" target="_blank" rel="noopener">@${esc(u)}</a><div class="bar"><i style="width:${c/maxA*100}%"></i></div></div><span class="num">${fmt(c)}</span></li>`).join('')||'<li class="note">—</li>';
@@ -431,7 +434,7 @@ function draw(){
   if (cfg.keywords?.length){
     distRows('likeDist',[['з ключовим',kwN],['без нього',rows.length-kwN],['у пулі',pool.length],['поза пулом',rows.length-pool.length]]);
   } else {
-    const lb=[['0 лайків',0],['1–4',0],['5–19',0],['20+',0]]; pool.forEach(r=>{const l=r.likes;lb[l===0?0:l<5?1:l<20?2:3][1]++}); distRows('likeDist',lb);
+    const lb=[['0 лайків',0],['1–4',0],['5–19',0],['20+',0]]; pool.forEach(r=>{const l=r.likes||0;lb[l===0?0:l<5?1:l<20?2:3][1]++}); distRows('likeDist',lb);
   }
   $('excludedNote').innerHTML=`Виключено <b>${fmt(M.excludedTeam)}</b> коментарів команди${Object.keys(M.exBy).length?': '+Object.entries(M.exBy).map(([u,c])=>'@'+esc(u)+' '+c).join(', '):''}.`;
 
@@ -502,7 +505,7 @@ function apply(){
   view=M.rows.filter(r=>{
     if(fp==='in'&&!r.n) return false; if(fp==='out'&&r.n) return false; if(fp==='kw'&&!r.kw) return false;
     if(ft==='c'&&r.reply) return false; if(ft==='r'&&!r.reply) return false;
-    if(r.likes<fl) return false;
+    if((r.likes||0)<fl) return false;
     if(!q) return true;
     if(/^\d+$/.test(q)) return String(r.n)===q;
     return r.u.toLowerCase().includes(q)||r.text.toLowerCase().includes(q);
@@ -517,7 +520,7 @@ function render(){
   $('tb').innerHTML=view.slice(page*PER,page*PER+PER).map(r=>`<tr id="r${r.id}" class="${highlight===r.id?'hl':''}${r.n?'':' out'}">
     <td class="n">${r.n??'—'}</td><td class="dt">${esc(kyiv(r.t,{second:'2-digit'}))}</td>
     <td class="acc"><a href="${prof(r.u)}" target="_blank" rel="noopener">@${esc(r.u)}</a>${r.reply?' <span class="pill reply">відповідь</span>':''}${r.hidden?' <span class="pill hid">приховано</span>':''}${r.kw?' <span class="pill kw">ключове</span>':''}${r.out?` <span class="pill">${esc(r.out)}</span>`:''}${used.has(r.id)?' <span class="pill chk">обрано</span>':''}</td>
-    <td class="tx">${hl(r.text)}</td><td class="lk${r.likes>=20?' hot':''}">${fmt(r.likes)}</td>
+    <td class="tx">${hl(r.text)}</td><td class="lk${(r.likes||0)>=20?' hot':''}">${fmt(r.likes)}</td>
     <td><a class="pill chk" href="${prof(r.u)}" target="_blank" rel="noopener" title="Instagram не віддає підписки через API">перевірити</a></td>
     <td><a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">Відкрити ↗</a></td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--ash);padding:24px">Нічого не знайдено. Спробуйте номер, частину нікнейму або слово з коментаря.</td></tr>';
   $('count').textContent=`${fmt(view.length)} з ${fmt(M.rows.length)} · у пулі ${fmt(M.pool.length)}`;
