@@ -519,6 +519,8 @@ function openLive(){
   const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; const used=drawnIds(); const ua=new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>String(d.username).toLowerCase())); const left=M.pool.filter(r=>!used.has(r.id)&&!ua.has(String(r.u).toLowerCase())).length;
     $('lvPrz').textContent=p.label; $('lvSub').textContent=`${M.frozen?'🔒 пул зафіксовано · ':''}${fmt(M.pool.length)} учасників · номери від 1 до ${M.pool.length} · доступно ${fmt(left)}`; };
   setPrize(); LIVE.setPrize=setPrize;
+  if(!M.frozen){ $('lvPick').disabled=true; $('lvPick').textContent='🔒 Спершу зафіксуйте пул'; }
+  const pend=pendingAttempt(LIVE.i); if(pend){ $('lvNum').textContent=pend.pick.n; $('lvNick').textContent='@'+pend.pick.username; $('lvMeta').textContent='Попередня спроба без вердикту: поставте ✓ або ✗'; $('lvOk').hidden=$('lvNo').hidden=false; }
   if($('lvPrize')) $('lvPrize').onchange=e=>{ LIVE.i=+e.target.value; setPrize(); };
   $('lvClose').onclick=closeLive;
   $('lvFs').onclick=()=>{ (d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d); };
@@ -552,24 +554,43 @@ function renderPickers(){
   $('pickers').innerHTML = rnds.map(p=>`<section class="picker" data-i="${p.i}" style="margin-bottom:18px">
     <div class="res"><div class="big mono" id="pickN${p.i}">—</div>
       <div class="who" id="pickWho${p.i}"><div class="eyebrow">${esc(p.label)} · випадковий номер</div><div class="txt">Генератор бере номер від 1 до ${fmt(pool.length)} через crypto.getRandomValues, без повторів номера й акаунта, і підсвічує рядок у таблиці. Кожна спроба пишеться в журнал.</div></div></div>
-    <div class="acts"><button class="btn primary" type="button" data-pick="${p.i}" ${pool.length?'':'disabled'}>Обрати випадковий номер</button>
+    <div class="acts"><button class="btn primary" type="button" data-pick="${p.i}" ${pool.length&&M.frozen?'':'disabled'} title="${M.frozen?'':'Спершу зафіксуйте пул'}">${M.frozen?'Обрати випадковий номер':'🔒 Спершу зафіксуйте пул'}</button>
       <div class="row2" id="verdict${p.i}" hidden><button class="btn ok" type="button" data-v="confirmed">✓ Умови виконано</button><button class="btn no" type="button" data-v="rejected">✗ Не виконано</button></div></div>
-    <ol class="log" id="log${p.i}" reversed></ol></section>`).join('');
+    <ol class="log" id="log${p.i}"></ol></section>`).join('');
   rnds.forEach(p=>renderLog(p.i));
   $('pickers').onclick = e=>{
     const b=e.target.closest('[data-pick]'); if(b) return pick(+b.dataset.pick, b);
-    const v=e.target.closest('[data-v]'); if(v) return verdict(+v.closest('.picker').dataset.i, v.dataset.v);
+    const v=e.target.closest('[data-v]'); if(!v) return; const i=+v.closest('.picker').dataset.i;
+    if(v.dataset.lv!=null){ const a=attempts(i)[+v.dataset.lv]; if(a) return verdictFor(i,a.pick,v.dataset.v); }
+    return verdict(i, v.dataset.v);
   };
 }
-function renderLog(i){
+// Спроби одного призу: picked + вердикт (confirmed/rejected), що йде пізніше з тим самим comment_id
+function attempts(i){
   const label=M.cfg.prizes[i].label; const L=(POOL.draws||[]).filter(d=>d.prize===label);
+  const out=[];
+  for(const d of L){
+    if(d.status==='picked') out.push({pick:d,verdict:null});
+    else { const a=[...out].reverse().find(x=>x.pick.comment_id===d.comment_id&&!x.verdict); if(a) a.verdict=d; }
+  }
+  return out;
+}
+function pendingAttempt(i){ const a=attempts(i); const last=a[a.length-1]; return last&&!last.verdict?last:null; }
+function renderLog(i){
   const el=$('log'+i); if(!el) return;
-  el.innerHTML = L.slice().reverse().map(d=>`<li><span class="mono">${esc(kyiv(Date.parse(d.at),{second:'2-digit'}))}</span> · ${d.status==='picked'?`<b class="mono">№${d.n}</b> з ${fmt(d.pool_size)} · <a href="${esc(rowUrl(d.comment_id))}" target="_blank" rel="noopener">@${esc(d.username)}</a>`:(d.status==='confirmed'?'<span style="color:var(--green)">✓ умови виконано</span>':'<span style="color:var(--red-soft)">✗ не виконано</span>')+` · @${esc(d.username)}`} <span class="note">· ${esc(d.by||'')}</span></li>`).join('');
-  el.hidden=!L.length;
+  const A=attempts(i); const win=A.find(a=>a.verdict&&a.verdict.status==='confirmed');
+  const t=ms=>esc(kyiv(ms,{second:'2-digit'}));
+  el.innerHTML = (A.length?`<li style="list-style:none;margin-left:-18px;margin-bottom:6px"><b style="color:${win?'var(--green)':'var(--gold)'}">${win?`Отримувач призу: @${esc(win.pick.username)} (№${win.pick.n}, спроба ${A.indexOf(win)+1})`:'Отримувача ще не визначено: потрібен вердикт ✓ по спробі'}</b> <span class="note">· час за Києвом</span></li>`:'')+
+    A.map((a,k)=>`<li value="${k+1}">Спроба ${k+1} · <span class="mono">${t(Date.parse(a.pick.at))}</span> · <b class="mono">№${a.pick.n}</b> з ${fmt(a.pick.pool_size)} · <a href="${esc(rowUrl(a.pick.comment_id))}" target="_blank" rel="noopener">@${esc(a.pick.username)}</a>
+      · ${a.verdict?(a.verdict.status==='confirmed'?'<span style="color:var(--green)">✓ умови виконано</span>':'<span style="color:var(--red-soft)">✗ умови не виконано</span>')+` <span class="note">(вердикт: ${esc(a.verdict.by||'')})</span>`:`<span style="color:var(--gold)">без вердикту</span> <button class="btn ok" type="button" data-lv="${k}" data-v="confirmed" style="padding:4px 8px">✓</button> <button class="btn no" type="button" data-lv="${k}" data-v="rejected" style="padding:4px 8px">✗</button>`}
+      <span class="note">· натиснув(ла): ${esc(a.pick.by||'—')}</span></li>`).join('');
+  el.hidden=!A.length;
 }
 function rowUrl(cid){ const r=M.rows.find(x=>x.id===cid); return r?r.url:POOL.url; }
 let LAST={};
 async function pickCore(i, onTick){
+  if(!M.frozen){ toast('Спершу зафіксуйте пул: кнопка «🔒 Зафіксувати пул» над вибором'); return null; }
+  if(pendingAttempt(i)){ toast('Поставте вердикт ✓ або ✗ попередній спробі, потім наступна'); return null; }
   const {pool}=M; const used=drawnIds();
   const usedAcc=new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>String(d.username).toLowerCase()));
   // наступна спроба не обирає ні той самий номер, ні той самий акаунт
@@ -583,10 +604,14 @@ async function pickCore(i, onTick){
   catch(e){ toast('Журнал не записано: '+e.message); }
   return r;
 }
-async function verdictCore(i, v){
-  const r=LAST[i]; if(!r) return;
-  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:M.pool.length,comment_id:r.id,username:r.u,text:'',status:v}}); POOL.draws=j.draws; }
+async function verdictFor(i, pk, v){
+  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:pk.prize,method:'random',n:pk.n,pool_size:pk.pool_size,comment_id:pk.comment_id,username:pk.username,text:'',status:v}}); POOL.draws=j.draws; }
   catch(e){ toast('Журнал не записано: '+e.message); }
+  renderLog(i); const vb=$('verdict'+i); if(vb) vb.hidden=true;
+}
+async function verdictCore(i, v){
+  const a=pendingAttempt(i); if(!a) return;
+  await verdictFor(i, a.pick, v);
 }
 async function pick(i, btn){
   const {pool}=M;
