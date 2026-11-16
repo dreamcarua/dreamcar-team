@@ -73,6 +73,7 @@ h3{font-size:15px;letter-spacing:.06em}
 .chartbox{position:relative;height:260px}
 .lb{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .lb li{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center}
+.lb li.note{display:block;grid-template-columns:none;line-height:1.55}
 .lb .rk{font-family:var(--mono);font-size:12px;color:var(--ash);text-align:right}
 .lb li:first-child .rk{color:var(--gold)}
 .lb .who{min-width:0}
@@ -147,6 +148,24 @@ td.lk.hot{color:var(--gold);font-weight:700}
 .spin{width:28px;height:28px;border:3px solid var(--steel);border-top-color:var(--red);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .err{color:var(--red-soft)}
+.banner{border:1px solid var(--steel);border-radius:10px;padding:14px 18px;background:var(--bg-2);display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.banner.gold{border-color:var(--gold)}
+.banner.green{border-color:rgba(16,185,129,.6)}
+.banner b.t{font-family:var(--display);text-transform:uppercase;letter-spacing:.04em;font-size:16px}
+#live{position:fixed;inset:0;z-index:60;background:radial-gradient(120% 80% at 50% 0%,rgba(227,6,19,.22),rgba(10,10,10,1) 60%),#0a0a0a;display:flex;flex-direction:column;padding:24px clamp(16px,4vw,56px);gap:16px}
+#live .lt{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+#live .lt .brand{font-size:26px}
+#live .prz{font-family:var(--display);font-size:clamp(22px,3.4vw,44px);text-transform:uppercase;color:var(--white);text-align:center}
+#live .sub{font-family:var(--mono);font-size:clamp(12px,1.3vw,16px);letter-spacing:.14em;text-transform:uppercase;color:var(--ash);text-align:center}
+#live .num{font-family:var(--display);font-weight:700;font-size:clamp(120px,26vh,320px);line-height:.9;text-align:center;color:var(--white);font-variant-numeric:tabular-nums;text-shadow:0 0 60px rgba(227,6,19,.45)}
+#live .nick{font-family:var(--display);font-size:clamp(30px,5vw,72px);text-align:center;color:var(--gold);text-transform:none;min-height:1.1em}
+#live .cmt{font-size:clamp(16px,2vw,26px);text-align:center;color:var(--text);max-width:1100px;margin:0 auto;overflow-wrap:anywhere;min-height:1.4em}
+#live .cmt mark{background:rgba(251,191,36,.25);color:var(--white);border-radius:3px;padding:0 4px}
+#live .meta2{font-family:var(--mono);font-size:13px;color:var(--ash);text-align:center}
+#live .ctl{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:auto}
+#live .ctl .btn{font-size:14px;padding:14px 22px}
+#live .stage{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px}
+#live .verdict-ok{color:var(--green)} #live .verdict-no{color:var(--red-soft)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--steel);border-radius:8px;padding:10px 16px;font-size:13px;z-index:50}
 @media (max-width:980px){
   .hero,.grid2,.grid3,.form{grid-template-columns:minmax(0,1fr)}
@@ -277,16 +296,17 @@ async function renderHome(){
       <div class="note">${esc(p.url)}</div>
       <div class="tools"><span class="pill st-${p.status}">${ST[p.status]||p.status}</span>
       ${p.api_total!=null?`<span class="pill">${fmt(p.api_total)} коментарів</span>`:''}
-      ${(p.draws||[]).length?`<span class="pill chk">спроб: ${(p.draws||[]).filter(d=>d.status==='picked').length}</span>`:''}</div></a>`).join('') || '<div class="note">Ще немає жодної сторінки. Створіть першу формою вище.</div>';
+      ${p.at?'<span class="pill st-ready">🔒 зафіксовано</span>':''}${(p.draws||[]).length?`<span class="pill chk">спроб: ${(p.draws||[]).filter(d=>d.status==='picked').length}</span>`:''}</div></a>`).join('') || '<div class="note">Ще немає жодної сторінки. Створіть першу формою вище.</div>';
   }catch(e){ $('list').innerHTML='<div class="err">'+esc(e.message)+'</div>'; }
 }
 
 /* ---------- сторінка поста ---------- */
-let POOL=null, M=null, CHART=null, pollT=null;
+let POOL=null, M=null, CHART=null, pollT=null, ME={};
 function kwRegex(list){
   const k=(list||[]).map(s=>s.toLowerCase().trim()).filter(Boolean).map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
   return k.length ? new RegExp('(^|[^\\p{L}\\p{N}])('+k.join('|')+')','iu') : null;
 }
+const BRANDS=['porsche','порш','mercedes','мерседес','мерс ','bmw','бмв','audi','ауді','ауди','volkswagen','фольксваген','touareg','туарег','jaguar','ягуар','volvo','вольво','lexus','лексус','toyota','тойота','ford','форд','ranger','рейнджер','ренджер','chevrolet','шевроле','ланос','lanos','defender','дефендер','discovery','дискавер','cadillac','кадилак','infiniti','genesis','bentley','бентлі','maybach','майбах','гелік','tesla','тесла','kia','hyundai','nissan','mazda','skoda','шкода','jeep','джип','lamborghini','ferrari','aston','maserati','rolls','cupra','zeekr','lixiang','li auto','byd'];
 function model(pool){
   const cfg=pool.config||{}, sc=pool.shortcode, ex=new Set((cfg.excluded||[]).map(s=>s.toLowerCase()));
   const re=kwRegex(cfg.keywords);
@@ -307,19 +327,34 @@ function model(pool){
   rows.sort((a,b)=>a.t-b.t||a.id.localeCompare(b.id));
   if (cfg.one_per_account){ const s=new Set(); for(const r of rows){ if(r.out) continue; if(s.has(r.u)) r.out='повторний коментар акаунта'; else s.add(r.u); } }
   let n=0; for(const r of rows){ r.n = r.out ? null : ++n; }
-  const pool_=rows.filter(r=>r.n);
-  return {cfg, rows, pool:pool_, excludedTeam, exBy, re};
+  let outRows=rows, fcfg=cfg, fre=re;
+  if (pool.frozen){
+    // Зафіксований пул: номери з моменту фіксації, нові коментарі номер не отримують
+    fcfg=pool.frozen.config||cfg; fre=kwRegex(fcfg.keywords);
+    const byId=new Map(rows.map(r=>[r.id,r])); const fz=new Set();
+    const fr=(pool.frozen.entries||[]).map(e=>{ const cur=byId.get(String(e[1])); fz.add(String(e[1]));
+      const r=cur?Object.assign({},cur):{id:String(e[1]),t:e[4],u:e[2],text:e[3],likes:null,reply:false,hidden:false,parent:null,url:`https://www.instagram.com/p/${sc}/c/${e[1]}/`,kw:fre?fre.test(e[3]):false,gone:true};
+      r.n=e[0]; r.out=null; r.man=null; return r; });
+    const rest=rows.filter(r=>!fz.has(r.id)).map(r=>Object.assign({},r,{n:null,out:r.out||'після фіксації',man:null}));
+    outRows=fr.concat(rest).sort((a,b)=>a.t-b.t||a.id.localeCompare(b.id));
+  }
+  const conflicts=BRANDS.filter(b=>!(fcfg.keywords||[]).some(k=>b.includes(k.toLowerCase())||k.toLowerCase().includes(b)));
+  for(const r of outRows){ const t=String(r.text).toLowerCase();
+    r.sus = !!(r.kw && (conflicts.some(b=>t.includes(b)) || /(^|[^\p{L}])(або|чи|или|or)([^\p{L}]|$)|\?|\//iu.test(t))); }
+  const pool_=outRows.filter(r=>r.n).sort((a,b)=>a.n-b.n);
+  return {cfg:fcfg, rows:outRows, pool:pool_, excludedTeam, exBy, re:fre, frozen:pool.frozen||null};
 }
 
 async function renderPool(id){
   clearTimeout(pollT);
   let j; try{ j=await call('get',{id}); }catch(e){ $('app').innerHTML='<div class="state err">'+esc(e.message)+'</div>'; return; }
-  POOL=j.pool;
+  POOL=j.pool; ME=j.me||{};
   document.title = 'DreamCar · ' + (POOL.title||POOL.shortcode);
   $('topMeta').innerHTML = `<a class="btn" href="/comments/">← Усі пости</a><a class="btn" href="${esc(POOL.url)}" target="_blank" rel="noopener">Відкрити пост ↗</a>
-    <button class="btn" id="refreshBtn" type="button">↻ Оновити коментарі</button><button class="btn" id="editBtn" type="button">Умови</button>`;
+    <button class="btn" id="refreshBtn" type="button">↻ Оновити коментарі</button><button class="btn" id="editBtn" type="button" ${POOL.frozen?'disabled title="Пул зафіксовано"':''}>Умови</button><button class="btn primary" id="liveBtn" type="button">▶ Режим ефіру</button>`;
   $('refreshBtn').onclick = async()=>{ $('refreshBtn').disabled=true; try{ await call('refresh',{id}); toast('Збираю коментарі заново…'); setTimeout(()=>renderPool(id),2500);}catch(e){toast(e.message);} };
-  $('editBtn').onclick = ()=>openEdit();
+  $('editBtn').onclick = ()=>{ if(!POOL.frozen) openEdit(); };
+  $('liveBtn').onclick = ()=>{ if(M) openLive(); };
   if (POOL.status==='queued'||POOL.status==='fetching'){
     $('app').innerHTML = `<div class="state"><div class="spin"></div>Збираю коментарі з Instagram… Сторінка оновиться сама.${POOL.rows?.length?'<div class="note">Попередні дані: '+fmt(POOL.rows.length)+' коментарів</div>':''}</div>`;
     pollT=setTimeout(()=>renderPool(id),3000); return;
@@ -390,13 +425,15 @@ function draw(){
     <div class="panel"><div class="hd"><h3>${cfg.keywords?.length?'Відповіді':'Лайки на коментарях'}</h3><span class="eyebrow">${cfg.keywords?.length?'ключові слова':'розподіл коментарів'}</span></div><div class="dist" id="likeDist"></div><div class="note" id="excludedNote"></div></div>
   </section>
 
+  ${(()=>{ const got=P.api_total||0, ig=P.i_comments; if(ig==null||!ig||got>=ig*0.98) return ''; return `<div class="banner gold"><div><b class="t" style="color:var(--gold)">Зібрано ${fmt(got)} з ${fmt(ig)}</b><div class="note">Instagram у статистиці поста рахує на ${fmt(ig-got)} коментарів більше. Причини: видалені автором, приховані фільтром Instagram або пропущені вебхуком (коли коментування вимкнене). Повний список видно лише з увімкненим коментуванням.</div></div></div>`; })()}
+  <div id="freezeBox"></div>
   <div id="pickers"></div>
 
   <section class="panel" id="tableSec">
     <div class="hd"><h2>Учасники</h2><span class="eyebrow">клік по заголовку сортує</span></div>
     <div class="tools">
       <input class="inp" id="q" type="search" placeholder="Пошук: номер (напр. 95), @акаунт або текст" autocomplete="off">
-      <select id="fPool" aria-label="Пул"><option value="">Усі коментарі</option><option value="in">Лише в пулі</option><option value="out">Поза пулом</option>${cfg.keywords?.length?'<option value="kw">З ключовим словом</option>':''}</select>
+      <select id="fPool" aria-label="Пул"><option value="">Усі коментарі</option><option value="in">Лише в пулі</option><option value="out">Поза пулом</option>${cfg.keywords?.length?'<option value="kw">З ключовим словом</option><option value="sus">Сумнівні збіги</option>':''}</select>
       <select id="fType" aria-label="Тип"><option value="">Основні і відповіді</option><option value="c">Лише основні</option><option value="r">Лише відповіді</option></select>
       <select id="fLikes" aria-label="Лайки"><option value="0">Будь-які лайки</option><option value="1">1+ лайк</option><option value="5">5+</option><option value="20">20+</option></select>
       <span class="count" id="count"></span>
@@ -441,8 +478,69 @@ function draw(){
   }
   $('excludedNote').innerHTML=`Виключено <b>${fmt(M.excludedTeam)}</b> коментарів команди${Object.keys(M.exBy).length?': '+Object.entries(M.exBy).map(([u,c])=>'@'+esc(u)+' '+c).join(', '):''}.`;
 
+  renderFreeze();
   renderPickers();
   initTable();
+}
+
+/* ---------- фіксація пулу ---------- */
+function renderFreeze(){
+  const fz=POOL.frozen, box=$('freezeBox'); const picked=(POOL.draws||[]).some(d=>d.status==='picked');
+  if (fz){
+    const gone=M.pool.filter(r=>r.gone).length, after=M.rows.filter(r=>r.out==='після фіксації').length;
+    box.innerHTML=`<div class="banner green"><div><b class="t" style="color:var(--green)">🔒 Пул зафіксовано</b><div class="note">${esc(kyiv(Date.parse(fz.at),{second:'2-digit'}))} · ${esc(fz.by||'')} · ${fmt(M.pool.length)} номерів. Номери й умови більше не змінюються${gone?`, ${fmt(gone)} коментарів відтоді зникли з Instagram, але номери за ними лишились`:''}${after?`, ${fmt(after)} нових коментарів номер не отримали`:''}.</div></div>
+      ${['ceo','coo'].includes(ME.role)&&!picked?'<button class="btn" type="button" id="unfreezeBtn">Зняти фіксацію</button>':''}</div>`;
+    const u=$('unfreezeBtn'); if(u) u.onclick=async()=>{ u.disabled=true; try{ await call('unfreeze',{id:POOL.id}); toast('Фіксацію знято'); renderPool(POOL.id);}catch(e){toast(e.message);u.disabled=false;} };
+  } else {
+    box.innerHTML=`<div class="banner gold"><div><b class="t" style="color:var(--gold)">Пул не зафіксовано</b><div class="note">Перед ефіром зафіксуйте пул: номери ${fmt(M.pool.length)} учасників і умови заморозяться, видалені чи нові коментарі їх уже не зсунуть.</div></div>
+      <div class="tools"><button class="btn primary" type="button" id="freezeBtn" ${M.pool.length?'':'disabled'}>🔒 Зафіксувати пул</button><button class="btn" type="button" id="freezeYes" hidden>Так, зафіксувати ${fmt(M.pool.length)} номерів</button></div></div>`;
+    $('freezeBtn').onclick=()=>{ $('freezeBtn').hidden=true; $('freezeYes').hidden=false; };
+    $('freezeYes').onclick=async()=>{ $('freezeYes').disabled=true;
+      try{ await call('freeze',{id:POOL.id,entries:M.pool.map(r=>[r.n,r.id,r.u,r.text,r.t])}); toast('Пул зафіксовано'); renderPool(POOL.id);}catch(e){ toast(e.message); $('freezeYes').disabled=false; } };
+  }
+}
+
+/* ---------- режим ефіру ---------- */
+let LIVE=null;
+function openLive(){
+  const rnds=(M.cfg.prizes||[]).map((p,i)=>({...p,i})).filter(p=>p.method==='random');
+  if(!rnds.length){ toast('Немає призу з випадковим номером'); return; }
+  closeLive();
+  const d=document.createElement('div'); d.id='live';
+  d.innerHTML=`<div class="lt"><span class="brand">DREAM<span class="r">CAR</span></span>
+      <div class="tools">${rnds.length>1?`<select id="lvPrize">${rnds.map(p=>`<option value="${p.i}">${esc(p.label)}</option>`).join('')}</select>`:''}
+      <button class="btn" type="button" id="lvFs">⛶ На весь екран</button><button class="btn" type="button" id="lvClose">✕ Вийти (Esc)</button></div></div>
+    <div class="stage"><div class="prz" id="lvPrz"></div><div class="sub" id="lvSub"></div>
+      <div class="num" id="lvNum">—</div><div class="nick" id="lvNick"></div><div class="cmt" id="lvCmt"></div><div class="meta2" id="lvMeta"></div></div>
+    <div class="ctl"><button class="btn primary" type="button" id="lvPick">Обрати номер (пробіл)</button>
+      <button class="btn ok" type="button" id="lvOk" hidden>✓ Умови виконано</button><button class="btn no" type="button" id="lvNo" hidden>✗ Не виконано</button></div>`;
+  document.body.appendChild(d); document.body.style.overflow='hidden';
+  LIVE={i:rnds[0].i};
+  const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; const used=drawnIds(); const left=M.pool.filter(r=>!used.has(r.id)).length;
+    $('lvPrz').textContent=p.label; $('lvSub').textContent=`${M.frozen?'🔒 пул зафіксовано · ':''}${fmt(M.pool.length)} учасників · номери від 1 до ${M.pool.length} · доступно ${fmt(left)}`; };
+  setPrize(); LIVE.setPrize=setPrize;
+  if($('lvPrize')) $('lvPrize').onchange=e=>{ LIVE.i=+e.target.value; setPrize(); };
+  $('lvClose').onclick=closeLive;
+  $('lvFs').onclick=()=>{ (d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d); };
+  $('lvPick').onclick=()=>livePick();
+  $('lvOk').onclick=()=>liveVerdict('confirmed'); $('lvNo').onclick=()=>liveVerdict('rejected');
+  LIVE.key=e=>{ if(e.key==='Escape') closeLive(); else if(e.code==='Space'&&!$('lvPick').disabled){ e.preventDefault(); livePick(); } };
+  document.addEventListener('keydown',LIVE.key);
+}
+function closeLive(){ const d=$('live'); if(!d) return; if(document.fullscreenElement) document.exitFullscreen?.(); document.removeEventListener('keydown',LIVE.key); d.remove(); document.body.style.overflow=''; LIVE=null; renderPickers(); }
+async function livePick(){
+  const i=LIVE.i; $('lvPick').disabled=true; $('lvOk').hidden=$('lvNo').hidden=true;
+  $('lvNick').textContent=''; $('lvCmt').innerHTML=''; $('lvMeta').textContent='';
+  const r=await pickCore(i, n=>{ $('lvNum').textContent=n; });
+  $('lvPick').disabled=false;
+  if(!r) return;
+  $('lvNum').textContent=r.n; $('lvNick').textContent='@'+r.u; $('lvCmt').innerHTML=hl(r.text);
+  $('lvMeta').textContent=`${kyiv(r.t,{second:'2-digit'})} · номер ${r.n} з ${fmt(M.pool.length)}`;
+  $('lvOk').hidden=$('lvNo').hidden=false; $('lvPick').textContent='Наступна спроба (пробіл)'; LIVE.setPrize();
+}
+async function liveVerdict(v){
+  $('lvOk').hidden=$('lvNo').hidden=true; await verdictCore(LIVE.i, v);
+  $('lvMeta').innerHTML += v==='confirmed'?' · <span class="verdict-ok">✓ умови виконано</span>':' · <span class="verdict-no">✗ не виконано</span>';
 }
 
 /* ---------- вибір ---------- */
@@ -471,27 +569,36 @@ function renderLog(i){
 }
 function rowUrl(cid){ const r=M.rows.find(x=>x.id===cid); return r?r.url:POOL.url; }
 let LAST={};
-async function pick(i, btn){
+async function pickCore(i, onTick){
   const {pool}=M; const used=drawnIds(); const avail=pool.filter(r=>!used.has(r.id));
-  if(!avail.length){ toast('Усі номери вже обрані'); return; }
-  btn.disabled=true; $('verdict'+i).hidden=true;
+  if(!avail.length){ toast('Усі номери вже обрані'); return null; }
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const r=avail[rnd(avail.length)-1]; const out=$('pickN'+i); const steps=reduce?1:30; let k=0;
-  await new Promise(res=>{(function tick(){ k++; out.textContent = k<steps ? pool[rnd(pool.length)-1].n : r.n; if(k<steps){ setTimeout(tick,30+Math.pow(k/steps,3)*420); } else res(); })();});
-  const cntA=pool.filter(x=>x.u===r.u).length;
-  $('pickWho'+i).innerHTML=`<div class="eyebrow">${esc(M.cfg.prizes[i].label)} · номер ${r.n} з ${fmt(pool.length)}</div><a href="${esc(r.url)}" target="_blank" rel="noopener">@${esc(r.u)} ↗</a><div class="txt">${hl(r.text)}</div><div class="txt mono" style="font-size:11px;color:var(--ash)">${esc(kyiv(r.t,{second:'2-digit'}))} · ${fmt(r.likes)} ❤ · у акаунта ${cntA} ном. · підписку перевірити на <a href="${prof(r.u)}" target="_blank" rel="noopener" style="color:var(--gold)">профілі</a></div>`;
+  const r=avail[rnd(avail.length)-1]; const steps=reduce?1:34; let k=0;
+  await new Promise(res=>{(function tick(){ k++; onTick(k<steps ? pool[rnd(pool.length)-1].n : r.n); if(k<steps){ setTimeout(tick,30+Math.pow(k/steps,3)*460); } else res(); })();});
   LAST[i]=r;
   try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:pool.length,comment_id:r.id,username:r.u,text:r.text,status:'picked'}}); POOL.draws=j.draws; }
   catch(e){ toast('Журнал не записано: '+e.message); }
+  return r;
+}
+async function verdictCore(i, v){
+  const r=LAST[i]; if(!r) return;
+  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:M.pool.length,comment_id:r.id,username:r.u,text:'',status:v}}); POOL.draws=j.draws; }
+  catch(e){ toast('Журнал не записано: '+e.message); }
+}
+async function pick(i, btn){
+  const {pool}=M;
+  btn.disabled=true; $('verdict'+i).hidden=true;
+  const out=$('pickN'+i);
+  const r=await pickCore(i, n=>{ out.textContent=n; });
+  if(!r){ btn.disabled=false; return; }
+  const cntA=pool.filter(x=>x.u===r.u).length;
+  $('pickWho'+i).innerHTML=`<div class="eyebrow">${esc(M.cfg.prizes[i].label)} · номер ${r.n} з ${fmt(pool.length)}</div><a href="${esc(r.url)}" target="_blank" rel="noopener">@${esc(r.u)} ↗</a><div class="txt">${hl(r.text)}</div><div class="txt mono" style="font-size:11px;color:var(--ash)">${esc(kyiv(r.t,{second:'2-digit'}))} · ${fmt(r.likes)} ❤ · у акаунта ${cntA} ном. · підписку перевірити на <a href="${prof(r.u)}" target="_blank" rel="noopener" style="color:var(--gold)">профілі</a></div>`;
   renderLog(i); $('verdict'+i).hidden=false;
   btn.disabled=false; btn.textContent='Наступна спроба (без повторів)';
   focusRow(r);
 }
 async function verdict(i, v){
-  const r=LAST[i]; if(!r) return; $('verdict'+i).hidden=true;
-  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:M.pool.length,comment_id:r.id,username:r.u,text:'',status:v}}); POOL.draws=j.draws; }
-  catch(e){ toast('Журнал не записано: '+e.message); }
-  renderLog(i);
+  $('verdict'+i).hidden=true; await verdictCore(i, v); renderLog(i);
 }
 
 /* ---------- таблиця ---------- */
@@ -514,7 +621,7 @@ function apply(){
   const q=$('q').value.trim().toLowerCase().replace(/^@/,'').replace(/^[№#]\s*/,'');
   const fp=$('fPool').value, ft=$('fType').value, fl=+$('fLikes').value;
   view=M.rows.filter(r=>{
-    if(fp==='in'&&!r.n) return false; if(fp==='out'&&r.n) return false; if(fp==='kw'&&!r.kw) return false;
+    if(fp==='in'&&!r.n) return false; if(fp==='out'&&r.n) return false; if(fp==='kw'&&!r.kw) return false; if(fp==='sus'&&!r.sus) return false;
     if(ft==='c'&&r.reply) return false; if(ft==='r'&&!r.reply) return false;
     if((r.likes||0)<fl) return false;
     if(!q) return true;
@@ -530,12 +637,12 @@ function render(){
   const used=drawnIds();
   $('tb').innerHTML=view.slice(page*PER,page*PER+PER).map(r=>`<tr id="r${r.id}" class="${highlight===r.id?'hl':''}${r.n?'':' out'}">
     <td class="n">${r.n??'—'}</td><td class="dt">${esc(kyiv(r.t,{second:'2-digit'}))}</td>
-    <td class="acc"><a href="${prof(r.u)}" target="_blank" rel="noopener">@${esc(r.u)}</a>${r.reply?' <span class="pill reply">відповідь</span>':''}${r.hidden?' <span class="pill hid">приховано</span>':''}${r.kw?' <span class="pill kw">ключове</span>':''}${r.out?` <span class="pill">${esc(r.out)}</span>`:''}${used.has(r.id)?' <span class="pill chk">обрано</span>':''}</td>
+    <td class="acc"><a href="${prof(r.u)}" target="_blank" rel="noopener">@${esc(r.u)}</a>${r.reply?' <span class="pill reply">відповідь</span>':''}${r.hidden?' <span class="pill hid">приховано</span>':''}${r.kw?' <span class="pill kw">ключове</span>':''}${r.sus?' <span class="pill hid" title="Згадує іншу марку, кілька варіантів або питання">сумнівно</span>':''}${r.gone?' <span class="pill hid">зник з Instagram</span>':''}${r.out?` <span class="pill">${esc(r.out)}</span>`:''}${used.has(r.id)?' <span class="pill chk">обрано</span>':''}</td>
     <td class="tx">${hl(r.text)}</td><td class="lk${(r.likes||0)>=20?' hot':''}">${fmt(r.likes)}</td>
     <td><a class="pill chk" href="${prof(r.u)}" target="_blank" rel="noopener" title="Instagram не віддає підписки через API">перевірити</a></td>
     <td><a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">Відкрити ↗</a></td>
-    <td><button class="btn${r.n?' no':' ok'}" type="button" data-man="${r.id}" data-to="${r.n?'out':'in'}" title="${r.n?'Прибрати з пулу':'Додати в пул'}">${r.n?'✗':'✓'}</button>${r.man?' <span class="pill">вручну</span>':''}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--ash);padding:24px">Нічого не знайдено. Спробуйте номер, частину нікнейму або слово з коментаря.</td></tr>';
-  $('count').textContent=`${fmt(view.length)} з ${fmt(M.rows.length)} · у пулі ${fmt(M.pool.length)}`;
+    <td>${M.frozen?'<span class="note">🔒</span>':`<button class="btn${r.n?' no':' ok'}" type="button" data-man="${r.id}" data-to="${r.n?'out':'in'}" title="${r.n?'Прибрати з пулу':'Додати в пул'}">${r.n?'✗':'✓'}</button>${r.man?' <span class="pill">вручну</span>':''}`}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--ash);padding:24px">Нічого не знайдено. Спробуйте номер, частину нікнейму або слово з коментаря.</td></tr>';
+  $('count').textContent=`${fmt(view.length)} з ${fmt(M.rows.length)} · у пулі ${fmt(M.pool.length)}${M.cfg.keywords?.length?` · сумнівних ${fmt(M.rows.filter(r=>r.sus&&r.n).length)}`:''}`;
   $('pageInfo').textContent=`стор. ${page+1} / ${pages}`;
   $('prev').disabled=page===0; $('next').disabled=page>=pages-1;
   document.querySelectorAll('th[data-k] .ar').forEach(s=>s.textContent='');
