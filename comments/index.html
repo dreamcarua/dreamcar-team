@@ -516,7 +516,7 @@ function openLive(){
       <button class="btn ok" type="button" id="lvOk" hidden>✓ Умови виконано</button><button class="btn no" type="button" id="lvNo" hidden>✗ Не виконано</button></div>`;
   document.body.appendChild(d); document.body.style.overflow='hidden';
   LIVE={i:rnds[0].i};
-  const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; const used=drawnIds(); const left=M.pool.filter(r=>!used.has(r.id)).length;
+  const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; const used=drawnIds(); const ua=new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>String(d.username).toLowerCase())); const left=M.pool.filter(r=>!used.has(r.id)&&!ua.has(String(r.u).toLowerCase())).length;
     $('lvPrz').textContent=p.label; $('lvSub').textContent=`${M.frozen?'🔒 пул зафіксовано · ':''}${fmt(M.pool.length)} учасників · номери від 1 до ${M.pool.length} · доступно ${fmt(left)}`; };
   setPrize(); LIVE.setPrize=setPrize;
   if($('lvPrize')) $('lvPrize').onchange=e=>{ LIVE.i=+e.target.value; setPrize(); };
@@ -551,7 +551,7 @@ function renderPickers(){
   const rnds=(cfg.prizes||[]).map((p,i)=>({...p,i})).filter(p=>p.method==='random');
   $('pickers').innerHTML = rnds.map(p=>`<section class="picker" data-i="${p.i}" style="margin-bottom:18px">
     <div class="res"><div class="big mono" id="pickN${p.i}">—</div>
-      <div class="who" id="pickWho${p.i}"><div class="eyebrow">${esc(p.label)} · випадковий номер</div><div class="txt">Генератор бере номер від 1 до ${fmt(pool.length)} через crypto.getRandomValues, без повторів, і підсвічує рядок у таблиці. Кожна спроба пишеться в журнал.</div></div></div>
+      <div class="who" id="pickWho${p.i}"><div class="eyebrow">${esc(p.label)} · випадковий номер</div><div class="txt">Генератор бере номер від 1 до ${fmt(pool.length)} через crypto.getRandomValues, без повторів номера й акаунта, і підсвічує рядок у таблиці. Кожна спроба пишеться в журнал.</div></div></div>
     <div class="acts"><button class="btn primary" type="button" data-pick="${p.i}" ${pool.length?'':'disabled'}>Обрати випадковий номер</button>
       <div class="row2" id="verdict${p.i}" hidden><button class="btn ok" type="button" data-v="confirmed">✓ Умови виконано</button><button class="btn no" type="button" data-v="rejected">✗ Не виконано</button></div></div>
     <ol class="log" id="log${p.i}" reversed></ol></section>`).join('');
@@ -570,8 +570,11 @@ function renderLog(i){
 function rowUrl(cid){ const r=M.rows.find(x=>x.id===cid); return r?r.url:POOL.url; }
 let LAST={};
 async function pickCore(i, onTick){
-  const {pool}=M; const used=drawnIds(); const avail=pool.filter(r=>!used.has(r.id));
-  if(!avail.length){ toast('Усі номери вже обрані'); return null; }
+  const {pool}=M; const used=drawnIds();
+  const usedAcc=new Set((POOL.draws||[]).filter(d=>d.status==='picked').map(d=>String(d.username).toLowerCase()));
+  // наступна спроба не обирає ні той самий номер, ні той самий акаунт
+  const avail=pool.filter(r=>!used.has(r.id)&&!usedAcc.has(String(r.u).toLowerCase()));
+  if(!avail.length){ toast('Усі учасники вже обрані'); return null; }
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const r=avail[rnd(avail.length)-1]; const steps=reduce?1:34; let k=0;
   await new Promise(res=>{(function tick(){ k++; onTick(k<steps ? pool[rnd(pool.length)-1].n : r.n); if(k<steps){ setTimeout(tick,30+Math.pow(k/steps,3)*460); } else res(); })();});
