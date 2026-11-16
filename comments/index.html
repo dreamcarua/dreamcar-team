@@ -152,20 +152,69 @@ td.lk.hot{color:var(--gold);font-weight:700}
 .banner.gold{border-color:var(--gold)}
 .banner.green{border-color:rgba(16,185,129,.6)}
 .banner b.t{font-family:var(--display);text-transform:uppercase;letter-spacing:.04em;font-size:16px}
-#live{position:fixed;inset:0;z-index:60;background:radial-gradient(120% 80% at 50% 0%,rgba(227,6,19,.22),rgba(10,10,10,1) 60%),#0a0a0a;display:flex;flex-direction:column;padding:24px clamp(16px,4vw,56px);gap:16px}
-#live .lt{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-#live .lt .brand{font-size:26px}
-#live .prz{font-family:var(--display);font-size:clamp(22px,3.4vw,44px);text-transform:uppercase;color:var(--white);text-align:center}
-#live .sub{font-family:var(--mono);font-size:clamp(12px,1.3vw,16px);letter-spacing:.14em;text-transform:uppercase;color:var(--ash);text-align:center}
-#live .num{font-family:var(--display);font-weight:700;font-size:clamp(120px,26vh,320px);line-height:.9;text-align:center;color:var(--white);font-variant-numeric:tabular-nums;text-shadow:0 0 60px rgba(227,6,19,.45)}
-#live .nick{font-family:var(--display);font-size:clamp(30px,5vw,72px);text-align:center;color:var(--gold);text-transform:none;min-height:1.1em}
-#live .cmt{font-size:clamp(16px,2vw,26px);text-align:center;color:var(--text);max-width:1100px;margin:0 auto;overflow-wrap:anywhere;min-height:1.4em}
+/* ===== режим ефіру v2 ===== */
+#live{--ease-out:cubic-bezier(0.23,1,0.32,1);--ease-io:cubic-bezier(0.77,0,0.175,1);position:fixed;inset:0;z-index:60;color:var(--text);
+  background:radial-gradient(90% 70% at 50% 38%,rgba(227,6,19,.20),rgba(227,6,19,0) 60%),radial-gradient(60% 50% at 50% 100%,rgba(251,191,36,.06),rgba(0,0,0,0) 70%),#070707;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:18px clamp(16px,2.6vw,40px);gap:14px;overflow:hidden}
+#live::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.07;background-image:repeating-linear-gradient(90deg,#fff 0 1px,transparent 1px 72px),repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 72px);mask-image:radial-gradient(70% 60% at 50% 45%,#000,transparent)}
+#live .lt{position:relative;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+#live .lt .brand{font-size:24px}
+#live .chip{display:inline-flex;gap:8px;align-items:center;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--grey);border:1px solid var(--steel);border-radius:999px;padding:6px 12px;background:rgba(0,0,0,.35)}
+#live .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(227,6,19,.7);animation:lvPulse 1.6s ease-out infinite}
+@keyframes lvPulse{0%{box-shadow:0 0 0 0 rgba(227,6,19,.6)}100%{box-shadow:0 0 0 10px rgba(227,6,19,0)}}
+#live .lt .tools .btn{padding:7px 11px}
+#live .body{position:relative;display:grid;grid-template-columns:minmax(250px,.9fr) minmax(0,2.2fr) minmax(250px,.9fr);gap:18px;min-height:0}
+#live .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:hidden}
+#live .card{background:rgba(19,19,19,.82);border:1px solid #262626;border-radius:12px;padding:14px 16px;backdrop-filter:blur(6px)}
+#live .card .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash)}
+#live .card .v{font-family:var(--display);font-size:clamp(26px,2.6vw,40px);color:var(--white);line-height:1.05;font-variant-numeric:tabular-nums}
+#live .card .s{font-size:13px;color:var(--grey);margin-top:2px;overflow-wrap:anywhere}
+#live .card .s b{color:var(--white)}
+#live .bars{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+#live .bars .r{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:8px;align-items:center;font-size:13px}
+#live .bars .r .l{position:relative;padding:3px 8px;border-radius:4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--white)}
+#live .bars .r .l i{position:absolute;inset:0 auto 0 0;background:rgba(227,6,19,.32);border-radius:4px;transform-origin:left;transform:scaleX(var(--w));z-index:-1}
+#live .bars .r .l.ok i{background:rgba(16,185,129,.35)}
+#live .bars .r .n{font-family:var(--mono);text-align:right;color:var(--grey)}
+#live .spark{display:flex;align-items:flex-end;gap:2px;height:54px;margin-top:10px}
+#live .spark i{flex:1;background:rgba(227,6,19,.5);border-radius:2px 2px 0 0;min-height:2px}
+#live .spark i.pk{background:var(--red)}
+#live .center{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-width:0;text-align:center}
+#live .prz{font-family:var(--display);font-size:clamp(22px,3vw,44px);text-transform:uppercase;color:var(--white);letter-spacing:.02em}
+#live .sub{font-family:var(--mono);font-size:clamp(11px,1.05vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--ash)}
+#live .reels{position:relative;display:flex;gap:clamp(8px,1vw,14px);padding:clamp(10px,1.4vw,18px);border-radius:20px;background:linear-gradient(180deg,#111,#0b0b0b);border:1px solid #2a2a2a;box-shadow:inset 0 0 40px rgba(0,0,0,.8),0 30px 80px -30px rgba(227,6,19,.45)}
+#live .reel{position:relative;width:clamp(84px,9.5vw,150px);height:clamp(130px,23vh,230px);overflow:hidden;border-radius:12px;background:linear-gradient(180deg,#050505,#151515 50%,#050505);
+  mask-image:linear-gradient(180deg,transparent,#000 22%,#000 78%,transparent)}
+#live .strip{position:absolute;left:0;right:0;top:0;will-change:transform}
+#live .strip div{height:clamp(130px,23vh,230px);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:clamp(96px,17vh,180px);color:var(--white);font-variant-numeric:tabular-nums}
+#live .reel.lead .strip div{color:#2c2c2c}
+#live .reels.win{border-color:rgba(251,191,36,.7);box-shadow:inset 0 0 40px rgba(0,0,0,.8),0 0 0 1px rgba(251,191,36,.25),0 30px 90px -20px rgba(251,191,36,.45)}
+#live .count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:clamp(120px,26vh,260px);color:var(--red);pointer-events:none;opacity:0}
+#live .flick{font-family:var(--mono);font-size:clamp(13px,1.2vw,17px);color:var(--ash);height:1.4em;letter-spacing:.06em}
+#live .winner{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:clamp(110px,16vh,170px)}
+#live .nick{font-family:var(--display);font-size:clamp(34px,4.6vw,72px);color:var(--gold);line-height:1}
+#live .cmt{font-size:clamp(16px,1.6vw,24px);color:var(--white);max-width:900px;overflow-wrap:anywhere}
 #live .cmt mark{background:rgba(251,191,36,.25);color:var(--white);border-radius:3px;padding:0 4px}
-#live .meta2{font-family:var(--mono);font-size:13px;color:var(--ash);text-align:center}
-#live .ctl{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:auto}
-#live .ctl .btn{font-size:14px;padding:14px 22px}
-#live .stage{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px}
-#live .verdict-ok{color:var(--green)} #live .verdict-no{color:var(--red-soft)}
+#live .facts2{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#live .facts2 span{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--grey);border:1px solid #2a2a2a;border-radius:999px;padding:5px 11px;background:rgba(0,0,0,.4)}
+#live .facts2 span b{color:var(--white)}
+#live .appear{animation:lvIn 420ms var(--ease-out) both}
+#live .appear:nth-child(2){animation-delay:60ms}#live .appear:nth-child(3){animation-delay:120ms}#live .appear:nth-child(4){animation-delay:180ms}
+@keyframes lvIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+#live .bottom{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center}
+#live .ticker{position:relative;height:48px;overflow:hidden;border:1px solid #262626;border-radius:10px;background:rgba(19,19,19,.8);display:flex;align-items:center;padding:0 16px;gap:12px}
+#live .ticker .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);white-space:nowrap}
+#live .ticker .tx{font-size:clamp(14px,1.3vw,18px);color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity 260ms ease,transform 260ms var(--ease-out)}
+#live .ticker .tx.out{opacity:0;transform:translateY(8px)}
+#live .ctl{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+#live .ctl .btn{font-size:13px;padding:13px 20px;transition:transform 160ms var(--ease-out),border-color .15s,background .15s}
+#live .ctl .btn:active{transform:scale(.97)}
+#live .ctl .btn.big{font-size:15px;padding:15px 28px}
+#live .verdict-ok{color:var(--green)}
+#live canvas.fx{position:absolute;inset:0;pointer-events:none;z-index:2}
+#live .won{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);border:1px solid rgba(16,185,129,.5);border-radius:999px;padding:6px 14px}
+@media (max-width:1100px){#live .body{grid-template-columns:minmax(0,1fr)} #live .side{display:none}}
+@media (prefers-reduced-motion:reduce){#live .chip .dot{animation:none}#live .appear{animation:lvFade 200ms ease both}@keyframes lvFade{from{opacity:0}to{opacity:1}}}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--steel);border-radius:8px;padding:10px 16px;font-size:13px;z-index:50}
 @media (max-width:980px){
   .hero,.grid2,.grid3,.form{grid-template-columns:minmax(0,1fr)}
@@ -500,137 +549,265 @@ function renderFreeze(){
   }
 }
 
-/* ---------- режим ефіру ---------- */
+/* ---------- режим ефіру v2 ---------- */
 let LIVE=null;
+const REDUCE=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function liveStats(){
+  const {pool,rows,cfg}=M; const P=POOL.post||{}; const pub=P.timestamp?Date.parse(String(P.timestamp).replace(/\+0000$/,'Z')):null;
+  const all=rows.length, acc=new Set(rows.map(r=>r.u)).size;
+  const first=pool[0]||null, last=pool[pool.length-1]||null;
+  const mins=ms=>{ const m=Math.round(ms/60000); return m<60?`${m} хв`:m<1440?`${Math.floor(m/60)} год ${m%60} хв`:`${Math.floor(m/1440)} дн ${Math.floor(m%1440/60)} год`; };
+  // активність по годинах
+  const hrs={}; pool.forEach(r=>{const h=Math.floor(r.t/3600000); hrs[h]=(hrs[h]||0)+1;});
+  const hk=Object.keys(hrs).map(Number).sort((a,b)=>a-b); const series=[]; if(hk.length){ for(let h=hk[0];h<=hk[hk.length-1]&&series.length<72;h++) series.push([h,hrs[h]||0]); }
+  const peak=series.reduce((m,x)=>x[1]>m[1]?x:m,[0,0]);
+  const firstHour=first?pool.filter(r=>r.t-first.t<3600000).length:0;
+  // інші версії (за марками) серед коментарів поза пулом
+  const conflicts=BRANDS.filter(b=>!(cfg.keywords||[]).some(k=>b.includes(k.toLowerCase())||k.toLowerCase().includes(b)));
+  const label={porsche:'Porsche','порш':'Porsche',mercedes:'Mercedes','мерседес':'Mercedes','мерс ':'Mercedes',bmw:'BMW','бмв':'BMW',audi:'Audi','ауді':'Audi','ауди':'Audi',volkswagen:'Volkswagen','фольксваген':'Volkswagen',touareg:'Volkswagen','туарег':'Volkswagen',jaguar:'Jaguar','ягуар':'Jaguar',volvo:'Volvo','вольво':'Volvo',lexus:'Lexus','лексус':'Lexus',toyota:'Toyota','тойота':'Toyota',ford:'Ford','форд':'Ford',ranger:'Ford','рейнджер':'Ford','ренджер':'Ford',chevrolet:'Chevrolet','шевроле':'Chevrolet','ланос':'Lanos',lanos:'Lanos',defender:'Defender','дефендер':'Defender',discovery:'Discovery','дискавер':'Discovery',cadillac:'Cadillac','кадилак':'Cadillac',bentley:'Bentley','бентлі':'Bentley',maybach:'Maybach','майбах':'Maybach','гелік':'Mercedes G',tesla:'Tesla','тесла':'Tesla',jeep:'Jeep','джип':'Jeep',lamborghini:'Lamborghini',ferrari:'Ferrari',aston:'Aston Martin',maserati:'Maserati',rolls:'Rolls-Royce',kia:'Kia',hyundai:'Hyundai',nissan:'Nissan',mazda:'Mazda',skoda:'Skoda','шкода':'Skoda',infiniti:'Infiniti',genesis:'Genesis',cupra:'Cupra',zeekr:'Zeekr',lixiang:'Li Auto','li auto':'Li Auto',byd:'BYD'};
+  const other={}; rows.filter(r=>!r.n).forEach(r=>{ const t=String(r.text).toLowerCase(); const seen=new Set(); conflicts.forEach(b=>{ if(t.includes(b)){ const L=label[b]||b; if(!seen.has(L)){seen.add(L); other[L]=(other[L]||0)+1;} } }); });
+  const otherTop=Object.entries(other).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const byAcc={}; rows.forEach(r=>byAcc[r.u]=(byAcc[r.u]||0)+1); const topAcc=Object.entries(byAcc).sort((a,b)=>b[1]-a[1])[0];
+  const longest=[...pool].sort((a,b)=>String(b.text).length-String(a.text).length)[0];
+  const share=all?Math.round(pool.length/all*100):0;
+  return {pub,all,acc,first,last,series,peak,firstHour,otherTop,topAcc,longest,share,mins,hasKw:!!(cfg.keywords||[]).length};
+}
+function factsList(S){
+  const f=[];
+  if(S.first) f.push(['Перший',`@${S.first.u} відповів ${S.pub?'через '+S.mins(S.first.t-S.pub)+' після публікації':kyiv(S.first.t)}`]);
+  if(S.hasKw) f.push(['Точність',`${S.share}% коментарів містять правильну відповідь: ${fmt(M.pool.length)} з ${fmt(S.all)}`]);
+  if(S.peak[1]) f.push(['Пік',`${new Date(S.peak[0]*3600000).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'})}: ${fmt(S.peak[1])} учасників за годину`]);
+  if(S.firstHour) f.push(['Швидкість',`за першу годину долучилось ${fmt(S.firstHour)} учасників`]);
+  if(S.otherTop[0]) f.push(['Інші версії',`${S.otherTop[0][0]}: так подумали ${fmt(S.otherTop[0][1])} людей`]);
+  if(S.topAcc&&S.topAcc[1]>1) f.push(['Найактивніший',`@${S.topAcc[0]}: ${fmt(S.topAcc[1])} коментарів`]);
+  if(S.longest&&String(S.longest.text).length>60) f.push(['Найдетальніша відповідь',`@${S.longest.u}: «${String(S.longest.text).slice(0,90)}${String(S.longest.text).length>90?'…':''}»`]);
+  if(S.last&&S.first) f.push(['Тривалість',`учасники писали ${S.mins(S.last.t-S.first.t)}`]);
+  f.push(['Прозорість','номер обирає crypto.getRandomValues, кожна спроба пишеться в журнал']);
+  return f;
+}
 function openLive(){
   const rnds=(M.cfg.prizes||[]).map((p,i)=>({...p,i})).filter(p=>p.method==='random');
   if(!rnds.length){ toast('Немає призу з випадковим номером'); return; }
-  closeLive();
+  closeLive(true);
+  const S=liveStats(); const digits=String(M.pool.length).length;
+  const maxS=Math.max(1,...S.series.map(x=>x[1]));
   const d=document.createElement('div'); d.id='live';
-  d.innerHTML=`<div class="lt"><span class="brand">DREAM<span class="r">CAR</span></span>
+  d.innerHTML=`<div class="lt"><div class="tools" style="gap:14px"><span class="brand">DREAM<span class="r">CAR</span></span><span class="chip"><span class="dot"></span>${M.frozen?'🔒 пул зафіксовано':'пул не зафіксовано'}</span></div>
       <div class="tools">${rnds.length>1?`<select id="lvPrize">${rnds.map(p=>`<option value="${p.i}">${esc(p.label)}</option>`).join('')}</select>`:''}
-      <button class="btn" type="button" id="lvFs">⛶ На весь екран</button><button class="btn" type="button" id="lvClose">✕ Вийти (Esc)</button></div></div>
-    <div class="stage"><div class="prz" id="lvPrz"></div><div class="sub" id="lvSub"></div>
-      <div class="num" id="lvNum">—</div><div class="nick" id="lvNick"></div><div class="cmt" id="lvCmt"></div><div class="meta2" id="lvMeta"></div></div>
-    <div class="ctl"><button class="btn primary" type="button" id="lvPick">Обрати номер (пробіл)</button>
-      <button class="btn ok" type="button" id="lvOk" hidden>✓ Умови виконано</button><button class="btn no" type="button" id="lvNo" hidden>✗ Не виконано</button></div>`;
+      <button class="btn" type="button" id="lvFs">⛶ Весь екран</button><button class="btn" type="button" id="lvClose">✕ Esc</button></div></div>
+    <div class="body">
+      <aside class="side">
+        <div class="card appear"><div class="k">Учасників у пулі</div><div class="v">${fmt(M.pool.length)}</div><div class="s">з ${fmt(S.all)} коментарів · ${fmt(S.acc)} акаунтів</div></div>
+        ${S.hasKw?`<div class="card appear"><div class="k">Правильних відповідей</div><div class="v">${S.share}%</div><div class="bars"><div class="r"><span class="l ok" style="--w:${S.share/100}"><i></i>вгадали</span><span class="n">${fmt(M.pool.length)}</span></div><div class="r"><span class="l" style="--w:${(100-S.share)/100}"><i></i>інші версії</span><span class="n">${fmt(S.all-M.pool.length)}</span></div></div></div>`:''}
+        ${S.first?`<div class="card appear"><div class="k">Перший у пулі</div><div class="v" style="font-size:clamp(20px,1.9vw,28px)">@${esc(S.first.u)}</div><div class="s">${S.pub?'через <b>'+S.mins(S.first.t-S.pub)+'</b> після публікації':esc(kyiv(S.first.t))}</div></div>`:''}
+        ${S.series.length>1?`<div class="card appear"><div class="k">Активність по годинах</div><div class="spark">${S.series.map(x=>`<i class="${x===S.peak?'pk':''}" style="height:${Math.max(4,x[1]/maxS*100)}%"></i>`).join('')}</div><div class="s">пік <b>${new Date(S.peak[0]*3600000).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'})}</b>: ${fmt(S.peak[1])} за годину</div></div>`:''}
+      </aside>
+      <section class="center">
+        <div class="prz" id="lvPrz"></div><div class="sub" id="lvSub"></div>
+        <div class="reels" id="lvReels">${Array.from({length:digits},(_,k)=>`<div class="reel" data-k="${k}"><div class="strip"></div></div>`).join('')}<div class="count" id="lvCount"></div></div>
+        <div class="flick" id="lvFlick"></div>
+        <div class="winner" id="lvWin"><div class="sub">Натисніть «Обрати номер» або пробіл</div></div>
+      </section>
+      <aside class="side">
+        ${S.otherTop.length?`<div class="card appear"><div class="k">Інші версії учасників</div><div class="bars">${S.otherTop.map(([n,c])=>`<div class="r"><span class="l" style="--w:${c/S.otherTop[0][1]}"><i></i>${esc(n)}</span><span class="n">${fmt(c)}</span></div>`).join('')}</div></div>`:''}
+        ${S.topAcc?`<div class="card appear"><div class="k">Найактивніший</div><div class="v" style="font-size:clamp(20px,1.9vw,28px)">@${esc(S.topAcc[0])}</div><div class="s"><b>${fmt(S.topAcc[1])}</b> коментарів під постом</div></div>`:''}
+        <div class="card appear"><div class="k">Спроби</div><div id="lvAtt" class="bars"></div></div>
+      </aside>
+    </div>
+    <div class="bottom"><div class="ticker"><span class="tag" id="lvTag"></span><span class="tx" id="lvTx"></span></div>
+      <div class="ctl"><button class="btn primary big" type="button" id="lvPick">Обрати номер · пробіл</button>
+        <button class="btn ok" type="button" id="lvOk" hidden>✓ Умови виконано</button><button class="btn no" type="button" id="lvNo" hidden>✗ Не виконано · прибрати</button></div></div>`;
   document.body.appendChild(d); document.body.style.overflow='hidden';
-  LIVE={i:rnds[0].i};
-  const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; const used=drawnIds(); const ua=new Set(livePicks().map(d=>String(d.username).toLowerCase())); const left=M.pool.filter(r=>!used.has(r.id)&&!ua.has(String(r.u).toLowerCase())).length;
-    $('lvPrz').textContent=p.label; $('lvSub').textContent=`${M.frozen?'🔒 пул зафіксовано · ':''}${fmt(M.pool.length)} учасників · номери від 1 до ${M.pool.length} · доступно ${fmt(left)}`; };
-  setPrize(); LIVE.setPrize=setPrize;
-  if(!M.frozen){ $('lvPick').disabled=true; $('lvPick').textContent='🔒 Спершу зафіксуйте пул'; }
-  const pend=pendingAttempt(LIVE.i); if(pend){ $('lvNum').textContent=pend.pick.n; $('lvNick').textContent='@'+pend.pick.username; $('lvMeta').textContent='Попередня спроба без вердикту: поставте ✓ або ✗'; $('lvOk').hidden=$('lvNo').hidden=false; }
-  if($('lvPrize')) $('lvPrize').onchange=e=>{ LIVE.i=+e.target.value; setPrize(); };
-  $('lvClose').onclick=closeLive;
-  $('lvFs').onclick=()=>{ (d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d); };
+  LIVE={i:rnds[0].i, facts:factsList(S), fi:0, S};
+  buildReels(); setReels(0);
+  const setPrize=()=>{ const p=M.cfg.prizes[LIVE.i]; $('lvPrz').textContent=p.label;
+    $('lvSub').textContent=`номери від 1 до ${M.pool.length} · доступно ${fmt(availFor(LIVE.i).length)}`; renderLiveAtt(); };
+  LIVE.setPrize=setPrize; setPrize();
+  if($('lvPrize')) $('lvPrize').onchange=e=>{ LIVE.i=+e.target.value; setPrize(); liveState(); };
+  $('lvClose').onclick=()=>closeLive();
+  $('lvFs').onclick=()=>{ const el=document.documentElement; (el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el); };
   $('lvPick').onclick=()=>livePick();
   $('lvOk').onclick=()=>liveVerdict('confirmed'); $('lvNo').onclick=()=>liveVerdict('rejected');
-  LIVE.key=e=>{ if(e.key==='Escape') closeLive(); else if(e.code==='Space'&&!$('lvPick').disabled){ e.preventDefault(); livePick(); } };
+  LIVE.key=e=>{ if(e.key==='Escape') closeLive(); else if(e.code==='Space'&&!$('lvPick').disabled&&!$('lvPick').hidden){ e.preventDefault(); livePick(); } };
   document.addEventListener('keydown',LIVE.key);
+  tickFacts(); LIVE.ft=setInterval(tickFacts,6500);
+  liveState();
 }
-function closeLive(){ const d=$('live'); if(!d) return; if(document.fullscreenElement) document.exitFullscreen?.(); document.removeEventListener('keydown',LIVE.key); d.remove(); document.body.style.overflow=''; LIVE=null; renderPickers(); }
+function liveState(){
+  const won=winnerOf(LIVE.i), pend=pendingAttempt(LIVE.i), b=$('lvPick');
+  $('lvOk').hidden=$('lvNo').hidden=!pend;
+  if(!M.frozen){ b.disabled=true; b.textContent='🔒 Спершу зафіксуйте пул'; }
+  else if(won){ b.hidden=true; showWinner(rowById(won.pick.comment_id)||{u:won.pick.username,text:won.pick.text,n:won.pick.n,t:Date.parse(won.pick.at)}, true); setReels(won.pick.n); }
+  else if(pend){ b.disabled=true; b.textContent='Поставте вердикт'; const r=rowById(pend.pick.comment_id); if(r){ setReels(r.n); showWinner(r,false); } }
+  else { b.hidden=false; b.disabled=false; b.textContent=attempts(LIVE.i).length?'Наступна спроба · пробіл':'Обрати номер · пробіл'; }
+}
+function rowById(id){ return M.rows.find(x=>x.id===id); }
+function tickFacts(){
+  if(!LIVE) return; const f=LIVE.facts[LIVE.fi++%LIVE.facts.length]; const tx=$('lvTx');
+  if(REDUCE()){ $('lvTag').textContent=f[0]; tx.textContent=f[1]; return; }
+  tx.classList.add('out'); setTimeout(()=>{ if(!LIVE) return; $('lvTag').textContent=f[0]; tx.textContent=f[1]; tx.classList.remove('out'); },260);
+}
+function closeLive(silent){ const d=$('live'); if(!d) return; if(document.fullscreenElement) document.exitFullscreen?.(); document.removeEventListener('keydown',LIVE.key); clearInterval(LIVE.ft); d.remove(); document.body.style.overflow=''; LIVE=null; if(!silent){ renderPickers(); } }
+// барабани: стрічка 0–9, повторена 8 разів; зупинка на цільовій цифрі в останньому колі
+const LOOPS=8;
+function buildReels(){ document.querySelectorAll('#live .strip').forEach(s=>{ s.innerHTML=Array.from({length:10*LOOPS},(_,k)=>`<div>${k%10}</div>`).join(''); }); }
+function digitsOf(n){ const L=String(M.pool.length).length; return String(n).padStart(L,'0').split('').map(Number); }
+function cellH(){ const c=document.querySelector('#live .strip div'); return c?c.getBoundingClientRect().height:200; }
+function setReels(n){ const ds=digitsOf(n), h=cellH(), L=ds.length, sig=n>0?String(n).length:L;
+  document.querySelectorAll('#live .reel').forEach((r,k)=>{ const s=r.querySelector('.strip'); s.getAnimations().forEach(x=>x.cancel());
+    s.style.transform=`translateY(${-(10*(LOOPS-1)+ds[k])*h}px)`; r.classList.toggle('lead', n>0 && k<L-sig); }); }
+async function spinReels(n){
+  const ds=digitsOf(n), h=cellH(), reels=[...document.querySelectorAll('#live .reel')];
+  reels.forEach(r=>r.classList.remove('lead'));
+  if(REDUCE()){ setReels(n); return; }
+  // ліва цифра зупиняється першою, кожна наступна на 550 мс пізніше: інтрига до останньої
+  await Promise.all(reels.map((r,k)=>{ const s=r.querySelector('.strip');
+    const start=Math.floor(Math.random()*10); const end=-(10*(LOOPS-1)+ds[k])*h;
+    s.getAnimations().forEach(a=>a.cancel());
+    const a=s.animate([{transform:`translateY(${-start*h}px)`},{transform:`translateY(${end}px)`}],{duration:2300+k*550,easing:'cubic-bezier(0.23,1,0.32,1)',fill:'forwards'});
+    return a.finished.then(()=>{ s.style.transform=`translateY(${end}px)`; a.cancel(); }); }));
+  setReels(n);
+}
+async function countdown(){
+  const c=$('lvCount'); if(REDUCE()) return;
+  for(const t of ['3','2','1']){ c.textContent=t;
+    await c.animate([{opacity:0,transform:'scale(.9)'},{opacity:1,transform:'scale(1)',offset:.35},{opacity:0,transform:'scale(1.04)'}],{duration:640,easing:'cubic-bezier(0.23,1,0.32,1)'}).finished; }
+  c.textContent='';
+}
+function flicker(stopAt){ const el=$('lvFlick'); const P=M.pool; if(REDUCE()){ el.textContent=''; return ()=>{}; }
+  let on=true; (function f(){ if(!on) return; el.textContent='@'+P[rnd(P.length)-1].u; setTimeout(f, 70+Math.random()*40); })();
+  return ()=>{ on=false; el.textContent=''; }; }
+function showWinner(r, confirmed){
+  const S=LIVE.S; const cnt=M.pool.filter(x=>x.u===r.u).length;
+  const rank=r.n; const after=S.pub&&r.t?S.mins(r.t-S.pub):null;
+  $('lvWin').innerHTML=`${confirmed?'<div class="won appear">✓ отримувач призу</div>':''}
+    <div class="nick appear">@${esc(r.u)}</div>
+    <div class="cmt appear">${hl(r.text||'')}</div>
+    <div class="facts2 appear">
+      <span>номер <b>${r.n}</b> з ${fmt(M.pool.length)}</span>
+      ${r.t?`<span>написав(ла) <b>${esc(kyiv(r.t,{year:undefined}))}</b></span>`:''}
+      ${after?`<span>через <b>${after}</b> після публікації</span>`:''}
+      ${S.hasKw?`<span><b>${rank}-й</b> з правильною відповіддю</span>`:''}
+      ${r.likes!=null?`<span><b>${fmt(r.likes)}</b> ❤ на коментарі</span>`:''}
+      ${cnt>1?`<span><b>${cnt}</b> номери в акаунта</span>`:''}
+    </div>`;
+  $('lvReels').classList.toggle('win', !!confirmed);
+}
+function burst(){ if(REDUCE()) return; const d=$('live'); const c=document.createElement('canvas'); c.className='fx'; d.appendChild(c);
+  const W=c.width=d.clientWidth*devicePixelRatio, H=c.height=d.clientHeight*devicePixelRatio; const x0=W/2, y0=H*0.42; const ctx=c.getContext('2d');
+  const cols=['#E30613','#FBBF24','#ffffff','#FF6A7A']; const ps=Array.from({length:140},()=>{ const a=Math.random()*Math.PI*2, v=(4+Math.random()*9)*devicePixelRatio; return {x:x0,y:y0,vx:Math.cos(a)*v,vy:Math.sin(a)*v-3*devicePixelRatio,s:(3+Math.random()*5)*devicePixelRatio,c:cols[Math.floor(Math.random()*cols.length)],r:Math.random()*6}; });
+  const t0=performance.now(); (function f(t){ const k=(t-t0)/1500; ctx.clearRect(0,0,W,H); if(k>=1){ c.remove(); return; }
+    ps.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.18*devicePixelRatio; p.vx*=0.985; p.r+=0.1; ctx.globalAlpha=1-k; ctx.fillStyle=p.c; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2); ctx.restore(); });
+    requestAnimationFrame(f); })(t0); }
+function renderLiveAtt(){ const el=$('lvAtt'); if(!el) return; const A=attempts(LIVE.i);
+  el.innerHTML=A.length?A.map((a,k)=>`<div class="r"><span class="l${a.verdict?' ok':''}" style="--w:${a.verdict?1:.35}"><i></i>${k+1}. №${a.pick.n} @${esc(a.pick.username)}</span><span class="n">${a.verdict?'✓':'…'}</span></div>`).join(''):'<div class="s">ще не було</div>'; }
 async function livePick(){
-  const i=LIVE.i; $('lvPick').disabled=true; $('lvOk').hidden=$('lvNo').hidden=true;
-  $('lvNick').textContent=''; $('lvCmt').innerHTML=''; $('lvMeta').textContent='';
-  const r=await pickCore(i, n=>{ $('lvNum').textContent=n; });
-  $('lvPick').disabled=false;
-  if(!r) return;
-  $('lvNum').textContent=r.n; $('lvNick').textContent='@'+r.u; $('lvCmt').innerHTML=hl(r.text);
-  $('lvMeta').textContent=`${kyiv(r.t,{second:'2-digit'})} · номер ${r.n} з ${fmt(M.pool.length)}`;
-  $('lvOk').hidden=$('lvNo').hidden=false; $('lvPick').textContent='Наступна спроба (пробіл)'; LIVE.setPrize();
+  const i=LIVE.i, b=$('lvPick'); if(b.disabled) return;
+  if(!M.frozen){ toast('Спершу зафіксуйте пул'); return; }
+  if(pendingAttempt(i)||winnerOf(i)) return;
+  b.disabled=true; $('lvOk').hidden=$('lvNo').hidden=true; $('lvReels').classList.remove('win');
+  $('lvWin').innerHTML='<div class="sub">Обираємо…</div>';
+  const r=choose(i); if(!r){ b.disabled=false; return; }
+  await countdown();
+  const stop=flicker();
+  await spinReels(r.n);
+  stop();
+  await logPick(i, r);
+  showWinner(r,false); burst(); LIVE.setPrize(); liveState();
 }
 async function liveVerdict(v){
-  $('lvOk').hidden=$('lvNo').hidden=true; await verdictCore(LIVE.i, v);
-  $('lvMeta').innerHTML += v==='confirmed'?' · <span class="verdict-ok">✓ умови виконано</span>':' · <span class="verdict-no">✗ не виконано</span>';
+  $('lvOk').hidden=$('lvNo').hidden=true;
+  const a=pendingAttempt(LIVE.i); if(!a) return;
+  if(v==='confirmed'){ await verdictFor(LIVE.i,a.pick,'confirmed'); burst(); }
+  else { await removeAttempt(LIVE.i,a.pick,true); setReels(0); $('lvWin').innerHTML='<div class="sub">Спробу прибрано. Наступна спроба: пробіл</div>'; }
+  LIVE.setPrize(); liveState();
 }
 
 /* ---------- вибір ---------- */
 function rnd(max){const a=new Uint32Array(1);const lim=Math.floor(0x100000000/max)*max;let x;do{crypto.getRandomValues(a);x=a[0]}while(x>=lim);return x%max+1}
-// Анульовані спроби (status=void) не займають ні номер, ні акаунт
-function voidedIds(){ return new Set((POOL.draws||[]).filter(d=>d.status==='void').map(d=>d.comment_id+'|'+d.prize)); }
-function livePicks(){ const v=voidedIds(); return (POOL.draws||[]).filter(d=>d.status==='picked'&&!v.has(d.comment_id+'|'+d.prize)); }
-function drawnIds(){ return new Set(livePicks().map(d=>d.comment_id)); }
+function picks(){ return (POOL.draws||[]).filter(d=>d.status==='picked'); }
+function drawnIds(){ return new Set(picks().map(d=>d.comment_id)); }
+function skippedSet(){ const s=POOL.skipped||[]; return {ids:new Set(s.map(x=>x.comment_id)), acc:new Set(s.map(x=>String(x.username).toLowerCase()))}; }
+// доступні для наступної спроби: без уже обраних і без відхилених (ні номера, ні акаунта)
+function availFor(i){ const used=drawnIds(); const usedAcc=new Set(picks().map(d=>String(d.username).toLowerCase())); const sk=skippedSet();
+  return M.pool.filter(r=>!used.has(r.id)&&!usedAcc.has(String(r.u).toLowerCase())&&!sk.ids.has(r.id)&&!sk.acc.has(String(r.u).toLowerCase())); }
+function attempts(i){
+  const label=M.cfg.prizes[i].label; const L=(POOL.draws||[]).filter(d=>d.prize===label);
+  const out=[];
+  for(const d of L){ if(d.status==='picked') out.push({pick:d,verdict:null}); else if(d.status==='confirmed'){ const a=[...out].reverse().find(x=>x.pick.comment_id===d.comment_id&&!x.verdict); if(a) a.verdict=d; } }
+  return out;
+}
+function pendingAttempt(i){ const a=attempts(i); const last=a[a.length-1]; return last&&!last.verdict?last:null; }
+function winnerOf(i){ return attempts(i).find(a=>a.verdict); }
 function renderPickers(){
   const {cfg,pool}=M;
   const rnds=(cfg.prizes||[]).map((p,i)=>({...p,i})).filter(p=>p.method==='random');
   $('pickers').innerHTML = rnds.map(p=>`<section class="picker" data-i="${p.i}" style="margin-bottom:18px">
     <div class="res"><div class="big mono" id="pickN${p.i}">—</div>
-      <div class="who" id="pickWho${p.i}"><div class="eyebrow">${esc(p.label)} · випадковий номер</div><div class="txt">Генератор бере номер від 1 до ${fmt(pool.length)} через crypto.getRandomValues, без повторів номера й акаунта, і підсвічує рядок у таблиці. Кожна спроба пишеться в журнал.</div></div></div>
-    <div class="acts"><button class="btn primary" type="button" data-pick="${p.i}" ${pool.length&&M.frozen?'':'disabled'} title="${M.frozen?'':'Спершу зафіксуйте пул'}">${M.frozen?'Обрати випадковий номер':'🔒 Спершу зафіксуйте пул'}</button>
+      <div class="who" id="pickWho${p.i}"><div class="eyebrow">${esc(p.label)} · випадковий номер</div><div class="txt">Генератор бере номер від 1 до ${fmt(pool.length)} через crypto.getRandomValues, без повторів номера й акаунта. ✓ визначає отримувача, ✗ прибирає спробу з журналу, а учасника з наступних спроб.</div></div></div>
+    <div class="acts"><button class="btn primary" type="button" data-pick="${p.i}">Обрати випадковий номер</button>
       <div class="row2" id="verdict${p.i}" hidden><button class="btn ok" type="button" data-v="confirmed">✓ Умови виконано</button><button class="btn no" type="button" data-v="rejected">✗ Не виконано</button></div></div>
     <ol class="log" id="log${p.i}"></ol></section>`).join('');
-  rnds.forEach(p=>renderLog(p.i));
+  rnds.forEach(p=>{ renderLog(p.i); pickerState(p.i); });
   $('pickers').onclick = e=>{
     const b=e.target.closest('[data-pick]'); if(b) return pick(+b.dataset.pick, b);
     const v=e.target.closest('[data-v]'); if(!v) return; const i=+v.closest('.picker').dataset.i;
-    if(v.dataset.lv!=null){ const a=attempts(i)[+v.dataset.lv]; if(a) return verdictFor(i,a.pick,v.dataset.v); }
-    return verdict(i, v.dataset.v);
+    const a=v.dataset.lv!=null?attempts(i)[+v.dataset.lv]:pendingAttempt(i); if(!a) return;
+    if(v.dataset.v==='confirmed') return verdictFor(i,a.pick,'confirmed');
+    return removeAttempt(i,a.pick,v.dataset.v==='rejected');
   };
 }
-// Спроби одного призу: picked + вердикт (confirmed/rejected), що йде пізніше з тим самим comment_id
-function attempts(i){
-  const label=M.cfg.prizes[i].label; const L=(POOL.draws||[]).filter(d=>d.prize===label);
-  const out=[];
-  for(const d of L){
-    if(d.status==='picked') out.push({pick:d,verdict:null});
-    else if(d.status==='void'){ const a=[...out].reverse().find(x=>x.pick.comment_id===d.comment_id&&!x.verdict&&!x.void); if(a) a.void=d; }
-    else { const a=[...out].reverse().find(x=>x.pick.comment_id===d.comment_id&&!x.verdict); if(a) a.verdict=d; }
-  }
-  return out;
+function pickerState(i){
+  const b=document.querySelector(`[data-pick="${i}"]`); if(!b) return; const won=winnerOf(i), pend=pendingAttempt(i);
+  $('verdict'+i).hidden=!pend;
+  if(!M.frozen){ b.disabled=true; b.textContent='🔒 Спершу зафіксуйте пул'; }
+  else if(won){ b.disabled=true; b.textContent='✓ Отримувача визначено'; }
+  else if(pend){ b.disabled=true; b.textContent='Поставте вердикт ✓ або ✗'; }
+  else { b.disabled=!availFor(i).length; b.textContent=attempts(i).length?'Наступна спроба':'Обрати випадковий номер'; }
 }
-function pendingAttempt(i){ const a=attempts(i).filter(x=>!x.void); const last=a[a.length-1]; return last&&!last.verdict?last:null; }
 function renderLog(i){
   const el=$('log'+i); if(!el) return;
-  const A=attempts(i); const win=A.find(a=>!a.void&&a.verdict&&a.verdict.status==='confirmed');
+  const A=attempts(i); const win=winnerOf(i);
   const t=ms=>esc(kyiv(ms,{second:'2-digit'}));
-  el.innerHTML = (A.length?`<li style="margin-bottom:6px"><b style="color:${win?'var(--green)':'var(--gold)'}">${win?`Отримувач призу: @${esc(win.pick.username)} (№${win.pick.n}, спроба ${A.indexOf(win)+1})`:'Отримувача ще не визначено: потрібен вердикт ✓ по спробі'}</b> <span class="note">· час за Києвом</span></li>`:'')+
-    A.map((a,k)=>a.void?`<li style="opacity:.5"><s>Спроба ${k+1} · <span class="mono">${t(Date.parse(a.pick.at))}</span> · №${a.pick.n} · @${esc(a.pick.username)}</s> · <span class="note">анульовано (${esc(a.void.by||'')}, ${t(Date.parse(a.void.at))}): не рахується</span></li>`:`<li>Спроба ${k+1} · <span class="mono">${t(Date.parse(a.pick.at))}</span> · <b class="mono">№${a.pick.n}</b> з ${fmt(a.pick.pool_size)} · <a href="${esc(rowUrl(a.pick.comment_id))}" target="_blank" rel="noopener">@${esc(a.pick.username)}</a>
-      · ${a.verdict?(a.verdict.status==='confirmed'?'<span style="color:var(--green)">✓ умови виконано</span>':'<span style="color:var(--red-soft)">✗ умови не виконано</span>')+` <span class="note">(вердикт: ${esc(a.verdict.by||'')})</span>`:`<span style="color:var(--gold)">без вердикту</span> <button class="btn ok" type="button" data-lv="${k}" data-v="confirmed" style="padding:4px 8px">✓</button> <button class="btn no" type="button" data-lv="${k}" data-v="rejected" style="padding:4px 8px">✗</button> <button class="btn" type="button" data-lv="${k}" data-v="void" style="padding:4px 8px" title="Тестова або помилкова спроба: не рахується, номер і акаунт повертаються в пул">анулювати</button>`}
+  const sk=(POOL.skipped||[]).filter(x=>x.prize===M.cfg.prizes[i].label).length;
+  el.innerHTML = (A.length||sk?`<li style="margin-bottom:6px"><b style="color:${win?'var(--green)':'var(--gold)'}">${win?`Отримувач призу: @${esc(win.pick.username)} (№${win.pick.n})`:'Отримувача ще не визначено'}</b> <span class="note">· час за Києвом${sk?` · відхилено учасників: ${sk}`:''}</span></li>`:'')+
+    A.map((a,k)=>`<li>Спроба ${k+1} · <span class="mono">${t(Date.parse(a.pick.at))}</span> · <b class="mono">№${a.pick.n}</b> з ${fmt(a.pick.pool_size)} · <a href="${esc(rowUrl(a.pick.comment_id))}" target="_blank" rel="noopener">@${esc(a.pick.username)}</a>
+      · ${a.verdict?`<span style="color:var(--green)">✓ умови виконано</span> <span class="note">(вердикт: ${esc(a.verdict.by||'')})</span>`:`<span style="color:var(--gold)">без вердикту</span> <button class="btn ok" type="button" data-lv="${k}" data-v="confirmed" style="padding:4px 8px" title="Умови виконано">✓</button> <button class="btn no" type="button" data-lv="${k}" data-v="rejected" style="padding:4px 8px" title="Не виконав умови: спроба зникне, учасник не потрапить у наступні">✗</button> <button class="btn" type="button" data-lv="${k}" data-v="void" style="padding:4px 8px" title="Тестова спроба: зникне, учасник лишається в пулі">тест</button>`}
       <span class="note">· натиснув(ла): ${esc(a.pick.by||'—')}</span></li>`).join('');
-  el.hidden=!A.length;
+  el.hidden=!(A.length||sk);
 }
 function rowUrl(cid){ const r=M.rows.find(x=>x.id===cid); return r?r.url:POOL.url; }
-let LAST={};
-async function pickCore(i, onTick){
+function choose(i){
   if(!M.frozen){ toast('Спершу зафіксуйте пул: кнопка «🔒 Зафіксувати пул» над вибором'); return null; }
-  if(pendingAttempt(i)){ toast('Поставте вердикт ✓ або ✗ попередній спробі, потім наступна'); return null; }
-  const {pool}=M; const used=drawnIds();
-  const usedAcc=new Set(livePicks().map(d=>String(d.username).toLowerCase()));
-  // наступна спроба не обирає ні той самий номер, ні той самий акаунт
-  const avail=pool.filter(r=>!used.has(r.id)&&!usedAcc.has(String(r.u).toLowerCase()));
-  if(!avail.length){ toast('Усі учасники вже обрані'); return null; }
-  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const r=avail[rnd(avail.length)-1]; const steps=reduce?1:34; let k=0;
-  await new Promise(res=>{(function tick(){ k++; onTick(k<steps ? pool[rnd(pool.length)-1].n : r.n); if(k<steps){ setTimeout(tick,30+Math.pow(k/steps,3)*460); } else res(); })();});
-  LAST[i]=r;
-  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:pool.length,comment_id:r.id,username:r.u,text:r.text,status:'picked'}}); POOL.draws=j.draws; }
+  if(pendingAttempt(i)){ toast('Поставте вердикт ✓ або ✗ попередній спробі'); return null; }
+  if(winnerOf(i)){ toast('Отримувача цього призу вже визначено'); return null; }
+  const avail=availFor(i); if(!avail.length){ toast('Доступних учасників не лишилось'); return null; }
+  return avail[rnd(avail.length)-1];
+}
+async function logPick(i, r){
+  try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:M.cfg.prizes[i].label,method:'random',n:r.n,pool_size:M.pool.length,comment_id:r.id,username:r.u,text:r.text,status:'picked'}}); POOL.draws=j.draws; }
   catch(e){ toast('Журнал не записано: '+e.message); }
-  return r;
 }
 async function verdictFor(i, pk, v){
   try{ const j=await call('log_draw',{id:POOL.id,entry:{prize:pk.prize,method:'random',n:pk.n,pool_size:pk.pool_size,comment_id:pk.comment_id,username:pk.username,text:'',status:v}}); POOL.draws=j.draws; }
   catch(e){ toast('Журнал не записано: '+e.message); }
-  renderLog(i); const vb=$('verdict'+i); if(vb) vb.hidden=true;
+  renderLog(i); pickerState(i);
 }
-async function verdictCore(i, v){
-  const a=pendingAttempt(i); if(!a) return;
-  await verdictFor(i, a.pick, v);
+async function removeAttempt(i, pk, skip){
+  try{ const j=await call('remove_draw',{id:POOL.id,comment_id:pk.comment_id,prize:pk.prize,skip}); POOL.draws=j.draws; POOL.skipped=j.skipped; toast(skip?'Спробу прибрано, учасник не потрапить у наступні':'Тестову спробу прибрано'); }
+  catch(e){ toast(e.message); }
+  renderLog(i); pickerState(i); if($('pickN'+i)) $('pickN'+i).textContent='—';
 }
 async function pick(i, btn){
-  const {pool}=M;
+  const r=choose(i); if(!r) return;
   btn.disabled=true; $('verdict'+i).hidden=true;
-  const out=$('pickN'+i);
-  const r=await pickCore(i, n=>{ out.textContent=n; });
-  if(!r){ btn.disabled=false; return; }
-  const cntA=pool.filter(x=>x.u===r.u).length;
-  $('pickWho'+i).innerHTML=`<div class="eyebrow">${esc(M.cfg.prizes[i].label)} · номер ${r.n} з ${fmt(pool.length)}</div><a href="${esc(r.url)}" target="_blank" rel="noopener">@${esc(r.u)} ↗</a><div class="txt">${hl(r.text)}</div><div class="txt mono" style="font-size:11px;color:var(--ash)">${esc(kyiv(r.t,{second:'2-digit'}))} · ${fmt(r.likes)} ❤ · у акаунта ${cntA} ном. · підписку перевірити на <a href="${prof(r.u)}" target="_blank" rel="noopener" style="color:var(--gold)">профілі</a></div>`;
-  renderLog(i); $('verdict'+i).hidden=false;
-  btn.disabled=false; btn.textContent='Наступна спроба (без повторів)';
+  const out=$('pickN'+i); const reduce=REDUCE(); const steps=reduce?1:34; let k=0; const P=M.pool;
+  await new Promise(res=>{(function tick(){ k++; out.textContent = k<steps ? P[rnd(P.length)-1].n : r.n; if(k<steps){ setTimeout(tick,30+Math.pow(k/steps,3)*460); } else res(); })();});
+  await logPick(i, r);
+  const cntA=P.filter(x=>x.u===r.u).length;
+  $('pickWho'+i).innerHTML=`<div class="eyebrow">${esc(M.cfg.prizes[i].label)} · номер ${r.n} з ${fmt(P.length)}</div><a href="${esc(r.url)}" target="_blank" rel="noopener">@${esc(r.u)} ↗</a><div class="txt">${hl(r.text)}</div><div class="txt mono" style="font-size:11px;color:var(--ash)">${esc(kyiv(r.t,{second:'2-digit'}))} · ${fmt(r.likes)} ❤ · у акаунта ${cntA} ном. · підписку перевірити на <a href="${prof(r.u)}" target="_blank" rel="noopener" style="color:var(--gold)">профілі</a></div>`;
+  renderLog(i); pickerState(i);
   focusRow(r);
-}
-async function verdict(i, v){
-  $('verdict'+i).hidden=true; await verdictCore(i, v); renderLog(i);
 }
 
 /* ---------- таблиця ---------- */
@@ -666,10 +843,10 @@ function apply(){
 }
 function render(){
   const pages=Math.max(1,Math.ceil(view.length/PER)); page=Math.min(Math.max(page,0),pages-1);
-  const used=drawnIds();
+  const used=drawnIds(); const skipIds=skippedSet().ids;
   $('tb').innerHTML=view.slice(page*PER,page*PER+PER).map(r=>`<tr id="r${r.id}" class="${highlight===r.id?'hl':''}${r.n?'':' out'}">
     <td class="n">${r.n??'—'}</td><td class="dt">${esc(kyiv(r.t,{second:'2-digit'}))}</td>
-    <td class="acc"><a href="${prof(r.u)}" target="_blank" rel="noopener">@${esc(r.u)}</a>${r.reply?' <span class="pill reply">відповідь</span>':''}${r.hidden?' <span class="pill hid">приховано</span>':''}${r.kw?' <span class="pill kw">ключове</span>':''}${r.sus?' <span class="pill hid" title="Згадує іншу марку, кілька варіантів або питання">сумнівно</span>':''}${r.gone?' <span class="pill hid">зник з Instagram</span>':''}${r.out?` <span class="pill">${esc(r.out)}</span>`:''}${used.has(r.id)?' <span class="pill chk">обрано</span>':''}</td>
+    <td class="acc"><a href="${prof(r.u)}" target="_blank" rel="noopener">@${esc(r.u)}</a>${r.reply?' <span class="pill reply">відповідь</span>':''}${r.hidden?' <span class="pill hid">приховано</span>':''}${r.kw?' <span class="pill kw">ключове</span>':''}${r.sus?' <span class="pill hid" title="Згадує іншу марку, кілька варіантів або питання">сумнівно</span>':''}${r.gone?' <span class="pill hid">зник з Instagram</span>':''}${r.out?` <span class="pill">${esc(r.out)}</span>`:''}${used.has(r.id)?' <span class="pill chk">обрано</span>':''}${skipIds.has(r.id)?' <span class="pill hid">відхилено</span>':''}</td>
     <td class="tx">${hl(r.text)}</td><td class="lk${(r.likes||0)>=20?' hot':''}">${fmt(r.likes)}</td>
     <td><a class="pill chk" href="${prof(r.u)}" target="_blank" rel="noopener" title="Instagram не віддає підписки через API">перевірити</a></td>
     <td><a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">Відкрити ↗</a></td>
