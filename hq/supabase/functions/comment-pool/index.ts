@@ -1,4 +1,4 @@
-// comment-pool v1.3 (16.11.2026): ручне включення/виключення коментарів (config.manual)
+// comment-pool v1.3 (16.11.2026): ручне включення/виключення коментарів (config.manual) · redeploy
 // Пул учасників з коментарів Instagram-поста @dreamcar.ua для сторінки team.dreamcar.ua/comments/.
 // Дії (POST JSON, Authorization: Bearer <JWT учасника команди>):
 //   list                         → останні пули (без rows)
