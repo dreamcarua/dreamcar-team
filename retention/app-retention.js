@@ -246,6 +246,208 @@ function renderMain(){
 }
 
 function escHtml(s){ return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ───────── 17.11.2026 (Віра): завантаження креативів прямо з картки ретеншну ─────────
+// Той самий шлях, що й «📁 Завантажити» у бібліотеці HQ (hq/app-core.js + app-drive.js + app-client-compress.js):
+// фото стискається в браузері (≤2000px), файл ≤49 МБ → Supabase Storage bucket `creatives`,
+// >49 МБ → Cloudflare R2 через edge `r2-sign-upload` (до 5 ГБ), потім рядок у `creatives`
+// (стиснення відео ставлять тригери БД). Креатив отримує проєкт картки (launch_id) і одразу
+// прикріплюється до картки. Формати — картинки й відео.
+const RET_UP_R2_THRESHOLD = 49 * 1024 * 1024;           // як R2_THRESHOLD_BYTES у hq/app-drive.js
+const RET_UP_MAX = 5 * 1024 * 1024 * 1024;               // як MAX у edge r2-sign-upload
+const RET_UP_VIDEO_EXT = ['mp4', 'mov', 'webm', 'm4v', 'mkv'];
+const RET_UP_PHOTO_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp', 'avif'];
+function retUpSize(b) { if (!b) return '0 Б'; const u = ['Б', 'КБ', 'МБ', 'ГБ']; let i = 0; while (b >= 1024 && i < 3) { b /= 1024; i++; } return (b >= 10 || i === 0 ? Math.round(b) : b.toFixed(1)) + ' ' + u[i]; }
+function retUpExt(name) { const x = /\.([a-z0-9]+)$/i.exec(name || ''); return x ? x[1].toLowerCase() : ''; }
+function retUpType(file) {
+  const t = (file.type || '').toLowerCase(), ext = retUpExt(file.name);
+  if (t.startsWith('video/') || RET_UP_VIDEO_EXT.includes(ext)) return 'video';
+  if (t.startsWith('image/') || RET_UP_PHOTO_EXT.includes(ext)) return 'photo';
+  return null;
+}
+let retUpCompressReady = null;
+function retUpLoadCompress() {
+  if (window.HQ_CLIENT_COMPRESS) return Promise.resolve(window.HQ_CLIENT_COMPRESS);
+  if (retUpCompressReady) return retUpCompressReady;
+  retUpCompressReady = new Promise((resolve) => {
+    const sc = document.createElement('script');
+    sc.src = '/hq/app-client-compress.js';
+    sc.onload = () => resolve(window.HQ_CLIENT_COMPRESS || null);
+    sc.onerror = () => { retUpCompressReady = null; resolve(null); };
+    document.head.appendChild(sc);
+  });
+  return retUpCompressReady;
+}
+function retUpXhr(method, url, headers, file, onProg) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    Object.keys(headers || {}).forEach(k => xhr.setRequestHeader(k, headers[k]));
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProg(e.loaded, e.total); };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('сховище відповіло ' + xhr.status + (xhr.responseText ? ': ' + String(xhr.responseText).slice(0, 120) : '')));
+    xhr.onerror = () => reject(new Error('мережа: зʼєднання перервано'));
+    xhr.ontimeout = () => reject(new Error('мережа: час очікування вичерпано'));
+    xhr.send(file);
+  });
+}
+async function retUploadOne(u, launchId, onProg) {
+  const sb = window.supabase;
+  const SB_URL = String(window.RET_SB_URL || '').replace(/\/$/, '');
+  const ANON = window.RET_SB_ANON || '';
+  const { data: sess } = await sb.auth.getSession();
+  const jwt = sess && sess.session && sess.session.access_token;
+  if (!jwt) throw new Error('сесія завершилась, онови сторінку і увійди знову');
+  let file = u.file;
+  if (u.type === 'photo') {
+    u.phase = 'prep'; onProg();
+    const cc = await retUpLoadCompress();
+    if (cc && typeof cc.compressFileIfPossible === 'function') {
+      try { file = await cc.compressFileIfPossible(file) || file; } catch (_) { file = u.file; }
+    }
+  }
+  u.phase = 'up'; u.total = file.size; u.loaded = 0; onProg();
+  const prog = (l, t) => { u.loaded = l; u.total = t || u.total; if (l >= u.total) u.phase = 'reg'; onProg(); };
+  let url, path;
+  if (file.size > RET_UP_R2_THRESHOLD) {
+    const r = await fetch(SB_URL + '/functions/v1/r2-sign-upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwt, 'apikey': ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: file.name, size: file.size, mime: file.type || 'application/octet-stream', type: u.type }),
+    });
+    if (!r.ok) throw new Error('не вдалося підготувати завантаження (' + r.status + ')');
+    const sd = await r.json();
+    if (!sd.uploadUrl || !sd.publicUrl) throw new Error('сховище не видало адресу для завантаження');
+    await retUpXhr('PUT', sd.uploadUrl, {}, file, prog);
+    url = sd.publicUrl; path = 'r2:' + (sd.bucket || 'dreamcar-creatives') + '/' + sd.objectKey;
+  } else {
+    const key = Date.now() + '-' + Math.random().toString(36).slice(2, 10) + '.' + ((retUpExt(file.name) || 'bin').slice(0, 8));
+    await retUpXhr('POST', SB_URL + '/storage/v1/object/creatives/' + key, {
+      'Authorization': 'Bearer ' + jwt, 'apikey': ANON, 'x-upsert': 'false', 'cache-control': 'max-age=3600',
+      'Content-Type': file.type || 'application/octet-stream',
+    }, file, prog);
+    url = SB_URL + '/storage/v1/object/public/creatives/' + key; path = key;
+  }
+  u.phase = 'reg'; onProg();
+  // ті самі поля, що createCreativeRecord у hq/app-drive.js (+ launch_id проєкту картки)
+  const heavyVideo = u.type === 'video' && file.size >= RET_UP_R2_THRESHOLD;
+  const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
+  const row = {
+    desk_id: '11111111-1111-1111-1111-111111111111',
+    name: file.name, type: u.type, size_bytes: file.size,
+    drive_file_id: path, thumbnail_url: url, tags: [],
+    uploaded_by: (window.retState.publicUser && window.retState.publicUser.id) || null,
+    compressed_status: heavyVideo ? 'pending' : 'ready',
+    compressed_url: heavyVideo ? null : url,
+    compressed_size_bytes: heavyVideo ? null : file.size,
+  };
+  if (id) row.id = id;
+  if (launchId) row.launch_id = launchId;
+  const { data, error } = await sb.from('creatives').insert(row)
+    .select('id, name, type, thumbnail_url, compressed_url, drive_file_id, poster_url').single();
+  if (error) throw new Error('файл завантажено, але не збережено в бібліотеку: ' + error.message);
+  return data;
+}
+function initRetUpload(overlay, m, renderGrid) {
+  const btn = overlay.querySelector('#ret-upload-new');
+  const box = overlay.querySelector('#ret-uploads');
+  const block = overlay.querySelector('#ret-creatives-block');
+  if (!btn || !box || !block) return;
+  const UP = [];
+  let lastPaint = 0;
+  const upHtml = (u) => {
+    const pct = u.total ? Math.min(100, Math.floor(u.loaded / u.total * 100)) : 0;
+    let line, color = 'var(--ash)';
+    if (u.phase === 'wait') line = 'У черзі';
+    else if (u.phase === 'prep') line = 'Готую файл…';
+    else if (u.phase === 'up') line = 'Завантажується ' + pct + '% · ' + retUpSize(u.loaded) + ' з ' + retUpSize(u.total);
+    else if (u.phase === 'reg') line = 'Зберігаю в бібліотеку…';
+    else if (u.phase === 'err') { line = '⚠ ' + escHtml(u.err); color = 'var(--red-soft, #ef4444)'; }
+    else { line = '✓ Завантажено і прикріплено'; color = 'var(--green, #10b981)'; }
+    const bar = u.phase === 'up' ? pct : (u.phase === 'reg' || u.phase === 'done') ? 100 : 0;
+    return `<div data-up="${u.k}" style="padding:6px 8px; background:var(--bg-2); border:1px solid ${u.phase === 'err' ? 'var(--red-soft, #ef4444)' : 'var(--steel)'}; border-radius:6px; font-size:11px;">
+      <div style="display:flex; justify-content:space-between; gap:8px; color:#fff;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${u.type === 'video' ? '🎬' : '🖼'} ${escHtml(u.name)}</span><span style="color:var(--ash); flex:0 0 auto;">${retUpSize(u.size)}</span></div>
+      <div style="height:3px; background:rgba(255,255,255,0.08); border-radius:2px; margin:4px 0; overflow:hidden;"><i style="display:block; height:100%; width:${bar}%; background:var(--blue, #7ab0ff);"></i></div>
+      <div style="display:flex; justify-content:space-between; gap:8px; color:${color};"><span class="ret-up-line">${line}</span>${u.phase === 'err' ? `<button type="button" data-up-x="${u.k}" style="background:none; border:none; color:var(--ash); cursor:pointer; font-size:11px;">✕ сховати</button>` : ''}</div>
+    </div>`;
+  };
+  const paint = (force) => {
+    const now = Date.now();
+    if (!force && now - lastPaint < 200) return;
+    lastPaint = now;
+    box.innerHTML = UP.map(upHtml).join('');
+    box.querySelectorAll('[data-up-x]').forEach(b => {
+      b.onclick = () => { const i = UP.findIndex(x => String(x.k) === b.dataset.upX); if (i >= 0) UP.splice(i, 1); paint(true); };
+    });
+  };
+  const attach = async (c) => {
+    // картку вже закрито — креатив лишається в бібліотеці, до іншої картки не чіпляємо
+    if (!overlay.isConnected) return;
+    const cache = window.retState._creativesCache || {};
+    cache[c.id] = c;
+    window.retState._creativesCache = cache;
+    const cur = window.retState.modalCreatives || [];
+    if (!cur.includes(c.id)) window.retState.modalCreatives = [...cur, c.id];
+    renderGrid();
+    overlay.dataset.dirty = '1';
+    // не запускати друге автозбереження, поки перше ще пише (інакше нова картка створиться двічі)
+    for (let i = 0; i < 100 && overlay.dataset.saving === '1'; i++) await new Promise(r => setTimeout(r, 150));
+    if (overlay.isConnected && typeof overlay._scheduleAutosave === 'function') overlay._scheduleAutosave();
+  };
+  let running = false;
+  const pump = async () => {
+    if (running) return;
+    running = true;
+    try {
+      let u;
+      while ((u = UP.find(x => x.phase === 'wait'))) {
+        const projSel = overlay.querySelector('select[name="project_id"]');
+        const launchId = projSel ? (projSel.value || null) : (m.project_id || null);
+        try {
+          const c = await retUploadOne(u, launchId, () => paint(false));
+          u.phase = 'done'; paint(true);
+          attach(c);  // не чекаємо: наступний файл вантажиться паралельно з автозбереженням
+          const k = u.k;
+          setTimeout(() => { const i = UP.findIndex(x => x.k === k && x.phase === 'done'); if (i >= 0) { UP.splice(i, 1); paint(true); } }, 4000);
+        } catch (e) {
+          u.phase = 'err'; u.err = String((e && e.message) || e || 'не вдалося завантажити').slice(0, 200);
+          console.warn('[ret upload]', u.name, e);
+          paint(true);
+        }
+      }
+    } finally { running = false; }
+  };
+  const addFiles = (files) => {
+    [].slice.call(files || []).forEach(f => {
+      const type = retUpType(f);
+      const u = { k: Date.now() + Math.floor(Math.random() * 1e6), file: f, name: f.name, size: f.size, type: type || 'photo', phase: 'wait', loaded: 0, total: f.size };
+      if (!type) { u.phase = 'err'; u.err = 'Формат не підтримується: тут лише картинки й відео'; }
+      else if (!f.size) { u.phase = 'err'; u.err = 'Файл порожній'; }
+      else if (f.size > RET_UP_MAX) { u.phase = 'err'; u.err = 'Завеликий файл: ' + retUpSize(f.size) + ', максимум ' + retUpSize(RET_UP_MAX); }
+      UP.push(u);
+    });
+    paint(true);
+    pump();
+  };
+  btn.onclick = () => {
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.multiple = true; fi.accept = 'image/*,video/*,.heic,.heif';
+    fi.style.display = 'none';
+    fi.onchange = () => { addFiles(fi.files); fi.remove(); };
+    document.body.appendChild(fi);
+    fi.click();
+  };
+  // перетягування файлів на блок креативів
+  let depth = 0;
+  const hasFiles = (e) => e.dataTransfer && [].slice.call(e.dataTransfer.types || []).includes('Files');
+  const hl = (on) => { block.style.borderColor = on ? 'var(--blue, #7ab0ff)' : 'var(--steel)'; block.style.borderStyle = on ? 'dashed' : 'solid'; };
+  block.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; hl(true); });
+  block.addEventListener('dragover', (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  block.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) hl(false); });
+  block.addEventListener('drop', (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.stopPropagation(); depth = 0; hl(false); addFiles(e.dataTransfer.files); });
+  // файл, кинутий повз блок, не має відкриватись у вкладці замість картки (втрата незбереженого)
+  overlay.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+  overlay.addEventListener('drop', (e) => { if (hasFiles(e)) e.preventDefault(); });
+}
 function fmtDate(s){
   if (!s) return '—';
   try {
@@ -868,12 +1070,14 @@ function openMessageDetail(id){
             <span style="font-size:11px; color:var(--ash); font-weight:600; letter-spacing:.5px;">📸 КРЕАТИВИ (картинки / відео)</span>
             <div style="display:flex; gap:6px;">
               <button type="button" id="ret-pick-from-library" style="background:var(--bg-2); border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">🖼 З бібліотеки</button>
-              <a href="/hq/#library" target="_blank" rel="noopener" style="background:var(--bg-2); border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; text-decoration:none; font-size:12px;">📤 Завантажити нові →</a>
+              <!-- 17.11.2026 (Віра): завантаження прямо з картки, без переходу в бібліотеку -->
+              <button type="button" id="ret-upload-new" title="Картинки або відео, можна кілька. Або перетягни файли на цей блок." style="background:var(--bg-2); border:1px solid var(--steel); color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">📤 Завантажити</button>
             </div>
           </div>
+          <div id="ret-uploads" style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;"></div>
           <div id="ret-creatives-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:6px; min-height:60px;">
             <div class="ret-creatives-empty" style="grid-column:1/-1; padding:18px; text-align:center; color:var(--ash); font-size:12px; border:1px dashed var(--steel); border-radius:6px;">
-              Креативи не прикріплені. Завантаж нові у бібліотеку або обери з існуючих.
+              Креативи не прикріплені. Завантаж нові (або перетягни файли сюди) чи обери з бібліотеки.
             </div>
           </div>
         </div>
@@ -950,14 +1154,15 @@ function openMessageDetail(id){
         if (!grid) return;
         const ids = window.retState.modalCreatives || [];
         if (!ids.length) {
-          grid.innerHTML = '<div class="ret-creatives-empty" style="grid-column:1/-1; padding:18px; text-align:center; color:var(--ash); font-size:12px; border:1px dashed var(--steel); border-radius:6px;">Креативи не прикріплені. Завантаж нові у бібліотеку або обери з існуючих.</div>';
+          grid.innerHTML = '<div class="ret-creatives-empty" style="grid-column:1/-1; padding:18px; text-align:center; color:var(--ash); font-size:12px; border:1px dashed var(--steel); border-radius:6px;">Креативи не прикріплені. Завантаж нові (або перетягни файли сюди) чи обери з бібліотеки.</div>';
           return;
         }
         const cache = window.retState._creativesCache || {};
         grid.innerHTML = ids.map(cid => {
           const c = cache[cid] || {};
-          const thumb = c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : '');
           const isVideo = c.type === 'video';
+          // 17.11.2026: у відео thumbnail_url/compressed_url = сам mp4 (як <img> порожньо) — лише poster_url, інакше 🎬
+          const thumb = isVideo ? (c.poster_url || '') : (c.thumbnail_url || c.compressed_url || (c.drive_file_id ? `https://lh3.googleusercontent.com/d/${c.drive_file_id}=s256` : ''));
           return `<div data-cid="${cid}" style="position:relative; aspect-ratio:1/1; background:var(--bg-2); border:1px solid var(--steel); border-radius:6px; overflow:hidden;">
             ${thumb ? `<img src="${escHtml(thumb)}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.display='none'">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:24px;">${isVideo ? '🎬' : '🖼'}</div>`}
             ${isVideo ? '<div style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); padding:2px 6px; border-radius:3px; font-size:10px; color:#fff;">▶ VIDEO</div>' : ''}
@@ -1000,6 +1205,7 @@ function openMessageDetail(id){
         window.retState.modalCreatives = ids;
       }
       renderGrid();
+      initRetUpload(overlay, m, renderGrid);
       // Picker — відкрити бібліотеку
       const pickBtn = overlay.querySelector('#ret-pick-from-library');
       if (pickBtn) pickBtn.onclick = async () => {
@@ -1203,6 +1409,7 @@ function openMessageDetail(id){
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(doAutosave, 800);
     };
+    overlay._scheduleAutosave = scheduleAutosave; // 17.11.2026: завантаження креативу з картки
     // _flushSave — викликає safeClose() для immediate flush без debounce timer
     overlay._flushSave = async () => {
       if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
