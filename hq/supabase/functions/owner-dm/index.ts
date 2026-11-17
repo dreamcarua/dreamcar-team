@@ -16,6 +16,7 @@
 //   { action: "state", id }                → { status, approval, cancel_requested }
 //   { action: "team_find", id, kind, search }          → читання для колег (RPC team_bot_find)
 //   { action: "team_update", id, kind, row_id, fields } → дрібна правка від імені автора (RPC team_bot_update)
+//   { action: "autofix", alert, project }           → 17.11.2026: задача-автолагодження збою з cowork-notify (ліміт/добу)
 //   { action: "creative", id, brief }                → задача у відділ креативів (creative_requests); файли запиту
 //                                                        → медіатека (media-intake force), результат прийде файлами в цей же чат
 // Власник: app_secrets.owner_dm_tg_ids (через кому).
@@ -260,6 +261,35 @@ async function workerAction(sb: any, b: any): Promise<Response> {
     const r = await fetch(`https://api.telegram.org/file/bot${TG_BOT_TOKEN}/${info.result.file_path}`);
     if (!r.ok) return json(502, { error: `download ${r.status}` });
     return new Response(r.body, { status: 200, headers: { "content-type": "application/octet-stream" } });
+  }
+
+  // 17.11.2026 (Вадим: «одразу лагодь збої, які сюди приходять, і в інші боти»): вартовий на Mac
+  // (memory-kit/mac/owner-dm/autofix_watch.py) бачить сповіщення про збій у cowork-notify будь-якого бота
+  // і ставить задачу сам. Повідомлення «🔧» власнику = message_id задачі; reply на нього продовжує її.
+  if (act === "autofix") {
+    const owner = [...(await ownerIds(sb))][0];
+    if (!owner) return json(500, { error: "owner_dm_tg_ids not set" });
+    const alert = String(b.alert || "").slice(0, 3000);
+    const project = String(b.project || "").slice(0, 40);
+    if (!alert) return json(400, { error: "alert required" });
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count, error: cErr } = await sb.from("owner_dm_jobs").select("id", { count: "exact", head: true })
+      .like("text", "[autofix]%").gte("created_at", since);
+    if (cErr) return json(500, { error: cErr.message });
+    const cap = Number(b.daily_cap || 8);
+    if ((count || 0) >= cap) return json(200, { skipped: "daily cap", count });
+    const head = alert.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").slice(0, 300);
+    const ids = await sendLong(owner, `🔧 <b>Автолагодження${project ? " · " + esc(project) : ""}</b>\nБачу збій: <i>${esc(head)}</i>\nРозбираюсь і лагоджу сам, звіт буде тут.`);
+    if (!ids[0]) return json(502, { error: "tg send failed" });
+    const { data: job, error } = await sb.from("owner_dm_jobs").insert({
+      chat_id: owner, message_id: ids[0], ack_msg_id: ids[0],
+      text: "[autofix] Прийшло автоматичне сповіщення про збій (нижче). Знайди причину й полагодь сам, як Вадим просив 17.11.2026: " +
+            "виправ код/конфіг, закоміть, перевір. Правила ✅ власника діють як завжди. Якщо це не технічний збій або лагодити нічого " +
+            "(зовнішня причина, разовий збій, уже виправлено), коротко поясни і нічого не чіпай. Не створюй нових cowork-notify.",
+      reply_context: alert,
+    }).select("id").single();
+    if (error) return json(500, { error: error.message });
+    return json(200, { queued: job.id });
   }
 
   const id = Number(b.id);
