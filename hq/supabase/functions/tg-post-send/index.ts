@@ -1,4 +1,5 @@
-// tg-post-send v18 — 05.11.2026: успішна відповідь Telegram без message_id більше не призводить до повторної публікації.
+// tg-post-send v19 — 17.11.2026: фото шлються файлом (multipart), не URL: TG не міг забрати URL зі Storage.
+// v18 — 05.11.2026: успішна відповідь Telegram без message_id більше не призводить до повторної публікації.
 // v17 — #prod-channel (04.11.2026, Vadym): тести завершено, автопост іде в канал.
 //   Канал публікацій береться з app_secrets.tg_publish_channel (міняється без редеплою),
 //   fallback = production-канал. Тестовий режим (test=true) як і раніше йде у групу DreamCar SMM.
@@ -192,12 +193,15 @@ async function classifyMedia(url: string, type: 'photo'|'video', name: string, t
         dimSum = dims.w + dims.h;
         if (dimSum > MAX_PHOTO_DIM_SUM) {
           const resized = storageResize(url, 2000);
-          if (resized) { finalUrl = resized; return { type, url: finalUrl, thumbnail_url, name, size: 0, mode: 'url', dimSum }; }
+          if (resized) { finalUrl = resized; return { type, url: finalUrl, thumbnail_url, name, size: 0, mode: 'multipart', dimSum }; }
           else return { error: `photo "${name}" ${dims.w}×${dims.h}px (сума ${dimSum} > 10000 TG limit).` };
         }
       }
     }
-    return { type, url: finalUrl, thumbnail_url, name, size, mode: size > MAX_URL_BYTES ? 'multipart' : 'url', dimSum };
+    // v19 (17.11.2026): фото ЗАВЖДИ multipart. Telegram за URL зі Storage давав
+    // "failed to get HTTP URL content" при HEAD 200 і валідному JPG; файлом шлемо самі.
+    const mode: 'url' | 'multipart' = (type === 'photo' || size > MAX_URL_BYTES) ? 'multipart' : 'url';
+    return { type, url: finalUrl, thumbnail_url, name, size, mode, dimSum };
   } catch (e: any) { return { error: `${type} ${name}: HEAD/dim fail ${e.message}` }; }
 }
 async function downloadBlob(url: string): Promise<Blob> { const r = await fetch(url); if (!r.ok) throw new Error(`Download fail: HTTP ${r.status}`); return r.blob(); }
@@ -228,14 +232,15 @@ async function sendAlbumMultipart(items: MediaItem[], channelId: string, caption
   form.append('chat_id', channelId);
   if (silent) form.append('disable_notification', 'true');
   const mediaJson: any[] = [];
-  const blobs = await Promise.all(items.slice(0, 10).map(m => downloadBlob(m.url)));
+  // v19: файлом лише multipart-елементи, решта (відео ≤20 МБ) за URL, щоб не качати зайве в пам'ять функції.
+  const blobs = await Promise.all(items.slice(0, 10).map(m => m.mode === 'multipart' ? downloadBlob(m.url) : Promise.resolve(null)));
   items.slice(0, 10).forEach((m, i) => {
     const attach = `m${i}`;
-    const item: any = { type: m.type, media: `attach://${attach}` };
+    const item: any = { type: m.type, media: blobs[i] ? `attach://${attach}` : m.url };
     if (i === 0 && caption) { item.caption = trimHtml(caption, MAX_CAPTION); item.parse_mode = 'HTML'; }
     if (m.type === 'video') { item.supports_streaming = true; if (m.width) item.width = m.width; if (m.height) item.height = m.height; if (m.duration) item.duration = m.duration; }
     mediaJson.push(item);
-    form.append(attach, blobs[i], filenameFor(m, i));
+    if (blobs[i]) form.append(attach, blobs[i] as Blob, filenameFor(m, i));
   });
   form.append('media', JSON.stringify(mediaJson));
   const result = await tgFetchForm('sendMediaGroup', form);
@@ -253,7 +258,7 @@ async function sendAlbumUrl(items: MediaItem[], channelId: string, caption: stri
 }
 
 async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_channel?: string }) {
-  console.log('[sendPub v18] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
+  console.log('[sendPub v19] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
   // 04.11.2026: тест ЗАВЖДИ йде лише в тестову групу, force_channel для тесту ігнорується.
   const channelId = opts.test ? TEST_CHANNEL : (opts.force_channel || pub.tg_channel_id || DEFAULT_CHANNEL);
   if (!channelId) throw new Error('канал публікацій не задано (app_secrets.tg_publish_channel)');
@@ -335,9 +340,9 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
   }
 
   const messageId = result?.message_id;
-  console.log('[sendPub v18] sent', { messageId, channelId });
+  console.log('[sendPub v19] sent', { messageId, channelId });
   // 05.11.2026: Telegram інколи повертає ok без message_id (0) для відео в каналі — логуємо сирий результат
-  if (!messageId) console.warn('[sendPub v18] ok without message_id', JSON.stringify(result ?? null).slice(0, 600));
+  if (!messageId) console.warn('[sendPub v19] ok without message_id', JSON.stringify(result ?? null).slice(0, 600));
   if (pub.tg_pin && messageId && !opts.test) {
     try { await tgFetchJson('pinChatMessage', { chat_id: channelId, message_id: messageId, disable_notification: silent }); }
     catch (e: any) { console.warn('[pin]', pub.id, e.message); }
@@ -473,7 +478,7 @@ Deno.serve(async (req: Request) => {
     if (error) throw error;
     if (!pub) return new Response(JSON.stringify({ error: 'publication not found' }), { status: 404, headers: cors });
     const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
-    return new Response(JSON.stringify({ ok: true, version: 'v18-no-double-post', ...result }), { status: 200, headers: cors });
+    return new Response(JSON.stringify({ ok: true, version: 'v19-photo-multipart', ...result }), { status: 200, headers: cors });
   } catch (e: any) {
     const msg = String(e?.message || e);
     const stack = String(e?.stack || '').slice(0, 1000);
