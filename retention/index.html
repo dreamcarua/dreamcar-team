@@ -318,6 +318,7 @@ const SUPABASE_URL = 'https://wotghlaehnvxyeacznvv.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A';
 
 let supabase = null;
+window.RET_SB_URL = SUPABASE_URL; window.RET_SB_ANON = SUPABASE_ANON; // 17.11.2026: завантаження креативів з картки
 window.retState = { authUser: null, publicUser: null };
 
 function setStatus(msg, cls) {
