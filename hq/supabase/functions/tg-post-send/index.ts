@@ -1,3 +1,4 @@
+// v20 — 18.11.2026: відео завжди multipart; message_id=0 більше не вважається опублікованим.
 // tg-post-send v19 — 17.11.2026: фото шлються файлом (multipart), не URL: TG не міг забрати URL зі Storage.
 // v18 — 05.11.2026: успішна відповідь Telegram без message_id більше не призводить до повторної публікації.
 // v17 — #prod-channel (04.11.2026, Vadym): тести завершено, автопост іде в канал.
@@ -200,7 +201,7 @@ async function classifyMedia(url: string, type: 'photo'|'video', name: string, t
     }
     // v19 (17.11.2026): фото ЗАВЖДИ multipart. Telegram за URL зі Storage давав
     // "failed to get HTTP URL content" при HEAD 200 і валідному JPG; файлом шлемо самі.
-    const mode: 'url' | 'multipart' = (type === 'photo' || size > MAX_URL_BYTES) ? 'multipart' : 'url';
+    const mode: 'url' | 'multipart' = (type === 'photo' || type === 'video' || size > MAX_URL_BYTES) ? 'multipart' : 'url';  // v20: відео теж файлом, URL-режим давав message_id=0 без посту (18.11.2026)
     return { type, url: finalUrl, thumbnail_url, name, size, mode, dimSum };
   } catch (e: any) { return { error: `${type} ${name}: HEAD/dim fail ${e.message}` }; }
 }
@@ -386,6 +387,14 @@ async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
       // 05.11.2026 ДУБЛІ: якщо Telegram прийняв пост, але не дав message_id (0), раніше статус не мінявся,
       // за 20 хв watchdog у autopost-tg-enqueue скидав 'processing' і пост ішов у канал удруге.
       // Тепер будь-яка успішна відповідь Telegram = опубліковано, повторної відправки немає.
+      if (!r.messageId) {
+        // v20 (18.11.2026): message_id=0 і date=0 = Telegram НЕ створив пост (картка «анонс пс» мала sent, посту в каналі не було).
+        // Не ставимо sent/published і не ретраїмо (щоб не було дублів): failed + пояснення, SMM побачить помилку.
+        const msg = 'Telegram повернув message_id=0: пост у каналі не підтверджено, перевірте канал і опублікуйте вручну або перезапустіть';
+        await sb.from('publications').update({ autopost_status: 'failed', autopost_error: msg }).eq('id', pub.id);
+        if (jobId) await sb.rpc('fail_autopost_job', { job_id: jobId, pub_id: pub.id, err_msg: msg }).catch(() => {});
+        return { ok: false, unconfirmed: true, channelId: r.channelId, reason: msg };
+      }
       {
         const newMap = (typeof pub.tg_message_id === 'object' && pub.tg_message_id) ? { ...pub.tg_message_id } : {};
         newMap[r.channelId] = r.messageId || -1;   // -1 = надіслано, але Telegram не повернув id
@@ -478,7 +487,7 @@ Deno.serve(async (req: Request) => {
     if (error) throw error;
     if (!pub) return new Response(JSON.stringify({ error: 'publication not found' }), { status: 404, headers: cors });
     const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
-    return new Response(JSON.stringify({ ok: true, version: 'v19-photo-multipart', ...result }), { status: 200, headers: cors });
+    return new Response(JSON.stringify({ ok: true, version: 'v20-video-multipart', ...result }), { status: 200, headers: cors });
   } catch (e: any) {
     const msg = String(e?.message || e);
     const stack = String(e?.stack || '').slice(0, 1000);
