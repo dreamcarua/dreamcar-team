@@ -142,9 +142,19 @@ jobs:
         env:
           TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT: ${{ secrets.TG_CHAT_ID }}
+          AUTOFIX_TOKEN: ${{ secrets.AUTOFIX_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # failure -> auto-repair pipeline (owner-dm edge, 24h dedup there); never fails the job
+          autofix_report() {
+            [ -n "${AUTOFIX_TOKEN:-}" ] || return 0
+            _P=$(jq -cn --arg a "$1" --arg p "$2" '{alert:$a,project:$p}' 2>/dev/null) || return 0
+            curl -s -m 20 -o /dev/null -X POST "https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/owner-dm" \
+              -H "x-autofix-token: $AUTOFIX_TOKEN" -H "content-type: application/json" --data "$_P" || true
+            return 0
+          }
           set -u
+          autofix_report "Report delivery failed in ${GITHUB_REPOSITORY} (report-to-telegram workflow). At least one report did not reach Telegram. Log: $RUN_URL" dreamcar
           if [ -z "${TOKEN:-}" ] || [ -z "${CHAT:-}" ]; then
             echo "::error::the report workflow failed and there is nowhere to say so: secrets are not set"
             exit 1

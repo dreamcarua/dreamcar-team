@@ -29,8 +29,17 @@ jobs:
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          AUTOFIX_TOKEN: ${{ secrets.AUTOFIX_TOKEN }}
         shell: bash
         run: |
+          # failure -> auto-repair pipeline (owner-dm edge, 24h dedup there); never fails the job
+          autofix_report() {
+            [ -n "${AUTOFIX_TOKEN:-}" ] || return 0
+            _P=$(jq -cn --arg a "$1" --arg p "$2" '{alert:$a,project:$p}' 2>/dev/null) || return 0
+            curl -s -m 20 -o /dev/null -X POST "https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/owner-dm" \
+              -H "x-autofix-token: $AUTOFIX_TOKEN" -H "content-type: application/json" --data "$_P" || true
+            return 0
+          }
           set -uo pipefail
           SB_URL="https://wotghlaehnvxyeacznvv.supabase.co"
           SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvdGdobGFlaG52eHllYWN6bnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDc4NjgsImV4cCI6MjA5NDE4Mzg2OH0.Se-y1WawsdSkMLXj7G_O-Kq-jVfjUOBD3KJOvemCR3A"
@@ -58,6 +67,7 @@ jobs:
           LINES=$(echo "$RESP" | jq -r '.[] | "• <b>\(.name)</b>: тиша \(.days_stale) дн (остання \(.last_tx)), баланс живий \(.api_balance|floor)грн"')
           MSG="⚠️ <b>Каса · синк банку застряг</b>${NL}${NL}Рахунок не оновлюється 3+ дн — ФОП-надходження нижче реальних:${NL}${LINES}${NL}${NL}Перевір токен Автоклієнта Приват24 Бізнес для цього ФОП."
 
+          autofix_report "$(printf '%s' "$MSG" | sed -E 's#</?[a-z]+[^>]*>##g')" dreamcar
           HTTP=$(curl -s -o /tmp/r.txt -w "%{http_code}" \
             "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
             -d "chat_id=$TG_CHAT_ID" \
