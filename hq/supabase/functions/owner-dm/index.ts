@@ -17,6 +17,8 @@
 //   { action: "team_find", id, kind, search }          → читання для колег (RPC team_bot_find)
 //   { action: "team_update", id, kind, row_id, fields } → дрібна правка від імені автора (RPC team_bot_update)
 //   { action: "autofix", alert, project }           → 17.11.2026: задача-автолагодження збою з cowork-notify (ліміт/добу)
+//     18.11.2026: також з заголовком x-autofix-token (sha256 = app_secrets.autofix_token_sha256), лише цей action;
+//     дедуп за сигнатурою 24 год і пропуск «вирішено» тут, на вході.
 //   { action: "creative", id, brief }                → задача у відділ креативів (creative_requests); файли запиту
 //                                                        → медіатека (media-intake force), результат прийде файлами в цей же чат
 // Власник: app_secrets.owner_dm_tg_ids (через кому).
@@ -276,7 +278,22 @@ async function workerAction(sb: any, b: any): Promise<Response> {
     const { count, error: cErr } = await sb.from("owner_dm_jobs").select("id", { count: "exact", head: true })
       .like("text", "[autofix]%").gte("created_at", since);
     if (cErr) return json(500, { error: cErr.message });
-    const cap = Number(b.daily_cap || 8);
+    // 18.11.2026: до autofix підключено ~28 сторожів (сервери, GitHub, Cloudflare), тому дедуп і фільтр тут, на вході,
+    // а не в кожному сторожі: «вирішено/відновлено» не задача; та сама тривога (цифри/посилання знято) раз на 24 год.
+    const plain = alert.replace(/<[^>]+>/g, "").trim();
+    if (/^(✅|🟢|♻️)/u.test(plain) || /^[^\p{L}]{0,3}(вирішено|відновлено|знову працює|recovered|resolved)(?!\p{L})/iu.test(plain))
+      return json(200, { skipped: "recovery" });
+    // сигнатура: проєкт + текст без цифр; з URL лишаємо хост, щоб різні сайти не глушили одне одного
+    const sig = (t: string, pr: string) => pr + "|" + t.replace(/<[^>]+>/g, "").replace(/\/Users\/\S+/g, "<p>")
+      .replace(/https?:\/\/([^\/\s]+)\S*/g, "$1").replace(/\d+/g, "#").replace(/\s+/g, " ").trim().slice(0, 160).toLowerCase();
+    const { data: recent, error: rErr } = await sb.from("owner_dm_jobs").select("reply_context")
+      .like("text", "[autofix]%").gte("created_at", since).limit(200);
+    if (rErr) return json(500, { error: rErr.message });
+    const mine = sig(alert, project);
+    if ((recent || []).some((r: any) => { const rc = String(r.reply_context || "");
+        const m = rc.match(/^\[project:([^\]]*)\]\n/); return sig(m ? rc.slice(m[0].length) : rc, m ? m[1] : "") === mine; }))
+      return json(200, { skipped: "duplicate within 24h" });
+    const cap = Number(b.daily_cap || 12);
     if ((count || 0) >= cap) return json(200, { skipped: "daily cap", count });
     const head = alert.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").slice(0, 300);
     const ids = await sendLong(owner, `🔧 <b>Автолагодження${project ? " · " + esc(project) : ""}</b>\nБачу збій: <i>${esc(head)}</i>\nРозбираюсь і лагоджу сам, звіт буде тут.`);
@@ -286,7 +303,7 @@ async function workerAction(sb: any, b: any): Promise<Response> {
       text: "[autofix] Прийшло автоматичне сповіщення про збій (нижче). Знайди причину й полагодь сам, як Вадим просив 17.11.2026: " +
             "виправ код/конфіг, закоміть, перевір. Правила ✅ власника діють як завжди. Якщо це не технічний збій або лагодити нічого " +
             "(зовнішня причина, разовий збій, уже виправлено), коротко поясни і нічого не чіпай. Не створюй нових cowork-notify.",
-      reply_context: alert,
+      reply_context: project ? `[project:${project}]\n${alert}` : alert,
     }).select("id").single();
     if (error) return json(500, { error: error.message });
     return json(200, { queued: job.id });
@@ -424,6 +441,18 @@ Deno.serve(async (req: Request) => {
       if (body.callback) return json(200, { ok: true, ...(await onCallback(sb, body.callback)) });
       if (body.message) return json(200, { ok: true, ...(await onMessage(sb, body.message)) });
       return json(400, { error: "message or callback required" });
+    }
+    // 18.11.2026: вузький токен лише для action=autofix (сторожі на серверах, у GitHub і Cloudflare).
+    // Повний x-cd-worker туди не роздаємо: він дає claim/reply/файли.
+    const afx = req.headers.get("x-autofix-token") ?? "";
+    if (afx && !worker) {
+      const { data } = await sb.from("app_secrets").select("value").eq("key", "autofix_token_sha256").maybeSingle();
+      const want = String(data?.value || "");
+      if (want && await safeEqual(await sha256Hex(afx), want)) {
+        const body = await req.json().catch(() => ({}));
+        return await workerAction(sb, { action: "autofix", alert: body.alert, project: body.project });
+      }
+      return json(401, { error: "unauthorized" });
     }
     if (worker) {
       const { data } = await sb.from("app_secrets").select("value").eq("key", "cd_worker_secret_sha256").maybeSingle();
