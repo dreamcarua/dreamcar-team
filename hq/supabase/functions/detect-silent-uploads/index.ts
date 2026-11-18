@@ -26,6 +26,23 @@ function json(body: any, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), { status, headers: { "content-type": "application/json", ...cors() } });
 }
 
+// Auto-repair pipeline (owner-dm edge): failure alerts must also reach it. Fire-and-forget, never throws, never blocks the
+// Telegram alert. Secret AUTOFIX_TOKEN (Supabase function secret). Edge dedups 24h; call only from failure branches.
+const stripHtml = (s: string) => s.replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+function autofixReport(text: string): void {
+  try {
+    const tok = Deno.env.get("AUTOFIX_TOKEN");
+    if (!tok) return;
+    const p = fetch("https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/owner-dm", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-autofix-token": tok },
+      body: JSON.stringify({ alert: stripHtml(text).slice(0, 3500), project: "dreamcar" }),
+      signal: AbortSignal.timeout(10000),
+    }).then((r) => r.text()).catch(() => {});
+    (globalThis as any).EdgeRuntime?.waitUntil?.(p);
+  } catch (_) { /* never break the original alert */ }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors() });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
@@ -60,6 +77,9 @@ Deno.serve(async (req: Request) => {
   if (list.length < threshold) {
     return json({ ok: true, found: list.length, alert_sent: false, reason: "below_threshold" });
   }
+
+  // Failure for the repair pipeline: Storage objects exist but the creative INSERT failed (RLS / network / cache).
+  autofixReport(`DreamCar HQ: silent upload failures: ${list.length} Storage object(s) in the last ${hours}h have no creative row (INSERT failed: RLS / network / SW cache). Sample: ${list.slice(0, 3).map(f => f.storage_name).join(", ")}`);
 
   // Готую TG alert
   const TG_BOT_TOKEN = Deno.env.get("TG_BOT_TOKEN")!;

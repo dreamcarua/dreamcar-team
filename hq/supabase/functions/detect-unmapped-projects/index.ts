@@ -18,6 +18,23 @@ const sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 const esc = (s: string) => (s || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 const fmt = (v: number) => new Intl.NumberFormat("uk-UA").format(Math.round(v));
 
+// Auto-repair pipeline (owner-dm edge): failure alerts must also reach it. Fire-and-forget, never throws, never blocks the
+// Telegram alert. Secret AUTOFIX_TOKEN (Supabase function secret). Edge dedups 24h; call only from failure branches.
+const stripHtml = (s: string) => s.replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+function autofixReport(text: string): void {
+  try {
+    const tok = Deno.env.get("AUTOFIX_TOKEN");
+    if (!tok) return;
+    const p = fetch("https://wotghlaehnvxyeacznvv.supabase.co/functions/v1/owner-dm", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-autofix-token": tok },
+      body: JSON.stringify({ alert: stripHtml(text).slice(0, 3500), project: "dreamcar" }),
+      signal: AbortSignal.timeout(10000),
+    }).then((r) => r.text()).catch(() => {});
+    (globalThis as any).EdgeRuntime?.waitUntil?.(p);
+  } catch (_) { /* never break the original alert */ }
+}
+
 async function sendTG(text: string) {
   const r = await fetch(`https://api.telegram.org/bot${TG}/sendMessage`, {
     method: "POST", headers: { "content-type": "application/json" },
@@ -75,6 +92,8 @@ Deno.serve(async (req) => {
       lines.join("\n\n") +
       `\n\nДодати в реєстр: <a href="https://dashboard.dreamcar.ua/#projects">/#projects</a> (або скажи мені — заведу).`;
 
+    // Failure for the repair pipeline: a project value missing from the registry silently excludes deals from the dashboard.
+    autofixReport(`DreamCar dashboard: deals with project value(s) missing from dashboard_projects registry (excluded from dashboard revenue): ${fresh.map(r => `${r.project_value} (${r.deals} deals)`).join(", ")}. Fix the project mapping/alias; do not treat as a revenue report.`);
     const res = await sendTG(text);
     if (res.ok) {
       // upsert, не insert: повторне нагадування оновлює alerted_at (PK = project_value)
