@@ -131,11 +131,30 @@ async function onMessage(sb: any, m: any) {
   return await enqueue(sb, m, full, { hasFiles });
 }
 
+// 20.11.2026: відділ креативів — тільки DreamCar. Запит №32 (обкладинки блогу Barpi з особистих повідомлень
+// Вадима) прив'язався до поточного розіграшу, і 5 фіналів Barpi лягли в медіатеку DreamCar.
+// Запит про інший бізнес (Barpi / snEco / Abris Art / DayWeft) без згадки DreamCar = чужий проєкт.
+const FOREIGN_BRANDS: [string, RegExp][] = [
+  ["Barpi", /(?<![\p{L}\d])(barpi|барпі|барпи)/iu],
+  ["snEco", /(?<![\p{L}\d])(sneco|снеко)/iu],
+  ["Abris Art", /(?<![\p{L}\d])(abris|абріс|абрис)/iu],
+  ["DayWeft", /(?<![\p{L}\d])(dayweft|дейвефт)/iu],
+];
+const DREAMCAR_RE = /(?<![\p{L}\d])(dream\s?car|дрімкар|дримкар|дрим\s?кар)/iu;
+function foreignProject(text: string): string | null {
+  const t = String(text || "");
+  if (DREAMCAR_RE.test(t)) return null;
+  for (const [name, re] of FOREIGN_BRANDS) if (re.test(t)) return name;
+  return null;
+}
+
 async function enqueue(sb: any, m: any, text: string, o: { parent?: any; sources?: string[]; hasFiles?: boolean }) {
   const replyTo = m.reply_to_message;
   const fromName = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || m.from?.username || "?";
   const { data: u } = await sb.from("users").select("id").eq("tg_chat_id", m.from?.id ?? 0).maybeSingle();
-  const launch = o.parent?.launch_id || (await sb.rpc("library_guess_launch", { p_at: new Date().toISOString() })).data;
+  const foreign = foreignProject(`${text}\n${o.parent?.request_text || ""}`);
+  // чужий бізнес: не прив'язуємо до розіграшу DreamCar
+  const launch = foreign ? null : (o.parent?.launch_id || (await sb.rpc("library_guess_launch", { p_at: new Date().toISOString() })).data);
   const reqText = o.parent ? `Доопрацювання результату запиту №${o.parent.id} (його фінали додано як вихідні файли): ${text}` : text;
 
   const { data: row, error } = await sb.from("creative_requests").insert({
@@ -258,7 +277,7 @@ async function deliver(sb: any, r: any, creativeIds: string[], note: string): Pr
   const { data: cr } = await sb.from("creatives").select("id,name,drive_file_id,size_bytes").in("id", creativeIds);
   const urls = (cr || []).map((c: any) => ({ ...c, url: `${SUPABASE_URL}/storage/v1/object/public/creatives/${c.drive_file_id}` }));
   const head = `✅ Запит №${r.id} готовий, <a href="tg://user?id=${r.from_tg_id}">${esc(r.from_name || "")}</a>.` +
-    (note ? `\n${esc(note).slice(0, 3000)}` : "") + `\nФайли також у медіатеці проєкту.`;
+    (note ? `\n${esc(note).slice(0, 3000)}` : "") + (foreignProject(r.request_text) ? "" : `\nФайли також у медіатеці проєкту.`);
   const h = await sayR(r, head);
   if (h?.result?.message_id) msgIds.push(h.result.message_id);
   // документами, щоб Telegram не пережимав; ≤20 МБ по URL, по 10 в альбомі
@@ -289,7 +308,9 @@ async function workerAction(sb: any, b: any) {
       if (error) throw new Error(error.message);
       const r = data && data.id ? data : null;
       if (r && r.attempts === 1) await sayR(r, `⚙️ Запит №${r.id} у роботі.`);
-      return { request: r, ...(r ? { ...(await sources(sb, r)), project: await projectContext(sb, r) } : {}) };
+      const foreign = r ? foreignProject(r.request_text) : null;
+      return { request: r, ...(r ? { ...(await sources(sb, r)), project: await projectContext(sb, r) } : {}),
+        ...(foreign ? { foreign_project: foreign, library_note: `Задача про ${foreign}, не DreamCar: фінали не зберігати в медіатеку DreamCar (launch_id не ставити); після complete вони автоматично ховаються з медіатеки.` } : {}) };
     }
     case "sources": { const r = await get(); if (!r) return { error: "not found" }; return await sources(sb, r); }
     case "ask": {
@@ -326,6 +347,11 @@ async function workerAction(sb: any, b: any) {
       const ids: string[] = Array.isArray(b.creative_ids) ? b.creative_ids.map(String).slice(0, 50) : [];
       if (!ids.length) return { error: "creative_ids required" };
       const msgIds = await deliver(sb, r, ids, String(b.note || ""));
+      // фінали чужого бізнесу автор уже отримав файлами; з медіатеки DreamCar ховаємо (deleted_at, файли в Storage лишаються)
+      if (foreignProject(r.request_text)) {
+        const { error: he } = await sb.from("creatives").update({ deleted_at: new Date().toISOString() }).in("id", ids).is("deleted_at", null);
+        if (he) console.error("[complete] hide foreign finals", he.message);
+      }
       await sb.from("creative_requests").update({ status: "done", result_creative_ids: ids, result_msg_ids: msgIds, result_note: String(b.note || "").slice(0, 4000),
         finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
       return { ok: true };

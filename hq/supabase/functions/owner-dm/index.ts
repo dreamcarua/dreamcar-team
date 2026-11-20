@@ -354,6 +354,9 @@ async function workerAction(sb: any, b: any): Promise<Response> {
     const brief = String(b.brief || "").trim().slice(0, 6000);
     if (!brief) return json(400, { error: "brief required" });
     if (j.creative_request_id) return json(200, { ok: true, already: j.creative_request_id });
+    // відділ креативів працює тільки для DreamCar: креативи інших бізнесів робити напряму системою creative-director
+    const foreign = foreignProject(brief);
+    if (foreign) return json(409, { error: `foreign_project: ${foreign}`, hint: `Відділ креативів @dreamcar_team_bot лише для DreamCar. Для ${foreign} запусти creative-director напряму в проєкті ${foreign} і віддай результат у цей чат; у медіатеку DreamCar нічого не зберігати.` });
     const raw = j.raw_message;
     if (!raw?.chat?.id) return json(400, { error: "no source message stored for this job" });
     const hdr = { "content-type": "application/json", "x-hq-cron-secret": HQ_CRON_SECRET };
@@ -427,6 +430,23 @@ async function workerAction(sb: any, b: any): Promise<Response> {
   }
 
   return json(400, { error: `unknown action ${act}` });
+}
+
+// 20.11.2026: відділ креативів — тільки DreamCar. Запит №32 (обкладинки блогу Barpi з особистих повідомлень
+// Вадима) прив'язався до поточного розіграшу, і 5 фіналів Barpi лягли в медіатеку DreamCar.
+// Запит про інший бізнес (Barpi / snEco / Abris Art / DayWeft) без згадки DreamCar = чужий проєкт.
+const FOREIGN_BRANDS: [string, RegExp][] = [
+  ["Barpi", /(?<![\p{L}\d])(barpi|барпі|барпи)/iu],
+  ["snEco", /(?<![\p{L}\d])(sneco|снеко)/iu],
+  ["Abris Art", /(?<![\p{L}\d])(abris|абріс|абрис)/iu],
+  ["DayWeft", /(?<![\p{L}\d])(dayweft|дейвефт)/iu],
+];
+const DREAMCAR_RE = /(?<![\p{L}\d])(dream\s?car|дрімкар|дримкар|дрим\s?кар)/iu;
+function foreignProject(text: string): string | null {
+  const t = String(text || "");
+  if (DREAMCAR_RE.test(t)) return null;
+  for (const [name, re] of FOREIGN_BRANDS) if (re.test(t)) return name;
+  return null;
 }
 
 Deno.serve(async (req: Request) => {
