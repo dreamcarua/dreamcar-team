@@ -63,6 +63,19 @@ const Store = {
     localStorage.setItem(STORE_KEY, JSON.stringify(this._data));
   },
 
+  // 21.11.2026: PostgREST віддає максимум 1000 рядків на запит, тож нові картки (publish_at в кінці)
+  // зникали після оновлення. Читаємо постранично, поки сторінка не стане неповною.
+  async _fetchAll(buildQuery) {
+    const PAGE = 1000;
+    let all = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+      if (error) return { data: all.length ? all : null, error };
+      all = all.concat(data || []);
+      if (!data || data.length < PAGE) return { data: all, error: null };
+    }
+  },
+
   async _loadFromBackend() {
     const sb = window.supabase;
     // #421: ghost retention розсилки для cross-system калерндаря
@@ -74,13 +87,13 @@ const Store = {
       sb.from('rubrics').select('*').order('sort_order'),
       sb.from('launches').select('*').eq('is_active', true),
       sb.from('creatives').select('*').is('deleted_at', null).order('uploaded_at', { ascending: false }),
-      sb.from('publications').select('*').order('publish_at'),
+      this._fetchAll(() => sb.from('publications').select('*').order('publish_at').order('id')),
       sb.from('publication_platforms').select('*'),
       sb.from('publication_responsibles').select('*'),
       sb.from('publication_approvers').select('*'),
-      sb.from('creative_publications').select('*'),
-      sb.from('comments').select('*').is('deleted_at', null).order('created_at'),
-      sb.from('publication_history').select('*').order('at'),
+      this._fetchAll(() => sb.from('creative_publications').select('*').order('publication_id').order('creative_id')),
+      this._fetchAll(() => sb.from('comments').select('*').is('deleted_at', null).order('created_at').order('id')),
+      this._fetchAll(() => sb.from('publication_history').select('*').order('at').order('id')),
       sb.rpc('ghost_calendar_events', { p_source: 'retention', p_from: ghostFrom.toISOString(), p_to: ghostTo.toISOString() }),
     ]);
     // 04.11.2026: creatives обрізаються лімітом PostgREST на 1000 найновіших, а з Бібліотеки можна
