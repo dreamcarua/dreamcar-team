@@ -66,3 +66,22 @@ delete from auth.sessions s
 -- grant select on public.kasa_bank_creds to authenticated; alter table public.kasa_bank_creds drop column token_last4;
 -- alter view public.ad_daily_real reset (security_invoker);
 -- update auth.users set banned_until = null where id in (<auth ids of the two deactivated members>);
+
+-- Part B (applied 25.11.2026): DB-level guard so the old tg-webhook (hq_<users.id>) cannot bind
+-- before this branch is deployed. A service_role bind needs a token claimed in the last 5 minutes.
+create or replace function public.users_guard_tg_bind()
+returns trigger language plpgsql security definer set search_path to 'public', 'pg_temp'
+as $$
+begin
+  if new.tg_chat_id is not null and new.tg_chat_id is distinct from old.tg_chat_id
+     and coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'service_role'
+     and not exists (select 1 from public.tg_bind_tokens t
+                      where t.user_id = new.id and t.used_at > now() - interval '5 minutes') then
+    raise exception 'Привʼязка Telegram лише через одноразове посилання з HQ' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+drop trigger if exists users_guard_tg_bind on public.users;
+create trigger users_guard_tg_bind before update of tg_chat_id on public.users
+  for each row execute function public.users_guard_tg_bind();
+-- Rollback B: drop trigger users_guard_tg_bind on public.users; drop function public.users_guard_tg_bind();
