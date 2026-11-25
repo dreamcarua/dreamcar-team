@@ -1,0 +1,29 @@
+name: Supabase Auth hardening (one-off)
+
+# 25.11.2026 (security audit, SB-11): turn on the leaked-password check (HaveIBeenPwned)
+# and make TOTP MFA available. Neither forces anyone to change anything: Google and Telegram
+# logins keep working; TG login sets a random 64-hex password that is never in HIBP.
+# Public repo: the response body is NOT printed, only the HTTP status.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: PATCH auth config
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" && test -n "$PROJECT_REF"
+          code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X PATCH \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            -d '{"password_hibp_enabled": true, "mfa_totp_enroll_enabled": true, "mfa_totp_verify_enabled": true}')
+          echo "HTTP $code"
+          if [ "$code" -ge 300 ]; then jq -r '.message // .error // "error"' /tmp/r.json || true; exit 1; fi
+          jq -r '"hibp=\(.password_hibp_enabled) totp_enroll=\(.mfa_totp_enroll_enabled) totp_verify=\(.mfa_totp_verify_enabled)"' /tmp/r.json
