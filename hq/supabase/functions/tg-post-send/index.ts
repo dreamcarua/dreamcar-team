@@ -35,10 +35,11 @@ const MAX_URL_BYTES = 20 * 1024 * 1024;
 const MAX_MULTIPART_BYTES = 50 * 1024 * 1024;
 const MAX_PHOTO_DIM_SUM = 10000;
 const RETRY_DELAYS = [30000, 60000, 120000, 300000];
-// Карусель: 2..50 медіа і 32768 символів — ліміти Bot API rich messages; фото ≤10 МБ, відео ≤50 МБ — multipart.
-// Сумарні 100 МБ — наш запобіжник по пам'яті функції. Ті самі числа у hq/app-tg-post-type.js.
+// Карусель: 2..50 медіа і 32768 символів — ліміти Bot API rich messages; фото ≤10 МБ (multipart).
+// Усі медіа разом ≤40 МБ — виміряно 25.11.2026: 40,5 МБ пройшло, 45,8 МБ = «Request Entity Too Large».
+// Ті самі числа у hq/app-tg-post-type.js.
 const CAROUSEL_MIN = 2, CAROUSEL_MAX = 50, CAROUSEL_MAX_TEXT = 32768;
-const CAROUSEL_MAX_PHOTO = 10 * 1024 * 1024, CAROUSEL_MAX_TOTAL = 100 * 1024 * 1024;
+const CAROUSEL_MAX_PHOTO = 10 * 1024 * 1024, CAROUSEL_MAX_TOTAL = 40 * 1024 * 1024;
 
 type MediaItem = { type: 'photo' | 'video'; url: string; thumbnail_url?: string; poster_url?: string; width?: number; height?: number; duration?: number; size: number; mode: 'url' | 'multipart'; name: string; dimSum?: number; };
 
@@ -413,7 +414,7 @@ async function recordAnalytics(sb: any, pubId: string, channelId: string, messag
 async function processOnce(sb: any, pub: any, opts: any) {
   const r = await sendPublication(sb, pub, opts);
   if (pub.tg_post_type === 'carousel' && !r.messageId) throw new Error('Telegram не повернув message_id: карусель не підтверджена');
-  if (opts.test && !opts.dry_log) {
+  if (opts.test) {
     const existing = Array.isArray(pub.tg_test_log) ? pub.tg_test_log : [];
     existing.push({ channel_id: r.channelId, sent_at: new Date().toISOString(), message_id: r.messageId, ok: true, media_modes: r.mediaModes, buttons_mode: r.buttonsMode, send_mode: r.sendMode, skipped: r.skipped, dims: r.dims });
     await sb.from('publications').update({ tg_test_log: existing.slice(-50) }).eq('id', pub.id);
@@ -551,14 +552,7 @@ Deno.serve(async (req: Request) => {
     const { data: pub, error } = await sb.from('publications').select('*').eq('id', pubId).maybeSingle();
     if (error) throw error;
     if (!pub) return new Response(JSON.stringify({ error: 'publication not found' }), { status: 404, headers: cors });
-    // Проба типу поста: лише тест (тестова група) і лише з cron-secret; картку й tg_test_log не чіпає.
-    const probeType = test && cronHeader === CRON_SECRET && body.post_type === 'carousel';
-    if (probeType) {
-      pub.tg_post_type = 'carousel';
-      if (typeof body.text === 'string') pub.text_body = body.text;
-      if (Array.isArray(body.buttons)) pub.tg_buttons = body.buttons;
-    }
-    const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel, dry_log: probeType }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
+    const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
     return new Response(JSON.stringify({ ok: true, version: 'v21-carousel', ...result }), { status: 200, headers: cors });
   } catch (e: any) {
     const msg = String(e?.message || e);
