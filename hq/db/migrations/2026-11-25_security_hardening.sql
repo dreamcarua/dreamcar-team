@@ -85,3 +85,9 @@ drop trigger if exists users_guard_tg_bind on public.users;
 create trigger users_guard_tg_bind before update of tg_chat_id on public.users
   for each row execute function public.users_guard_tg_bind();
 -- Rollback B: drop trigger users_guard_tg_bind on public.users; drop function public.users_guard_tg_bind();
+
+-- Part C (applied 25.11.2026, after the kasa page stopped reading `token`, dreamcar-dashboard PR #7):
+revoke select on public.kasa_bank_creds from authenticated, anon;
+grant select (id, bank, label, privat_id, is_active, synced_from, last_inc, last_status, created_at, owner_name, token_last4)
+  on public.kasa_bank_creds to authenticated;
+-- Rollback C: grant select on public.kasa_bank_creds to authenticated;

@@ -365,7 +365,7 @@ function setStatus(msg, cls) {
 (async () => {
   try {
     setStatus('Завантажую SDK…');
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
       auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.dcStorage }
     });
