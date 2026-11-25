@@ -1089,7 +1089,13 @@ async function handleMe(supabase: ReturnType<typeof createClient>, chatId: numbe
 }
 
 async function handleStart(supabase: ReturnType<typeof createClient>, chatId: number, tgUser: { username?: string; first_name?: string; last_name?: string }, payload: string, isGroup: boolean): Promise<void> {
-  const m = payload.match(/^hq_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+  // 25.11.2026 security: bind only by a one-time token from HQ (hqb_<32 hex>, 30 min, single use).
+  // The old hq_<users.id> link let anyone bind their Telegram to someone else's account.
+  if (/^hq_[0-9a-f-]{36}$/i.test(payload)) {
+    await tgSend(chatId, `⚠️ Це посилання застаріло. Відкрий HQ → Налаштування й натисни «Прив'язати» ще раз.`);
+    return;
+  }
+  const m = payload.match(/^hqb_([0-9a-f]{32})$/i);
   if (!m) {
     if (isGroup) {
       await tgSend(chatId, `👋 Я бот DreamCar HQ. Шлю сповіщення.\n\nКоманди у DM: <a href="https://t.me/dreamcar_team_bot">@dreamcar_team_bot</a>`, { silent: true });
@@ -1104,12 +1110,20 @@ async function handleStart(supabase: ReturnType<typeof createClient>, chatId: nu
     return;
   }
   if (isGroup) {
-    await tgSend(chatId, `🔒 Привʼязка тільки приватно. <a href="https://t.me/dreamcar_team_bot?start=hq_${m[1]}">Напиши боту</a>.`, { silent: true });
+    await tgSend(chatId, `🔒 Привʼязка тільки приватно: відкрий посилання з HQ у DM з ботом.`, { silent: true });
     return;
   }
-  const userId = m[1].toLowerCase();
+  const token = m[1].toLowerCase();
+  const { data: claimed, error: tokErr } = await supabase
+    .from("tg_bind_tokens").update({ used_at: new Date().toISOString() })
+    .eq("token", token).is("used_at", null).gt("expires_at", new Date().toISOString())
+    .select("user_id").maybeSingle();
+  if (tokErr) { await tgSend(chatId, `⚠️ ${escHtml(tokErr.message)}`); return; }
+  if (!claimed) { await tgSend(chatId, `⚠️ Посилання недійсне або вже використане. Візьми нове в HQ.`); return; }
+  const userId = String(claimed.user_id);
   const { data: user, error } = await supabase
-    .from("users").select("id, name, email, tg_chat_id").eq("id", userId).maybeSingle();
+    .from("users").select("id, name, email, tg_chat_id, is_active").eq("id", userId).maybeSingle();
+  if (user && user.is_active === false) { await tgSend(chatId, `⚠️ Акаунт деактивовано.`); return; }
   if (error) { await tgSend(chatId, `⚠️ ${escHtml(error.message)}`); return; }
   if (!user) { await tgSend(chatId, `⚠️ User not found.`); return; }
   if (user.tg_chat_id && user.tg_chat_id !== chatId) {

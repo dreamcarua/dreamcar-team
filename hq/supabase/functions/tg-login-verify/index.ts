@@ -64,10 +64,11 @@ async function verifyTelegramAuth(user: TgUser): Promise<boolean> {
   return bytesToHex(calc) === hash;
 }
 
-async function derivePassword(tgId: number): Promise<string> {
-  const key = new TextEncoder().encode(LOGIN_SALT || "fallback_salt_change_me");
-  const sig = await hmacSha256(key, `tg:${tgId}`);
-  return bytesToHex(sig).slice(0, 40);
+// 25.11.2026 security: a fresh random password on every login. The old deterministic
+// HMAC(salt, tg_id) password let anyone who learned the salt sign in by email + password.
+function randomPassword(): string {
+  const b = new Uint8Array(32); crypto.getRandomValues(b);
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
 function errResp(status: number, error: string, hint?: string) {
@@ -107,14 +108,18 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   const userClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
   const fullName = [body.first_name, body.last_name].filter(Boolean).join(" ") || (body.username || "");
-  const password = await derivePassword(body.id);
+  const password = randomPassword();
 
   // 3. Шукаємо public.users з tg_chat_id == TG user.id
   const { data: existingUser, error: lookupErr } = await admin
     .from("users")
-    .select("id, auth_id, email, name")
+    .select("id, auth_id, email, name, is_active")
     .eq("tg_chat_id", body.id)
     .maybeSingle();
+
+  if (existingUser && existingUser.is_active === false) {
+    return errResp(403, "Акаунт деактивовано");
+  }
 
   if (lookupErr) {
     return errResp(500, "DB lookup failed: " + lookupErr.message);

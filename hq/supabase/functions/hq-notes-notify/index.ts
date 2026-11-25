@@ -51,7 +51,7 @@ async function tgSend(chatId: number | string, text: string) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok");
 
-  if (HQ_WEBHOOK_SECRET && req.headers.get("x-hq-secret") !== HQ_WEBHOOK_SECRET) {
+  if (!HQ_WEBHOOK_SECRET || req.headers.get("x-hq-secret") !== HQ_WEBHOOK_SECRET) { // 25.11.2026 fail-closed
     return new Response("Unauthorized", { status: 401 });
   }
 
