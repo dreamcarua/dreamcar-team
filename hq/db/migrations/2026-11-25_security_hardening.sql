@@ -91,3 +91,14 @@ revoke select on public.kasa_bank_creds from authenticated, anon;
 grant select (id, bank, label, privat_id, is_active, synced_from, last_inc, last_status, created_at, owner_name, token_last4)
   on public.kasa_bank_creds to authenticated;
 -- Rollback C: grant select on public.kasa_bank_creds to authenticated;
+
+-- Part D (applied 25.11.2026): task-attachments — only active HQ users; delete only own uploads (SB-09)
+drop policy if exists task_att_delete_auth on storage.objects;
+create policy task_att_delete_auth on storage.objects for delete to authenticated
+  using (bucket_id = 'task-attachments' and owner = auth.uid() and public.current_user_id() is not null);
+drop policy if exists task_att_write_auth on storage.objects;
+create policy task_att_write_auth on storage.objects for insert to authenticated
+  with check (bucket_id = 'task-attachments' and public.current_user_id() is not null);
+drop policy if exists task_att_read_auth on storage.objects;
+create policy task_att_read_auth on storage.objects for select to authenticated
+  using (bucket_id = 'task-attachments' and public.current_user_id() is not null);
