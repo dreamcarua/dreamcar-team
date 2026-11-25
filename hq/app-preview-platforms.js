@@ -184,7 +184,13 @@
     if (hashLine) caption += '<br/><span class="dcpv-tg-link">' + esc(hashLine) + '</span>';
 
     var mediaHtml = '';
-    if (media.length === 1) {
+    if (p.tg_post_type === 'carousel' && media.length >= 2) {
+      // 25.11.2026: карусель — гортається горизонтально, порядок як у картці
+      mediaHtml = '<div style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:4px;">' + media.map(function(m, i){
+        return '<div style="flex:0 0 100%;scroll-snap-align:start;position:relative;">' + mediaTile(m, {aspect:'4/5'}) +
+          '<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">' + (i+1) + '/' + media.length + '</span></div>';
+      }).join('') + '</div><div style="text-align:center;font-size:11px;color:#8696a6;padding:4px;">🎠 Карусель (свайп)</div>';
+    } else if (media.length === 1) {
       mediaHtml = '<div class="dcpv-tg-single">' + mediaTile(media[0], {aspect: media[0].kind === 'video' ? '9/16' : '4/5'}) + '</div>';
     } else if (media.length >= 2) {
       var rows = media.slice(0,10).map(function(m){ return '<div class="dcpv-tg-album-cell">' + mediaTile(m, {aspect:'1/1'}) + '</div>'; }).join('');

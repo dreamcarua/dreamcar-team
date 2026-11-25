@@ -434,6 +434,13 @@ async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
   if (!opts.test && pub.tg_message_id) {
     const existingMap = typeof pub.tg_message_id === 'object' ? pub.tg_message_id : null;
     const channel = opts.force_channel || pub.tg_channel_id || DEFAULT_CHANNEL;
+    // Карусель: -1 (старе «надіслано без id») не є підтвердженням і не привід слати ще раз.
+    if (existingMap && existingMap[channel] && pub.tg_post_type === 'carousel' && !(Number(existingMap[channel]) > 0)) {
+      const msg = 'Попередня відправка без підтвердженого message_id: перевірте канал';
+      await sb.from('publications').update({ autopost_status: 'failed', autopost_error: msg }).eq('id', pub.id);
+      if (jobId) await sb.rpc('fail_autopost_job', { job_id: jobId, pub_id: pub.id, err_msg: msg }).catch(() => {});
+      return { ok: false, unconfirmed: true, channelId: channel, reason: msg };
+    }
     if (existingMap && existingMap[channel]) return { ok: true, alreadySent: true, channelId: channel, messageId: existingMap[channel] };
   }
   let lastErr: any = null;

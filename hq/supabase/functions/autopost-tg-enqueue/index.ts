@@ -92,7 +92,8 @@ async function run(supabase: ReturnType<typeof createClient>) {
 
   // Атомарний claim: беремо лише publication що ще null (щоб не задублювати між тіками)
   const toPost: string[] = [];
-  for (const p of candidates) {
+  // Claim лише тих, кого відправимо в цьому тіку (інакше невідправлена карусель «зависла» б у processing).
+  for (const p of candidates.slice(0, 8)) {
     const { data: claimed } = await supabase
       .from("publications")
       .update({ autopost_status: "processing", autopost_error: null })
@@ -105,7 +106,7 @@ async function run(supabase: ReturnType<typeof createClient>) {
 
   // Постимо паралельно (максимум 8 за тік, решта — наступного). tg-post-send сам:
   // download+multipart для великих відео, retry (4 рівні), autopost_status='sent'/'failed'.
-  const batch = toPost.slice(0, 8);
+  const batch = toPost;
   await Promise.allSettled(batch.map((pid) =>
     fetch(`${SUPABASE_URL}/functions/v1/tg-post-send`, {
       method: "POST",

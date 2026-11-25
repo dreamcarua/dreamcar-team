@@ -61,7 +61,7 @@ function boardCard(p) {
       <div class="bc-thumb">${thumb}</div>
       <div class="bc-body">
         <div class="bc-title">${escapeHtml(p.title)}</div>
-        <div class="bc-meta">${platformIcons(p.platforms)} · ${p.contentType} · ${respNames}</div>
+        <div class="bc-meta">${platformIcons(p.platforms)} · ${p.contentType}${window.tgIsCarousel?.(p) ? ' · 🎠 Карусель' : ''} · ${respNames}</div>
       </div>
     </div>
     <div class="bc-date ${dueLabel.cls}" style="margin-top:8px;">📅 ${dueLabel.txt}</div>
@@ -702,6 +702,8 @@ function renderTgAutopostBlock(p) {
         <button type="button" id="btnTgTestSend" class="btn" title="Чат DreamCar SMM (6 учасників) — приватна група команди для тестових постів" style="font-size:12px;padding:8px 14px;background:rgba(59,130,246,0.2);border:1px solid var(--blue,#3b82f6);color:#fff;border-radius:6px;font-weight:600;">🧪 Тест → DreamCar SMM</button>
       </div>
 
+      ${typeof window.tgPostTypeBlockHtml === 'function' ? window.tgPostTypeBlockHtml(p) : ''}
+
       <!-- БЛОК 1: Опції публікації -->
       <div style="margin-bottom:14px;padding:10px;background:var(--bg-3);border-radius:6px;border:1px solid var(--border);">
         <div style="font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚙ Опції постингу</div>
@@ -1133,6 +1135,16 @@ function attachCardHandlers(p) {
     const tgSilent = document.getElementById('f_tg_silent');
     const tgPreview = document.getElementById('f_tg_disable_preview');
     const tgCountdown = document.getElementById('f_tg_countdown_until');
+    // 25.11.2026: тип поста. Блок перемальовуємо цілком, щоб оновились підказка й рамки.
+    document.querySelectorAll('input[name="f_tg_post_type"]').forEach(r => {
+      r.onchange = () => {
+        if (!r.checked) return;
+        p.tg_post_type = r.value;
+        autosave(p);
+        const wrap = document.getElementById('tgAutopostWrapper');
+        if (wrap) { wrap.innerHTML = renderTgAutopostBlock(p); window.__hqAttachTgHandlers?.(); }
+      };
+    });
     if (tgPin) tgPin.onchange = () => { p.tg_pin = tgPin.checked; autosave(p); };
     if (tgSilent) tgSilent.onchange = () => { p.tg_silent = tgSilent.checked; autosave(p); };
     if (tgPreview) tgPreview.onchange = () => { p.tg_disable_preview = tgPreview.checked; autosave(p); };
@@ -1566,6 +1578,7 @@ function autosave(p) {
   const txt = document.getElementById('autosaveText');
   if (ind) { ind.className = 'autosave saving'; txt.textContent = 'Зберігаю…'; }
   refreshPreview(p);
+  window.tgRefreshCarouselWarn?.(p);
   if (cardAutosaveTimer) clearTimeout(cardAutosaveTimer);
   cardAutosaveTimer = setTimeout(() => {
     cardAutosaveTimer = null;
@@ -1604,6 +1617,10 @@ async function transitionStatus(p, to, sourceBtn) {
       }
       return;
     }
+  }
+  if (to === 'review' || to === 'approved') {
+    const bad = window.tgCarouselProblems?.(p) || [];
+    if (bad.length) { alert('Карусель (свайп) не готова:\n• ' + bad.join('\n• ')); return; }
   }
   if (to === 'rework' || to === 'approved') {
     const me = Store.currentUser();

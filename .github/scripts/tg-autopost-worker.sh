@@ -73,7 +73,7 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
   echo ""
   echo "=== Job $JOB_ID pub $PUB_ID -> chat $CHAT_ID ==="
 
-  PUB=$(curl -sS "$SUPABASE_URL/rest/v1/publications?id=eq.$PUB_ID&select=id,title,text_body,hashtags" \
+  PUB=$(curl -sS "$SUPABASE_URL/rest/v1/publications?id=eq.$PUB_ID&select=id,title,text_body,hashtags,tg_post_type" \
     -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" | jq -c '.[0]')
 
   if [ "$PUB" = "null" ] || [ -z "$PUB" ]; then
@@ -82,6 +82,17 @@ for i in $(seq 0 $(($JOB_COUNT - 1))); do
       -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
       -H "Content-Type: application/json" \
       -d "{\"job_id\":\"$JOB_ID\",\"pub_id\":\"$PUB_ID\",\"err_msg\":\"pub not found\"}"
+    continue
+  fi
+
+  # 25.11.2026: карусель шле лише edge tg-post-send; старий воркер зробив би з неї альбом
+  if [ "$(echo "$PUB" | jq -r '.tg_post_type // "standard"')" = "carousel" ]; then
+    echo "::warning::carousel pub — legacy worker skips it"
+    curl -sS -X PATCH "$SUPABASE_URL/rest/v1/tg_autopost_queue?id=eq.$JOB_ID" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+      -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+      -d '{"status":"failed","last_error":"carousel: only edge tg-post-send can send it"}'
+    JOB_ID_GLOBAL=""; PUB_ID_GLOBAL=""
     continue
   fi
 

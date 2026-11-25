@@ -158,6 +158,7 @@ const Store = {
       tg_disable_preview: p.tg_disable_preview || false,
       tg_channel_id: p.tg_channel_id || null,
       tg_countdown_until: p.tg_countdown_until || null,
+      tg_post_type: p.tg_post_type || 'standard',
       tg_message_id: p.tg_message_id || null,
       tg_published_channel_id: p.tg_published_channel_id || null,
       tg_test_log: p.tg_test_log || [],
@@ -172,6 +173,7 @@ const Store = {
       creatives: (creatives.data || []).map(c => ({
         id: c.id, name: c.name, type: c.type,
         size: humanSize(c.size_bytes), duration: c.duration_sec,
+        size_bytes: c.size_bytes, compressed_size_bytes: c.compressed_size_bytes,
         res: c.width_px && c.height_px ? `${c.width_px}×${c.height_px}` : '—',
         tags: c.tags || [], uploadedBy: c.uploaded_by, uploadedAt: c.uploaded_at,
         preview: previewFor(c.type), color: previewColor(c.type),
@@ -245,7 +247,7 @@ const Store = {
     try {
       const { data, error } = await window.supabase
         .from('creatives')
-        .select('id, thumbnail_url, poster_url, is_hdr, compressed_url, compressed_url_hevc, compressed_status, compressed_at, drive_file_id, width_px, height_px, size_bytes, duration_sec, name, type')
+        .select('id, thumbnail_url, poster_url, is_hdr, compressed_url, compressed_url_hevc, compressed_status, compressed_at, compressed_size_bytes, drive_file_id, width_px, height_px, size_bytes, duration_sec, name, type')
         .in('id', ids)
         .is('deleted_at', null);
       if (error) { console.warn('[refreshCreatives]', error); return false; }
@@ -259,7 +261,7 @@ const Store = {
         // 14.08.2026 (аудит): додано poster_url/is_hdr/compressed_at — плитка бібліотеки
         // показує саме poster_url, а бейдж «⚠ HDR» читає is_hdr; без них картка після
         // компресії лишалась із старим прев'ю до повного перезавантаження сторінки.
-        const fields = ['thumbnail_url', 'poster_url', 'is_hdr', 'compressed_url', 'compressed_url_hevc', 'compressed_status', 'compressed_at', 'drive_file_id', 'name', 'type', 'width_px', 'height_px'];
+        const fields = ['thumbnail_url', 'poster_url', 'is_hdr', 'compressed_url', 'compressed_url_hevc', 'compressed_status', 'compressed_at', 'drive_file_id', 'name', 'type', 'width_px', 'height_px', 'size_bytes', 'compressed_size_bytes'];
         fields.forEach(f => {
           if (fresh[f] !== undefined && fresh[f] !== c[f]) {
             c[f] = fresh[f];
@@ -388,7 +390,14 @@ const Store = {
       tg_disable_preview: !!pub.tg_disable_preview,
       tg_channel_id: pub.tg_channel_id || null,
       tg_countdown_until: pub.tg_countdown_until || null,
+      // 25.11.2026: тип TG-поста; без поля в обʼєкті значення в базі не чіпаємо
+      ...(pub.tg_post_type ? { tg_post_type: pub.tg_post_type } : {}),
     };
+    // 25.11.2026: ліміти каруселі — ДО відправки на погодження / погодження, будь-яким шляхом через upsertPub
+    if (targetStatus !== safeStatus && (targetStatus === 'review' || targetStatus === 'approved') && typeof window.tgCarouselProblems === 'function') {
+      const bad = window.tgCarouselProblems(pub);
+      if (bad.length) { pub.status = safeStatus; throw new Error('Карусель: ' + bad.join('; ')); }
+    }
     const { error: e1 } = await sb.from('publications').upsert(row);
     if (e1) throw e1;
 

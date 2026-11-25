@@ -656,7 +656,7 @@ async function getQueueForUser(supabase: ReturnType<typeof createClient>, userId
   // #140 FIX: select is_approved + filter rows where current user already voted (is_approved === true).
   const { data: apprList } = await supabase
     .from("publication_approvers")
-    .select("publication_id, is_approved, publications!inner(id, title, status, publish_at, deleted_at)")
+    .select("publication_id, is_approved, publications!inner(id, title, status, publish_at, deleted_at, tg_post_type)")
     .eq("user_id", userId);
   return (apprList ?? [])
     // @ts-ignore
@@ -689,9 +689,10 @@ function kyivShortT(iso: string | Date): string {
     }).format(d);
   } catch { return ""; }
 }
-function formatPubForQueue(p: { id: string; title: string; publish_at: string }, position: number, total: number): string {
+function formatPubForQueue(p: { id: string; title: string; publish_at: string; tg_post_type?: string }, position: number, total: number): string {
   return `📋 <b>Черга погоджень</b> · ${position}/${total}\n\n` +
     `«${escHtml(p.title)}»\n` +
+    (p.tg_post_type === "carousel" ? `🎠 TG: Карусель (свайп)\n` : "") +
     `🕐 ${kyivShortDT(p.publish_at)}\n\n` +
     `<i>Тисни кнопку щоб погодити / повернути / пропустити</i>`;
 }
