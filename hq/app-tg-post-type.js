@@ -49,7 +49,7 @@
     return '<div style="margin-bottom:14px;padding:10px;background:var(--bg-3);border-radius:6px;border:1px solid var(--border);">' +
       '<div style="font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧩 Тип поста</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;">' + opt('standard', 'Звичайний / альбом (сітка)') + opt('carousel', '🎠 Карусель (свайп)') + '</div>' +
-      (cur === 'carousel' ? '<div style="font-size:10px;color:var(--grey);margin-top:6px;line-height:1.5;">Від 2 до 50 фото/відео в порядку картки, усі разом до 40 МБ, кнопки під постом. Одна спроба відправки без автоповтору. Вигляд на старих версіях Telegram не гарантований.</div>' : '') +
+      (cur === 'carousel' ? '<div style="font-size:10px;color:var(--grey);margin-top:6px;line-height:1.5;">Від 2 до 50 фото/відео в порядку картки, усі разом до 40 МБ, кнопки під постом. Одна спроба відправки без автоповтору. Вигляд на старих версіях Telegram не гарантований. Лічильник {{countdown}} після публікації в каруселі не оновлюється.</div>' : '') +
       '<div id="tgCarouselWarn" style="font-size:12px;color:#fca5a5;margin-top:6px;">' + warnHtml(p) + '</div>' +
       '</div>';
   }
