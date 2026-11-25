@@ -137,7 +137,7 @@
     if (!window.HQ_CONFIG || !window.HQ_CONFIG.SUPABASE_URL) {
       throw new Error('HQ_CONFIG missing');
     }
-    const mod = await import('https://esm.sh/@supabase/supabase-js@2');
+    const mod = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
     window.supabase = mod.createClient(
       window.HQ_CONFIG.SUPABASE_URL,
       window.HQ_CONFIG.SUPABASE_ANON_KEY,

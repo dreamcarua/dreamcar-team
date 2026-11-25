@@ -34,14 +34,14 @@ Deno.serve(async (req: Request) => {
   await loadSecrets(sb);
 
   if (u.searchParams.get("setup") === "1") {
-    if (HQ_CRON_SECRET && (req.headers.get("x-hq-cron-secret") || u.searchParams.get("secret")) !== HQ_CRON_SECRET) return json({ error: "unauthorized" }, 401);
+    if (!HQ_CRON_SECRET || (req.headers.get("x-hq-cron-secret") || u.searchParams.get("secret")) !== HQ_CRON_SECRET) return json({ error: "unauthorized" }, 401); // 25.11.2026 fail-closed
     const me = await tg("getMe", {});
     const wh = await tg("setWebhook", { url: FN_URL, secret_token: WEBHOOK_SECRET, allowed_updates: ["callback_query", "message"], drop_pending_updates: true });
     return json({ me, wh, chat: CHAT });
   }
 
   if (req.method === "POST") {
-    if (WEBHOOK_SECRET && req.headers.get("x-telegram-bot-api-secret-token") !== WEBHOOK_SECRET) return new Response("forbidden", { status: 403 });
+    if (!WEBHOOK_SECRET || req.headers.get("x-telegram-bot-api-secret-token") !== WEBHOOK_SECRET) return new Response("forbidden", { status: 403 }); // 25.11.2026 fail-closed
     let upd: any = {}; try { upd = await req.json(); } catch (_) {}
 
     if (upd.callback_query) {

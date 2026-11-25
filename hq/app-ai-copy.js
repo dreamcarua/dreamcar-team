@@ -53,8 +53,11 @@
 
   async function callAi(payload) {
     var headers = { 'Content-Type': 'application/json' };
-    var sec = window.HQ_CONFIG && window.HQ_CONFIG.HQ_AI_SECRET;
-    if (sec) headers['x-hq-ai-secret'] = sec;
+    // 25.11.2026: auth by the user's session, not by a public shared secret
+    try {
+      var sess = window.supabase && (await window.supabase.auth.getSession()).data.session;
+      if (sess && sess.access_token) headers['Authorization'] = 'Bearer ' + sess.access_token;
+    } catch (_) {}
     var resp = await fetch(fnUrl('ai-copy-assistant'), {
       method: 'POST', headers: headers, body: JSON.stringify(payload),
     });

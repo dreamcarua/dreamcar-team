@@ -58,6 +58,26 @@
   window.addEventListener('hashchange', maybeRenderSettings);
   [200, 1000].forEach(function (ms) { setTimeout(maybeRenderSettings, ms); });
 
+
+  // 25.11.2026 security: deep link carries a one-time token (RPC create_tg_bind_token), not users.id
+  if (!window.hqTgBindOpen) {
+    window.hqTgBindOpen = async function (ev, botUsername) {
+      if (ev) ev.preventDefault();
+      var w = window.open('about:blank', '_blank');
+      try {
+        var sb = window.supabase;
+        var r = await sb.rpc('create_tg_bind_token');
+        if (r.error || !r.data) throw (r.error || new Error('no token'));
+        var url = 'https://t.me/' + String(botUsername || '').replace(/^@/, '') + '?start=hqb_' + r.data;
+        if (w) w.location.href = url; else window.location.href = url;
+      } catch (e) {
+        if (w) w.close();
+        alert('Не вдалося створити посилання для привʼязки: ' + ((e && e.message) || e));
+      }
+      return false;
+    };
+  }
+
   function enhanceTgBindBlock() {
     var input = document.getElementById('set_tg_chat_id');
     if (!input) return;
@@ -79,11 +99,11 @@
     var ucName = botUsername.replace(/^@/, '');
 
     if (botUsername && userId) {
-      var url = 'https://t.me/' + ucName + '?start=hq_' + encodeURIComponent(userId);
+      var url = 'https://t.me/' + ucName;
       block.innerHTML =
         '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +
         '<div class="tb-desc">Натисни кнопку — відкриється Telegram з ботом. Тисни <b>«Start»</b> у боті — chat_id привʼяжеться автоматично.</div>' +
-        '<a class="tb-cta" href="' + url + '" target="_blank" rel="noopener">🔗 Прив\'язати через @' + ucName + '</a>';
+        '<a class="tb-cta" href="' + url + '" onclick="return window.hqTgBindOpen(event, \'' + ucName + '\')" target="_blank" rel="noopener">🔗 Прив\'язати через @' + ucName + '</a>';
     } else if (botUsername && !userId) {
       block.innerHTML =
         '<div class="tb-title">✈️ Швидка прив\'язка через бот</div>' +

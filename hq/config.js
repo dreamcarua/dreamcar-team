@@ -35,7 +35,7 @@ window.HQ_CONFIG = {
   // HQ_AI_SECRET — це shared token що відсікає випадкових сканерів URL
   // (повна авторизація — через JWT юзера в HQ, цей токен тільки додатковий
   // anti-abuse). ANTHROPIC_API_KEY зберігається ТІЛЬКИ в Edge Functions secrets.
-  HQ_AI_SECRET:    '88ccbae03aef16c08cf59614977fc519d9c8c3aa90f946dfa1d4680060fda5ed',
+  // HQ_AI_SECRET removed 25.11.2026: ai-copy-assistant now checks the user's session (JWT).
   DEFAULT_BRAND:   'dreamcar',  // за замовчуванням у AI-modal
 
   // ---- Поведінка ----

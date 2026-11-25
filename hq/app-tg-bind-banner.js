@@ -45,6 +45,26 @@
     document.head.appendChild(s);
   }
 
+
+  // 25.11.2026 security: deep link carries a one-time token (RPC create_tg_bind_token), not users.id
+  if (!window.hqTgBindOpen) {
+    window.hqTgBindOpen = async function (ev, botUsername) {
+      if (ev) ev.preventDefault();
+      var w = window.open('about:blank', '_blank');
+      try {
+        var sb = window.supabase;
+        var r = await sb.rpc('create_tg_bind_token');
+        if (r.error || !r.data) throw (r.error || new Error('no token'));
+        var url = 'https://t.me/' + String(botUsername || '').replace(/^@/, '') + '?start=hqb_' + r.data;
+        if (w) w.location.href = url; else window.location.href = url;
+      } catch (e) {
+        if (w) w.close();
+        alert('Не вдалося створити посилання для привʼязки: ' + ((e && e.message) || e));
+      }
+      return false;
+    };
+  }
+
   function renderBanner(userId){
     if (document.getElementById('hq-tg-banner')) return;
     if (localStorage.getItem(DISMISS_KEY) === '1') return;
@@ -52,10 +72,10 @@
     var el = document.createElement('div');
     el.id = 'hq-tg-banner';
     el.className = 'hq-tg-banner';
-    var deeplink = 'https://t.me/' + BOT_USERNAME + '?start=hq_' + (userId || '');
+    var deeplink = 'https://t.me/' + BOT_USERNAME;
     el.innerHTML =
       '<div class="hq-tg-msg">🔗 <b>Telegram не прив\'язано.</b> Ти не отримуєш сповіщень про @mentions, погодження, нові задачі.</div>' +
-      '<a href="' + deeplink + '" target="_blank" rel="noopener" class="hq-tg-cta">' +
+      '<a href="' + deeplink + '" onclick="return window.hqTgBindOpen(event, \'' + BOT_USERNAME + '\')" target="_blank" rel="noopener" class="hq-tg-cta">' +
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px"><path d="M9.99 15.21l-.4 5.6c.57 0 .82-.24 1.12-.54l2.7-2.58 5.6 4.1c1.03.57 1.76.27 2.04-.95L24 4.83c.33-1.5-.54-2.09-1.54-1.72L1.18 11.27c-1.47.57-1.45 1.39-.25 1.76l5.3 1.65L18.7 6.78c.58-.39 1.1-.17.67.22"/></svg>' +
       'Прив\'язати' +
       '</a>' +

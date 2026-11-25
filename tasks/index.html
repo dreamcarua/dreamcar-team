@@ -746,7 +746,7 @@ function timeAgo(ts){const diff=(Date.now()-new Date(ts).getTime())/1000;if(diff
 
 let supabase=null;
 async function importSupabase(){
-  for(const url of ['https://esm.sh/@supabase/supabase-js@2.45.4','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm']){
+  for(const url of ['https://esm.sh/@supabase/supabase-js@2.45.4','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm']){
     try{const m=await import(url);if(m?.createClient)return m.createClient;}catch(e){console.warn('[supabase]',url,e);}
   }
   throw new Error('CDN заблоковано');

@@ -224,17 +224,37 @@ function parseJsonResponse(raw: string): { text: string; hashtags: string[]; cta
   }
 }
 
+async function isActiveHqUser(req: Request): Promise<boolean> {
+  const auth = req.headers.get("authorization") || "";
+  const jwt = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  const url = Deno.env.get("SUPABASE_URL") || "";
+  const svc = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!jwt || !url || !svc) return false;
+  try {
+    const ur = await fetch(`${url}/auth/v1/user`, { headers: { apikey: svc, Authorization: `Bearer ${jwt}` } });
+    if (!ur.ok) return false;
+    const uid = String((await ur.json())?.id || "");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) return false;
+    const h = { apikey: svc, Authorization: `Bearer ${svc}`, "Content-Type": "application/json" };
+    const rr = await fetch(`${url}/rest/v1/rpc/resolve_user_by_auth`, { method: "POST", headers: h, body: JSON.stringify({ p_auth_id: uid }) });
+    if (rr.ok) {
+      const rows = await rr.json();
+      if (Array.isArray(rows) && rows.some((r: any) => r?.is_active === true)) return true;
+    }
+  } catch (e) { console.error("[auth] user check failed", (e as Error)?.message); }
+  return false;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
 
-  if (HQ_AI_SECRET) {
-    const got = req.headers.get("x-hq-ai-secret");
-    if (got !== HQ_AI_SECRET) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+  // 25.11.2026 security: the x-hq-ai-secret was public (hq/config.js in a public repo), so anyone
+  // could spend our Anthropic budget. Now only an active HQ user with a valid session passes.
+  if (!(await isActiveHqUser(req))) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (!ANTHROPIC_KEY) {

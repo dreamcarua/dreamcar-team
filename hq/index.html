@@ -19,7 +19,7 @@
 <script type="module">
   // Lazy-load Supabase SDK тільки якщо є config
   if (window.HQ_CONFIG?.SUPABASE_URL && window.HQ_CONFIG?.SUPABASE_ANON_KEY) {
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
     window.supabase = createClient(
       window.HQ_CONFIG.SUPABASE_URL,
       window.HQ_CONFIG.SUPABASE_ANON_KEY,

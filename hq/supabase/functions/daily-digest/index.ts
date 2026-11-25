@@ -184,7 +184,8 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method !== "POST" && req.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
 
-  if (HQ_CRON_SECRET) {
+  { // 25.11.2026: fail-closed, empty secret no longer opens the function
+    if (!HQ_CRON_SECRET) return new Response("Unauthorized", { status: 401 });
     const headerSecret = req.headers.get("x-hq-cron-secret");
     const urlSecret = new URL(req.url).searchParams.get("secret");
     if (headerSecret !== HQ_CRON_SECRET && urlSecret !== HQ_CRON_SECRET) {
