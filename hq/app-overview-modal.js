@@ -206,7 +206,7 @@
     return p.platforms.map(pid => {
       const pl = PL.find(x => x.id === pid);
       return `<span class="ov-tag">${pl?.icon || ''} ${esc(pl?.name || pid)}</span>`;
-    }).join('');
+    }).join('') + (window.tgIsCarousel?.(p) ? '<span class="ov-tag">🎠 TG: Карусель (свайп)</span>' : '');
   }
   function crRow(p) {
     const items = p.creatives || [];

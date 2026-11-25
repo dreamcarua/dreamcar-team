@@ -49,10 +49,18 @@ async function run(supabase: ReturnType<typeof createClient>) {
   const toIso = new Date(now).toISOString();
 
   // watchdog: звільняємо claim, що завис у 'processing' довше 20 хв (щоб був retry)
+  // Карусель не повторюється автоматично: завислу позначаємо failed, людина перевіряє канал.
+  await supabase
+    .from("publications")
+    .update({ autopost_status: "failed", autopost_error: "Відправка каруселі зависла без підтвердження: перевірте канал перед повторним запуском" })
+    .eq("autopost_status", "processing")
+    .eq("tg_post_type", "carousel")
+    .lt("updated_at", new Date(now - STUCK_MS).toISOString());
   await supabase
     .from("publications")
     .update({ autopost_status: null })
     .eq("autopost_status", "processing")
+    .neq("tg_post_type", "carousel")
     .lt("updated_at", new Date(now - STUCK_MS).toISOString());
 
   // застарілі (approved, час минув >12 год, ще не публіковані) — позначаємо missed
@@ -84,7 +92,8 @@ async function run(supabase: ReturnType<typeof createClient>) {
 
   // Атомарний claim: беремо лише publication що ще null (щоб не задублювати між тіками)
   const toPost: string[] = [];
-  for (const p of candidates) {
+  // Claim лише тих, кого відправимо в цьому тіку (інакше невідправлена карусель «зависла» б у processing).
+  for (const p of candidates.slice(0, 8)) {
     const { data: claimed } = await supabase
       .from("publications")
       .update({ autopost_status: "processing", autopost_error: null })
@@ -97,7 +106,7 @@ async function run(supabase: ReturnType<typeof createClient>) {
 
   // Постимо паралельно (максимум 8 за тік, решта — наступного). tg-post-send сам:
   // download+multipart для великих відео, retry (4 рівні), autopost_status='sent'/'failed'.
-  const batch = toPost.slice(0, 8);
+  const batch = toPost;
   await Promise.allSettled(batch.map((pid) =>
     fetch(`${SUPABASE_URL}/functions/v1/tg-post-send`, {
       method: "POST",
@@ -131,7 +140,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const result = await run(supabase);
-    return new Response(JSON.stringify({ ...result, version: "v1.3-prod-channel" }), {
+    return new Response(JSON.stringify({ ...result, version: "v1.4-carousel" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

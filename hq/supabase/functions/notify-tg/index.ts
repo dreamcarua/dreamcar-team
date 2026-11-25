@@ -229,6 +229,7 @@ function buildPubReviewMsg(pub: any, requester: UserRow|null, approvers: Approve
   const lines: string[] = [];
   lines.push(`📝 <b>SMM · На погодження</b>`);
   lines.push(`«${escHtml(pub.title ?? "")}»`);
+  if (pub.tg_post_type === "carousel") lines.push(`🎠 Тип TG-поста: <b>Карусель (свайп)</b>`);
   if (requester) lines.push(`Від: ${escHtml(requester.name)}`);
   const chain = buildChainProgress(approvers, pub.approver_policy || "all");
   if (chain) lines.push(chain);

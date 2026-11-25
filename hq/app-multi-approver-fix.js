@@ -23,6 +23,9 @@
       if (typeof toast === 'function') toast('Не визначено користувача', 'error');
       return null;
     }
+    // 25.11.2026: карусель (свайп) не погоджується, поки не виконані ліміти
+    var bad = (window.tgCarouselProblems && window.tgCarouselProblems(Store.pub(pubId))) || [];
+    if (bad.length) { alert('Карусель (свайп) не готова:\n• ' + bad.join('\n• ')); return null; }
     try {
       var resp = await window.supabase.rpc('register_approval', {
         pub_id: pubId, by_user: me.id,

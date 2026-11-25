@@ -129,6 +129,7 @@
           // TG-каркас (без countdown — він прив'язаний до конкретного часу/офера)
           base.tg_buttons = Array.isArray(s.tg_buttons) ? JSON.parse(JSON.stringify(s.tg_buttons)) : [];
           base.tg_pin = !!s.tg_pin;
+          base.tg_post_type = s.tg_post_type || 'standard';
           base.tg_silent = !!s.tg_silent;
           base.tg_disable_preview = !!s.tg_disable_preview;
           base.tg_channel_id = s.tg_channel_id || null;
