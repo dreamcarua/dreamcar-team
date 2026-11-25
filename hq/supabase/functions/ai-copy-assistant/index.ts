@@ -17,11 +17,10 @@
 //   }
 //
 // Secrets:
-//   ANTHROPIC_API_KEY, HQ_AI_SECRET (опційно)
+//   ANTHROPIC_API_KEY
 // =====================================================================
 
 const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-const HQ_AI_SECRET  = Deno.env.get("HQ_AI_SECRET") ?? "";
 const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-5";
 
 const corsHeaders = {

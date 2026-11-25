@@ -1,0 +1,33 @@
+name: Security cleanup (one-off, 25.11.2026)
+
+# Owner OK 25.11.2026: delete edge function health-export (hardcoded secret in deployed code;
+# health system paused since 10.10.2026, its pg_cron jobs are inactive) and drop the burned
+# HQ_AI_SECRET from Edge env (was public in hq/config.js, no function checks it any more).
+# Public repo: only HTTP statuses are printed.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" && test -n "$PROJECT_REF"
+          API="https://api.supabase.com/v1/projects/$PROJECT_REF"
+          H="Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
+          c1=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$API/functions/health-export" -H "$H")
+          echo "delete health-export: HTTP $c1"
+          c2=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$API/secrets" -H "$H" -H "Content-Type: application/json" -d '["HQ_AI_SECRET"]')
+          echo "unset HQ_AI_SECRET: HTTP $c2"
+          c3=$(curl -s -o /dev/null -w '%{http_code}' "$API/functions/health-export" -H "$H")
+          echo "health-export now: HTTP $c3 (404 = gone)"
+          names=$(curl -s "$API/secrets" -H "$H" | jq -r '.[].name' | grep -cx HQ_AI_SECRET || true)
+          echo "HQ_AI_SECRET present: $names"
+          [ "$c1" -lt 300 ] || [ "$c1" = 404 ]
+          [ "$c2" -lt 300 ]
