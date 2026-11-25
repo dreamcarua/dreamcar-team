@@ -15,7 +15,7 @@
     if (ids.length > L.max) out.push('максимум ' + L.max + ' медіа (зараз ' + ids.length + ')');
     var total = 0;
     ids.forEach(function (id, i) {
-      var c = window.Store && Store.creative(id);
+      var c = typeof Store !== 'undefined' && Store.creative(id); // Store оголошено через const, у window його немає
       if (!c) return;
       var n = '№' + (i + 1) + ' «' + (c.name || '') + '»';
       if (c.type !== 'photo' && c.type !== 'video') { out.push(n + ': у каруселі можуть бути лише фото та відео'); return; }
