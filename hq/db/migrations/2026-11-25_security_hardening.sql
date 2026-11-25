@@ -102,3 +102,11 @@ create policy task_att_write_auth on storage.objects for insert to authenticated
 drop policy if exists task_att_read_auth on storage.objects;
 create policy task_att_read_auth on storage.objects for select to authenticated
   using (bucket_id = 'task-attachments' and public.current_user_id() is not null);
+
+-- Part E (applied 25.11.2026): RPC guards (SB-05)
+-- mark_platform_autopost: only the autopost worker (service key) calls it
+revoke execute on function public.mark_platform_autopost(uuid, text, text) from public, anon, authenticated;
+grant execute on function public.mark_platform_autopost(uuid, text, text) to service_role;
+-- fail_compress_job: hq/compress-batch-v2.html calls it as a signed-in user -> the body now starts with
+--   if coalesce(auth.role(), '') <> 'service_role' and public.current_user_id() is null then raise 42501
+revoke execute on function public.fail_compress_job(uuid, text) from public, anon;
