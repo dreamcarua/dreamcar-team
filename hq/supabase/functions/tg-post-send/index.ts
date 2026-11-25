@@ -553,7 +553,11 @@ Deno.serve(async (req: Request) => {
     if (!pub) return new Response(JSON.stringify({ error: 'publication not found' }), { status: 404, headers: cors });
     // Проба типу поста: лише тест (тестова група) і лише з cron-secret; картку й tg_test_log не чіпає.
     const probeType = test && cronHeader === CRON_SECRET && body.post_type === 'carousel';
-    if (probeType) pub.tg_post_type = 'carousel';
+    if (probeType) {
+      pub.tg_post_type = 'carousel';
+      if (typeof body.text === 'string') pub.text_body = body.text;
+      if (Array.isArray(body.buttons)) pub.tg_buttons = body.buttons;
+    }
     const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel, dry_log: probeType }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
     return new Response(JSON.stringify({ ok: true, version: 'v21-carousel', ...result }), { status: 200, headers: cors });
   } catch (e: any) {
