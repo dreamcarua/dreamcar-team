@@ -1,3 +1,5 @@
+// v21 — 25.11.2026: тип поста «карусель» (publications.tg_post_type='carousel'): sendRichMessage + <tg-slideshow>,
+//   одна спроба, успіх лише з message_id, без заміни на альбом.
 // v20 — 18.11.2026: відео завжди multipart; message_id=0 більше не вважається опублікованим.
 // tg-post-send v19 — 17.11.2026: фото шлються файлом (multipart), не URL: TG не міг забрати URL зі Storage.
 // v18 — 05.11.2026: успішна відповідь Telegram без message_id більше не призводить до повторної публікації.
@@ -33,6 +35,10 @@ const MAX_URL_BYTES = 20 * 1024 * 1024;
 const MAX_MULTIPART_BYTES = 50 * 1024 * 1024;
 const MAX_PHOTO_DIM_SUM = 10000;
 const RETRY_DELAYS = [30000, 60000, 120000, 300000];
+// Карусель: 2..50 медіа і 32768 символів — ліміти Bot API rich messages; фото ≤10 МБ, відео ≤50 МБ — multipart.
+// Сумарні 100 МБ — наш запобіжник по пам'яті функції. Ті самі числа у hq/app-tg-post-type.js.
+const CAROUSEL_MIN = 2, CAROUSEL_MAX = 50, CAROUSEL_MAX_TEXT = 32768;
+const CAROUSEL_MAX_PHOTO = 10 * 1024 * 1024, CAROUSEL_MAX_TOTAL = 100 * 1024 * 1024;
 
 type MediaItem = { type: 'photo' | 'video'; url: string; thumbnail_url?: string; poster_url?: string; width?: number; height?: number; duration?: number; size: number; mode: 'url' | 'multipart'; name: string; dimSum?: number; };
 
@@ -258,6 +264,49 @@ async function sendAlbumUrl(items: MediaItem[], channelId: string, caption: stri
   return Array.isArray(result) ? result[0] : result;
 }
 
+// Rich HTML не гарантує переноси рядків: текст іде в <p> з <br>, а <pre>/<blockquote> лишаються окремими блоками.
+function richText(caption: string): string {
+  const src = (caption || '').replace(/\r\n/g, '\n').replace(/<span class="tg-spoiler">([\s\S]*?)<\/span>/g, '<tg-spoiler>$1</tg-spoiler>');
+  return src.split(/(<pre>[\s\S]*?<\/pre>|<blockquote(?: expandable)?>[\s\S]*?<\/blockquote>)/).map((part, i) => {
+    if (i % 2) return part.startsWith('<pre>') ? part : part.replace(/\n/g, '<br>');
+    const t = part.replace(/^\n+|\n+$/g, '');
+    return t ? `<p>${t.replace(/\n/g, '<br>')}</p>` : '';
+  }).join('');
+}
+async function sendCarousel(items: MediaItem[], channelId: string, caption: string, replyMarkup: any, silent: boolean): Promise<any> {
+  if (items.length < CAROUSEL_MIN || items.length > CAROUSEL_MAX) throw new Error(`карусель: потрібно від ${CAROUSEL_MIN} до ${CAROUSEL_MAX} медіа, зараз ${items.length}`);
+  const text = richText(caption);
+  if (text.length > CAROUSEL_MAX_TEXT) throw new Error(`карусель: текст задовгий (${text.length} > ${CAROUSEL_MAX_TEXT})`);
+  const form = new FormData();
+  const media: any[] = [];
+  const tags: string[] = [];
+  let total = 0;
+  for (let i = 0; i < items.length; i++) {
+    const m = items[i];
+    const blob = await downloadBlob(m.url);
+    const limit = m.type === 'video' ? MAX_MULTIPART_BYTES : CAROUSEL_MAX_PHOTO;
+    if (blob.size > limit) throw new Error(`карусель: "${m.name}" ${(blob.size / 1048576).toFixed(1)} МБ, ліміт ${limit / 1048576} МБ`);
+    total += blob.size;
+    if (total > CAROUSEL_MAX_TOTAL) throw new Error(`карусель: медіа разом понад ${CAROUSEL_MAX_TOTAL / 1048576} МБ`);
+    form.append(`f${i}`, blob, filenameFor(m, i));
+    const input: any = { type: m.type, media: `attach://f${i}` };
+    if (m.type === 'video') {
+      input.supports_streaming = true;
+      if (m.width) input.width = m.width;
+      if (m.height) input.height = m.height;
+      if (m.duration) input.duration = Math.round(m.duration);
+      if (m.poster_url) { try { form.append(`t${i}`, await downloadBlob(m.poster_url), `thumb${i}.jpg`); input.thumbnail = `attach://t${i}`; } catch { /* thumb optional */ } }
+    }
+    media.push({ id: `m${i}`, media: input });
+    tags.push(m.type === 'video' ? `<video src="tg://video?id=m${i}"></video>` : `<img src="tg://photo?id=m${i}"/>`);
+  }
+  form.append('chat_id', channelId);
+  form.append('rich_message', JSON.stringify({ html: `<tg-slideshow>${tags.join('')}</tg-slideshow>${text}`, media }));
+  if (silent) form.append('disable_notification', 'true');
+  if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
+  return await tgFetchForm('sendRichMessage', form);
+}
+
 async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_channel?: string }) {
   console.log('[sendPub v19] start', { pubId: pub.id, test: opts.test, force_channel: opts.force_channel });
   // 04.11.2026: тест ЗАВЖДИ йде лише в тестову групу, force_channel для тесту ігнорується.
@@ -266,6 +315,7 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
   const buttons = Array.isArray(pub.tg_buttons) ? pub.tg_buttons : [];
   const silent = !!pub.tg_silent;
   const creatives = await loadCreatives(sb, pub.id);
+  const isCarousel = pub.tg_post_type === 'carousel';
 
   const mediaItems: MediaItem[] = [];
   const errors: string[] = [];
@@ -298,20 +348,25 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
       if (cls.dimSum) dims.push(`${c.name}:${cls.dimSum}`);
     }
   }
-  mediaItems.sort((a, b) => (a.type === 'photo' ? 0 : 1) - (b.type === 'photo' ? 0 : 1));
+  // Карусель: порядок як у картці й жодного тихого пропуску медіа.
+  if (isCarousel) {
+    if (errors.length > 0) throw new Error('карусель: не всі медіа готові: ' + errors.join('; '));
+  } else mediaItems.sort((a, b) => (a.type === 'photo' ? 0 : 1) - (b.type === 'photo' ? 0 : 1));
 
   if (mediaItems.length === 0 && errors.length > 0 && !pub.text_body && !pub.title) {
     throw new Error('Жодного media не можна відправити: ' + errors.join('; '));
   }
 
-  const isAlbum = mediaItems.length >= 2;
+  const isAlbum = !isCarousel && mediaItems.length >= 2;
   const captionWithButtons = isAlbum ? buildCaption(pub, buttons.length > 0 ? buttons : undefined) : buildCaption(pub);
   const captionPlain = buildCaption(pub);
   const reply_markup = isAlbum ? null : buildInlineKeyboard(buttons, pub.id, pub.tg_utm_campaign);
   const hasMultipart = mediaItems.some(m => m.mode === 'multipart');
   let result: any;
 
-  if (mediaItems.length === 0) {
+  if (isCarousel) {
+    result = await sendCarousel(mediaItems, channelId, captionPlain, reply_markup, silent);
+  } else if (mediaItems.length === 0) {
     const text = captionWithButtons || '(порожній пост)';
     const body: any = { chat_id: channelId, text, parse_mode: 'HTML', disable_notification: silent, disable_web_page_preview: !!pub.tg_disable_preview };
     const rm = buildInlineKeyboard(buttons, pub.id, pub.tg_utm_campaign);
@@ -348,7 +403,7 @@ async function sendPublication(sb: any, pub: any, opts: { test?: boolean; force_
     try { await tgFetchJson('pinChatMessage', { chat_id: channelId, message_id: messageId, disable_notification: silent }); }
     catch (e: any) { console.warn('[pin]', pub.id, e.message); }
   }
-  return { channelId, messageId, mediaCount: mediaItems.length, mediaModes: mediaItems.map(m => `${m.type}:${m.mode}${m.width&&m.height?`(${m.width}x${m.height})`:''}`), buttonsCount: buttons.length, buttonsMode: isAlbum && buttons.length > 0 ? 'caption_links' : (buttons.length > 0 ? 'inline_keyboard' : 'none'), sendMode: mediaItems.length === 0 ? 'text' : mediaItems.length === 1 ? 'single' : 'album', skipped: errors.length > 0 ? errors : undefined, dims: dims.length > 0 ? dims : undefined };
+  return { channelId, messageId, mediaCount: mediaItems.length, mediaModes: mediaItems.map(m => `${m.type}:${m.mode}${m.width&&m.height?`(${m.width}x${m.height})`:''}`), buttonsCount: buttons.length, buttonsMode: isAlbum && buttons.length > 0 ? 'caption_links' : (buttons.length > 0 ? 'inline_keyboard' : 'none'), sendMode: isCarousel ? 'carousel' : mediaItems.length === 0 ? 'text' : mediaItems.length === 1 ? 'single' : 'album', skipped: errors.length > 0 ? errors : undefined, dims: dims.length > 0 ? dims : undefined, richBlocks: isCarousel ? result?.rich_message?.blocks?.map((b: any) => b.type === 'slideshow' ? `slideshow:${(b.blocks || []).map((x: any) => x.type).join(',')}` : b.type) : undefined };
 }
 
 async function recordAnalytics(sb: any, pubId: string, channelId: string, messageId: number) {
@@ -357,7 +412,8 @@ async function recordAnalytics(sb: any, pubId: string, channelId: string, messag
 }
 async function processOnce(sb: any, pub: any, opts: any) {
   const r = await sendPublication(sb, pub, opts);
-  if (opts.test) {
+  if (pub.tg_post_type === 'carousel' && !r.messageId) throw new Error('Telegram не повернув message_id: карусель не підтверджена');
+  if (opts.test && !opts.dry_log) {
     const existing = Array.isArray(pub.tg_test_log) ? pub.tg_test_log : [];
     existing.push({ channel_id: r.channelId, sent_at: new Date().toISOString(), message_id: r.messageId, ok: true, media_modes: r.mediaModes, buttons_mode: r.buttonsMode, send_mode: r.sendMode, skipped: r.skipped, dims: r.dims });
     await sb.from('publications').update({ tg_test_log: existing.slice(-50) }).eq('id', pub.id);
@@ -381,7 +437,9 @@ async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
     if (existingMap && existingMap[channel]) return { ok: true, alreadySent: true, channelId: channel, messageId: existingMap[channel] };
   }
   let lastErr: any = null;
-  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+  // Карусель: без автоматичного повтору (невідомо, чи Telegram уже прийняв пост).
+  const delays = pub.tg_post_type === 'carousel' ? [] : RETRY_DELAYS;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
       const r = await sendPublication(sb, pub, opts);
       // 05.11.2026 ДУБЛІ: якщо Telegram прийняв пост, але не дав message_id (0), раніше статус не мінявся,
@@ -411,7 +469,7 @@ async function processWithRetry(sb: any, pub: any, opts: any, jobId?: string) {
     } catch (e: any) {
       lastErr = e;
       console.warn(`[attempt ${attempt+1}] pub=${pub.id}`, e.message);
-      if (attempt < RETRY_DELAYS.length) await new Promise(res => setTimeout(res, RETRY_DELAYS[attempt]));
+      if (attempt < delays.length) await new Promise(res => setTimeout(res, delays[attempt]));
     }
   }
   await sb.from('publications').update({ autopost_status: 'failed', autopost_error: (lastErr?.message || String(lastErr)).slice(0, 500) }).eq('id', pub.id);
@@ -486,8 +544,11 @@ Deno.serve(async (req: Request) => {
     const { data: pub, error } = await sb.from('publications').select('*').eq('id', pubId).maybeSingle();
     if (error) throw error;
     if (!pub) return new Response(JSON.stringify({ error: 'publication not found' }), { status: 404, headers: cors });
-    const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
-    return new Response(JSON.stringify({ ok: true, version: 'v20-video-multipart', ...result }), { status: 200, headers: cors });
+    // Проба типу поста: лише тест (тестова група) і лише з cron-secret; картку й tg_test_log не чіпає.
+    const probeType = test && cronHeader === CRON_SECRET && body.post_type === 'carousel';
+    if (probeType) pub.tg_post_type = 'carousel';
+    const result = test ? await processOnce(sb, pub, { test, force_channel: forceChannel, dry_log: probeType }) : await processWithRetry(sb, pub, { test, force_channel: forceChannel }, jobId);
+    return new Response(JSON.stringify({ ok: true, version: 'v21-carousel', ...result }), { status: 200, headers: cors });
   } catch (e: any) {
     const msg = String(e?.message || e);
     const stack = String(e?.stack || '').slice(0, 1000);

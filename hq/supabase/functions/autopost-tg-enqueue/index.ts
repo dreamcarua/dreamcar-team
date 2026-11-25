@@ -49,10 +49,18 @@ async function run(supabase: ReturnType<typeof createClient>) {
   const toIso = new Date(now).toISOString();
 
   // watchdog: звільняємо claim, що завис у 'processing' довше 20 хв (щоб був retry)
+  // Карусель не повторюється автоматично: завислу позначаємо failed, людина перевіряє канал.
+  await supabase
+    .from("publications")
+    .update({ autopost_status: "failed", autopost_error: "Відправка каруселі зависла без підтвердження: перевірте канал перед повторним запуском" })
+    .eq("autopost_status", "processing")
+    .eq("tg_post_type", "carousel")
+    .lt("updated_at", new Date(now - STUCK_MS).toISOString());
   await supabase
     .from("publications")
     .update({ autopost_status: null })
     .eq("autopost_status", "processing")
+    .neq("tg_post_type", "carousel")
     .lt("updated_at", new Date(now - STUCK_MS).toISOString());
 
   // застарілі (approved, час минув >12 год, ще не публіковані) — позначаємо missed
@@ -131,7 +139,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
     const result = await run(supabase);
-    return new Response(JSON.stringify({ ...result, version: "v1.3-prod-channel" }), {
+    return new Response(JSON.stringify({ ...result, version: "v1.4-carousel" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
