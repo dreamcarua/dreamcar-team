@@ -257,8 +257,20 @@ async function processBatch(limit = 25): Promise<{ processed: number; sent_tg: n
 
   const nowHourCET = parseInt(new Date().toLocaleString('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Europe/Warsaw' }), 10);
 
+  // 27.11.2026: не шлемо сповіщення про задачі, видалені після постановки в чергу
+  const taskIds = [...new Set(claimed.map((n: Notification) => n.task_id).filter(Boolean) as string[])];
+  const deletedTaskIds = new Set<string>();
+  if (taskIds.length) {
+    const { data: delRows } = await supabase.from('team_tasks').select('id').in('id', taskIds).not('deleted_at', 'is', null);
+    for (const r of (delRows ?? [])) deletedTaskIds.add(r.id as string);
+  }
+
   for (const n of claimed as Notification[]) {
     stats.processed++;
+    if (n.task_id && deletedTaskIds.has(n.task_id)) {
+      await supabase.from('team_task_notifications').update({ state: 'done', error_msg: 'task_deleted' }).eq('id', n.id);
+      continue;
+    }
     const recipient = usersById.get(n.recipient_id);
     if (!recipient) {
       await supabase.rpc('mark_team_task_notification_done', { p_id: n.id, p_channel: 'tg', p_ok: false, p_error: 'no_recipient' });

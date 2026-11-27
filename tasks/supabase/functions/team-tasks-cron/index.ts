@@ -65,6 +65,7 @@ async function enqueueReminders24h(): Promise<number> {
     .from('team_tasks')
     .select('id, title, priority, status, assignee_id, due_date, last_reminder_sent_at')
     .eq('due_date', tomorrow)
+    .is('deleted_at', null) // 27.11.2026: видалені задачі не нагадуємо
     // David 30.07.2026: blocked теж пропускаємо — задача заблокована зовнішньою причиною,
     // виконавець нічого не може зробити, нагадування лише спамить.
     .not('status', 'in', '("done","blocked")')
@@ -100,6 +101,7 @@ async function enqueueOverdue(): Promise<number> {
     .from('team_tasks')
     .select('id, title, priority, status, assignee_id, due_date, last_overdue_sent_at')
     .lt('due_date', today)
+    .is('deleted_at', null) // 27.11.2026: видалені задачі не «прострочені»
     // David 30.07.2026: НЕ шлемо «прострочено» для blocked — задача стоїть не з вини виконавця.
     .not('status', 'in', '("done","blocked")')
     .not('assignee_id', 'is', null);
@@ -157,6 +159,7 @@ async function enqueueDailyDigest(): Promise<number> {
       .select('id, title, priority, status, due_date')
       .eq('assignee_id', u.id)
       .neq('status', 'done')
+      .is('deleted_at', null) // 27.11.2026: видалені задачі не в дайджест
       .order('due_date', { ascending: true })
       .order('priority');
     const filtered = (tasks ?? []).filter(t =>
@@ -205,6 +208,7 @@ async function processRecurring(): Promise<number> {
     .from('team_tasks')
     .select('id, title, description, priority, assignee_id, recurrence, due_date, tags, watchers, estimated_h')
     .not('recurrence', 'is', null)
+    .is('deleted_at', null) // 27.11.2026: з видаленої рутинної задачі нові не створюємо
     .eq('status', 'done');
 
   let created = 0;
