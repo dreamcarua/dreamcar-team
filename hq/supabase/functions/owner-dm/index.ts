@@ -16,6 +16,7 @@
 //   { action: "state", id }                → { status, approval, cancel_requested }
 //   { action: "team_find", id, kind, search }          → читання для колег (RPC team_bot_find)
 //   { action: "team_update", id, kind, row_id, fields } → дрібна правка від імені автора (RPC team_bot_update)
+//   { action: "team_create", id, kind: "publications", fields } → нова чернетка (RPC team_bot_create_publication)
 //   { action: "autofix", alert, project }           → 17.11.2026: задача-автолагодження збою з cowork-notify (ліміт/добу)
 //     18.11.2026: також з заголовком x-autofix-token (sha256 = app_secrets.autofix_token_sha256), лише цей action;
 //     дедуп за сигнатурою 24 год і пропуск «вирішено» тут, на вході.
@@ -32,6 +33,7 @@ const SUPABASE_URL   = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const HQ_CRON_SECRET = Deno.env.get("HQ_CRON_SECRET") ?? "";
 const CONTINUE_MS    = 60 * 60 * 1000;   // нове повідомлення без reply продовжує сесію, якщо остання задача була < 60 хв тому
+const SMM_CHAT_TITLE = "DreamCar SMM";
 const CANCEL_RE      = /^(❌|✖️|стоп|stop|скасуй|скасувати|отмена|отменить|cancel)(?=$|[\s!.,])/iu;
 
 const json = (status: number, body: unknown) =>
@@ -387,6 +389,17 @@ async function workerAction(sb: any, b: any): Promise<Response> {
     if (!j.from_tg_id && j.mode === "team") return json(400, { error: "no author" });
     const actor = j.mode === "team" ? j.from_tg_id : [...(await ownerIds(sb))][0];
     const { data, error } = await sb.rpc("team_bot_update", { p_kind: String(b.kind || ""), p_id: String(b.row_id || ""), p_fields: b.fields || {}, p_actor_tg: actor });
+    if (error) return json(400, { error: error.message });
+    return json(200, data);
+  }
+
+  // 27.11.2026 (постійний дозвіл власника): лише НОВІ чернетки публікацій; поля й status=draft обмежує RPC.
+  // Для колег діє тільки в чаті SMM-команди.
+  if (act === "team_create") {
+    if (String(b.kind || "") !== "publications") return json(400, { error: "kind must be publications" });
+    if (j.mode === "team" && (!j.from_tg_id || j.chat_title !== SMM_CHAT_TITLE)) return json(403, { error: "creating cards is allowed only in the SMM team chat" });
+    const actor = j.mode === "team" ? j.from_tg_id : [...(await ownerIds(sb))][0];
+    const { data, error } = await sb.rpc("team_bot_create_publication", { p_fields: b.fields || {}, p_actor_tg: actor });
     if (error) return json(400, { error: error.message });
     return json(200, data);
   }
